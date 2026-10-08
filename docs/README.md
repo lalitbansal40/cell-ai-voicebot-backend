@@ -36,4 +36,5 @@ Source of truth for plans, decisions and conventions. (PDF exports are kept outs
 - [setup/prerequisites.md](setup/prerequisites.md)
 - [setup/github-settings.md](setup/github-settings.md) — manual GitHub settings (push, branch protection, security)
 - [client/CLIENT_QUESTIONS.md](client/CLIENT_QUESTIONS.md) · [client/answers.md](client/answers.md)
+- [poc/voice-ai-poc-results.md](poc/voice-ai-poc-results.md) — Voice AI PoC results
 - [poc/README.md](poc/README.md) · [cost/README.md](cost/README.md) · [compliance/README.md](compliance/README.md)
