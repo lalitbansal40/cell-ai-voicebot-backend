@@ -6,8 +6,10 @@ import { WebSocket } from 'ws';
 
 import { getEmail, MemoryEmailProvider } from '../../src/core/email';
 import { getRealtime, WsTicketService } from '../../src/core/realtime';
+import { notifyUser } from '../../src/core/realtime/notify';
 import { startServer, type RunningServer } from '../../src/server';
 import { createLogger } from '../../src/shared/logger';
+import { createTestAccount } from '../helpers/auth';
 import { startTestMongo } from '../helpers/mongo';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
 import { testEnv } from '../helpers/test-app';
@@ -126,6 +128,50 @@ describe('startServer (e2e)', () => {
     const reused = new WebSocket(url);
     const code = await new Promise<number>((resolve) => reused.on('close', resolve));
     expect(code).toBe(4001);
+  });
+
+  it('issues WS tickets over HTTP; pushToUser reaches one user and can close their sockets', async () => {
+    const team = await createTestAccount();
+    const me = await team.addUser('manager');
+    const colleague = await team.addUser('viewer');
+    const ticketFor = async (token: string) => {
+      const res = await fetch(`${base}/api/v1/ws/tickets`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      expect(res.status).toBe(201);
+      return ((await res.json()) as { data: { ticket: string } }).data.ticket;
+    };
+    const open = async (token: string) => {
+      const ws = new WebSocket(
+        `ws://127.0.0.1:${running.port}/ws/events?ticket=${await ticketFor(token)}`,
+      );
+      const messages: { type: string }[] = [];
+      ws.on('message', (raw: Buffer) =>
+        messages.push(JSON.parse(raw.toString('utf8')) as { type: string }),
+      );
+      const closed = new Promise<number>((resolve) => ws.on('close', resolve));
+      await new Promise((resolve) => ws.once('open', resolve));
+      ws.send(JSON.stringify({ type: 'ping' }));
+      for (let i = 0; i < 50 && !messages.some((m) => m.type === 'pong'); i += 1)
+        await new Promise((r) => setTimeout(r, 20));
+      return { ws, messages, closed };
+    };
+    const mine = await open(me.token);
+    const theirs = await open(colleague.token);
+    notifyUser(
+      team.account._id.toString(),
+      me.user._id.toString(),
+      'session.revoked',
+      { reason: 'disabled' },
+      { close: true },
+    );
+    expect(await mine.closed).toBe(4001);
+    expect(mine.messages.some((m) => m.type === 'session.revoked')).toBe(true);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(theirs.messages.some((m) => m.type === 'session.revoked')).toBe(false);
+    theirs.ws.close();
   });
 
   it('sends a queued email through the email worker', async () => {

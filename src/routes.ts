@@ -8,6 +8,7 @@ import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
+import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
 
@@ -26,6 +27,7 @@ export const createApiRouter = ({
   router.use('/api-keys', createApiKeysRouter());
   router.use('/audit-logs', createAuditRouter());
   router.use('/admin', createAdminRouter());
+  router.use('/ws', createWsTicketsRouter());
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());

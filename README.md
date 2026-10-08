@@ -111,7 +111,8 @@ curl -s localhost:5100/api/v1/system/info
 ## Realtime (WebSocket)
 
 - `ws://localhost:5100/ws/events?ticket=<ticket>` — dashboard live events ([websocket.md](docs/conventions/websocket.md)).
-- Tickets are single-use and valid 60 s. Until the Phase 2 endpoint exists, create one with `npm run ws:dev-ticket [accountId] [userId]` (dev only).
+- Tickets are single-use and valid 60 s: `POST /api/v1/ws/tickets` with the access token (30 / min per user). DEV shortcut for fake ids: `npm run ws:dev-ticket [accountId] [userId]`.
+- Auth events: `session.revoked` (the server also closes that user's sockets with 4001), `user.updated`, `team.changed`, `account.updated`, `account.suspended`, `account.enabled` ([websocket.md §5](docs/conventions/websocket.md)).
 - Server code pushes events with `getRealtime().pushToAccount(accountId, type, data)` / `pushToTopic('campaign:<id>', type, data)` — delivered across all API instances via Redis.
 
 ## File storage

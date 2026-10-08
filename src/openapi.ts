@@ -12,6 +12,7 @@ import './modules/audit/audit.schema';
 import './modules/auth/auth.schema';
 import './modules/health/health.schema';
 import './modules/rbac/rbac.schema';
+import './modules/realtime-tickets/tickets.schema';
 import './modules/team/team.schema';
 import './modules/system/system.schema';
 
