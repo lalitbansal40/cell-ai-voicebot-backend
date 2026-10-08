@@ -14,6 +14,8 @@ export interface Lifecycle {
   onShutdown: (name: string, hook: ShutdownHook, order?: number) => void;
   shutdown: (reason: string, exitCode?: number) => Promise<void>;
   installSignalHandlers: () => void;
+  /** True as soon as shutdown starts — readiness reports 503 from then on. */
+  isShuttingDown: () => boolean;
 }
 
 /**
@@ -81,5 +83,6 @@ export const createLifecycle = (logger: Logger, options: LifecycleOptions = {}):
     },
     shutdown,
     installSignalHandlers,
+    isShuttingDown: () => shuttingDown !== undefined,
   };
 };

@@ -6,7 +6,13 @@ import { createLifecycle, type Lifecycle } from './core/lifecycle';
 import { closeAllQueues } from './core/queues/queue-factory';
 import { closeAllRedis, getAppRedis, pingRedis, redactRedisUrl } from './core/queues/redis';
 import { startSystemWorker } from './core/queues/workers/system.worker';
-import { connectMongo, disconnectMongo, redactMongoUri, syncAllIndexes } from './db/mongo';
+import {
+  connectMongo,
+  disconnectMongo,
+  pingMongo,
+  redactMongoUri,
+  syncAllIndexes,
+} from './db/mongo';
 import { getLogger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
 
@@ -46,7 +52,15 @@ export const startServer = async (): Promise<RunningServer> => {
   }
   lifecycle.onShutdown('queues', closeAllQueues, 30);
 
-  const app = createApp({ env, logger, rateLimitStore: createRedisRateLimitStore(redis) });
+  const app = createApp({
+    env,
+    logger,
+    rateLimitStore: createRedisRateLimitStore(redis),
+    readiness: {
+      checks: { mongo: () => pingMongo(), redis: () => pingRedis(redis) },
+      isShuttingDown: lifecycle.isShuttingDown,
+    },
+  });
   const server = createServer(app);
 
   await new Promise<void>((resolve, reject) => {

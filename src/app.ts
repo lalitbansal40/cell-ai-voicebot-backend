@@ -3,6 +3,8 @@ import type { Store } from 'express-rate-limit';
 
 import type { Env } from './config/env';
 import { JSON_BODY_LIMIT, UNLIMITED_PATHS, URLENCODED_BODY_LIMIT } from './config/limits';
+import type { ReadinessDeps } from './modules/health/health.controller';
+import { createHealthRouter } from './modules/health/health.routes';
 import { createApiRouter } from './routes';
 import type { Logger } from './shared/logger';
 import { corsMiddleware } from './shared/middlewares/cors';
@@ -20,13 +22,21 @@ export interface AppDeps {
   rateLimit?: Partial<RateLimiterOptions>;
   /** Shared rate-limit counters (Redis) — MemoryStore when omitted. */
   rateLimitStore?: Store;
+  /** Readiness checks for GET /ready (server passes Mongo + Redis pings). */
+  readiness?: ReadinessDeps;
 }
 
 /**
  * Builds the Express app. Pure: no listening, no I/O — tests use it directly.
  * Pipeline order matters (see src/README.md).
  */
-export const createApp = ({ env, logger, rateLimit, rateLimitStore }: AppDeps): Express => {
+export const createApp = ({
+  env,
+  logger,
+  rateLimit,
+  rateLimitStore,
+  readiness,
+}: AppDeps): Express => {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', env.TRUST_PROXY);
@@ -43,6 +53,7 @@ export const createApp = ({ env, logger, rateLimit, rateLimitStore }: AppDeps): 
   app.use(json({ limit: JSON_BODY_LIMIT }));
   app.use(urlencoded({ extended: false, limit: URLENCODED_BODY_LIMIT }));
 
+  app.use(createHealthRouter(readiness ?? { checks: {}, isShuttingDown: () => false }));
   app.use('/api/v1', createApiRouter());
 
   app.use(notFound());

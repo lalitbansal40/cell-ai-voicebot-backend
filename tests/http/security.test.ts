@@ -114,6 +114,6 @@ describe('rate limiting', () => {
     const app = buildTestApp({}, { rateLimit: { windowMs: 60_000, limit: 1 } });
     await request(app).get('/health');
     const res = await request(app).get('/health');
-    expect(res.status).toBe(404); // route arrives in T1.9 — but never 429
+    expect(res.status).toBe(200); // never 429
   });
 });

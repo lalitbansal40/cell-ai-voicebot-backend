@@ -32,6 +32,7 @@ curl -s localhost:5100/api/v1/system/info
 - Env is validated at startup (`src/config/env.ts`); an invalid env prints the offending variable **names** and exits.
 - `Ctrl-C` / `SIGTERM` → graceful shutdown (ordered hooks, 15 s hard timeout).
 - Production build: `npm run build && npm start`.
+- Health: `GET /health` (process alive) · `GET /ready` (MongoDB + Redis reachable; **503** when a dependency is down or the server is shutting down) — use `/ready` for load-balancer checks.
 - **MongoDB and Redis are required**: start them with `npm run infra:up` first (the API exits with a clear message if either is unreachable).
 
 ## Database (MongoDB)
