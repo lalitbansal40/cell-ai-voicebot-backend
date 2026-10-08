@@ -1,5 +1,5 @@
 # Compliance
 
-Placeholder — `compliance-notes.md` (TRAI, RBI recovery guidelines, DPDP Act 2023, call recording and AI disclosure) is produced in task T0.18.
+- [compliance-notes.md](compliance-notes.md) — TRAI, RBI recovery, DPDP, call recording and AI-disclosure research (T0.18) + product feature mapping + questions for the client's legal team.
 
-These notes are research, not legal advice; they must be confirmed with the client / their legal team.
+These are research notes, not legal advice; confirm with the client / their legal team.

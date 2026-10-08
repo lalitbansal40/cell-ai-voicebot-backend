@@ -39,4 +39,5 @@ Source of truth for plans, decisions and conventions. (PDF exports are kept outs
 - [poc/voice-ai-poc-results.md](poc/voice-ai-poc-results.md) — Voice AI PoC results
 - [poc/sip-lab-notes.md](poc/sip-lab-notes.md) — SIP lab notes
 - [cost/cost-model.md](cost/cost-model.md) — per-minute cost model draft
+- [compliance/compliance-notes.md](compliance/compliance-notes.md) — TRAI / RBI / DPDP research notes
 - [poc/README.md](poc/README.md) · [cost/README.md](cost/README.md) · [compliance/README.md](compliance/README.md)

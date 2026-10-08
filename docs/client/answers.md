@@ -19,3 +19,20 @@ Track answers to the questions sent to the client. **Never write secret values h
 | Server condition | Deploy our app separately; do not disturb the other application on the server                                                   | 2026-10-06 |
 | Telephony        | Client says SIP is enabled (details pending)                                                                                    | 2026-10-06 |
 | Credentials      | SSH key file and DB password shared over WhatsApp → stored only in password manager; treat as exposed, rotate before production | 2026-10-06 |
+
+## Compliance questions (for the client's legal / compliance team)
+
+Full list and context: [compliance-notes.md §7](../compliance/compliance-notes.md#7-questions-for-the-clients-legal--compliance-team).
+
+| #   | Question                                                                      | Status  | Answer | Date |
+| --- | ----------------------------------------------------------------------------- | ------- | ------ | ---- |
+| C1  | Lender licence type and which RBI recovery directions apply                   | pending |        |      |
+| C2  | Calls from a 1600-series number? Who handles DLT / number registration?       | pending |        |      |
+| C3  | Calling window for recovery calls (default 09:00–19:00)                       | pending |        |      |
+| C4  | Max call attempts per borrower per day / week                                 | pending |        |      |
+| C5  | Record every call? Intimation wording? Retention period                       | pending |        |      |
+| C6  | AI disclosure — yes/no and exact wording                                      | pending |        |      |
+| C7  | DPDP lawful basis; OK to process voice with OpenAI (US)? Localisation limits? | pending |        |      |
+| C8  | Identity verification before discussing dues                                  | pending |        |      |
+| C9  | When must a human agent take over?                                            | pending |        |      |
+| C10 | DPA signatory and breach-notification timeline                                | pending |        |      |
