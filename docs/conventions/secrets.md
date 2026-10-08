@@ -38,7 +38,7 @@
 
 ## Validation
 
-- From Phase 1 the backend validates env vars with a zod schema at startup: a missing or invalid required variable stops the app with a clear error instead of failing later.
+- The backend validates env vars with a zod schema at startup — implemented in `src/config/env.ts` (Phase 1). A missing or invalid required variable stops the app with an error listing variable **names** (never values). Production additionally requires JWT secrets ≥ 32 chars (no `change-me` placeholders), a 32-byte base64 `ENCRYPTION_KEY`, explicit URLs and CORS origins.
 
 ## Leak prevention
 
