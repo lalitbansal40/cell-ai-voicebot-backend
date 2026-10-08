@@ -88,7 +88,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     );
     throw new Error('Redis not reachable');
   }
-  lifecycle.onShutdown('queues', closeAllQueues, 30);
+  lifecycle.onShutdown('queues', () => closeAllQueues({ logger }), 30);
 
   const emailProvider = options.emailProvider ?? createEmailProvider(env, logger);
   setEmail(

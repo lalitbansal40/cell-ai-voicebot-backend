@@ -57,12 +57,50 @@ export const createWorker = <Data = unknown, Result = unknown>(
   return worker;
 };
 
-/** Shutdown: workers first (active jobs finish), then queues. */
-export const closeAllQueues = async (): Promise<void> => {
+/**
+ * Graceful-close budget for all workers + queues. BullMQ's `close()` can hang
+ * indefinitely when called while Redis is reconnecting (seen after a Redis
+ * restart); the shutdown must still reach the email / redis / mongo hooks.
+ * Jobs still active after the budget are picked up again by BullMQ's
+ * stalled-job check on the next start.
+ */
+export const QUEUE_CLOSE_TIMEOUT_MS = 5_000;
+
+/** Resolves `true` once `work` settles (resolved or rejected), `false` after `ms`. */
+export const settleWithin = async (work: Promise<unknown>, ms: number): Promise<boolean> => {
+  let timer: NodeJS.Timeout | undefined;
+  const timedOut = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), ms);
+    timer.unref();
+  });
+  const done = work.then(
+    () => true,
+    () => true, // close errors are emitted on the worker/queue 'error' events
+  );
+  const result = await Promise.race([done, timedOut]);
+  clearTimeout(timer);
+  return result;
+};
+
+/** Shutdown: workers first (active jobs finish), then queues — bounded by `timeoutMs`. */
+export const closeAllQueues = async ({
+  timeoutMs = QUEUE_CLOSE_TIMEOUT_MS,
+  logger,
+}: { timeoutMs?: number; logger?: Logger } = {}): Promise<void> => {
   const ws = [...workers];
   const qs = [...queues];
   workers.clear();
   queues.clear();
-  await Promise.all(ws.map((w) => w.close()));
-  await Promise.all(qs.map((q) => q.close()));
+  const started = Date.now();
+  const workersClosed = await settleWithin(Promise.all(ws.map((w) => w.close())), timeoutMs);
+  if (!workersClosed) {
+    logger?.warn(
+      { timeoutMs, workers: ws.map((w) => w.name) },
+      'queues: workers did not close in time — continuing shutdown',
+    );
+  }
+  const remaining = Math.max(1_000, timeoutMs - (Date.now() - started));
+  if (!(await settleWithin(Promise.all(qs.map((q) => q.close())), remaining))) {
+    logger?.warn({ queues: qs.map((q) => q.name) }, 'queues: queues did not close in time');
+  }
 };

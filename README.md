@@ -89,6 +89,7 @@ curl -s localhost:5100/api/v1/system/info
 - Queues (`src/core/queues/queue-factory.ts`): `createQueue(name, deps)` / `createWorker(name, processor, deps)` with default job options (3 attempts, exponential backoff, auto-cleanup). Queue names live in `src/core/queues/names.ts`.
 - `system` queue: heartbeat job every 5 minutes proves the wiring.
 - `WORKERS_ENABLED=false` runs the API without workers (Phase 12 may run workers in their own process).
+- Shutdown closes workers gracefully (active jobs finish) within **5 s** (`QUEUE_CLOSE_TIMEOUT_MS`); BullMQ's `close()` can hang while Redis is reconnecting, so after the budget the shutdown logs a warning and continues — unfinished jobs are picked up again by BullMQ's stalled-job check.
 - Rate limits use a **Redis store** (`rl:` keys) so every API instance shares the same counters.
 
 ## Realtime (WebSocket)
