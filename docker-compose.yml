@@ -1,4 +1,5 @@
-# Local development infrastructure — MongoDB (single-node replica set) + Redis.
+# Local development infrastructure — MongoDB (single-node replica set) + Redis
+# + Mailpit (fake SMTP inbox for dev emails, UI on http://localhost:8025).
 # Ports are bound to 127.0.0.1 only and differ from defaults (see ADR 0028).
 name: cell-ai-voicebot
 
@@ -35,6 +36,19 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    container_name: cav-mailpit
+    ports:
+      - '127.0.0.1:1025:1025' # SMTP
+      - '127.0.0.1:8025:8025' # web UI + API
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
       interval: 5s
       timeout: 5s
       retries: 10

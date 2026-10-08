@@ -66,9 +66,18 @@ curl -s localhost:5100/api/v1/system/info
 - `STORAGE_DRIVER=s3`: Amazon S3 (`S3_BUCKET`, `S3_REGION`, AWS credentials required) with presigned URLs.
 - Code uses `createStorage(env)` → `put` / `get` / `delete` / `exists` / `signedUrl`; keys are `accounts/<accountId>/<area>/<id>.<ext>` ([ADR 0023](docs/adr/0023-file-storage.md)).
 
+## Email
+
+- Code sends through `getEmail()` (`src/core/email/`): `enqueue(template, to, vars, { dedupeKey? })` from request handlers (queued on the BullMQ `email` queue — the request never waits for SMTP), or `sendTemplate` / `send` for direct sends ([ADR 0030](docs/adr/0030-email-delivery.md)).
+- Drivers (`EMAIL_DRIVER`): **`smtp`** (nodemailer, pooled) — default when `SMTP_HOST` is set; **`log`** — emails are only logged (masked recipient + subject). **Production requires `smtp`.**
+- Local dev: `npm run infra:up` also starts **Mailpit** — set `SMTP_HOST=127.0.0.1`, `SMTP_PORT=1025` and open the inbox at <http://localhost:8025>. Try it: `npm run email:test -- you@example.com`.
+- Templates (`src/core/email/templates/`): TS functions returning `{ subject, html, text }`; every value is HTML-escaped. Add one: new file → `EmailTemplateVars` + `TEMPLATES` in `templates/index.ts`.
+- Queue: 5 attempts with exponential backoff (5 s → 40 s); SMTP **5xx** rejections are permanent (no retry); a `dedupeKey` blocks the same email for 24 h. Jobs are removed on success, failed ones kept 24 h.
+- Logs never contain email bodies (OTPs, reset links) or SMTP credentials. SMTP is checked at startup without blocking it; `/ready` does not depend on email.
+
 ## Local infrastructure
 
-MongoDB (single-node replica set `rs0`) and Redis run in Docker ([docker-compose.yml](docker-compose.yml)). Docker Desktop must be running.
+MongoDB (single-node replica set `rs0`), Redis and Mailpit (dev SMTP inbox) run in Docker ([docker-compose.yml](docker-compose.yml)). Docker Desktop must be running.
 
 ```bash
 npm run infra:up      # start + wait until healthy (first start also initiates the replica set)
@@ -78,10 +87,11 @@ npm run infra:down    # stop (data volumes are kept)
 npm run infra:reset   # ⚠️ stop AND delete volumes — wipes ALL local MongoDB + Redis data
 ```
 
-| Service | Image                       | Host address      | Connection string                                           |
-| ------- | --------------------------- | ----------------- | ----------------------------------------------------------- |
-| MongoDB | `mongo:8.2`                 | `127.0.0.1:27018` | `mongodb://127.0.0.1:27018/cell_ai_voicebot?replicaSet=rs0` |
-| Redis   | `redis:7.4-alpine` (AOF on) | `127.0.0.1:6380`  | `redis://127.0.0.1:6380`                                    |
+| Service | Image                       | Host address                                    | Connection string                                                |
+| ------- | --------------------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
+| MongoDB | `mongo:8.2`                 | `127.0.0.1:27018`                               | `mongodb://127.0.0.1:27018/cell_ai_voicebot?replicaSet=rs0`      |
+| Redis   | `redis:7.4-alpine` (AOF on) | `127.0.0.1:6380`                                | `redis://127.0.0.1:6380`                                         |
+| Mailpit | `axllent/mailpit:v1.31.4`   | `127.0.0.1:1025` (SMTP) · `127.0.0.1:8025` (UI) | `SMTP_HOST=127.0.0.1` `SMTP_PORT=1025` · <http://localhost:8025> |
 
 - **MongoDB Compass:** connect with `mongodb://127.0.0.1:27018/?replicaSet=rs0`.
 - If replica-set discovery from the host ever fails, append `&directConnection=true` to the URI.
@@ -91,38 +101,39 @@ npm run infra:reset   # ⚠️ stop AND delete volumes — wipes ALL local Mongo
 **Troubleshooting**
 
 - `Cannot connect to the Docker daemon` → start Docker Desktop.
-- Port already in use → `lsof -nP -iTCP:27018 -sTCP:LISTEN` (or `:6380`) to find the process.
+- Port already in use → `lsof -nP -iTCP:27018 -sTCP:LISTEN` (or `:6380`, `:1025`, `:8025`) to find the process.
 - Mongo container unhealthy → `npm run infra:logs`; a stale volume from another setup can be wiped with `npm run infra:reset` (deletes data).
 
 ## Scripts
 
-| Script                      | What it does                                                                                    |
-| --------------------------- | ----------------------------------------------------------------------------------------------- |
-| `npm run dev`               | Run the app with `tsx` in watch mode                                                            |
-| `npm run build`             | Compile `src/` to `dist/` (`tsconfig.build.json`)                                               |
-| `npm start`                 | Run the compiled app (`dist/index.js`)                                                          |
-| `npm run typecheck`         | Type-check everything (src, tests, scripts) without emitting                                    |
-| `npm run clean`             | Delete `dist/`                                                                                  |
-| `npm run lint`              | ESLint (type-aware), fails on any warning                                                       |
-| `npm run lint:fix`          | ESLint with auto-fix                                                                            |
-| `npm run format`            | Prettier write                                                                                  |
-| `npm run format:check`      | Prettier check                                                                                  |
-| `npm test`                  | Run all tests once (Vitest)                                                                     |
-| `npm run test:watch`        | Vitest watch mode                                                                               |
-| `npm run test:coverage`     | Tests + coverage report in `coverage/`                                                          |
-| `npm run gen:openapi`       | Generate `openapi/openapi.json` from zod schemas                                                |
-| `npm run openapi:check`     | Regenerate and fail if `openapi/openapi.json` is stale                                          |
-| `npm run db:migrate`        | Apply pending MongoDB migrations                                                                |
-| `npm run db:migrate:status` | Show applied / pending migrations                                                               |
-| `npm run db:migrate:down`   | Revert the last applied migration                                                               |
-| `npm run db:sync-indexes`   | Build / update indexes of all models (production deploy step)                                   |
-| `npm run ws:dev-ticket`     | DEV ONLY — print a single-use `/ws/events` ticket URL for fake ids                              |
-| `npm run server:audit`      | READ-ONLY audit of the client server over SSH (needs the key — see docs/client/server-audit.md) |
-| `npm run infra:up`          | Start MongoDB + Redis (Docker) and wait until healthy                                           |
-| `npm run infra:down`        | Stop containers (keeps data)                                                                    |
-| `npm run infra:reset`       | ⚠️ Stop containers and delete data volumes                                                      |
-| `npm run infra:logs`        | Follow container logs                                                                           |
-| `npm run infra:ps`          | Container status                                                                                |
+| Script                       | What it does                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------- |
+| `npm run dev`                | Run the app with `tsx` in watch mode                                                            |
+| `npm run build`              | Compile `src/` to `dist/` (`tsconfig.build.json`)                                               |
+| `npm start`                  | Run the compiled app (`dist/index.js`)                                                          |
+| `npm run typecheck`          | Type-check everything (src, tests, scripts) without emitting                                    |
+| `npm run clean`              | Delete `dist/`                                                                                  |
+| `npm run lint`               | ESLint (type-aware), fails on any warning                                                       |
+| `npm run lint:fix`           | ESLint with auto-fix                                                                            |
+| `npm run format`             | Prettier write                                                                                  |
+| `npm run format:check`       | Prettier check                                                                                  |
+| `npm test`                   | Run all tests once (Vitest)                                                                     |
+| `npm run test:watch`         | Vitest watch mode                                                                               |
+| `npm run test:coverage`      | Tests + coverage report in `coverage/`                                                          |
+| `npm run gen:openapi`        | Generate `openapi/openapi.json` from zod schemas                                                |
+| `npm run openapi:check`      | Regenerate and fail if `openapi/openapi.json` is stale                                          |
+| `npm run db:migrate`         | Apply pending MongoDB migrations                                                                |
+| `npm run db:migrate:status`  | Show applied / pending migrations                                                               |
+| `npm run db:migrate:down`    | Revert the last applied migration                                                               |
+| `npm run db:sync-indexes`    | Build / update indexes of all models (production deploy step)                                   |
+| `npm run ws:dev-ticket`      | DEV ONLY — print a single-use `/ws/events` ticket URL for fake ids                              |
+| `npm run email:test -- <to>` | DEV ONLY — send the `system.test` email now with the configured driver (Mailpit locally)        |
+| `npm run server:audit`       | READ-ONLY audit of the client server over SSH (needs the key — see docs/client/server-audit.md) |
+| `npm run infra:up`           | Start MongoDB + Redis + Mailpit (Docker) and wait until healthy                                 |
+| `npm run infra:down`         | Stop containers (keeps data)                                                                    |
+| `npm run infra:reset`        | ⚠️ Stop containers and delete data volumes                                                      |
+| `npm run infra:logs`         | Follow container logs                                                                           |
+| `npm run infra:ps`           | Container status                                                                                |
 
 ## Folder structure
 
@@ -145,6 +156,8 @@ npm 11 blocks dependency install scripts unless approved. Approvals live in `pac
 - `unrs-resolver: true` — ensures the native binding used by the ESLint import resolver.
 - `mongodb-memory-server: false` — skips the install-time MongoDB download; the binary downloads on first test run instead.
 - `msgpackr-extract: false` — BullMQ's optional native msgpack add-on ships a prebuilt binary (`@msgpackr-extract/*`); the `node-gyp rebuild` script is not needed (msgpackr falls back to JS otherwise).
+
+No install scripts needed for `nodemailer` / `smtp-server` (pure JS). `smtp-server` has no bundled types and `@types/smtp-server` would pull in `@types/nodemailer` (clashes with nodemailer 10's own types), so tests use a minimal local declaration (`tests/@types/smtp-server.d.ts`).
 
 Run `npm approve-scripts --allow-scripts-pending` after adding dependencies to review new ones.
 
@@ -194,47 +207,49 @@ Dependabot (`.github/dependabot.yml`) opens weekly grouped update PRs. Repo sett
 
 Copy `.env.example` → `.env` (gitignored). Every variable is validated at startup by [`src/config/env.ts`](src/config/env.ts) — the app refuses to start and lists the offending variable names (never values). Values live only in `.env`, server env and the password manager — never in git. Policy: [docs/conventions/secrets.md](docs/conventions/secrets.md).
 
-| Variable                  | Required          | Phase   | Description                                                              |
-| ------------------------- | ----------------- | ------- | ------------------------------------------------------------------------ |
-| `NODE_ENV`                | no                | 1       | `development` / `production` / `test`                                    |
-| `PORT`                    | no                | 1       | API port (default 5100)                                                  |
-| `APP_URL`                 | yes               | 1       | Public base URL of this API                                              |
-| `FRONTEND_URL`            | yes               | 1       | Dashboard URL (links in emails, CORS)                                    |
-| `CORS_ORIGINS`            | yes               | 1       | Comma-separated allowed origins                                          |
-| `LOG_LEVEL`               | no                | 1       | pino log level                                                           |
-| `TRUST_PROXY`             | no                | 1       | `false` / `true` / hop count / `loopback` — set behind nginx (Phase 12)  |
-| `MONGODB_URI`             | yes               | 1       | MongoDB connection string (replica set)                                  |
-| `REDIS_URL`               | yes               | 1       | Redis connection string                                                  |
-| `WORKERS_ENABLED`         | no                | 1       | `true` (default) / `false` — run BullMQ workers in the API process       |
-| `JWT_ACCESS_SECRET`       | yes · secret      | 2       | Access token signing secret                                              |
-| `JWT_REFRESH_SECRET`      | yes · secret      | 2       | Refresh token signing secret                                             |
-| `JWT_ACCESS_TTL`          | no                | 2       | Access token lifetime (e.g. `15m`)                                       |
-| `JWT_REFRESH_TTL`         | no                | 2       | Refresh token lifetime (e.g. `30d`)                                      |
-| `ENCRYPTION_KEY`          | yes · secret      | 2       | 32-byte base64 key for PII encryption at rest                            |
-| `OPENAI_API_KEY`          | yes · secret      | 5/7     | OpenAI API key                                                           |
-| `OPENAI_REALTIME_MODEL`   | yes               | 7       | Realtime model name (set after PoC T0.15)                                |
-| `STORAGE_DRIVER`          | no                | 7/9     | `local` or `s3`                                                          |
-| `STORAGE_LOCAL_PATH`      | no                | 7/9     | Folder for local uploads/recordings                                      |
-| `S3_BUCKET`               | if s3             | 7/9     | S3 bucket name                                                           |
-| `S3_REGION`               | if s3             | 7/9     | S3 region                                                                |
-| `AWS_ACCESS_KEY_ID`       | if s3 · secret    | 7/9     | AWS access key                                                           |
-| `AWS_SECRET_ACCESS_KEY`   | if s3 · secret    | 7/9     | AWS secret key                                                           |
-| `SMTP_HOST`               | yes               | 1/2     | SMTP server                                                              |
-| `SMTP_PORT`               | no                | 1/2     | SMTP port                                                                |
-| `SMTP_USER`               | yes               | 1/2     | SMTP username                                                            |
-| `SMTP_PASS`               | yes · secret      | 1/2     | SMTP password                                                            |
-| `MAIL_FROM`               | yes               | 1/2     | Sender address                                                           |
-| `RAZORPAY_KEY_ID`         | yes               | 4       | Razorpay key id                                                          |
-| `RAZORPAY_KEY_SECRET`     | yes · secret      | 4       | Razorpay key secret                                                      |
-| `RAZORPAY_WEBHOOK_SECRET` | yes · secret      | 4       | Razorpay webhook signing secret                                          |
-| `NOTIFYNOW_API_KEY`       | optional · secret | 13      | NotifyNow voice API key (optional fallback provider)                     |
-| `SIP_HOST`                | yes (Phase 13)    | 13      | SIP trunk host                                                           |
-| `SIP_PORT`                | no                | 13      | SIP port                                                                 |
-| `SIP_TRANSPORT`           | no                | 13      | `udp` / `tcp` / `tls`                                                    |
-| `SIP_USERNAME`            | if auth           | 13      | SIP username                                                             |
-| `SIP_PASSWORD`            | if auth · secret  | 13      | SIP password                                                             |
-| `SIP_CALLER_ID`           | yes (Phase 13)    | 13      | Outbound caller ID / DID                                                 |
-| `CLIENT_SSH_KEY_PATH`     | no                | tooling | Path to the client server SSH key for `npm run server:audit` (path only) |
+| Variable                  | Required          | Phase   | Description                                                                                     |
+| ------------------------- | ----------------- | ------- | ----------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                | no                | 1       | `development` / `production` / `test`                                                           |
+| `PORT`                    | no                | 1       | API port (default 5100)                                                                         |
+| `APP_URL`                 | yes               | 1       | Public base URL of this API                                                                     |
+| `FRONTEND_URL`            | yes               | 1       | Dashboard URL (links in emails, CORS)                                                           |
+| `CORS_ORIGINS`            | yes               | 1       | Comma-separated allowed origins                                                                 |
+| `LOG_LEVEL`               | no                | 1       | pino log level                                                                                  |
+| `TRUST_PROXY`             | no                | 1       | `false` / `true` / hop count / `loopback` — set behind nginx (Phase 12)                         |
+| `MONGODB_URI`             | yes               | 1       | MongoDB connection string (replica set)                                                         |
+| `REDIS_URL`               | yes               | 1       | Redis connection string                                                                         |
+| `WORKERS_ENABLED`         | no                | 1       | `true` (default) / `false` — run BullMQ workers in the API process                              |
+| `JWT_ACCESS_SECRET`       | yes · secret      | 2       | Access token signing secret                                                                     |
+| `JWT_REFRESH_SECRET`      | yes · secret      | 2       | Refresh token signing secret                                                                    |
+| `JWT_ACCESS_TTL`          | no                | 2       | Access token lifetime (e.g. `15m`)                                                              |
+| `JWT_REFRESH_TTL`         | no                | 2       | Refresh token lifetime (e.g. `30d`)                                                             |
+| `ENCRYPTION_KEY`          | yes · secret      | 2       | 32-byte base64 key for PII encryption at rest                                                   |
+| `OPENAI_API_KEY`          | yes · secret      | 5/7     | OpenAI API key                                                                                  |
+| `OPENAI_REALTIME_MODEL`   | yes               | 7       | Realtime model name (set after PoC T0.15)                                                       |
+| `STORAGE_DRIVER`          | no                | 7/9     | `local` or `s3`                                                                                 |
+| `STORAGE_LOCAL_PATH`      | no                | 7/9     | Folder for local uploads/recordings                                                             |
+| `S3_BUCKET`               | if s3             | 7/9     | S3 bucket name                                                                                  |
+| `S3_REGION`               | if s3             | 7/9     | S3 region                                                                                       |
+| `AWS_ACCESS_KEY_ID`       | if s3 · secret    | 7/9     | AWS access key                                                                                  |
+| `AWS_SECRET_ACCESS_KEY`   | if s3 · secret    | 7/9     | AWS secret key                                                                                  |
+| `EMAIL_DRIVER`            | no                | 1       | `smtp` / `log` — default `smtp` when `SMTP_HOST` is set, else `log`; production requires `smtp` |
+| `SMTP_HOST`               | yes (production)  | 1       | SMTP server (local: Mailpit `127.0.0.1`)                                                        |
+| `SMTP_PORT`               | no                | 1       | SMTP port (default 587; local Mailpit 1025)                                                     |
+| `SMTP_SECURE`             | no                | 1       | `true` = implicit TLS; empty = auto (`true` only for port 465)                                  |
+| `SMTP_USER`               | if auth           | 1       | SMTP username (set together with `SMTP_PASS`)                                                   |
+| `SMTP_PASS`               | if auth · secret  | 1       | SMTP password                                                                                   |
+| `MAIL_FROM`               | yes (production)  | 1       | Sender, e.g. `Cell AI Voicebot <no-reply@example.com>` (dev default `no-reply@localhost`)       |
+| `RAZORPAY_KEY_ID`         | yes               | 4       | Razorpay key id                                                                                 |
+| `RAZORPAY_KEY_SECRET`     | yes · secret      | 4       | Razorpay key secret                                                                             |
+| `RAZORPAY_WEBHOOK_SECRET` | yes · secret      | 4       | Razorpay webhook signing secret                                                                 |
+| `NOTIFYNOW_API_KEY`       | optional · secret | 13      | NotifyNow voice API key (optional fallback provider)                                            |
+| `SIP_HOST`                | yes (Phase 13)    | 13      | SIP trunk host                                                                                  |
+| `SIP_PORT`                | no                | 13      | SIP port                                                                                        |
+| `SIP_TRANSPORT`           | no                | 13      | `udp` / `tcp` / `tls`                                                                           |
+| `SIP_USERNAME`            | if auth           | 13      | SIP username                                                                                    |
+| `SIP_PASSWORD`            | if auth · secret  | 13      | SIP password                                                                                    |
+| `SIP_CALLER_ID`           | yes (Phase 13)    | 13      | Outbound caller ID / DID                                                                        |
+| `CLIENT_SSH_KEY_PATH`     | no                | tooling | Path to the client server SSH key for `npm run server:audit` (path only)                        |
 
 ## Docs
 

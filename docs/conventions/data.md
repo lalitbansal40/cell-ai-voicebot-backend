@@ -70,18 +70,19 @@ Small, bounded lists (agent functions, tags, a recording's metadata) may be embe
 
 ## 9. PII inventory
 
-| Collection.field                      | Contains                        | Treatment                                                         |
-| ------------------------------------- | ------------------------------- | ----------------------------------------------------------------- |
-| `contacts.phoneE164`, `name`, `email` | Personal identifiers            | Masked in logs (`+91******3210`); exports need permission         |
-| `contacts.variables`                  | Loan data (amount, due days, …) | Treated as sensitive PII; masked in logs; export needs permission |
-| `calls.from`, `calls.to`              | Phone numbers                   | Masked in logs                                                    |
-| `transcriptTurns.text`                | What the customer said          | Retention policy; never logged                                    |
-| Recordings (storage)                  | Voice                           | Signed URLs only; retention policy                                |
-| `users.email`, `users.phone`          | Team member identifiers         | Masked in logs                                                    |
-| `telephonyConfigs.sip.passwordEnc`    | SIP credential                  | **Encrypted at rest** (`ENCRYPTION_KEY`)                          |
-| `outboundWebhooks.secretEnc`          | Webhook signing secret          | **Encrypted at rest**                                             |
-| `apiKeys.keyHash`                     | API key                         | **Hashed** — raw key shown once at creation                       |
-| `users.passwordHash`                  | Password                        | Hashed (argon2/bcrypt — Phase 2)                                  |
+| Collection.field                        | Contains                                                          | Treatment                                                                                             |
+| --------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `contacts.phoneE164`, `name`, `email`   | Personal identifiers                                              | Masked in logs (`+91******3210`); exports need permission                                             |
+| `contacts.variables`                    | Loan data (amount, due days, …)                                   | Treated as sensitive PII; masked in logs; export needs permission                                     |
+| `calls.from`, `calls.to`                | Phone numbers                                                     | Masked in logs                                                                                        |
+| `transcriptTurns.text`                  | What the customer said                                            | Retention policy; never logged                                                                        |
+| Recordings (storage)                    | Voice                                                             | Signed URLs only; retention policy                                                                    |
+| `users.email`, `users.phone`            | Team member identifiers                                           | Masked in logs                                                                                        |
+| `telephonyConfigs.sip.passwordEnc`      | SIP credential                                                    | **Encrypted at rest** (`ENCRYPTION_KEY`)                                                              |
+| `outboundWebhooks.secretEnc`            | Webhook signing secret                                            | **Encrypted at rest**                                                                                 |
+| `apiKeys.keyHash`                       | API key                                                           | **Hashed** — raw key shown once at creation                                                           |
+| `users.passwordHash`                    | Password                                                          | Hashed (argon2/bcrypt — Phase 2)                                                                      |
+| Redis `email` queue jobs (`to`, `vars`) | Recipient email + template variables (Phase 2: OTP / reset links) | Removed on success; failed jobs kept **24 h**; dedupe keys 24 h; never logged (masked recipient only) |
 
 ## 10. Migrations & seeds
 

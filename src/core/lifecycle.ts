@@ -10,7 +10,7 @@ export interface LifecycleOptions {
 }
 
 export interface Lifecycle {
-  /** Lower `order` runs first: http 10, ws 20, queues 30, redis 40, mongo 50. */
+  /** Lower `order` runs first: http 10, ws 20, queues 30, email 35, redis 40, mongo 50. */
   onShutdown: (name: string, hook: ShutdownHook, order?: number) => void;
   shutdown: (reason: string, exitCode?: number) => Promise<void>;
   installSignalHandlers: () => void;

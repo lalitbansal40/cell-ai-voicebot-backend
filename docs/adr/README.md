@@ -33,3 +33,4 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0027 | [Module system](0027-module-system.md)                               | accepted |
 | 0028 | [Local dev ports](0028-local-dev-ports.md)                           | accepted |
 | 0029 | [Shared API types via OpenAPI](0029-shared-api-types-via-openapi.md) | accepted |
+| 0030 | [Email delivery](0030-email-delivery.md)                             | accepted |

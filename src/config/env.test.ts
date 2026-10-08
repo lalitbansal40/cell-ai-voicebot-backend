@@ -16,6 +16,8 @@ const validProduction = {
   JWT_ACCESS_SECRET: PROD_SECRET_A,
   JWT_REFRESH_SECRET: PROD_SECRET_B,
   ENCRYPTION_KEY: PROD_KEY,
+  SMTP_HOST: 'smtp.example.com',
+  MAIL_FROM: 'Cell AI Voicebot <no-reply@example.com>',
 };
 
 const issuesOf = (source: NodeJS.ProcessEnv) => {
@@ -124,6 +126,7 @@ describe('loadEnv — production rules', () => {
       [
         'APP_URL',
         'CORS_ORIGINS',
+        'EMAIL_DRIVER',
         'ENCRYPTION_KEY',
         'FRONTEND_URL',
         'JWT_ACCESS_SECRET',
@@ -187,5 +190,53 @@ describe('loadEnv — storage', () => {
 
   it('defaults to local storage', () => {
     expect(loadEnv({}).STORAGE_DRIVER).toBe('local');
+  });
+});
+
+describe('loadEnv — email', () => {
+  it('uses the log driver without SMTP_HOST and a dev MAIL_FROM', () => {
+    const env = loadEnv({});
+    expect(env.EMAIL_DRIVER).toBe('log');
+    expect(env.MAIL_FROM).toBe('Cell AI Voicebot <no-reply@localhost>');
+    expect(env.SMTP_SECURE).toBe(false);
+  });
+
+  it('uses the smtp driver when SMTP_HOST is set', () => {
+    expect(loadEnv({ SMTP_HOST: '127.0.0.1', SMTP_PORT: '1025' }).EMAIL_DRIVER).toBe('smtp');
+  });
+
+  it('honours an explicit log driver even with SMTP_HOST', () => {
+    expect(loadEnv({ SMTP_HOST: '127.0.0.1', EMAIL_DRIVER: 'log' }).EMAIL_DRIVER).toBe('log');
+  });
+
+  it('requires SMTP_HOST for an explicit smtp driver', () => {
+    expect(issuesOf({ EMAIL_DRIVER: 'smtp' }).issues[0]?.variable).toBe('SMTP_HOST');
+  });
+
+  it('derives SMTP_SECURE from the port unless set', () => {
+    expect(loadEnv({ SMTP_PORT: '465' }).SMTP_SECURE).toBe(true);
+    expect(loadEnv({ SMTP_PORT: '587' }).SMTP_SECURE).toBe(false);
+    expect(loadEnv({ SMTP_PORT: '587', SMTP_SECURE: 'true' }).SMTP_SECURE).toBe(true);
+    expect(loadEnv({ SMTP_PORT: '465', SMTP_SECURE: 'false' }).SMTP_SECURE).toBe(false);
+    expect(issuesOf({ SMTP_SECURE: 'yes' }).issues[0]?.variable).toBe('SMTP_SECURE');
+  });
+
+  it('requires SMTP_USER and SMTP_PASS together', () => {
+    expect(issuesOf({ SMTP_USER: 'smtp-user' }).issues[0]?.reason).toContain('together');
+    expect(issuesOf({ SMTP_PASS: 'smtp-pass' }).issues[0]?.variable).toBe('SMTP_USER');
+    expect(loadEnv({ SMTP_USER: 'smtp-user', SMTP_PASS: 'smtp-pass' }).SMTP_USER).toBe('smtp-user');
+  });
+
+  it('rejects the log driver in production', () => {
+    const { SMTP_HOST: _host, ...noSmtp } = validProduction;
+    expect(issuesOf(noSmtp).issues.map((i) => i.variable)).toEqual(['EMAIL_DRIVER']);
+    expect(
+      issuesOf({ ...validProduction, EMAIL_DRIVER: 'log' }).issues.map((i) => i.variable),
+    ).toEqual(['EMAIL_DRIVER']);
+  });
+
+  it('requires MAIL_FROM for smtp in production', () => {
+    const { MAIL_FROM: _from, ...noFrom } = validProduction;
+    expect(issuesOf(noFrom).issues.map((i) => i.variable)).toEqual(['MAIL_FROM']);
   });
 });

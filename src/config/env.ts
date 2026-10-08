@@ -14,6 +14,7 @@ const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
 
 const LOCAL_MONGODB_URI = 'mongodb://127.0.0.1:27018/cell_ai_voicebot?replicaSet=rs0';
 const LOCAL_REDIS_URL = 'redis://127.0.0.1:6380';
+const DEV_MAIL_FROM = 'Cell AI Voicebot <no-reply@localhost>';
 
 const optionalString = z.string().optional();
 
@@ -56,8 +57,10 @@ const RawEnvSchema = z.object({
   AWS_ACCESS_KEY_ID: optionalString,
   AWS_SECRET_ACCESS_KEY: optionalString,
 
+  EMAIL_DRIVER: z.enum(['smtp', 'log']).optional(),
   SMTP_HOST: optionalString,
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_SECURE: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
   SMTP_USER: optionalString,
   SMTP_PASS: optionalString,
   MAIL_FROM: optionalString,
@@ -93,6 +96,9 @@ export type Env = Readonly<
     | 'FRONTEND_URL'
     | 'MONGODB_URI'
     | 'REDIS_URL'
+    | 'EMAIL_DRIVER'
+    | 'SMTP_SECURE'
+    | 'MAIL_FROM'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -101,6 +107,9 @@ export type Env = Readonly<
     TRUST_PROXY: TrustProxy;
     MONGODB_URI: string;
     REDIS_URL: string;
+    EMAIL_DRIVER: 'smtp' | 'log';
+    SMTP_SECURE: boolean;
+    MAIL_FROM: string;
   }
 >;
 
@@ -209,6 +218,24 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     }
   }
 
+  const emailDriver = raw.EMAIL_DRIVER ?? (raw.SMTP_HOST ? 'smtp' : 'log');
+  if (emailDriver === 'smtp') {
+    check('SMTP_HOST', 'required when EMAIL_DRIVER=smtp', Boolean(raw.SMTP_HOST));
+    if (production) check('MAIL_FROM', 'required in production', Boolean(raw.MAIL_FROM));
+  }
+  check(
+    'SMTP_USER',
+    'SMTP_USER and SMTP_PASS must be set together',
+    Boolean(raw.SMTP_USER) === Boolean(raw.SMTP_PASS),
+  );
+  if (production) {
+    check(
+      'EMAIL_DRIVER',
+      'EMAIL_DRIVER=log is not allowed in production (set SMTP_HOST)',
+      emailDriver === 'smtp',
+    );
+  }
+
   if (issues.length) throw new EnvValidationError(issues);
 
   const defaultLogLevel: Record<NodeEnv, LogLevel> = {
@@ -226,6 +253,9 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     TRUST_PROXY: parseTrustProxy(raw.TRUST_PROXY),
     MONGODB_URI: raw.MONGODB_URI ?? LOCAL_MONGODB_URI,
     REDIS_URL: raw.REDIS_URL ?? LOCAL_REDIS_URL,
+    EMAIL_DRIVER: emailDriver,
+    SMTP_SECURE: raw.SMTP_SECURE !== undefined ? raw.SMTP_SECURE === 'true' : raw.SMTP_PORT === 465,
+    MAIL_FROM: raw.MAIL_FROM ?? DEV_MAIL_FROM,
   });
 };
 

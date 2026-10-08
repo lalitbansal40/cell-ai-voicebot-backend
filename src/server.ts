@@ -2,8 +2,10 @@ import { createServer, type Server } from 'node:http';
 
 import { createApp } from './app';
 import { getEnv } from './config/env';
+import { createEmailProvider, createEmailService, setEmail, type EmailJobData } from './core/email';
 import { createLifecycle, type Lifecycle } from './core/lifecycle';
-import { closeAllQueues } from './core/queues/queue-factory';
+import { QUEUES } from './core/queues/names';
+import { closeAllQueues, createQueue } from './core/queues/queue-factory';
 import {
   closeAllRedis,
   createSubscriber,
@@ -11,6 +13,7 @@ import {
   pingRedis,
   redactRedisUrl,
 } from './core/queues/redis';
+import { startEmailWorker } from './core/queues/workers/email.worker';
 import { startSystemWorker } from './core/queues/workers/system.worker';
 import { createRealtime, setRealtime } from './core/realtime';
 import { createStorage } from './core/storage';
@@ -60,6 +63,32 @@ export const startServer = async (): Promise<RunningServer> => {
   }
   lifecycle.onShutdown('queues', closeAllQueues, 30);
 
+  const emailProvider = createEmailProvider(env, logger);
+  setEmail(
+    createEmailService({
+      provider: emailProvider,
+      queue: createQueue<EmailJobData>(QUEUES.email, { redisUrl: env.REDIS_URL, logger }),
+      logger,
+    }),
+  );
+  lifecycle.onShutdown(
+    'email',
+    async () => {
+      await emailProvider.close();
+      setEmail(undefined);
+    },
+    35,
+  );
+  if (emailProvider.driver === 'smtp') {
+    // Non-blocking: a slow/broken SMTP server must not stop the API (jobs retry).
+    void emailProvider.verify().then((ok) => {
+      if (ok) logger.info('email: smtp ready');
+      else logger.warn('email: smtp verify failed — queued emails will retry');
+    });
+  } else {
+    logger.info(`email: ${emailProvider.driver} driver (emails are logged, not sent)`);
+  }
+
   const app = createApp({
     env,
     logger,
@@ -83,6 +112,7 @@ export const startServer = async (): Promise<RunningServer> => {
 
   if (env.WORKERS_ENABLED) {
     await startSystemWorker({ redisUrl: env.REDIS_URL, logger });
+    startEmailWorker({ redisUrl: env.REDIS_URL, logger, provider: emailProvider });
     logger.info('workers: started');
   }
 

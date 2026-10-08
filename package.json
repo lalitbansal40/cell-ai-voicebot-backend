@@ -35,7 +35,8 @@
     "db:migrate:down": "tsx --env-file-if-exists=.env scripts/db-migrate.ts down",
     "db:migrate:status": "tsx --env-file-if-exists=.env scripts/db-migrate.ts status",
     "db:sync-indexes": "tsx --env-file-if-exists=.env scripts/db-sync-indexes.ts",
-    "ws:dev-ticket": "tsx --env-file-if-exists=.env scripts/ws-dev-ticket.ts"
+    "ws:dev-ticket": "tsx --env-file-if-exists=.env scripts/ws-dev-ticket.ts",
+    "email:test": "tsx --env-file-if-exists=.env scripts/email-test.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
@@ -58,6 +59,7 @@
     "mongodb-memory-server": "^11.3.0",
     "pino-pretty": "^13.2.0",
     "prettier": "^3.9.9",
+    "smtp-server": "^3.19.18",
     "supertest": "^7.3.1",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
@@ -98,6 +100,7 @@
     "ioredis": "^6.0.0",
     "libphonenumber-js": "^1.13.14",
     "mongoose": "^9.11.1",
+    "nodemailer": "^10.0.16",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "rate-limit-redis": "^6.0.1",
