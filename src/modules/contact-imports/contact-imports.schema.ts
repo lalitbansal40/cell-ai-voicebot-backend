@@ -36,7 +36,10 @@ export const ImportOptionsSchema = registry.register(
 
 export const SetMappingBody = z.strictObject({
   sheet: z.string().max(100).optional(),
-  columns: z.array(ColumnMappingSchema).min(1).max(100),
+  columns: z.array(ColumnMappingSchema).max(100).openapi({
+    description:
+      'Empty together with a new `sheet` = only switch the sheet (returns its columns + suggested mapping)',
+  }),
   options: ImportOptionsSchema.optional().openapi({
     description: 'Contacts imports only (default: new list named after the file)',
   }),

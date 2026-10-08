@@ -2916,8 +2916,8 @@
                   "columns": {
                     "type": "array",
                     "items": { "$ref": "#/components/schemas/ImportColumnMapping" },
-                    "minItems": 1,
-                    "maxItems": 100
+                    "maxItems": 100,
+                    "description": "Empty together with a new `sheet` = only switch the sheet (returns its columns + suggested mapping)"
                   },
                   "options": {
                     "allOf": [

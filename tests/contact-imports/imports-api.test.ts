@@ -301,6 +301,23 @@ describe('mapping, cancel, history, template, error report', () => {
       'Name',
       'Phone',
     ]);
+    const switched = await request(app)
+      .put(`${URL}/${id}/mapping`)
+      .set(auth(owner))
+      .send({ sheet: 'March', columns: [] });
+    expect(switched.body.data).toMatchObject({
+      status: 'uploaded',
+      sheet: 'March',
+      rowCount: 1,
+      mapping: null,
+    });
+    expect(switched.body.data.suggestedMapping).toEqual([{ index: 0, target: 'phone' }]);
+    const noSheet = await request(app)
+      .put(`${URL}/${id}/mapping`)
+      .set(auth(owner))
+      .send({ columns: [] });
+    expect(noSheet.status).toBe(422);
+    expect(noSheet.body.error.details[0].path).toBe('columns');
     const missing = await request(app)
       .put(`${URL}/${id}/mapping`)
       .set(auth(owner))

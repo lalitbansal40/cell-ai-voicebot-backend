@@ -237,6 +237,33 @@ export const setMapping = async (
       warnings: sheet.warnings,
     };
   }
+  if (body.columns.length === 0) {
+    if (!sheetUpdate.sheet) {
+      throw new ValidationError([{ path: 'columns', message: 'Map at least the phone column' }]);
+    }
+    // Sheet switch only: back to `uploaded` with the new sheet's columns.
+    const switched = await ImportJobModel.findOneAndUpdate(
+      { _id: job._id, accountId: job.accountId, status: { $in: MAPPABLE } },
+      {
+        $set: {
+          ...sheetUpdate,
+          status: 'uploaded',
+          mapping: null,
+          options: null,
+          progress: { processed: 0, total: sheetUpdate.rowCount ?? 0 },
+          totals: emptyImportTotals(),
+          problemRows: [],
+        },
+      },
+      { returnDocument: 'after' },
+    ).lean<ImportJobDoc>();
+    if (!switched)
+      throw new ConflictError(
+        'CONFLICT_INVALID_STATE',
+        'The import changed meanwhile — reload it.',
+      );
+    return toPublicImport(switched, ctx);
+  }
   const columnCount = (sheetUpdate.columns ?? job.columns).length;
   const mapping = { columns: body.columns as ColumnMapping[] };
   const errors = validateMapping(job.kind, mapping, columnCount, ctx.fields);
