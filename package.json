@@ -19,13 +19,18 @@
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@eslint/js": "^9.39.5",
     "@types/node": "^24.19.1",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.0.3",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
@@ -33,15 +38,20 @@
     "globals": "^17.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
+    "mongodb": "^7.7.0",
+    "mongodb-memory-server": "^11.3.0",
     "prettier": "^3.9.9",
+    "supertest": "^7.3.1",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.71.1"
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
   },
   "allowScripts": {
     "esbuild": true,
     "fsevents": false,
-    "unrs-resolver": true
+    "unrs-resolver": true,
+    "mongodb-memory-server": false
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs}": [
@@ -51,5 +61,10 @@
     "*.{json,md,yml,yaml,css,html}": [
       "prettier --write"
     ]
+  },
+  "config": {
+    "mongodbMemoryServer": {
+      "version": "8.0.32"
+    }
   }
 }

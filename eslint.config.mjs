@@ -66,7 +66,7 @@ export default tseslint.config(
 
   // Plain JS / config files: no type-aware linting.
   {
-    files: ['**/*.{js,mjs,cjs}', '*.config.ts'],
+    files: ['**/*.{js,mjs,cjs}', '*.config.ts', '*.config.mts'],
     extends: [tseslint.configs.disableTypeChecked],
     rules: {
       // `tseslint.configs` is the documented typescript-eslint usage.
