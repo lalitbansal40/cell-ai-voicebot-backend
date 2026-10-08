@@ -11,6 +11,15 @@ describe('maskPhone', () => {
     expect(maskPhone('+91 98765-43210')).toBe('+91******3210');
   });
 
+  it('is country-code aware', () => {
+    expect(maskPhone('+14155552671')).toBe('+1******2671');
+    expect(maskPhone('+447911123456')).toBe('+44******3456');
+  });
+
+  it('normalises Indian numbers without a country code', () => {
+    expect(maskPhone('09876543210')).toBe('+91******3210');
+  });
+
   it('fully masks very short values', () => {
     expect(maskPhone('12345')).toBe('*****');
   });
