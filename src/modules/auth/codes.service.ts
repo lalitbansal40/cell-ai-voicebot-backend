@@ -108,6 +108,19 @@ export const issueResetToken = async (userId: Types.ObjectId): Promise<string> =
   return raw;
 };
 
+/** Checks a reset token without using it (validate the new password first). */
+export const peekResetToken = async (raw: string): Promise<Types.ObjectId> => {
+  if (!/^[A-Za-z0-9_-]{20,100}$/.test(raw)) throw invalid();
+  const doc = await AuthCodeModel.findOne({
+    codeHash: hmacToken(raw),
+    purpose: 'reset_password',
+    usedAt: null,
+    expiresAt: { $gt: new Date() },
+  }).lean();
+  if (!doc) throw invalid();
+  return doc.userId;
+};
+
 /** Consumes a reset token → the user id. Unknown / expired / used → AUTH_CODE_INVALID. */
 export const consumeResetToken = async (raw: string): Promise<Types.ObjectId> => {
   if (!/^[A-Za-z0-9_-]{20,100}$/.test(raw)) throw invalid();

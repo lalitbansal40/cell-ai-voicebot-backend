@@ -126,3 +126,37 @@ describe('createEmailService', () => {
     ).rejects.toThrow('down');
   });
 });
+
+describe('auth templates', () => {
+  it('render escaped HTML + text for every auth template', () => {
+    const evil = '<img src=x onerror=alert(1)>';
+    const cases = [
+      renderTemplate('auth.verify_email', { name: evil, code: '042917', minutes: 10 }),
+      renderTemplate('auth.account_exists', {
+        name: evil,
+        loginUrl: 'https://app/login?a=1&b="2"',
+        resetUrl: 'https://app/reset',
+      }),
+      renderTemplate('auth.reset_password', {
+        name: evil,
+        resetUrl: 'https://app/reset?token=abc',
+        minutes: 30,
+      }),
+      renderTemplate('auth.password_changed', {
+        name: evil,
+        at: 'Thu, 08 Oct 2026',
+        resetUrl: 'https://app/reset',
+      }),
+    ];
+    for (const email of cases) {
+      expect(email.html).not.toContain('<img src=x');
+      expect(email.html).toContain('&lt;img');
+      expect(email.text.length).toBeGreaterThan(20);
+      expect(email.subject).toMatch(/Cell AI Voicebot/);
+    }
+    expect(cases[0]?.subject).toBe('042917 is your Cell AI Voicebot verification code');
+    expect(cases[0]?.text).toContain('042917');
+    expect(cases[1]?.html).toContain('a=1&amp;b=&quot;2&quot;');
+    expect(cases[2]?.text).toContain('https://app/reset?token=abc');
+  });
+});

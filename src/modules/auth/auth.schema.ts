@@ -33,6 +33,16 @@ export const EmailOnlyBody = z.strictObject({ email: EmailSchema });
 
 export const LoginBody = z.strictObject({ email: EmailSchema, password: PasswordInputSchema });
 
+export const ResetPasswordBody = z.strictObject({
+  token: z.string().min(20).max(100),
+  password: PasswordInputSchema,
+});
+
+export const ChangePasswordBody = z.strictObject({
+  currentPassword: PasswordInputSchema,
+  newPassword: PasswordInputSchema,
+});
+
 export const SessionIdParams = z.strictObject({ id: z.string().min(8).max(64) });
 
 export const SessionSchema = registry.register(
@@ -221,4 +231,39 @@ registry.registerPath({
   summary: 'Send a new email code (always 202; 60 s cooldown, 5 per hour)',
   request: json(EmailOnlyBody),
   responses: { 202: accepted, 422: errors[422], 429: errors[429] },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/forgot-password',
+  tags: ['Auth'],
+  summary: 'Email a password reset link (always 202)',
+  request: json(EmailOnlyBody),
+  responses: { 202: accepted, 422: errors[422], 429: errors[429] },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/reset-password',
+  tags: ['Auth'],
+  summary: 'Set a new password from a reset link (ends every session)',
+  request: json(ResetPasswordBody),
+  responses: {
+    200: {
+      description: 'Password changed',
+      content: { 'application/json': { schema: AcceptedSchema } },
+    },
+    422: errors[422],
+    429: errors[429],
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/change-password',
+  tags: ['Auth'],
+  summary: 'Change your password (other sessions end; returns new tokens for this one)',
+  security: bearer,
+  request: json(ChangePasswordBody),
+  responses: { 200: ok(AuthSessionSchema), 401: errors[401], 403: errors[403], 422: errors[422] },
 });

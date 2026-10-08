@@ -10,20 +10,25 @@ import { blockWhenImpersonating } from '../../shared/middlewares/require-permiss
 import { handle } from '../../shared/middlewares/validate';
 
 import {
+  changePasswordHandler,
+  forgotPasswordHandler,
   loginHandler,
   logoutAllHandler,
   logoutHandler,
   meHandler,
   refreshHandler,
   resendHandler,
+  resetPasswordHandler,
   revokeSessionHandler,
   sessionsHandler,
   signupHandler,
   verifyEmailHandler,
 } from './auth.controller';
 import {
+  ChangePasswordBody,
   EmailOnlyBody,
   LoginBody,
+  ResetPasswordBody,
   SessionIdParams,
   SignupBody,
   VerifyEmailBody,
@@ -54,6 +59,22 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
   router.post('/login', limiter, ...handle({ body: LoginBody }, loginHandler));
   router.post('/refresh', limiter, originCheck(deps.env), refreshHandler);
   router.post('/logout', originCheck(deps.env), logoutHandler);
+  router.post(
+    '/forgot-password',
+    limiter,
+    ...handle({ body: EmailOnlyBody }, forgotPasswordHandler),
+  );
+  router.post(
+    '/reset-password',
+    limiter,
+    ...handle({ body: ResetPasswordBody }, resetPasswordHandler),
+  );
+  router.post(
+    '/change-password',
+    authenticate(),
+    blockWhenImpersonating(),
+    ...handle({ body: ChangePasswordBody }, changePasswordHandler),
+  );
   router.post('/logout-all', authenticate(), blockWhenImpersonating(), logoutAllHandler);
   router.get('/me', authenticate(), meHandler);
   router.get('/sessions', authenticate(), sessionsHandler);
