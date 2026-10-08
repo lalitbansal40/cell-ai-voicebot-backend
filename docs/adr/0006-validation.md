@@ -21,4 +21,4 @@ Request bodies, query params, env vars and shared API types all need validation 
 
 - **Positive:** one schema = runtime check + TS type + API docs.
 - **Negative / trade-offs:** none significant.
-- **Follow-ups:** env schema in Phase 1.
+- **Follow-ups:** env schema in Phase 1; OpenAPI generation and frontend types — [ADR 0029](0029-shared-api-types-via-openapi.md).

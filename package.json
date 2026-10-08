@@ -27,7 +27,9 @@
     "infra:down": "docker compose down",
     "infra:reset": "docker compose down -v",
     "infra:logs": "docker compose logs -f --tail=100",
-    "infra:ps": "docker compose ps"
+    "infra:ps": "docker compose ps",
+    "gen:openapi": "tsx scripts/generate-openapi.ts",
+    "openapi:check": "npm run gen:openapi && git diff --exit-code -- openapi/openapi.json"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
@@ -71,5 +73,9 @@
     "mongodbMemoryServer": {
       "version": "8.2.12"
     }
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "zod": "^4.6.5"
   }
 }

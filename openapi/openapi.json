@@ -1,0 +1,116 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Cell AI Voicebot API",
+    "version": "0.0.1",
+    "description": "Multi-tenant AI voice calling platform API. Conventions: docs/conventions/api.md."
+  },
+  "servers": [{ "url": "http://localhost:5100", "description": "Local development" }],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Dashboard access token (ADR 0009)."
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Public API key with scopes (Phase 10)."
+      }
+    },
+    "schemas": {
+      "ErrorDetail": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "example": "phone" },
+          "message": { "type": "string", "example": "Must be an E.164 number" }
+        },
+        "required": ["path", "message"]
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "enum": [false] },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string", "example": "VALIDATION_FAILED" },
+              "message": { "type": "string", "example": "Some fields are invalid." },
+              "details": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/ErrorDetail" }
+              },
+              "requestId": { "type": "string", "example": "req_8f2c1a" }
+            },
+            "required": ["code", "message", "requestId"]
+          }
+        },
+        "required": ["success", "error"]
+      },
+      "OffsetPageMeta": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer", "minimum": 1 },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+          "total": { "type": "integer", "minimum": 0 },
+          "totalPages": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["page", "limit", "total", "totalPages"]
+      },
+      "CursorPageMeta": {
+        "type": "object",
+        "properties": {
+          "nextCursor": { "type": ["string", "null"] },
+          "hasMore": { "type": "boolean" }
+        },
+        "required": ["nextCursor", "hasMore"]
+      },
+      "AppInfo": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "example": "cell-ai-voicebot-backend" },
+          "version": { "type": "string", "example": "0.0.1" },
+          "node": { "type": "string", "example": "v24.19.0" },
+          "env": { "type": "string", "example": "development" }
+        },
+        "required": ["name", "version", "node", "env"]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/v1/system/info": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Service name, version and runtime",
+        "responses": {
+          "200": {
+            "description": "App info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AppInfo" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

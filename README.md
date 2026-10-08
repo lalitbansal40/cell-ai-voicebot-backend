@@ -65,6 +65,8 @@ npm run infra:reset   # ⚠️ stop AND delete volumes — wipes ALL local Mongo
 | `npm test`              | Run all tests once (Vitest)                                  |
 | `npm run test:watch`    | Vitest watch mode                                            |
 | `npm run test:coverage` | Tests + coverage report in `coverage/`                       |
+| `npm run gen:openapi`   | Generate `openapi/openapi.json` from zod schemas             |
+| `npm run openapi:check` | Regenerate and fail if `openapi/openapi.json` is stale       |
 | `npm run infra:up`      | Start MongoDB + Redis (Docker) and wait until healthy        |
 | `npm run infra:down`    | Stop containers (keeps data)                                 |
 | `npm run infra:reset`   | ⚠️ Stop containers and delete data volumes                   |
@@ -93,6 +95,17 @@ npm 11 blocks dependency install scripts unless approved. Approvals live in `pac
 - `mongodb-memory-server: false` — skips the install-time MongoDB download; the binary downloads on first test run instead.
 
 Run `npm approve-scripts --allow-scripts-pending` after adding dependencies to review new ones.
+
+## API contract (OpenAPI)
+
+The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-api-types-via-openapi.md)):
+
+- Schemas live next to each module (`src/modules/<feature>/<feature>.schema.ts`) and register paths/components on `src/shared/openapi/registry.ts`. Import `z` from `src/shared/openapi/zod.ts`.
+- `src/openapi.ts` imports every module schema and builds the OpenAPI 3.1 document.
+- `npm run gen:openapi` writes **`openapi/openapi.json`** (committed, Prettier-formatted, deterministic).
+- Regenerate after **every** schema change and commit the JSON in the same commit.
+- `npm run openapi:check` regenerates and fails if the committed file is stale — CI runs it.
+- The frontend generates its types from this file (`npm run gen:api` in the frontend repo).
 
 ## Testing
 
