@@ -190,7 +190,8 @@ Too large → `413 PAYLOAD_TOO_LARGE`; wrong type → `415 UNSUPPORTED_MEDIA_TYP
 Both use the **same `/api/v1/...` paths and the same envelopes**. Only authentication differs:
 
 - Dashboard: `Authorization: Bearer <accessToken>` + role permissions.
-- Public API: `X-API-Key` + key **scopes** (e.g. `calls:write`, `contacts:write`, `campaigns:read`). The full scope list is defined in Phase 10.
+- Public API: `X-API-Key` + key **scopes**. Current scopes (`src/modules/api-keys/scopes.ts`, Phase 10 may add more): `calls:read`, `calls:write`, `contacts:read`, `contacts:write`, `campaigns:read`, `campaigns:write`, `webhooks:manage`.
+- API keys (Phase 2): created by owners / admins (`apikeys.manage`), format `cav_live_` (production) / `cav_test_` + 32 base62 characters, stored as SHA-256, the full key is returned **once** (`Cache-Control: no-store`), max 20 active per account. `GET /api/v1/api-keys/whoami` checks a key.
 
 ## 13. Tenant scoping (security rule)
 

@@ -6,6 +6,7 @@ import { registry } from './shared/openapi/registry';
 // Module schemas register their paths/components on import. Add every module
 // with API routes here.
 import './modules/account/account.schema';
+import './modules/api-keys/api-keys.schema';
 import './modules/auth/auth.schema';
 import './modules/health/health.schema';
 import './modules/rbac/rbac.schema';
