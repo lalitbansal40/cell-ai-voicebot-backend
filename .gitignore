@@ -1,0 +1,35 @@
+# deps & builds
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+id_rsa*
+
+# logs & runtime data
+*.log
+logs/
+npm-debug.log*
+recordings/
+uploads/
+tmp/
+poc/**/output/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# tools
+.eslintcache
