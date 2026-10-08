@@ -112,3 +112,13 @@ New events must be added to this table in the same PR that emits them.
 | Connections per user       | 5                                     |
 | Connections per account    | 50                                    |
 | Client messages per second | 20 (events), audio frames exempt      |
+
+## 10. Phase 1 implementation notes (`src/core/realtime/`)
+
+- **Tickets** (`ws-tickets.ts`): Redis key `wst:<ticket>`, `SET … EX 60 NX`, consumed with **`GETDEL`** (single use). Unknown / used ticket → close **4001**; ticket whose embedded `exp` is past → **4010**; a `media` ticket on `/ws/events` → **4003**. Issuing endpoint `POST /api/v1/ws/tickets` arrives in Phase 2 (until then: `npm run ws:dev-ticket`, dev only).
+- **Upgrade**: only `/ws/events`; other paths → socket destroyed. Messages sent before the ticket check finishes are buffered (max 20) and replayed — an immediate `ping` / `subscribe` after `open` is never lost.
+- **Fan-out**: `pushToAccount` / `pushToTopic` publish `{ target, event }` to Redis channel **`ws:fanout`**; every API instance subscribes on a dedicated connection and delivers to its local sockets.
+- **Liveness vs idle**: ws-level ping/pong every 30 s detects dead TCP (no pong → terminate); the **60 s idle timeout** counts only application messages (clients send `ping` every 25 s) → close **4008** `idle timeout`.
+- **Limits** (defaults): 5 connections per user, 50 per account (**4009**), 20 client messages/s (**4008** `rate limit`), 64 KB max payload (**1009**), 20 topics per connection.
+- **Topics**: only `call:<id>` / `campaign:<id>`; ownership check is a hook — **TODO(P7/P8)**: verify the resource belongs to the account.
+- **Shutdown**: hook `ws` (20) closes every client with **1001** `server shutting down`.

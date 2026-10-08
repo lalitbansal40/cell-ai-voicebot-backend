@@ -34,7 +34,8 @@
     "db:migrate": "tsx --env-file-if-exists=.env scripts/db-migrate.ts up",
     "db:migrate:down": "tsx --env-file-if-exists=.env scripts/db-migrate.ts down",
     "db:migrate:status": "tsx --env-file-if-exists=.env scripts/db-migrate.ts status",
-    "db:sync-indexes": "tsx --env-file-if-exists=.env scripts/db-sync-indexes.ts"
+    "db:sync-indexes": "tsx --env-file-if-exists=.env scripts/db-sync-indexes.ts",
+    "ws:dev-ticket": "tsx --env-file-if-exists=.env scripts/ws-dev-ticket.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
@@ -44,6 +45,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.1",
     "@types/supertest": "^7.2.1",
+    "@types/ws": "^8.18.2",
     "@vitest/coverage-v8": "^5.0.3",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
@@ -96,6 +98,7 @@
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "rate-limit-redis": "^6.0.1",
+    "ws": "^8.22.0",
     "zod": "^4.6.5"
   }
 }

@@ -4,8 +4,15 @@ import { createApp } from './app';
 import { getEnv } from './config/env';
 import { createLifecycle, type Lifecycle } from './core/lifecycle';
 import { closeAllQueues } from './core/queues/queue-factory';
-import { closeAllRedis, getAppRedis, pingRedis, redactRedisUrl } from './core/queues/redis';
+import {
+  closeAllRedis,
+  createSubscriber,
+  getAppRedis,
+  pingRedis,
+  redactRedisUrl,
+} from './core/queues/redis';
 import { startSystemWorker } from './core/queues/workers/system.worker';
+import { createRealtime, setRealtime } from './core/realtime';
 import {
   connectMongo,
   disconnectMongo,
@@ -77,7 +84,21 @@ export const startServer = async (): Promise<RunningServer> => {
     logger.info('workers: started');
   }
 
-  // Remaining hook slot: ws 20 (T1.10).
+  const realtime = await createRealtime({
+    server,
+    redis,
+    subscriber: createSubscriber(env.REDIS_URL, logger),
+    logger,
+  });
+  setRealtime(realtime);
+  lifecycle.onShutdown(
+    'ws',
+    async () => {
+      await realtime.close();
+      setRealtime(undefined);
+    },
+    20,
+  );
   lifecycle.onShutdown(
     'http',
     () =>

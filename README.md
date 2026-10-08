@@ -54,6 +54,12 @@ curl -s localhost:5100/api/v1/system/info
 - `WORKERS_ENABLED=false` runs the API without workers (Phase 12 may run workers in their own process).
 - Rate limits use a **Redis store** (`rl:` keys) so every API instance shares the same counters.
 
+## Realtime (WebSocket)
+
+- `ws://localhost:5100/ws/events?ticket=<ticket>` — dashboard live events ([websocket.md](docs/conventions/websocket.md)).
+- Tickets are single-use and valid 60 s. Until the Phase 2 endpoint exists, create one with `npm run ws:dev-ticket [accountId] [userId]` (dev only).
+- Server code pushes events with `getRealtime().pushToAccount(accountId, type, data)` / `pushToTopic('campaign:<id>', type, data)` — delivered across all API instances via Redis.
+
 ## Local infrastructure
 
 MongoDB (single-node replica set `rs0`) and Redis run in Docker ([docker-compose.yml](docker-compose.yml)). Docker Desktop must be running.
@@ -104,6 +110,7 @@ npm run infra:reset   # ⚠️ stop AND delete volumes — wipes ALL local Mongo
 | `npm run db:migrate:status` | Show applied / pending migrations                                                               |
 | `npm run db:migrate:down`   | Revert the last applied migration                                                               |
 | `npm run db:sync-indexes`   | Build / update indexes of all models (production deploy step)                                   |
+| `npm run ws:dev-ticket`     | DEV ONLY — print a single-use `/ws/events` ticket URL for fake ids                              |
 | `npm run server:audit`      | READ-ONLY audit of the client server over SSH (needs the key — see docs/client/server-audit.md) |
 | `npm run infra:up`          | Start MongoDB + Redis (Docker) and wait until healthy                                           |
 | `npm run infra:down`        | Stop containers (keeps data)                                                                    |
