@@ -7,6 +7,7 @@ import { createAdminRouter } from './modules/admin/admin.routes';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
+import { createContactImportsRouter } from './modules/contact-imports/contact-imports.routes';
 import { createContactListsRouter } from './modules/contact-lists/contact-lists.routes';
 import { createContactTagsRouter, createContactsRouter } from './modules/contacts/contacts.routes';
 import type { ContactJobs } from './modules/contacts/jobs';
@@ -52,6 +53,10 @@ export const createApiRouter = ({
   router.use('/contact-tags', createContactTagsRouter());
   router.use('/contact-lists', createContactListsRouter({ jobs: contacts.jobs }));
   router.use('/segments', createSegmentsRouter());
+  router.use(
+    '/contact-imports',
+    createContactImportsRouter({ storage: contacts.storage, jobs: contacts.jobs }),
+  );
   router.use('/custom-fields', createCustomFieldsRouter({ jobs: contacts.jobs }));
   return router;
 };

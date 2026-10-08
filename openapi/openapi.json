@@ -361,6 +361,230 @@
         },
         "required": ["apiKey", "key"]
       },
+      "CustomField": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "key": { "type": "string", "example": "loan_amount" },
+          "label": { "type": "string", "example": "Loan amount" },
+          "type": { "$ref": "#/components/schemas/FieldType" },
+          "required": { "type": "boolean" },
+          "defaultValue": {
+            "anyOf": [{ "type": "string" }, { "type": "number" }, { "type": "null" }],
+            "description": "Stored form: currency in micros, date `YYYY-MM-DD`"
+          },
+          "order": { "type": "number" },
+          "usageCount": {
+            "type": "number",
+            "description": "Contacts with a value (only with `?withUsage=true`)"
+          },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "key",
+          "label",
+          "type",
+          "required",
+          "defaultValue",
+          "order",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "FieldType": { "type": "string", "enum": ["text", "number", "date", "currency", "phone"] },
+      "ImportColumnMapping": {
+        "type": "object",
+        "properties": {
+          "index": { "type": "integer", "minimum": 0, "maximum": 99 },
+          "target": {
+            "type": "string",
+            "enum": [
+              "name",
+              "phone",
+              "email",
+              "external_id",
+              "tags",
+              "consent_at",
+              "field",
+              "new_field",
+              "ignore",
+              "reason"
+            ]
+          },
+          "key": { "type": "string", "maxLength": 40 },
+          "label": { "type": "string", "maxLength": 80 },
+          "type": { "$ref": "#/components/schemas/FieldType" },
+          "dateFormat": { "type": "string", "enum": ["DMY", "MDY", "YMD"] }
+        },
+        "required": ["index", "target"],
+        "additionalProperties": false
+      },
+      "ImportOptions": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": { "type": "string", "enum": ["new"] },
+                  "name": { "type": "string", "minLength": 1, "maxLength": 100 }
+                },
+                "required": ["mode", "name"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": { "type": "string", "enum": ["existing"] },
+                  "listId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                },
+                "required": ["mode", "listId"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "updateExisting": { "type": "boolean", "default": true },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 40 },
+            "maxItems": 20,
+            "default": []
+          },
+          "consentSource": { "type": ["string", "null"], "maxLength": 120 }
+        },
+        "required": ["list"],
+        "additionalProperties": false
+      },
+      "ImportJob": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["contacts", "dnd"] },
+          "fileName": { "type": "string" },
+          "fileType": { "type": "string", "enum": ["csv", "xlsx"] },
+          "fileSize": { "type": "number" },
+          "sheet": { "type": ["string", "null"] },
+          "sheets": { "type": "array", "items": { "type": "string" } },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": { "type": "number" },
+                "header": { "type": "string" },
+                "samples": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["index", "header", "samples"]
+            }
+          },
+          "rowCount": { "type": "number" },
+          "mapping": {
+            "type": ["object", "null"],
+            "properties": {
+              "columns": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/ImportColumnMapping" }
+              }
+            },
+            "required": ["columns"]
+          },
+          "options": {
+            "allOf": [
+              { "$ref": "#/components/schemas/ImportOptions" },
+              { "type": ["object", "null"] }
+            ]
+          },
+          "suggestedMapping": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ImportColumnMapping" },
+            "description": "Detail only, while the job can still be mapped"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "uploaded",
+              "mapped",
+              "validating",
+              "validated",
+              "importing",
+              "completed",
+              "failed",
+              "canceled"
+            ]
+          },
+          "progress": {
+            "type": "object",
+            "properties": { "processed": { "type": "number" }, "total": { "type": "number" } },
+            "required": ["processed", "total"]
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "rows": { "type": "number" },
+              "created": { "type": "number" },
+              "updated": { "type": "number" },
+              "unchanged": { "type": "number" },
+              "invalid": { "type": "number" },
+              "duplicates": { "type": "number" },
+              "dnd": { "type": "number" }
+            },
+            "required": ["rows", "created", "updated", "unchanged", "invalid", "duplicates", "dnd"]
+          },
+          "problemRows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": { "type": "number" },
+                "reasons": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["row", "reasons"]
+            }
+          },
+          "hasErrorReport": { "type": "boolean" },
+          "listId": { "type": ["string", "null"] },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "errorMessage": { "type": ["string", "null"] },
+          "createdBy": { "type": "string" },
+          "startedAt": { "type": ["string", "null"] },
+          "completedAt": { "type": ["string", "null"] },
+          "failedAt": { "type": ["string", "null"] },
+          "canceledAt": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "kind",
+          "fileName",
+          "fileType",
+          "fileSize",
+          "sheet",
+          "sheets",
+          "columns",
+          "rowCount",
+          "mapping",
+          "options",
+          "status",
+          "progress",
+          "totals",
+          "problemRows",
+          "hasErrorReport",
+          "listId",
+          "warnings",
+          "errorMessage",
+          "createdBy",
+          "startedAt",
+          "completedAt",
+          "failedAt",
+          "canceledAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
       "ContactList": {
         "type": "object",
         "properties": {
@@ -589,39 +813,6 @@
         },
         "required": ["count", "sample"]
       },
-      "CustomField": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "key": { "type": "string", "example": "loan_amount" },
-          "label": { "type": "string", "example": "Loan amount" },
-          "type": { "$ref": "#/components/schemas/FieldType" },
-          "required": { "type": "boolean" },
-          "defaultValue": {
-            "anyOf": [{ "type": "string" }, { "type": "number" }, { "type": "null" }],
-            "description": "Stored form: currency in micros, date `YYYY-MM-DD`"
-          },
-          "order": { "type": "number" },
-          "usageCount": {
-            "type": "number",
-            "description": "Contacts with a value (only with `?withUsage=true`)"
-          },
-          "createdAt": { "type": "string" },
-          "updatedAt": { "type": "string" }
-        },
-        "required": [
-          "id",
-          "key",
-          "label",
-          "type",
-          "required",
-          "defaultValue",
-          "order",
-          "createdAt",
-          "updatedAt"
-        ]
-      },
-      "FieldType": { "type": "string", "enum": ["text", "number", "date", "currency", "phone"] },
       "Health": {
         "type": "object",
         "properties": {
@@ -2010,6 +2201,675 @@
         }
       }
     },
+    "/api/v1/custom-fields": {
+      "get": {
+        "tags": ["Custom fields"],
+        "summary": "Custom field definitions in display order (contacts.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "required": false,
+            "name": "withUsage",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CustomField" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Custom fields"],
+        "summary": "Create a custom field (contacts.write; max 50 per account; key immutable)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,39}$",
+                    "example": "loan_amount"
+                  },
+                  "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "type": { "$ref": "#/components/schemas/FieldType" },
+                  "required": { "type": "boolean", "default": false },
+                  "defaultValue": {
+                    "anyOf": [
+                      { "type": "string", "maxLength": 1000 },
+                      { "type": "number" },
+                      { "type": "null" }
+                    ],
+                    "description": "Currency in rupees (stored as micros); dates `YYYY-MM-DD` or `DD/MM/YYYY`"
+                  }
+                },
+                "required": ["key", "label", "type"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/CustomField" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/custom-fields/{id}": {
+      "patch": {
+        "tags": ["Custom fields"],
+        "summary": "Update label / required / default; type only while no contact has a value",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "type": { "$ref": "#/components/schemas/FieldType" },
+                  "required": { "type": "boolean" },
+                  "defaultValue": {
+                    "anyOf": [
+                      { "type": "string", "maxLength": 1000 },
+                      { "type": "number" },
+                      { "type": "null" }
+                    ],
+                    "description": "Currency in rupees (stored as micros); dates `YYYY-MM-DD` or `DD/MM/YYYY`"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/CustomField" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Custom fields"],
+        "summary": "Delete a field; its values are removed from all contacts in the background (202)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted — values removed in background",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "jobQueued": { "type": "boolean", "enum": [true] } },
+                      "required": ["jobQueued"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/custom-fields/order": {
+      "put": {
+        "tags": ["Custom fields"],
+        "summary": "Set the display order (all field ids of the account, in order)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                    "minItems": 1,
+                    "maxItems": 50
+                  }
+                },
+                "required": ["ids"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CustomField" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contact-imports": {
+      "post": {
+        "tags": ["Contact imports"],
+        "summary": "Upload a .csv / .xlsx (≤ 10 MB, ≤ 50,000 rows, ≤ 100 columns) — returns columns, samples and a suggested mapping (contacts.import; kind=dnd also needs contacts.write)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": { "type": "string", "format": "binary" },
+                  "kind": { "type": "string", "enum": ["contacts", "dnd"] }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ImportJob" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "413": { "description": "File larger than 10 MB (PAYLOAD_TOO_LARGE)" },
+          "415": { "description": "Not a .csv / .xlsx file (UNSUPPORTED_MEDIA_TYPE)" },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Contact imports"],
+        "summary": "Import history (contacts.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["contacts", "dnd"] },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "uploaded",
+                "mapped",
+                "validating",
+                "validated",
+                "importing",
+                "completed",
+                "failed",
+                "canceled"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ImportJob" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contact-imports/template.csv": {
+      "get": {
+        "tags": ["Contact imports"],
+        "summary": "CSV template with the contact columns and every custom field",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "text/csv",
+            "content": { "text/csv": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/api/v1/contact-imports/{id}": {
+      "get": {
+        "tags": ["Contact imports"],
+        "summary": "One import job (with suggested mapping while mappable)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ImportJob" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contact-imports/{id}/mapping": {
+      "put": {
+        "tags": ["Contact imports"],
+        "summary": "Set column mapping + options (uploaded / mapped / validated → mapped)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sheet": { "type": "string", "maxLength": 100 },
+                  "columns": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/ImportColumnMapping" },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "options": {
+                    "allOf": [
+                      { "$ref": "#/components/schemas/ImportOptions" },
+                      {
+                        "description": "Contacts imports only (default: new list named after the file)"
+                      }
+                    ]
+                  }
+                },
+                "required": ["columns"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ImportJob" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contact-imports/{id}/cancel": {
+      "post": {
+        "tags": ["Contact imports"],
+        "summary": "Cancel — before the import: file deleted; while importing: stops after the current batch",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ImportJob" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contact-imports/{id}/error-report": {
+      "get": {
+        "tags": ["Contact imports"],
+        "summary": "Signed download link (15 min) for the CSV of rejected rows",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "url": { "type": "string" },
+                        "expiresInSec": { "type": "number" }
+                      },
+                      "required": ["url", "expiresInSec"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/contact-lists": {
       "get": {
         "tags": ["Contact lists"],
@@ -3326,305 +4186,6 @@
           },
           "404": {
             "description": "Not found in this account (RESOURCE_NOT_FOUND)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/custom-fields": {
-      "get": {
-        "tags": ["Custom fields"],
-        "summary": "Custom field definitions in display order (contacts.read)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "schema": { "type": "string", "enum": ["true", "false"] },
-            "required": false,
-            "name": "withUsage",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": {
-                      "type": "array",
-                      "items": { "$ref": "#/components/schemas/CustomField" }
-                    }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": ["Custom fields"],
-        "summary": "Create a custom field (contacts.write; max 50 per account; key immutable)",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "key": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-z0-9_]{0,39}$",
-                    "example": "loan_amount"
-                  },
-                  "label": { "type": "string", "minLength": 1, "maxLength": 80 },
-                  "type": { "$ref": "#/components/schemas/FieldType" },
-                  "required": { "type": "boolean", "default": false },
-                  "defaultValue": {
-                    "anyOf": [
-                      { "type": "string", "maxLength": 1000 },
-                      { "type": "number" },
-                      { "type": "null" }
-                    ],
-                    "description": "Currency in rupees (stored as micros); dates `YYYY-MM-DD` or `DD/MM/YYYY`"
-                  }
-                },
-                "required": ["key", "label", "type"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": { "$ref": "#/components/schemas/CustomField" }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "409": {
-            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "422": {
-            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/custom-fields/{id}": {
-      "patch": {
-        "tags": ["Custom fields"],
-        "summary": "Update label / required / default; type only while no contact has a value",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "label": { "type": "string", "minLength": 1, "maxLength": 80 },
-                  "type": { "$ref": "#/components/schemas/FieldType" },
-                  "required": { "type": "boolean" },
-                  "defaultValue": {
-                    "anyOf": [
-                      { "type": "string", "maxLength": 1000 },
-                      { "type": "number" },
-                      { "type": "null" }
-                    ],
-                    "description": "Currency in rupees (stored as micros); dates `YYYY-MM-DD` or `DD/MM/YYYY`"
-                  }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": { "$ref": "#/components/schemas/CustomField" }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "404": {
-            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "409": {
-            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "422": {
-            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": ["Custom fields"],
-        "summary": "Delete a field; its values are removed from all contacts in the background (202)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted — values removed in background",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": {
-                      "type": "object",
-                      "properties": { "jobQueued": { "type": "boolean", "enum": [true] } },
-                      "required": ["jobQueued"]
-                    }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "404": {
-            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/custom-fields/order": {
-      "put": {
-        "tags": ["Custom fields"],
-        "summary": "Set the display order (all field ids of the account, in order)",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "ids": {
-                    "type": "array",
-                    "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-                    "minItems": 1,
-                    "maxItems": 50
-                  }
-                },
-                "required": ["ids"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": {
-                      "type": "array",
-                      "items": { "$ref": "#/components/schemas/CustomField" }
-                    }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "422": {
-            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
