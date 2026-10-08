@@ -10,12 +10,12 @@ Source plan: [PHASE_2_PLAN.md](PHASE_2_PLAN.md) · Run prompt (all 3 batches): [
 | [x]  | T2.4  | Signup + email OTP verify + resend                                                 | BE   | M    |
 | [x]  | T2.5  | Login / refresh / logout / me / sessions + lockout                                 | BE   | M    |
 | [x]  | T2.6  | Forgot / reset / change password                                                   | BE   | S    |
-| [ ]  | T2.7  | Account settings API                                                               | BE   | S    |
-| [ ]  | T2.8  | Team management (invite → ownership transfer)                                      | BE   | L    |
-| [ ]  | T2.9  | API keys + `X-API-Key` auth                                                        | BE   | M    |
-| [ ]  | T2.10 | Audit log + list API + purge job                                                   | BE   | M    |
-| [ ]  | T2.11 | Superadmin: accounts, suspend / enable, impersonation                              | BE   | M    |
-| [ ]  | T2.12 | WS tickets endpoint + realtime auth events                                         | BE   | S    |
+| [x]  | T2.7  | Account settings API                                                               | BE   | S    |
+| [x]  | T2.8  | Team management (invite → ownership transfer)                                      | BE   | L    |
+| [x]  | T2.9  | API keys + `X-API-Key` auth                                                        | BE   | M    |
+| [x]  | T2.10 | Audit log + list API + purge job                                                   | BE   | M    |
+| [x]  | T2.11 | Superadmin: accounts, suspend / enable, impersonation                              | BE   | M    |
+| [x]  | T2.12 | WS tickets endpoint + realtime auth events                                         | BE   | S    |
 | [ ]  | T2.13 | Frontend auth infra (store, interceptor, bootstrap, guards)                        | FE   | M    |
 | [ ]  | T2.14 | Frontend auth screens                                                              | FE   | M    |
 | [ ]  | T2.15 | Frontend app shell                                                                 | FE   | L    |

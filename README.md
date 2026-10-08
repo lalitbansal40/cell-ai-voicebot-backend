@@ -87,6 +87,14 @@ curl -s localhost:5100/api/v1/system/info
 - **Limits:** auth routes 30 / 15 min per IP and route; 5 failed logins / 15 min per email → 429 with `Retry-After`; email codes 10 min, 5 tries, resend every 60 s (max 5 / hour).
 - Passwords: argon2id, 10–128 characters, not your email / name, not a common password. Secrets (passwords, codes, tokens, cookies) never appear in logs or email subjects.
 
+## Team, API keys, audit, superadmin (Phase 2)
+
+- **Team** (`/api/v1/team`): invite by email (7-day single-use link, `team.invite` email), resend / revoke, change role, enable / disable (sessions end immediately), remove, ownership transfer (owner + password, to an active admin). Only the owner manages admins.
+- **Account settings** (`/api/v1/account`): name, timezone, country, default language, calling window, recording / AI disclosure.
+- **API keys** (`/api/v1/api-keys`): scoped keys for the public API, shown once, `X-API-Key`; `GET /api/v1/api-keys/whoami` to test a key.
+- **Audit log** (`/api/v1/audit-logs`): every sensitive action, 365-day retention — catalogue in [audit.md](docs/conventions/audit.md).
+- **Superadmin** (`/api/v1/admin`, platform admins from `npm run superadmin:create`): accounts list / detail, suspend (read-only) / enable, impersonate the owner for 30 minutes (audited, sensitive actions blocked).
+
 ## Database (MongoDB)
 
 - Connection: `src/db/mongo.ts` (Mongoose 9, `strictQuery`, `autoIndex` off in production, credentials never logged). Indexes are synced at startup in development/test; in production run `npm run db:sync-indexes` as a deploy step.

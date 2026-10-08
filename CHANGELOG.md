@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 2 · Batch 2 (T2.7–T2.12)** — 2026-10-08
+  - Account settings API (`/api/v1/account`) with validated timezone, country, language and calling window; merged nested settings.
+  - Team: invites (email link, resend, revoke, accept + sign in, invite info), role changes, enable / disable, removal, ownership transfer — owner / self / admin rules, immediate token invalidation.
+  - API keys: scoped, `cav_live_` / `cav_test_`, SHA-256 stored, shown once, max 20, `whoami`.
+  - Audit log API (cursor, filters, actor names), typed 27-action catalogue = `docs/conventions/audit.md`, daily purge (`maintenance` queue), refresh-reuse audited.
+  - Superadmin: accounts list / detail, suspend / enable, 30-minute impersonation (no refresh cookie, sensitive actions blocked), both-side audit.
+  - `POST /api/v1/ws/tickets` + auth events (`session.revoked` closes the user's sockets, `user.updated`, `team.changed`, `account.updated`, `account.suspended`, `account.enabled`).
+  - Tests: 456 → 520.
+
 - **Phase 2 · Batch 1 (T2.1–T2.6)** — 2026-10-08
   - Tenancy & auth models (accounts, users, roles, refresh tokens, auth codes, API keys, immutable audit log), permission catalogue + 5 system roles, migrations 0002 (platform account) / 0003 (sync roles), `npm run db:seed`, `npm run superadmin:create`.
   - argon2id passwords + policy (1,000 common passwords), HS256 access JWT (`jose`), rotating refresh cookie with reuse detection, email OTP + reset tokens, 7 new auth error codes, `Retry-After` support, stronger log redaction.
