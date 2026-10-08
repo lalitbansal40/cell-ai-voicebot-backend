@@ -51,27 +51,28 @@ npm run infra:reset   # ⚠️ stop AND delete volumes — wipes ALL local Mongo
 
 ## Scripts
 
-| Script                  | What it does                                                 |
-| ----------------------- | ------------------------------------------------------------ |
-| `npm run dev`           | Run the app with `tsx` in watch mode                         |
-| `npm run build`         | Compile `src/` to `dist/` (`tsconfig.build.json`)            |
-| `npm start`             | Run the compiled app (`dist/index.js`)                       |
-| `npm run typecheck`     | Type-check everything (src, tests, scripts) without emitting |
-| `npm run clean`         | Delete `dist/`                                               |
-| `npm run lint`          | ESLint (type-aware), fails on any warning                    |
-| `npm run lint:fix`      | ESLint with auto-fix                                         |
-| `npm run format`        | Prettier write                                               |
-| `npm run format:check`  | Prettier check                                               |
-| `npm test`              | Run all tests once (Vitest)                                  |
-| `npm run test:watch`    | Vitest watch mode                                            |
-| `npm run test:coverage` | Tests + coverage report in `coverage/`                       |
-| `npm run gen:openapi`   | Generate `openapi/openapi.json` from zod schemas             |
-| `npm run openapi:check` | Regenerate and fail if `openapi/openapi.json` is stale       |
-| `npm run infra:up`      | Start MongoDB + Redis (Docker) and wait until healthy        |
-| `npm run infra:down`    | Stop containers (keeps data)                                 |
-| `npm run infra:reset`   | ⚠️ Stop containers and delete data volumes                   |
-| `npm run infra:logs`    | Follow container logs                                        |
-| `npm run infra:ps`      | Container status                                             |
+| Script                  | What it does                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
+| `npm run dev`           | Run the app with `tsx` in watch mode                                                            |
+| `npm run build`         | Compile `src/` to `dist/` (`tsconfig.build.json`)                                               |
+| `npm start`             | Run the compiled app (`dist/index.js`)                                                          |
+| `npm run typecheck`     | Type-check everything (src, tests, scripts) without emitting                                    |
+| `npm run clean`         | Delete `dist/`                                                                                  |
+| `npm run lint`          | ESLint (type-aware), fails on any warning                                                       |
+| `npm run lint:fix`      | ESLint with auto-fix                                                                            |
+| `npm run format`        | Prettier write                                                                                  |
+| `npm run format:check`  | Prettier check                                                                                  |
+| `npm test`              | Run all tests once (Vitest)                                                                     |
+| `npm run test:watch`    | Vitest watch mode                                                                               |
+| `npm run test:coverage` | Tests + coverage report in `coverage/`                                                          |
+| `npm run gen:openapi`   | Generate `openapi/openapi.json` from zod schemas                                                |
+| `npm run openapi:check` | Regenerate and fail if `openapi/openapi.json` is stale                                          |
+| `npm run server:audit`  | READ-ONLY audit of the client server over SSH (needs the key — see docs/client/server-audit.md) |
+| `npm run infra:up`      | Start MongoDB + Redis (Docker) and wait until healthy                                           |
+| `npm run infra:down`    | Stop containers (keeps data)                                                                    |
+| `npm run infra:reset`   | ⚠️ Stop containers and delete data volumes                                                      |
+| `npm run infra:logs`    | Follow container logs                                                                           |
+| `npm run infra:ps`      | Container status                                                                                |
 
 ## Folder structure
 

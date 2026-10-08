@@ -29,7 +29,8 @@
     "infra:logs": "docker compose logs -f --tail=100",
     "infra:ps": "docker compose ps",
     "gen:openapi": "tsx scripts/generate-openapi.ts",
-    "openapi:check": "npm run gen:openapi && git diff --exit-code -- openapi/openapi.json"
+    "openapi:check": "npm run gen:openapi && git diff --exit-code -- openapi/openapi.json",
+    "server:audit": "bash scripts/run-server-audit.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

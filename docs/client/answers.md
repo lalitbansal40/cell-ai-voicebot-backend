@@ -2,14 +2,14 @@
 
 Track answers to the questions sent to the client. **Never write secret values here** (passwords, keys, tokens) — those go only into the password manager / server env.
 
-| #   | Question                                                                                                    | Status  | Answer | Date |
-| --- | ----------------------------------------------------------------------------------------------------------- | ------- | ------ | ---- |
-| 1   | SIP details: host/IP, port, transport (UDP/TCP/TLS), auth (username/password or IP whitelist of our server) | pending |        |      |
-| 2   | Phone numbers: outbound caller ID (DID) and inbound number                                                  | pending |        |      |
-| 3   | Audio & limits: codecs (G.711 PCMU/PCMA), RTP port range, max concurrent calls                              | pending |        |      |
-| 4   | Server: is a SIP server (Asterisk/FreeSWITCH) already running? Which apps/ports are already in use?         | pending |        |      |
-| 5   | Database: type (MongoDB/MySQL/…), host, port, username, database name; separate DB for our app allowed?     | pending |        |      |
-| 6   | Domain / subdomain for our app (HTTPS + webhooks)                                                           | pending |        |      |
+| #   | Question                                                                                                    | Status                                                                                               | Answer | Date |
+| --- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------ | ---- |
+| 1   | SIP details: host/IP, port, transport (UDP/TCP/TLS), auth (username/password or IP whitelist of our server) | pending                                                                                              |        |      |
+| 2   | Phone numbers: outbound caller ID (DID) and inbound number                                                  | pending                                                                                              |        |      |
+| 3   | Audio & limits: codecs (G.711 PCMU/PCMA), RTP port range, max concurrent calls                              | pending                                                                                              |        |      |
+| 4   | Server: is a SIP server (Asterisk/FreeSWITCH) already running? Which apps/ports are already in use?         | pending — read-only audit ready but blocked (no SSH key yet), see [server-audit.md](server-audit.md) |        |      |
+| 5   | Database: type (MongoDB/MySQL/…), host, port, username, database name; separate DB for our app allowed?     | pending                                                                                              |        |      |
+| 6   | Domain / subdomain for our app (HTTPS + webhooks)                                                           | pending                                                                                              |        |      |
 
 ## Already received (non-secret facts)
 

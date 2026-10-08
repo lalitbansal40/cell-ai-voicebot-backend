@@ -36,6 +36,7 @@ Source of truth for plans, decisions and conventions. (PDF exports are kept outs
 - [setup/prerequisites.md](setup/prerequisites.md)
 - [setup/github-settings.md](setup/github-settings.md) — manual GitHub settings (push, branch protection, security)
 - [client/CLIENT_QUESTIONS.md](client/CLIENT_QUESTIONS.md) · [client/answers.md](client/answers.md)
+- [client/server-audit.md](client/server-audit.md) — read-only client server audit (blocked: SSH key pending)
 - [poc/voice-ai-poc-results.md](poc/voice-ai-poc-results.md) — Voice AI PoC results
 - [poc/sip-lab-notes.md](poc/sip-lab-notes.md) — SIP lab notes
 - [cost/cost-model.md](cost/cost-model.md) — per-minute cost model draft
