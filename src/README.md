@@ -24,6 +24,7 @@ Module-based structure (see [ADR 0003](../docs/adr/0003-backend-code-structure.m
 | `core/telephony/`                        | `TelephonyProvider` interface + WebCall / SIP / NotifyNow providers                                                                                                             | Phase 7, 13  |
 | `core/queues/`                           | `redis.ts` (tracked connections, ping, close), `queue-factory.ts` (BullMQ queues/workers + defaults), `names.ts`, `workers/system.worker.ts` (heartbeat)                        | Phase 1 / 8  |
 | `core/realtime/`                         | `/ws/events` server (`ws-server.ts`), single-use tickets (`ws-tickets.ts`), topics, event envelope + catalogue (`events.ts`), Redis fan-out; `getRealtime()` for modules        | Phase 1      |
+| `core/storage/`                          | `StorageProvider` + `LocalStorage` / `S3Storage`, safe keys, signed URLs (`createStorage(env)`)                                                                                 | Phase 1      |
 | `core/billing/`                          | Wallet core: hold / capture / release, atomic debits                                                                                                                            | Phase 4      |
 | `modules/auth/`                          | Signup, login, tokens, password reset                                                                                                                                           | Phase 2      |
 | `modules/accounts/`                      | Tenant accounts, settings                                                                                                                                                       | Phase 2      |
@@ -38,6 +39,7 @@ Module-based structure (see [ADR 0003](../docs/adr/0003-backend-code-structure.m
 | `modules/public-api/`                    | API-key authenticated public API                                                                                                                                                | Phase 10     |
 | `modules/system/`                        | `GET /api/v1/system/info` (controller + routes + schema)                                                                                                                        | Phase 1      |
 | `modules/health/`                        | `GET /health` (liveness) and `GET /ready` (Mongo + Redis ping, 503 when down or shutting down) at the root                                                                      | Phase 1      |
+| `modules/files/`                         | `GET /files/*key?exp=&sig=` signed downloads (local storage driver only)                                                                                                        | Phase 1      |
 | `jobs/`                                  | Scheduled / cron jobs                                                                                                                                                           | Phase 4+     |
 | `db/`                                    | `mongo.ts` (connect, ping, index sync), `transaction.ts`, `plugins/` (base, tenant, soft delete), `migrate.ts` + `migrations/` registry, `models/` (`idempotency-key.model.ts`) | Phase 1      |
 
@@ -73,7 +75,7 @@ Order matters — every request goes through:
 4. `corsMiddleware` — exact-match `CORS_ORIGINS` allowlist; unknown origins get no CORS headers.
 5. `globalRateLimiter` — 300 req/min per IP (`trust proxy` aware), `RateLimit-*` headers, 429 envelope; Redis store in the server (MemoryStore in unit tests).
 6. Body parsers — JSON 1 MB, urlencoded 100 KB.
-7. `/health`, `/ready` (root — load balancers), then `/api/v1` routers (`routes.ts`).
+7. `/health`, `/ready` (root — load balancers), `/files/*` (local storage only), then `/api/v1` routers (`routes.ts`).
 8. `notFound` → 404 `RESOURCE_NOT_FOUND`.
 9. `errorHandler` → every error becomes the error envelope; 5xx messages are never exposed.
 

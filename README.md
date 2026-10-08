@@ -60,6 +60,12 @@ curl -s localhost:5100/api/v1/system/info
 - Tickets are single-use and valid 60 s. Until the Phase 2 endpoint exists, create one with `npm run ws:dev-ticket [accountId] [userId]` (dev only).
 - Server code pushes events with `getRealtime().pushToAccount(accountId, type, data)` / `pushToTopic('campaign:<id>', type, data)` — delivered across all API instances via Redis.
 
+## File storage
+
+- `STORAGE_DRIVER=local` (default): files under `STORAGE_LOCAL_PATH` (`./uploads`, gitignored), downloaded through signed links `GET /files/<key>?exp=…&sig=…` (15 min by default; signature derived from `ENCRYPTION_KEY`).
+- `STORAGE_DRIVER=s3`: Amazon S3 (`S3_BUCKET`, `S3_REGION`, AWS credentials required) with presigned URLs.
+- Code uses `createStorage(env)` → `put` / `get` / `delete` / `exists` / `signedUrl`; keys are `accounts/<accountId>/<area>/<id>.<ext>` ([ADR 0023](docs/adr/0023-file-storage.md)).
+
 ## Local infrastructure
 
 MongoDB (single-node replica set `rs0`) and Redis run in Docker ([docker-compose.yml](docker-compose.yml)). Docker Desktop must be running.

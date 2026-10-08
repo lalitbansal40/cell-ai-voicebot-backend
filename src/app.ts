@@ -3,6 +3,8 @@ import type { Store } from 'express-rate-limit';
 
 import type { Env } from './config/env';
 import { JSON_BODY_LIMIT, UNLIMITED_PATHS, URLENCODED_BODY_LIMIT } from './config/limits';
+import { LocalStorage, type StorageProvider } from './core/storage';
+import { createFilesRouter } from './modules/files/files.routes';
 import type { ReadinessDeps } from './modules/health/health.controller';
 import { createHealthRouter } from './modules/health/health.routes';
 import { createApiRouter } from './routes';
@@ -24,6 +26,8 @@ export interface AppDeps {
   rateLimitStore?: Store;
   /** Readiness checks for GET /ready (server passes Mongo + Redis pings). */
   readiness?: ReadinessDeps;
+  /** File storage; the local driver also mounts the signed `/files/*` download route. */
+  storage?: StorageProvider;
 }
 
 /**
@@ -36,6 +40,7 @@ export const createApp = ({
   rateLimit,
   rateLimitStore,
   readiness,
+  storage,
 }: AppDeps): Express => {
   const app = express();
   app.disable('x-powered-by');
@@ -54,6 +59,7 @@ export const createApp = ({
   app.use(urlencoded({ extended: false, limit: URLENCODED_BODY_LIMIT }));
 
   app.use(createHealthRouter(readiness ?? { checks: {}, isShuttingDown: () => false }));
+  if (storage instanceof LocalStorage) app.use(createFilesRouter(storage));
   app.use('/api/v1', createApiRouter());
 
   app.use(notFound());

@@ -87,6 +87,9 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "@aws-sdk/client-s3": "^3.1147.0",
+    "@aws-sdk/lib-storage": "^3.1147.0",
+    "@aws-sdk/s3-request-presigner": "^3.1147.0",
     "bullmq": "^6.3.11",
     "cors": "^2.8.6",
     "express": "^5.2.1",

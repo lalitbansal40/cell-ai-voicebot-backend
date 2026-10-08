@@ -13,6 +13,7 @@ import {
 } from './core/queues/redis';
 import { startSystemWorker } from './core/queues/workers/system.worker';
 import { createRealtime, setRealtime } from './core/realtime';
+import { createStorage } from './core/storage';
 import {
   connectMongo,
   disconnectMongo,
@@ -63,6 +64,7 @@ export const startServer = async (): Promise<RunningServer> => {
     env,
     logger,
     rateLimitStore: createRedisRateLimitStore(redis),
+    storage: createStorage(env, logger),
     readiness: {
       checks: { mongo: () => pingMongo(), redis: () => pingRedis(redis) },
       isShuttingDown: lifecycle.isShuttingDown,

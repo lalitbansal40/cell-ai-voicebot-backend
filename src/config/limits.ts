@@ -10,3 +10,6 @@ export const STRICT_RATE_LIMIT = { windowMs: 15 * 60_000, limit: 10 } as const;
 
 /** Paths never rate-limited or access-logged (health checks land in T1.9). */
 export const UNLIMITED_PATHS: readonly string[] = ['/health', '/ready'];
+
+/** Default lifetime of signed download URLs (seconds). */
+export const SIGNED_URL_TTL_SEC = 900;
