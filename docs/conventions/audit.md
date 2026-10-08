@@ -12,35 +12,51 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 
 ## Actions
 
-| Action                          | Actor            | Target           | Meta                       |
-| ------------------------------- | ---------------- | ---------------- | -------------------------- |
-| `account.created`               | user (owner)     | account          | —                          |
-| `account.updated`               | user             | account          | `fields`                   |
-| `account.ownership_transferred` | user (old owner) | user (new owner) | `from`, `to` (user ids)    |
-| `account.suspended`             | user (platform)  | account          | `reason`                   |
-| `account.enabled`               | user (platform)  | account          | —                          |
-| `auth.email_verified`           | user             | user             | —                          |
-| `auth.login`                    | user             | —                | —                          |
-| `auth.login_failed`             | user             | —                | `reason` (`bad_password`)  |
-| `auth.logout`                   | user             | —                | —                          |
-| `auth.logout_all`               | user             | —                | —                          |
-| `auth.session_revoked`          | user             | session          | —                          |
-| `auth.refresh_reuse_detected`   | user             | session          | —                          |
-| `auth.password_reset_requested` | user             | —                | —                          |
-| `auth.password_reset`           | user             | —                | —                          |
-| `auth.password_changed`         | user             | —                | —                          |
-| `team.invited`                  | user             | user (invitee)   | `roleKey`                  |
-| `team.invite_resent`            | user             | user             | —                          |
-| `team.invite_revoked`           | user             | user             | `email` (masked)           |
-| `team.invite_accepted`          | user (invitee)   | user             | —                          |
-| `team.role_changed`             | user             | user             | `from`, `to` (role keys)   |
-| `team.disabled`                 | user             | user             | —                          |
-| `team.enabled`                  | user             | user             | —                          |
-| `team.removed`                  | user             | user             | `email` (masked)           |
-| `apikey.created`                | user             | api_key          | `name`, `scopes`, `prefix` |
-| `apikey.revoked`                | user             | api_key          | `name`, `prefix`           |
-| `admin.impersonation_started`   | user (platform)  | account          | `ownerId`, `expiresAt`     |
-| `admin.impersonation_stopped`   | user (platform)  | account          | —                          |
+| Action                          | Actor            | Target             | Meta                                          |
+| ------------------------------- | ---------------- | ------------------ | --------------------------------------------- |
+| `account.created`               | user (owner)     | account            | —                                             |
+| `account.updated`               | user             | account            | `fields`                                      |
+| `account.ownership_transferred` | user (old owner) | user (new owner)   | `from`, `to` (user ids)                       |
+| `account.suspended`             | user (platform)  | account            | `reason`                                      |
+| `account.enabled`               | user (platform)  | account            | —                                             |
+| `auth.email_verified`           | user             | user               | —                                             |
+| `auth.login`                    | user             | —                  | —                                             |
+| `auth.login_failed`             | user             | —                  | `reason` (`bad_password`)                     |
+| `auth.logout`                   | user             | —                  | —                                             |
+| `auth.logout_all`               | user             | —                  | —                                             |
+| `auth.session_revoked`          | user             | session            | —                                             |
+| `auth.refresh_reuse_detected`   | user             | session            | —                                             |
+| `auth.password_reset_requested` | user             | —                  | —                                             |
+| `auth.password_reset`           | user             | —                  | —                                             |
+| `auth.password_changed`         | user             | —                  | —                                             |
+| `team.invited`                  | user             | user (invitee)     | `roleKey`                                     |
+| `team.invite_resent`            | user             | user               | —                                             |
+| `team.invite_revoked`           | user             | user               | `email` (masked)                              |
+| `team.invite_accepted`          | user (invitee)   | user               | —                                             |
+| `team.role_changed`             | user             | user               | `from`, `to` (role keys)                      |
+| `team.disabled`                 | user             | user               | —                                             |
+| `team.enabled`                  | user             | user               | —                                             |
+| `team.removed`                  | user             | user               | `email` (masked)                              |
+| `apikey.created`                | user             | api_key            | `name`, `scopes`, `prefix`                    |
+| `apikey.revoked`                | user             | api_key            | `name`, `prefix`                              |
+| `admin.impersonation_started`   | user (platform)  | account            | `ownerId`, `expiresAt`                        |
+| `admin.impersonation_stopped`   | user (platform)  | account            | —                                             |
+| `contacts.import_started`       | user             | import_job         | `kind`, `rows`                                |
+| `contacts.import_completed`     | user / system    | import_job         | `kind`, totals (`created`, `updated`, …)      |
+| `contacts.import_canceled`      | user             | import_job         | `processed`                                   |
+| `contacts.exported`             | user             | export_job         | `scope`, `rows`                               |
+| `contacts.deleted`              | user             | contact (single)   | `count`, `mode` (`single` / `ids` / `filter`) |
+| `contacts.bulk_updated`         | user             | —                  | `action`, `count`, `mode`                     |
+| `contact.opted_out`             | user             | contact            | —                                             |
+| `dnd.added`                     | user             | dnd_entry (single) | `count`, `source`                             |
+| `dnd.removed`                   | user             | dnd_entry          | `optOutCleared`                               |
+| `custom_field.created`          | user             | custom_field       | `key`, `type`                                 |
+| `custom_field.updated`          | user             | custom_field       | `key`, `fields`                               |
+| `custom_field.deleted`          | user             | custom_field       | `key`                                         |
+| `contact_list.deleted`          | user             | contact_list       | `name`                                        |
+| `segment.deleted`               | user             | segment            | `name`                                        |
+
+Contact actions never carry phone numbers, names or variable values in `meta` — counts, ids, keys and list / segment names only (Phase 3).
 
 Login failures for e-mails that don't exist are not audited (there is no account) — they only count towards the per-email lockout.
 

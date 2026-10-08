@@ -30,6 +30,20 @@ export const AUDIT_ACTIONS = [
   'apikey.revoked',
   'admin.impersonation_started',
   'admin.impersonation_stopped',
+  'contacts.import_started',
+  'contacts.import_completed',
+  'contacts.import_canceled',
+  'contacts.exported',
+  'contacts.deleted',
+  'contacts.bulk_updated',
+  'contact.opted_out',
+  'dnd.added',
+  'dnd.removed',
+  'custom_field.created',
+  'custom_field.updated',
+  'custom_field.deleted',
+  'contact_list.deleted',
+  'segment.deleted',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

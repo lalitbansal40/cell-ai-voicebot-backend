@@ -1,11 +1,13 @@
 import { Router } from 'express';
 
 import type { Env } from './config/env';
+import type { StorageProvider } from './core/storage';
 import { createAccountRouter } from './modules/account/account.routes';
 import { createAdminRouter } from './modules/admin/admin.routes';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
+import type { ContactJobs } from './modules/contacts/jobs';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
@@ -13,12 +15,20 @@ import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
 
 /** Everything under /api/v1. Add each module router here. */
+/** What the contact modules need: file storage + the background job queue (Phase 3). */
+export interface ContactsDeps {
+  storage?: StorageProvider;
+  jobs?: ContactJobs;
+}
+
 export const createApiRouter = ({
   env,
   auth = {},
+  contacts: _contacts = {},
 }: {
   env: Pick<Env, 'APP_URL' | 'CORS_ORIGINS' | 'NODE_ENV'>;
   auth?: Omit<AuthRouterDeps, 'env'>;
+  contacts?: ContactsDeps;
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));

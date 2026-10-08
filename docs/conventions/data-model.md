@@ -37,6 +37,8 @@ erDiagram
     ACCOUNT ||--o{ DND_ENTRY : blocks
     ACCOUNT ||--o{ IMPORT_JOB : runs
     IMPORT_JOB }o--|| CONTACT_LIST : "fills"
+    ACCOUNT ||--o{ SEGMENT : "saved filters"
+    ACCOUNT ||--o{ EXPORT_JOB : exports
     ACCOUNT ||--o{ CAMPAIGN : runs
     CAMPAIGN }o--|| FLOW_VERSION : "pinned to"
     CAMPAIGN }o--o| PHONE_NUMBER : "calls from"
@@ -218,70 +220,114 @@ Indexes: `{ accountId: 1, userId: 1, readAt: 1, createdAt: -1 }`. Retention: 90 
 
 ### 2.2 Contacts
 
+Phase 3 ([PHASE_3_PLAN.md](../phases/PHASE_3_PLAN.md) §1). All collections are tenant-scoped (`accountId`, indexed).
+
 #### Contact (`contacts`) — Phase 3
 
-| Field        | Type                                       | R   | Notes                                                                          |
-| ------------ | ------------------------------------------ | --- | ------------------------------------------------------------------------------ |
-| phoneE164    | string                                     | ✓   | Unique per account                                                             |
-| name         | string                                     |     |                                                                                |
-| email        | string                                     |     |                                                                                |
-| variables    | `Record<string, string \| number \| Date>` | ✓   | Keys validated against `customFieldDefinitions`; loan data → **sensitive PII** |
-| tags         | string[]                                   | ✓   | No Tag collection                                                              |
-| listIds      | ObjectId[] → contactLists                  | ✓   |                                                                                |
-| dnd          | boolean                                    | ✓   | Mirrors `dndEntries` for fast filtering                                        |
-| optedOutAt   | Date                                       |     |                                                                                |
-| consent      | `{ source, at }`                           |     | Compliance (T0.18)                                                             |
-| lastCalledAt | Date                                       |     | Daily/weekly call caps                                                         |
-| callCount    | number                                     | ✓   |                                                                                |
-| deletedAt    | Date \| null                               |     | Soft delete                                                                    |
+| Field        | Type                                              | R   | Notes                                                                                                                                            |
+| ------------ | ------------------------------------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| phoneE164    | string                                            | ✓   | Unique per account among live contacts (ADR 0018)                                                                                                |
+| name         | string \| null                                    |     | ≤ 120, Unicode                                                                                                                                   |
+| email        | string \| null                                    |     | lower-case                                                                                                                                       |
+| externalId   | string \| null                                    |     | Client's loan / CRM id — unique per account when set                                                                                             |
+| variables    | `Map<key, string \| number>`                      | ✓   | Typed by `customFieldDefinitions`: text / phone / date (`YYYY-MM-DD`) as string, number as number, **currency as integer micros**. Sensitive PII |
+| tags         | string[]                                          | ✓   | lower-case, ≤ 20; no Tag collection                                                                                                              |
+| listIds      | ObjectId[] → contactLists                         | ✓   | ≤ 50                                                                                                                                             |
+| dnd          | boolean                                           | ✓   | Mirrors `dndEntries` for fast filtering                                                                                                          |
+| optedOutAt   | Date \| null                                      |     | Opt-out also creates a DND entry                                                                                                                 |
+| consent      | `{ source, at }` \| null                          |     | Compliance (T0.18)                                                                                                                               |
+| source       | `{ type: manual \| import \| api, importJobId? }` | ✓   | First creation                                                                                                                                   |
+| searchText   | string                                            | ✓   | lower-case name + email + phone digits + externalId; **never serialised**                                                                        |
+| lastCalledAt | Date \| null                                      |     | Call caps (Phase 8)                                                                                                                              |
+| callCount    | number                                            | ✓   | Phase 8                                                                                                                                          |
+| deletedAt    | Date \| null                                      |     | Soft delete; re-creating the phone revives the document; hard-deleted after 30 days                                                              |
 
-Indexes: `{ accountId: 1, phoneE164: 1 }` unique, `{ accountId: 1, listIds: 1 }`, `{ accountId: 1, tags: 1 }`, `{ accountId: 1, deletedAt: 1, createdAt: -1 }`. PII: phone, name, email, variables. Retention: until deleted by client / data-principal request.
+Indexes: `{ accountId, phoneE164 }` unique partial (`deletedAt: null`), `{ accountId, externalId }` unique partial (string, live), `{ accountId, deletedAt, createdAt: -1 }`, `{ accountId, listIds }`, `{ accountId, tags }`, `{ accountId, dnd }`, `{ accountId, name }` (collation `en`, strength 2). PII: phone, name, email, variables, searchText. Retention: until deleted by the client (+ 30-day purge of soft-deleted contacts).
 
 #### ContactList (`contactLists`) — Phase 3
 
-| Field        | Type                                           | R   | Notes                |
-| ------------ | ---------------------------------------------- | --- | -------------------- |
-| name         | string                                         | ✓   |                      |
-| source       | `{ type: upload \| api \| manual, fileName? }` | ✓   |                      |
-| contactCount | number                                         | ✓   | Denormalised counter |
-| deletedAt    | Date \| null                                   |     |                      |
+| Field       | Type                                           | R   | Notes                                       |
+| ----------- | ---------------------------------------------- | --- | ------------------------------------------- |
+| name        | string                                         | ✓   | Unique per account (case-insensitive, live) |
+| description | string \| null                                 |     |                                             |
+| source      | `{ type: upload \| api \| manual, fileName? }` | ✓   |                                             |
+| deletedAt   | Date \| null                                   |     | Soft delete; members keep their contacts    |
 
-Indexes: `{ accountId: 1, name: 1 }`.
+Indexes: `{ accountId, name }` unique partial (collation `en` / 2). **No stored counter** — counts are computed on read (no drift).
 
 #### CustomFieldDefinition (`customFieldDefinitions`) — Phase 3
 
-| Field        | Type                                          | R   | Notes                                                               |
-| ------------ | --------------------------------------------- | --- | ------------------------------------------------------------------- |
-| key          | string                                        | ✓   | `^[a-z][a-z0-9_]*$`, unique per account; used as `{{key}}` in flows |
-| label        | string                                        | ✓   |                                                                     |
-| type         | `text \| number \| date \| currency \| phone` | ✓   |                                                                     |
-| required     | boolean                                       | ✓   |                                                                     |
-| defaultValue | string \| number                              |     |                                                                     |
+| Field        | Type                                          | R   | Notes                                                                       |
+| ------------ | --------------------------------------------- | --- | --------------------------------------------------------------------------- |
+| key          | string                                        | ✓   | `^[a-z][a-z0-9_]{0,39}$`, unique per account, immutable; `{{key}}` in flows |
+| label        | string                                        | ✓   |                                                                             |
+| type         | `text \| number \| date \| currency \| phone` | ✓   | Changeable only while no contact has a value                                |
+| required     | boolean                                       | ✓   |                                                                             |
+| defaultValue | string \| number \| null                      |     | Stored form (currency micros, date `YYYY-MM-DD`)                            |
+| order        | number                                        | ✓   | Display order                                                               |
 
-Indexes: `{ accountId: 1, key: 1 }` unique.
+Indexes: `{ accountId, key }` unique, `{ accountId, order }`. Max 50 per account.
+
+#### Segment (`segments`) — Phase 3
+
+| Field     | Type             | R   | Notes                                 |
+| --------- | ---------------- | --- | ------------------------------------- |
+| name      | string           | ✓   | Unique per account (case-insensitive) |
+| filter    | `ContactFilter`  | ✓   | Evaluated at query time               |
+| createdBy | ObjectId → users | ✓   |                                       |
+
+Indexes: `{ accountId, name }` unique (collation `en` / 2). Max 100 per account.
 
 #### DndEntry (`dndEntries`) — Phase 3
 
 | Field     | Type                                  | R   | Notes                   |
 | --------- | ------------------------------------- | --- | ----------------------- |
 | phoneE164 | string                                | ✓   | Unique per account      |
-| reason    | string                                |     |                         |
+| reason    | string \| null                        |     |                         |
 | source    | `manual \| upload \| keyword \| dtmf` | ✓   | e.g. customer pressed 9 |
+| addedBy   | ObjectId → users \| null              |     |                         |
 
-Indexes: `{ accountId: 1, phoneE164: 1 }` unique. PII: phone.
+Indexes: `{ accountId, phoneE164 }` unique, `{ accountId, createdAt: -1 }`. PII: phone.
 
 #### ImportJob (`importJobs`) — Phase 3
 
-| Field              | Type                                               | R   | Notes                    |
-| ------------------ | -------------------------------------------------- | --- | ------------------------ |
-| listId             | ObjectId → contactLists                            | ✓   |                          |
-| fileName, fileKey  | string                                             | ✓   | Uploaded file in storage |
-| mapping            | `Record<column, field>`                            | ✓   |                          |
-| status             | `pending \| processing \| completed \| failed`     | ✓   |                          |
-| totals             | `{ rows, imported, updated, invalid, duplicates }` | ✓   |                          |
-| errorReportFileKey | string                                             |     | CSV of rejected rows     |
+| Field                                                       | Type                                                                                            | R   | Notes                                     |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --- | ----------------------------------------- |
+| kind                                                        | `contacts \| dnd`                                                                               | ✓   |                                           |
+| fileName, fileType, fileSize                                | string, `csv \| xlsx`, number                                                                   | ✓   |                                           |
+| fileKey                                                     | string \| null                                                                                  |     | Storage key (hidden); cleared when purged |
+| sheet, sheets                                               | string, string[]                                                                                |     | xlsx only                                 |
+| columns                                                     | `[{ index, header, samples[] }]`                                                                | ✓   | Samples are PII — purged with the file    |
+| rowCount                                                    | number                                                                                          | ✓   |                                           |
+| mapping, options                                            | object                                                                                          |     | Validated by the contact-imports module   |
+| status                                                      | `uploaded \| mapped \| validating \| validated \| importing \| completed \| failed \| canceled` | ✓   |                                           |
+| progress                                                    | `{ processed, total }`                                                                          | ✓   | Checkpoint for resume                     |
+| totals                                                      | `{ rows, created, updated, unchanged, invalid, duplicates, dnd }`                               | ✓   |                                           |
+| problemRows                                                 | `[{ row, reasons[] }]`                                                                          | ✓   | ≤ 100, **no cell values**                 |
+| errorReportKey                                              | string \| null                                                                                  |     | Error CSV in storage (hidden)             |
+| listId                                                      | ObjectId \| null                                                                                |     | Target list                               |
+| warnings, errorMessage                                      | string[], string                                                                                |     | No PII                                    |
+| cancelRequested                                             | boolean                                                                                         | ✓   | Hidden                                    |
+| createdBy                                                   | ObjectId → users                                                                                | ✓   |                                           |
+| startedAt, completedAt, failedAt, canceledAt, filesPurgedAt | Date                                                                                            |     |                                           |
 
-Indexes: `{ accountId: 1, createdAt: -1 }`. Retention: file + report 30 days.
+Indexes: `{ accountId, createdAt: -1 }`, `{ status, completedAt }`. Retention: file + error report + samples deleted 30 days after the job ends; the document (totals) stays.
+
+#### ExportJob (`exportJobs`) — Phase 3
+
+| Field                  | Type                                                  | R   | Notes                              |
+| ---------------------- | ----------------------------------------------------- | --- | ---------------------------------- |
+| scope                  | `ids \| filter \| list \| segment`                    | ✓   |                                    |
+| filter                 | `ContactFilter`                                       | ✓   | Resolved at creation               |
+| columns                | string[]                                              | ✓   |                                    |
+| status                 | `pending \| processing \| ready \| failed \| expired` | ✓   |                                    |
+| progress               | `{ processed, total }`                                | ✓   |                                    |
+| rowCount               | number                                                | ✓   |                                    |
+| fileKey                | string \| null                                        |     | Hidden; CSV with PII               |
+| createdBy              | ObjectId → users                                      | ✓   |                                    |
+| completedAt, expiresAt | Date                                                  |     | File deleted at `expiresAt` (24 h) |
+
+Indexes: `{ accountId, createdAt: -1 }`, `{ status, expiresAt }`.
 
 ### 2.3 Wallet & billing
 

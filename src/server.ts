@@ -20,6 +20,7 @@ import {
   pingRedis,
   redactRedisUrl,
 } from './core/queues/redis';
+import { startContactsWorker } from './core/queues/workers/contacts.worker';
 import { startEmailWorker } from './core/queues/workers/email.worker';
 import { startMaintenanceWorker } from './core/queues/workers/maintenance.worker';
 import { startSystemWorker } from './core/queues/workers/system.worker';
@@ -32,6 +33,7 @@ import {
   redactMongoUri,
   syncAllIndexes,
 } from './db/mongo';
+import { queueContactJobs } from './modules/contacts/jobs';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
 
@@ -117,12 +119,16 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     logger.info('email: log driver (emails are logged, not sent)');
   }
 
+  const storage = createStorage(env, logger);
+  const contactJobs = queueContactJobs(createQueue(QUEUES.contacts, queueDeps));
+
   const app = createApp({
     env,
     logger,
     rateLimitStore: createRedisRateLimitStore(redis),
     authRateLimitStore: createRedisRateLimitStore(redis, 'rl:auth:'),
-    storage: createStorage(env, logger),
+    storage,
+    contactJobs,
     readiness: {
       checks: { mongo: () => pingMongo(), redis: () => pingRedis(redis) },
       isShuttingDown: lifecycle.isShuttingDown,
@@ -144,6 +150,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     await startSystemWorker(queueDeps);
     startEmailWorker({ ...queueDeps, provider: emailProvider });
     await startMaintenanceWorker(queueDeps);
+    startContactsWorker({ ...queueDeps, storage, jobs: contactJobs });
     logger.info('workers: started');
   }
 

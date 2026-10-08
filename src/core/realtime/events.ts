@@ -34,6 +34,9 @@ export interface WsEventMap {
   'wallet.updated': { balanceMicros: number; holdMicros: number; currency: string };
   'wallet.low_balance': { availableMicros: number; thresholdMicros: number };
   'import.progress': { importJobId: string; processed: number; total: number; status: string };
+  'export.progress': { exportJobId: string; processed: number; total: number; status: string };
+  'contacts.bulk_completed': { action: string; count: number };
+  'contacts.changed': { reason: 'import' | 'bulk' | 'field_deleted' | 'list_deleted' | 'dnd' };
   'notification.created': { notificationId: string; title: string };
   'presence.changed': { userId: string; status: 'online' | 'offline' };
   'session.revoked': {
@@ -47,6 +50,35 @@ export interface WsEventMap {
 }
 
 export type WsEventType = keyof WsEventMap;
+
+/** Runtime list of every event — kept equal to websocket.md §5 by a test. */
+export const WS_EVENT_TYPES = [
+  'call.created',
+  'call.status',
+  'call.transcript',
+  'call.dtmf',
+  'call.ended',
+  'campaign.status',
+  'campaign.progress',
+  'wallet.updated',
+  'wallet.low_balance',
+  'import.progress',
+  'export.progress',
+  'contacts.bulk_completed',
+  'contacts.changed',
+  'notification.created',
+  'presence.changed',
+  'session.revoked',
+  'account.updated',
+  'account.suspended',
+  'account.enabled',
+  'user.updated',
+  'team.changed',
+] as const satisfies readonly WsEventType[];
+
+// Compile-time: the list above covers every key of WsEventMap.
+type MissingEvent = Exclude<WsEventType, (typeof WS_EVENT_TYPES)[number]>;
+export const WS_EVENT_LIST_COMPLETE: [MissingEvent] extends [never] ? true : never = true;
 
 export const createEnvelope = <T>(type: string, data: T): WsEventEnvelope<T> => ({
   id: `evt_${randomUUID()}`,

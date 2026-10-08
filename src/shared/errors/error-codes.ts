@@ -41,6 +41,10 @@ export const ERROR_CODES = {
     status: 403,
     message: 'This action is not allowed while viewing as another user.',
   },
+  IMPORT_FILE_INVALID: {
+    status: 422,
+    message: 'The file could not be read as a contact sheet.',
+  },
   CONTACT_DND: { status: 422, message: 'This contact is on the do-not-call list.' },
   CONTACT_OPTED_OUT: { status: 422, message: 'This contact has opted out of calls.' },
   WALLET_INSUFFICIENT_BALANCE: { status: 422, message: 'Insufficient wallet balance.' },

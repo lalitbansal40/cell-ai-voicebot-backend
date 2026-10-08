@@ -20,3 +20,34 @@ export const SIGNED_URL_TTL_SEC = 900;
  * brute force is stopped by the per-email lockout and OTP attempt caps.
  */
 export const AUTH_RATE_LIMIT = { windowMs: 15 * 60_000, limit: 30 } as const;
+
+/** Contacts, imports and exports (PHASE_3_PLAN §1e). */
+export const CONTACT_LIMITS = {
+  importMaxBytes: 10 * 1024 * 1024,
+  importMaxRows: 50_000,
+  importMaxColumns: 100,
+  /** Sum of uncompressed entry sizes in an .xlsx (zip-bomb guard). */
+  xlsxMaxUncompressedBytes: 100 * 1024 * 1024,
+  importBatchSize: 500,
+  importSampleRows: 20,
+  importSampleValues: 3,
+  problemRowsInline: 100,
+  customFieldsPerAccount: 50,
+  listsPerAccount: 500,
+  segmentsPerAccount: 100,
+  segmentConditions: 20,
+  tagsPerContact: 20,
+  listsPerContact: 50,
+  textValueMaxLength: 1000,
+  bulkIdsMax: 1000,
+  bulkFilterMax: 100_000,
+  exportMaxRows: 100_000,
+  exportBatchSize: 1000,
+  progressThrottleMs: 1000,
+  exportUrlTtlSec: 900,
+  exportRetentionHours: 24,
+  importFileRetentionDays: 30,
+  deletedContactRetentionDays: 30,
+  /** Redis lock TTL for one running import / bulk / export per account. */
+  jobLockTtlMs: 30 * 60_000,
+} as const;

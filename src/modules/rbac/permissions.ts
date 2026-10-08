@@ -17,6 +17,10 @@ export const PERMISSION_INFO = {
   'contacts.write': { group: 'Contacts', description: 'Create, edit and delete contacts' },
   'contacts.import': { group: 'Contacts', description: 'Import contacts from files' },
   'contacts.export': { group: 'Contacts', description: 'Export contacts' },
+  'dnd.manage': {
+    group: 'Contacts',
+    description: 'Remove numbers from the do-not-call list and undo opt-outs',
+  },
   'wallet.read': { group: 'Wallet', description: 'View balance, ledger and invoices' },
   'wallet.topup': { group: 'Wallet', description: 'Top up the wallet' },
   'agents.read': { group: 'AI agents', description: 'View AI agents' },

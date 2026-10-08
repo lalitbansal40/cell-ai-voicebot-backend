@@ -57,6 +57,7 @@ describe('system roles', () => {
       'wallet.topup',
       'integrations.manage',
       'telephony.manage',
+      'dnd.manage',
     ]) {
       expect(set('manager').has(p)).toBe(false);
     }

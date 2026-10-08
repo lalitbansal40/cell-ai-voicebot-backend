@@ -5,6 +5,7 @@ import type { Store } from 'express-rate-limit';
 import type { Env } from './config/env';
 import { JSON_BODY_LIMIT, UNLIMITED_PATHS, URLENCODED_BODY_LIMIT } from './config/limits';
 import { LocalStorage, type StorageProvider } from './core/storage';
+import type { ContactJobs } from './modules/contacts/jobs';
 import { createDocsRouter } from './modules/docs/docs.routes';
 import { createFilesRouter } from './modules/files/files.routes';
 import type { ReadinessDeps } from './modules/health/health.controller';
@@ -33,6 +34,8 @@ export interface AppDeps {
   /** Auth routes limiter: separate Redis store (`rl:auth:`) + test overrides. */
   authRateLimitStore?: Store;
   authRateLimit?: Partial<RateLimiterOptions>;
+  /** Enqueues background contact jobs (imports, exports, bulk) — Phase 3. */
+  contactJobs?: ContactJobs;
 }
 
 /**
@@ -48,6 +51,7 @@ export const createApp = ({
   storage,
   authRateLimitStore,
   authRateLimit,
+  contactJobs,
 }: AppDeps): Express => {
   const app = express();
   app.disable('x-powered-by');
@@ -74,6 +78,7 @@ export const createApp = ({
     createApiRouter({
       env,
       auth: { rateLimitStore: authRateLimitStore, rateLimit: authRateLimit },
+      contacts: { storage, jobs: contactJobs },
     }),
   );
 

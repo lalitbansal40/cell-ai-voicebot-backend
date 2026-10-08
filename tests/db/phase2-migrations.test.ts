@@ -20,7 +20,7 @@ const db = () => {
 
 describe('phase 2 migrations', () => {
   it('registers 0002 and 0003 after the baseline', () => {
-    expect(MIGRATIONS.map((m) => m.name)).toEqual([
+    expect(MIGRATIONS.map((m) => m.name).slice(0, 3)).toEqual([
       '0001-baseline',
       '0002-platform-account',
       '0003-sync-system-roles',
@@ -56,7 +56,8 @@ describe('phase 2 migrations', () => {
     });
     await expect(MIGRATIONS[1]?.down(db())).rejects.toThrow('Platform account still has users');
     await UserModel.deleteOne({ _id: admin._id });
-    // down 0003 is a no-op, then 0002 removes the platform account
+    // down 0004 (Phase 3) and 0003 are role-only, then 0002 removes the platform account
+    await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);
     expect(await AccountModel.countDocuments({ slug: 'platform' })).toBe(0);
