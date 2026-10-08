@@ -1,6 +1,6 @@
 # Phase 1 — Task Tracker
 
-Source plan: [PHASE_1_PLAN.md](PHASE_1_PLAN.md)
+Source plan: [PHASE_1_PLAN.md](PHASE_1_PLAN.md) · Batch 1 prompt (T1.1–T1.6): [../prompts/PHASE_1_BATCH_1_PROMPT.md](../prompts/PHASE_1_BATCH_1_PROMPT.md)
 
 | Done | Task  | Title                                                | Size |
 | ---- | ----- | ---------------------------------------------------- | ---- |
