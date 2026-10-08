@@ -22,6 +22,7 @@ Source of truth for plans, decisions and conventions. (PDF exports are kept outs
 - [phases/PHASE_0_PLAN.md](phases/PHASE_0_PLAN.md) — Phase 0 detailed plan
 - [phases/PHASE_0_TASKS.md](phases/PHASE_0_TASKS.md) — Phase 0 task tracker
 - [prompts/PHASE_0_BATCH_1_PROMPT.md](prompts/PHASE_0_BATCH_1_PROMPT.md) — Phase 0 batch 1 run prompt
+- [prompts/PHASE_0_BATCH_2_4_PROMPT.md](prompts/PHASE_0_BATCH_2_4_PROMPT.md) — Phase 0 batches 2–4 run prompt (T0.11–T0.20)
 - [prompts/TASK_PROMPT_TEMPLATE.md](prompts/TASK_PROMPT_TEMPLATE.md) — template for task-wise prompts
 - [adr/README.md](adr/README.md) — ADR index
 - [conventions/definition-of-done.md](conventions/definition-of-done.md)

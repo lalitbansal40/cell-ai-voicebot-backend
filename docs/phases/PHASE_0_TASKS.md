@@ -1,6 +1,6 @@
 # Phase 0 — Task Tracker
 
-Source plan: [PHASE_0_PLAN.md](PHASE_0_PLAN.md) · Batch 1 prompt: [../prompts/PHASE_0_BATCH_1_PROMPT.md](../prompts/PHASE_0_BATCH_1_PROMPT.md)
+Source plan: [PHASE_0_PLAN.md](PHASE_0_PLAN.md) · Batch 1 prompt: [../prompts/PHASE_0_BATCH_1_PROMPT.md](../prompts/PHASE_0_BATCH_1_PROMPT.md) · Batches 2–4 prompt: [../prompts/PHASE_0_BATCH_2_4_PROMPT.md](../prompts/PHASE_0_BATCH_2_4_PROMPT.md)
 
 **Size:** S = small (few hours) · M = medium (~1 day) · L = large (2–3 days, timeboxed)
 
