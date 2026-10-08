@@ -18,10 +18,13 @@ export interface VerifyEmailVars {
   minutes: number;
 }
 
-/** Signup OTP (`auth.verify_email`). */
+/**
+ * Signup OTP (`auth.verify_email`). Subjects never contain secrets: they are
+ * logged (masked recipient + subject) and shown in notification previews.
+ */
 export const verifyEmail = ({ name, code, minutes }: VerifyEmailVars): RenderedEmail =>
   render(
-    `${code} is your ${APP_NAME} verification code`,
+    `Your ${APP_NAME} verification code`,
     `<p>Hi ${escapeHtml(name)},</p><p>Use this code to verify your email address:</p><p style="font-size:32px;letter-spacing:8px;font-family:monospace;font-weight:bold;margin:24px 0;">${escapeHtml(code)}</p><p>The code expires in ${minutes} minutes. If you did not sign up, you can ignore this email.</p>`,
     `Hi ${name},\n\nYour verification code: ${code}\n\nIt expires in ${minutes} minutes. If you did not sign up, you can ignore this email.`,
   );

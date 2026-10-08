@@ -127,6 +127,31 @@ describe('createEmailService', () => {
   });
 });
 
+describe('email subjects never contain secrets (they are logged)', () => {
+  it('keeps codes, tokens and links out of every subject', () => {
+    const SECRET = 'S3CR3T-123456';
+    const rendered = [
+      renderTemplate('auth.verify_email', { name: 'A', code: SECRET, minutes: 10 }),
+      renderTemplate('auth.account_exists', {
+        name: 'A',
+        loginUrl: `https://x/${SECRET}`,
+        resetUrl: `https://x/${SECRET}`,
+      }),
+      renderTemplate('auth.reset_password', {
+        name: 'A',
+        resetUrl: `https://x/?token=${SECRET}`,
+        minutes: 30,
+      }),
+      renderTemplate('auth.password_changed', {
+        name: 'A',
+        at: 'now',
+        resetUrl: `https://x/${SECRET}`,
+      }),
+    ];
+    for (const email of rendered) expect(email.subject).not.toContain(SECRET);
+  });
+});
+
 describe('auth templates', () => {
   it('render escaped HTML + text for every auth template', () => {
     const evil = '<img src=x onerror=alert(1)>';
@@ -154,7 +179,8 @@ describe('auth templates', () => {
       expect(email.text.length).toBeGreaterThan(20);
       expect(email.subject).toMatch(/Cell AI Voicebot/);
     }
-    expect(cases[0]?.subject).toBe('042917 is your Cell AI Voicebot verification code');
+    expect(cases[0]?.subject).toBe('Your Cell AI Voicebot verification code');
+    expect(cases[0]?.html).toContain('042917');
     expect(cases[0]?.text).toContain('042917');
     expect(cases[1]?.html).toContain('a=1&amp;b=&quot;2&quot;');
     expect(cases[2]?.text).toContain('https://app/reset?token=abc');
