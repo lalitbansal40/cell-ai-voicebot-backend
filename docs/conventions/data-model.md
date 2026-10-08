@@ -18,6 +18,7 @@ erDiagram
     ACCOUNT ||--o{ ROLE : defines
     ROLE ||--o{ USER : "assigned to"
     USER ||--o{ REFRESH_TOKEN : "signs in with"
+    USER ||--o{ AUTH_CODE : "verifies / resets with"
     ACCOUNT ||--o{ API_KEY : issues
     ACCOUNT ||--o{ AUDIT_LOG : records
     ACCOUNT ||--o{ IDEMPOTENCY_KEY : stores
@@ -81,58 +82,86 @@ erDiagram
 
 Not tenant-scoped (it **is** the tenant): no `accountId`.
 
-| Field                        | Type                                               | R   | Notes                                    |
-| ---------------------------- | -------------------------------------------------- | --- | ---------------------------------------- |
-| name                         | string                                             | ✓   | Business name                            |
-| slug                         | string                                             | ✓   | Unique, URL-safe                         |
-| status                       | `active \| suspended`                              | ✓   | Suspended → no calls, read-only          |
-| timezone                     | string                                             | ✓   | IANA, default `Asia/Kolkata`             |
-| country                      | string                                             | ✓   | ISO-3166 alpha-2, default `IN`           |
-| defaultLanguage              | `hi \| en \| hinglish`                             | ✓   | Default for flows/agents                 |
-| settings.callingWindow       | `{ start: "09:00", end: "19:00", days: number[] }` | ✓   | Account default; campaigns may narrow it |
-| settings.recordingEnabled    | boolean                                            | ✓   | Default true                             |
-| settings.aiDisclosureEnabled | boolean                                            | ✓   | Default true (compliance)                |
+| Field                        | Type                                               | R   | Notes                                                                               |
+| ---------------------------- | -------------------------------------------------- | --- | ----------------------------------------------------------------------------------- |
+| name                         | string                                             | ✓   | Business name                                                                       |
+| slug                         | string                                             | ✓   | Unique, URL-safe                                                                    |
+| status                       | `active \| suspended`                              | ✓   | Suspended → no calls, read-only                                                     |
+| timezone                     | string                                             | ✓   | IANA, default `Asia/Kolkata`                                                        |
+| country                      | string                                             | ✓   | ISO-3166 alpha-2, default `IN`                                                      |
+| defaultLanguage              | `hi \| en \| hinglish`                             | ✓   | Default for flows/agents                                                            |
+| settings.callingWindow       | `{ start: "09:00", end: "19:00", days: number[] }` | ✓   | Account default; campaigns may narrow it                                            |
+| settings.recordingEnabled    | boolean                                            | ✓   | Default true                                                                        |
+| settings.aiDisclosureEnabled | boolean                                            | ✓   | Default true (compliance)                                                           |
+| ownerId                      | ObjectId → users                                   |     | The single owner (set at signup)                                                    |
+| suspendedAt, suspendReason   | Date, string                                       |     | Set by a superadmin                                                                 |
+| isPlatform                   | boolean                                            | ✓   | `true` only for the internal `platform` account (holds superadmins; migration 0002) |
 
-Indexes: `{ slug: 1 }` unique. PII: none. Retention: life of contract.
+Indexes: `{ slug: 1 }` unique, `{ status: 1 }`. Slugs `platform`, `admin`, `api`, `www`, `app`, `support` are reserved. Defaults: timezone `Asia/Kolkata`, country `IN`, language `hinglish`, calling window 09:00–19:00 Mon–Sat. PII: none. Retention: life of contract.
 
 #### User (`users`) — Phase 2
 
-| Field        | Type                            | R   | Notes                             |
-| ------------ | ------------------------------- | --- | --------------------------------- |
-| name         | string                          | ✓   |                                   |
-| email        | string                          | ✓   | Lowercase, **unique globally**    |
-| phone        | string                          |     | E.164                             |
-| passwordHash | string                          |     | Null for invited-not-yet-accepted |
-| roleId       | ObjectId → roles                | ✓   |                                   |
-| status       | `invited \| active \| disabled` | ✓   |                                   |
-| lastLoginAt  | Date                            |     |                                   |
-| deletedAt    | Date \| null                    |     | Soft delete                       |
+| Field             | Type                                                      | R   | Notes                                                                                      |
+| ----------------- | --------------------------------------------------------- | --- | ------------------------------------------------------------------------------------------ |
+| name              | string                                                    | ✓   |                                                                                            |
+| email             | string                                                    | ✓   | Lowercase, **unique globally**                                                             |
+| phone             | string                                                    |     | E.164                                                                                      |
+| passwordHash      | string                                                    |     | Null for invited-not-yet-accepted                                                          |
+| roleId            | ObjectId → roles                                          | ✓   |                                                                                            |
+| status            | `invited \| active \| disabled`                           | ✓   |                                                                                            |
+| lastLoginAt       | Date                                                      |     |                                                                                            |
+| emailVerifiedAt   | Date                                                      |     | Set by the signup OTP / invite acceptance                                                  |
+| tokenVersion      | number                                                    | ✓   | Bumped to invalidate all access tokens (password change, disable, role change, logout-all) |
+| platformRole      | `superadmin \| null`                                      |     | Platform admins only (in the `platform` account, created by `npm run superadmin:create`)   |
+| invite            | `{ tokenHash, expiresAt, invitedBy, lastSentAt } \| null` |     | Pending invitation (status `invited`)                                                      |
+| passwordChangedAt | Date                                                      |     |                                                                                            |
+| deletedAt         | Date \| null                                              |     | Soft delete                                                                                |
 
-Indexes: `{ email: 1 }` unique, `{ accountId: 1, status: 1 }`. PII: email, phone, name.
+Indexes: `{ email: 1 }` unique **partial** (`deletedAt: null` — a removed user's email can be invited again), `{ accountId: 1, status: 1 }`, `{ 'invite.tokenHash': 1 }` sparse. JSON never contains `passwordHash`, `tokenVersion`, `invite`. PII: email, phone, name.
 
 #### Role (`roles`) — Phase 2
 
-| Field       | Type     | R   | Notes                                                     |
-| ----------- | -------- | --- | --------------------------------------------------------- |
-| name        | string   | ✓   | Unique per account                                        |
-| permissions | string[] | ✓   | e.g. `campaigns.write`, `wallet.topup`                    |
-| isSystem    | boolean  | ✓   | Built-in owner/admin/manager/agent/viewer (not deletable) |
+| Field       | Type     | R   | Notes                                                                                  |
+| ----------- | -------- | --- | -------------------------------------------------------------------------------------- |
+| key         | string   | ✓   | `owner \| admin \| manager \| agent \| viewer` (custom keys later); unique per account |
+| name        | string   | ✓   | Display name                                                                           |
+| permissions | string[] | ✓   | e.g. `campaigns.write`, `wallet.topup`                                                 |
+| isSystem    | boolean  | ✓   | Built-in owner/admin/manager/agent/viewer (not deletable)                              |
 
-Indexes: `{ accountId: 1, name: 1 }` unique.
+Indexes: `{ accountId: 1, key: 1 }` unique. Permissions come from the catalogue `src/modules/rbac/permissions.ts`; system roles are synced from `SYSTEM_ROLES` (signup + migrations).
 
 #### RefreshToken (`refreshTokens`) — Phase 2
 
-| Field         | Type             | R   | Notes                                                         |
-| ------------- | ---------------- | --- | ------------------------------------------------------------- |
-| userId        | ObjectId → users | ✓   |                                                               |
-| familyId      | string           | ✓   | Rotation family — reuse of a rotated token revokes the family |
-| tokenHash     | string           | ✓   | Never the raw token                                           |
-| expiresAt     | Date             | ✓   | **TTL index**                                                 |
-| revokedAt     | Date             |     |                                                               |
-| replacedBy    | ObjectId         |     | Next token in the family                                      |
-| userAgent, ip | string           |     | Session list in UI                                            |
+| Field         | Type             | R   | Notes                                                                                                             |
+| ------------- | ---------------- | --- | ----------------------------------------------------------------------------------------------------------------- |
+| userId        | ObjectId → users | ✓   |                                                                                                                   |
+| familyId      | string           | ✓   | Rotation family — reuse of a rotated token revokes the family                                                     |
+| tokenHash     | string           | ✓   | Never the raw token                                                                                               |
+| expiresAt     | Date             | ✓   | **TTL index**                                                                                                     |
+| revokedAt     | Date             |     |                                                                                                                   |
+| replacedBy    | ObjectId         |     | Next token in the family                                                                                          |
+| userAgent, ip | string           |     | Session list in UI                                                                                                |
+| accountId     | ObjectId         | ✓   | Account of the session                                                                                            |
+| revokedReason | string           |     | `logout \| logout_all \| rotated \| reuse_detected \| password_changed \| disabled \| removed \| session_revoked` |
+| lastUsedAt    | Date             | ✓   |                                                                                                                   |
 
-Indexes: `{ tokenHash: 1 }` unique, `{ userId: 1, familyId: 1 }`, `{ expiresAt: 1 }` TTL (0 s).
+Indexes: `{ tokenHash: 1 }` unique, `{ userId: 1, familyId: 1 }`, `{ expiresAt: 1 }` TTL (0 s). `tokenHash` = HMAC-SHA256(`JWT_REFRESH_SECRET`, raw token).
+
+#### AuthCode (`authCodes`) — Phase 2
+
+One live code per user and purpose (email OTP or password-reset token), hashed.
+
+| Field                                  | Type                             | R   | Notes                                   |
+| -------------------------------------- | -------------------------------- | --- | --------------------------------------- |
+| userId                                 | ObjectId → users                 | ✓   |                                         |
+| purpose                                | `verify_email \| reset_password` | ✓   |                                         |
+| codeHash                               | string                           | ✓   | HMAC of the code / token                |
+| attempts                               | number                           | ✓   | Wrong tries (max 5 for OTPs)            |
+| sentCount, sendWindowStart, lastSentAt | number, Date, Date               | ✓   | Resend cooldown (60 s) + hourly cap (5) |
+| expiresAt                              | Date                             | ✓   | **TTL** — OTP 10 min, reset 30 min      |
+| usedAt                                 | Date                             |     | Single use                              |
+
+Indexes: `{ userId: 1, purpose: 1 }` unique, `{ codeHash: 1 }`, `{ expiresAt: 1 }` TTL. Not tenant-scoped (looked up before login).
 
 #### ApiKey (`apiKeys`) — Phase 2/10
 
@@ -150,16 +179,16 @@ Indexes: `{ keyHash: 1 }` unique, `{ accountId: 1, revokedAt: 1 }`.
 
 #### AuditLog (`auditLogs`) — Phase 2
 
-| Field  | Type                                      | R   | Notes                                    |
-| ------ | ----------------------------------------- | --- | ---------------------------------------- |
-| actor  | `{ type: user \| api_key \| system, id }` | ✓   |                                          |
-| action | string                                    | ✓   | `campaign.started`, `wallet.adjusted`, … |
-| target | `{ type, id }`                            |     |                                          |
-| meta   | object                                    |     | No PII values                            |
-| ip     | string                                    |     |                                          |
-| at     | Date                                      | ✓   |                                          |
+| Field  | Type                                                                  | R   | Notes                                                                            |
+| ------ | --------------------------------------------------------------------- | --- | -------------------------------------------------------------------------------- |
+| actor  | `{ type: user \| api_key \| system, id, impersonatorId?, platform? }` | ✓   | `impersonatorId` = superadmin acting as the user; `platform` = superadmin action |
+| action | string                                                                | ✓   | `campaign.started`, `wallet.adjusted`, …                                         |
+| target | `{ type, id }`                                                        |     |                                                                                  |
+| meta   | object                                                                |     | No PII values                                                                    |
+| ip     | string                                                                |     |                                                                                  |
+| at     | Date                                                                  | ✓   |                                                                                  |
 
-Indexes: `{ accountId: 1, at: -1 }`. Immutable. Retention: 1 year (purge job).
+Indexes: `{ accountId: 1, at: -1 }`, `{ accountId: 1, action: 1, at: -1 }`. **Immutable** (model hooks reject updates / deletes; only the purge job deletes with `allowPurge`). Action catalogue: [audit.md](audit.md) (Phase 2 · T2.10). Retention: 1 year (purge job).
 
 #### IdempotencyKey (`idempotencyKeys`) — Phase 1
 
