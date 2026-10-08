@@ -23,6 +23,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   - Core data model draft with Mermaid ERDs (`docs/conventions/data-model.md`).
   - GitHub Actions CI (verify, gitleaks secrets scan, npm audit, commitlint), Dependabot, `.gitleaks.toml`, GitHub settings guide.
 
+- **Phase 0 · Batch 3 (T0.15–T0.17)** — 2026-10-08
+  - Voice AI PoC tooling (`poc/voice-ai`): OpenAI Realtime client (verified GA API, PCM 24 kHz + G.711 μ-law), 14 automated scenarios with auto-checks, real-time TTS customer, latency/cost metering with `POC_MAX_USD` cap, browser test mode, TTS check, report generator, 28 unit tests. **Live runs pending — no OpenAI key; OpenAI spend so far: $0.**
+  - Local SIP lab (`poc/sip-lab`): Asterisk 20 + ARI + ExternalMedia, SIPp caller — end-to-end pass (142 RTP packets, DTMF 5/7); Asterisk recommended for Phase 13 (ADR 0022 note).
+  - Per-minute cost model draft (`docs/cost/cost-model.md`, `poc/cost-model/calc.mjs`) — AI and telephony inputs still estimates.
+
 ### Changed
 
 - Plan updates: Node 20 → 24 LTS (Node 20 EOL), MongoDB 8.0 → 8.2 (8.0 fails on Linux kernel ≥ 6.19), ports → 5100/3100/27018/6380, React 18 → 19, ESLint 10 → 9 (plugin peer compatibility), TypeScript 7 → 6.0 (typescript-eslint support); `openapi-typescript` runs on TS 6 via npm `overrides` (ADR 0029); lint-staged skips ESLint-ignored files (`--no-warn-ignored`).
