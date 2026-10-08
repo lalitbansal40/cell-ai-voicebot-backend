@@ -56,10 +56,15 @@ describe('email queue + worker (real Redis)', () => {
 
   it('enqueue → worker renders and sends through the provider', async () => {
     const service = createEmailService({ provider, queue, logger });
+    const completed = new Promise<{ jobId: string; returnvalue: unknown }>((resolve) =>
+      events.on('completed', resolve),
+    );
     const { jobId } = await service.enqueue('system.test', 'user@example.com', { name: 'Asha' });
-    const job = await queue.getJob(jobId ?? '');
-    const result = (await job?.waitUntilFinished(events, 10_000)) as EmailSendResult;
-    expect(result.messageId).toBe('mem-1');
+    // Listen via QueueEvents: a fast worker may finish (and remove) the job
+    // before queue.getJob() could see it.
+    const done = await completed;
+    expect(done.jobId).toBe(jobId);
+    expect((done.returnvalue as EmailSendResult).messageId).toBe('mem-1');
     expect(provider.sent).toHaveLength(1);
     expect(provider.sent[0]?.subject).toBe('Test email from Cell AI Voicebot');
     expect(provider.sent[0]?.html).toContain('Asha');
