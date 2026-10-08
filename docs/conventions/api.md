@@ -186,6 +186,15 @@ GET /api/v1/calls?limit=50&cursor=eyJjcmVhdGVkQXQiOi…
 
 Too large → `413 PAYLOAD_TOO_LARGE`; wrong type → `415 UNSUPPORTED_MEDIA_TYPE`.
 
+The file's **magic bytes** must match too (an `.xlsx` is a ZIP: `PK\x03\x04`; a CSV must not be a ZIP or contain NUL bytes), so a renamed file is rejected with 415.
+
+**Contact imports** (Phase 3, [ADR 0031](../adr/0031-contact-import-pipeline.md)):
+
+- CSV MIME types accepted: `text/csv`, `application/csv`, `text/plain`, `application/vnd.ms-excel` (browsers send it for `.csv`), `application/octet-stream`; XLSX: the OpenXML type, `application/zip`, `application/octet-stream`. Old `.xls` → 415 with "save as .xlsx".
+- At most **50,000 data rows** and **100 columns**; row 1 is the header. An `.xlsx` that would unpack to more than 100 MB (zip bomb) is rejected without unpacking. These problems answer `422 IMPORT_FILE_INVALID` with `details: [{ path: 'file', message: '<reason>' }]` (`unreadable`, `not_csv`, `empty_file`, `no_header`, `too_many_rows`, `too_many_columns`, `unsafe_file`, `sheet_not_found`).
+- `.xlsx` with several sheets: the first sheet is used until the mapping step picks another (`PUT /contact-imports/:id/mapping { sheet }`).
+- CSV: UTF-8 with or without BOM; other bytes are read as Windows-1252 (warning `encoding_fallback`); `,` `;` tab `|` separators are detected from the header line.
+
 ## 12. Dashboard API vs public API
 
 Both use the **same `/api/v1/...` paths and the same envelopes**. Only authentication differs:

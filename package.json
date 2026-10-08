@@ -39,7 +39,8 @@
     "email:test": "tsx --env-file-if-exists=.env scripts/email-test.ts",
     "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
     "superadmin:create": "tsx --env-file-if-exists=.env scripts/superadmin-create.ts",
-    "samples:contacts": "tsx scripts/make-contact-samples.ts"
+    "samples:contacts": "tsx scripts/make-contact-samples.ts",
+    "bench:contacts": "tsx --env-file-if-exists=.env scripts/bench-contacts.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

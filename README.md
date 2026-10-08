@@ -102,6 +102,12 @@ curl -s localhost:5100/api/v1/system/info
 - **Lists** (`/api/v1/contact-lists`, counts computed live) and **segments** (`/api/v1/segments`, saved filters with preview).
 - **Do-not-call** (`/api/v1/dnd-entries`): add (`contacts.write`), remove only with **`dnd.manage`** (owner / admin, migration `0004`). `POST /contacts/:id/opt-out` also adds the number to the list; undo needs `dnd.manage`.
 - Permissions: `contacts.read` (agents, viewers) to view, `contacts.write` (managers and up) to change. Phone numbers, names and variables never appear in logs.
+- **Imports** (`/api/v1/contact-imports`, [ADR 0031](docs/adr/0031-contact-import-pipeline.md)): upload `.csv` / `.xlsx` (≤ 10 MB, ≤ 50,000 rows) → the server suggests a mapping (Hindi / English headers, field types) → `PUT …/mapping` → `POST …/validate` (dry run: totals, problem rows, downloadable error CSV) → `POST …/start` (background, batches of 500, resumes after a crash, cancellable). Template: `GET /contact-imports/template.csv`. Try it with [docs/samples](docs/samples/README.md). DND numbers can be uploaded the same way (`kind=dnd`).
+  - Excel tip: format the phone column as **Text** — otherwise long numbers become `9.87654E+09` and the row is reported as "lost digits".
+- **Bulk** (`POST /contacts/bulk`): tags, lists, delete, add to DND — ≤ 1,000 ids at once or a filter (≤ 100,000) in the background. A contact past 20 tags / 50 lists is skipped, never truncated.
+- **Export** (`/api/v1/contact-exports`, `contacts.export`, never while impersonating): CSV with BOM, injection-safe cells, link valid 15 min, file deleted after 24 h. Opening in Excel: use _Data → From Text/CSV_ so phones stay as text.
+- **Retention**: deleted contacts are erased after 30 days; uploaded sheets and error reports after 30 days; exports after 24 h (`maintenance` queue).
+- Dev helpers: `npm run samples:contacts` (sample sheets), `npm run bench:contacts [rows]` (50,000-row import + query timings; throw-away account). Last run: validate 0.6 s, import 4.6 s, list queries p95 ≤ 93 ms.
 
 ## Database (MongoDB)
 
