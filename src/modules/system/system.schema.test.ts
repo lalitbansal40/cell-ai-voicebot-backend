@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getAppInfo } from '../../index';
+import { getAppInfo } from '../../shared/app-info';
 
 import { AppInfoSchema } from './system.schema';
 

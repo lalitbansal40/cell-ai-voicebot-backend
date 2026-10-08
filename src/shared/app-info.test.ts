@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getAppInfo } from './index';
+import { getAppInfo } from './app-info';
 
 describe('getAppInfo', () => {
   afterEach(() => {
