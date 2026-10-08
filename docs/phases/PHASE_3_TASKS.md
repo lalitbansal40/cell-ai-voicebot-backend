@@ -10,12 +10,12 @@ Source plan: [PHASE_3_PLAN.md](PHASE_3_PLAN.md) — Batch 1 = T3.1–T3.6, Batch
 | [x]  | T3.4  | Contacts CRUD + search / filter / sort + filter compiler + tags                           | BE   | L    |
 | [x]  | T3.5  | Lists + segments API                                                                      | BE   | M    |
 | [x]  | T3.6  | DND + opt-out + consent                                                                   | BE   | M    |
-| [ ]  | T3.7  | Upload + CSV / XLSX parsing + import job + suggested mapping + template                   | BE   | L    |
-| [ ]  | T3.8  | Validate (dry run) + error report                                                         | BE   | M    |
-| [ ]  | T3.9  | Import run (batches, resume, cancel, lock, progress) + DND upload                         | BE   | L    |
-| [ ]  | T3.10 | Bulk actions + export + background cleanup                                                | BE   | M    |
-| [ ]  | T3.11 | Retention purge jobs                                                                      | BE   | S    |
-| [ ]  | T3.12 | Seed, sample sheets, OpenAPI, performance check, backend docs                             | BE   | M    |
+| [x]  | T3.7  | Upload + CSV / XLSX parsing + import job + suggested mapping + template                   | BE   | L    |
+| [x]  | T3.8  | Validate (dry run) + error report                                                         | BE   | M    |
+| [x]  | T3.9  | Import run (batches, resume, cancel, lock, progress) + DND upload                         | BE   | L    |
+| [x]  | T3.10 | Bulk actions + export + background cleanup                                                | BE   | M    |
+| [x]  | T3.11 | Retention purge jobs                                                                      | BE   | S    |
+| [x]  | T3.12 | Seed, sample sheets, OpenAPI, performance check, backend docs                             | BE   | M    |
 | [ ]  | T3.13 | Frontend foundation (gen:api, clients, format utils, nav, routes, shell)                  | FE   | M    |
 | [ ]  | T3.14 | Contacts table, filters, column picker, bulk, create / edit                               | FE   | L    |
 | [ ]  | T3.15 | Contact detail page                                                                       | FE   | M    |

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 3 · Batch 2 (T3.7–T3.12)** — 2026-10-09
+  - Contact imports: upload `.csv` / `.xlsx` (type + magic bytes, 10 MB, 50,000 rows, 100 columns, zip-bomb guard, Windows-1252 fallback, delimiter detection, sheet choice), suggested mapping (Hinglish headers, type guess), dry-run validation with problem rows + injection-safe error CSV, batched import (resume after crash, cancel, one per account, E11000 retry, stops on suspension), DND uploads, CSV template. ADR 0031.
+  - Bulk actions (≤ 1,000 ids or a filter in the background) and CSV exports (scopes, columns, BOM, injection-safe, 24 h, blocked while impersonating).
+  - Retention: deleted contacts / lists after 30 days, import files + error reports after 30 days, exports after 24 h.
+  - `db:seed` demo contacts; sample sheets (`docs/samples`, `npm run samples:contacts`); `npm run bench:contacts`.
+  - Fixed during the checkpoint: import totals after a crash; default list names in the account timezone.
+  - Tests: 821 → 934.
+
 - **Phase 3 · Batch 1 (T3.1–T3.6)** — 2026-10-09
   - Models: contacts, lists, custom fields, segments, DND entries, import / export jobs (+ indexes); migration `0004` adds `dnd.manage` (owner / admin); `CONTACT_LIMITS`; `IMPORT_FILE_INVALID`; `contacts` queue + worker; storage and job queue passed to the API router; 3 WS events (docs-sync test); 14 audit actions.
   - Normalisation library: phones (account country, Excel lost digits), Indian number grouping, currency as micros, dates (DD/MM default, Excel serials), Unicode tags — 100 % covered.
