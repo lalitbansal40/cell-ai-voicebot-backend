@@ -29,6 +29,7 @@ Source of truth for plans, decisions and conventions. (PDF exports are kept outs
 - [conventions/error-codes.md](conventions/error-codes.md) — error code catalogue
 - [conventions/websocket.md](conventions/websocket.md) — WebSocket conventions + event catalogue
 - [conventions/data.md](conventions/data.md) — MongoDB data conventions + PII inventory
+- [conventions/data-model.md](conventions/data-model.md) — core data model draft (ERD, entities, indexes)
 - [conventions/code-style.md](conventions/code-style.md) — code style
 - [conventions/definition-of-done.md](conventions/definition-of-done.md)
 - [conventions/secrets.md](conventions/secrets.md) — secrets policy
