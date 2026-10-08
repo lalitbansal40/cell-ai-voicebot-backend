@@ -431,6 +431,7 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 | Deployment             | Docker Compose on the client EC2 (isolated) — pending server audit                                 | ADR 0025                |
 | Phase 1                | Ready to start — [PHASE_1_PLAN.md](../phases/PHASE_1_PLAN.md)                                      |                         |
 | Phase 2                | Complete — [PHASE_2_SIGNOFF.md](../phases/PHASE_2_SIGNOFF.md)                                      |                         |
+| Phase 3                | Planned — [PHASE_3_PLAN.md](../phases/PHASE_3_PLAN.md)                                             |                         |
 
 ---
 
