@@ -111,7 +111,46 @@ Run `npm approve-scripts --allow-scripts-pending` after adding dependencies to r
 
 ## Environment variables
 
-_To be filled (T0.10)._
+Copy `.env.example` → `.env` (gitignored). Values live only in `.env`, server env and the password manager — never in git. Policy: [docs/conventions/secrets.md](docs/conventions/secrets.md).
+
+| Variable                  | Required          | Phase | Description                                          |
+| ------------------------- | ----------------- | ----- | ---------------------------------------------------- |
+| `NODE_ENV`                | no                | 1     | `development` / `production` / `test`                |
+| `PORT`                    | no                | 1     | API port (default 5100)                              |
+| `APP_URL`                 | yes               | 1     | Public base URL of this API                          |
+| `FRONTEND_URL`            | yes               | 1     | Dashboard URL (links in emails, CORS)                |
+| `CORS_ORIGINS`            | yes               | 1     | Comma-separated allowed origins                      |
+| `LOG_LEVEL`               | no                | 1     | pino log level                                       |
+| `MONGODB_URI`             | yes               | 1     | MongoDB connection string (replica set)              |
+| `REDIS_URL`               | yes               | 1     | Redis connection string                              |
+| `JWT_ACCESS_SECRET`       | yes · secret      | 2     | Access token signing secret                          |
+| `JWT_REFRESH_SECRET`      | yes · secret      | 2     | Refresh token signing secret                         |
+| `JWT_ACCESS_TTL`          | no                | 2     | Access token lifetime (e.g. `15m`)                   |
+| `JWT_REFRESH_TTL`         | no                | 2     | Refresh token lifetime (e.g. `30d`)                  |
+| `ENCRYPTION_KEY`          | yes · secret      | 2     | 32-byte base64 key for PII encryption at rest        |
+| `OPENAI_API_KEY`          | yes · secret      | 5/7   | OpenAI API key                                       |
+| `OPENAI_REALTIME_MODEL`   | yes               | 7     | Realtime model name (set after PoC T0.15)            |
+| `STORAGE_DRIVER`          | no                | 7/9   | `local` or `s3`                                      |
+| `STORAGE_LOCAL_PATH`      | no                | 7/9   | Folder for local uploads/recordings                  |
+| `S3_BUCKET`               | if s3             | 7/9   | S3 bucket name                                       |
+| `S3_REGION`               | if s3             | 7/9   | S3 region                                            |
+| `AWS_ACCESS_KEY_ID`       | if s3 · secret    | 7/9   | AWS access key                                       |
+| `AWS_SECRET_ACCESS_KEY`   | if s3 · secret    | 7/9   | AWS secret key                                       |
+| `SMTP_HOST`               | yes               | 1/2   | SMTP server                                          |
+| `SMTP_PORT`               | no                | 1/2   | SMTP port                                            |
+| `SMTP_USER`               | yes               | 1/2   | SMTP username                                        |
+| `SMTP_PASS`               | yes · secret      | 1/2   | SMTP password                                        |
+| `MAIL_FROM`               | yes               | 1/2   | Sender address                                       |
+| `RAZORPAY_KEY_ID`         | yes               | 4     | Razorpay key id                                      |
+| `RAZORPAY_KEY_SECRET`     | yes · secret      | 4     | Razorpay key secret                                  |
+| `RAZORPAY_WEBHOOK_SECRET` | yes · secret      | 4     | Razorpay webhook signing secret                      |
+| `NOTIFYNOW_API_KEY`       | optional · secret | 13    | NotifyNow voice API key (optional fallback provider) |
+| `SIP_HOST`                | yes (Phase 13)    | 13    | SIP trunk host                                       |
+| `SIP_PORT`                | no                | 13    | SIP port                                             |
+| `SIP_TRANSPORT`           | no                | 13    | `udp` / `tcp` / `tls`                                |
+| `SIP_USERNAME`            | if auth           | 13    | SIP username                                         |
+| `SIP_PASSWORD`            | if auth · secret  | 13    | SIP password                                         |
+| `SIP_CALLER_ID`           | yes (Phase 13)    | 13    | Outbound caller ID / DID                             |
 
 ## Docs
 
@@ -120,4 +159,5 @@ All project docs (plans, ADRs, conventions) live in [`docs/`](docs/README.md).
 ## Conventions
 
 - [Definition of Done](docs/conventions/definition-of-done.md)
+- [Secrets policy](docs/conventions/secrets.md)
 - [Architecture Decision Records](docs/adr/README.md)
