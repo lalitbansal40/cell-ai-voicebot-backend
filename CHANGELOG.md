@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 2 · Batch 3 (T2.13–T2.18)** — 2026-10-08
+  - `PATCH /api/v1/auth/me` (profile name / phone) for the frontend Settings page.
+  - Refresh rotation: a token rotated < 10 s ago whose successor is unused gets a fresh successor (lost response, e.g. reload mid-refresh) instead of revoking the session; any other replay is still reuse.
+  - Timezone validation accepts current IANA names that ICU only knows as aliases (`Asia/Kolkata`), rejects raw offsets.
+  - Coverage gate raised to 95 / 80 / 90 / 95 (Phase 2 values rounded down). Flaky email-queue test fixed.
+  - Playwright E2E (frontend repo) runs this backend with an isolated `cav_e2e` database.
+  - Tests: 520 → 540. Phase 2 [sign-off](docs/phases/PHASE_2_SIGNOFF.md).
+
 - **Phase 2 · Batch 2 (T2.7–T2.12)** — 2026-10-08
   - Account settings API (`/api/v1/account`) with validated timezone, country, language and calling window; merged nested settings.
   - Team: invites (email link, resend, revoke, accept + sign in, invite info), role changes, enable / disable, removal, ownership transfer — owner / self / admin rules, immediate token invalidation.

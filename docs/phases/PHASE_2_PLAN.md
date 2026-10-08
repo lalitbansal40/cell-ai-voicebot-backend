@@ -195,211 +195,211 @@ Existing ones reused: `AUTH_UNAUTHENTICATED`, `AUTH_TOKEN_EXPIRED`, `AUTH_INVALI
 
 **Files:** `src/modules/rbac/{permissions.ts, system-roles.ts, rbac.schema.ts, rbac.routes.ts}`, `src/db/models/{account, user, role, refresh-token, auth-code, api-key, audit-log}.model.ts`, `src/db/migrations/{0002-platform-account.ts, 0003-sync-system-roles.ts}`, `scripts/{db-seed.ts, superadmin-create.ts}`, tests.
 
-- [ ] `permissions.ts`: `PERMISSIONS` const (catalogue §1b) + `Permission` type + `PLATFORM_PERMISSIONS`; helper `isPermission(s)`.
-- [ ] `system-roles.ts`: `SYSTEM_ROLES: Record<'owner'|'admin'|'manager'|'agent'|'viewer', Permission[]>` per matrix; unit test: owner ⊇ admin ⊇ manager; viewer has no write; every permission belongs to the catalogue; matrix snapshot matches the plan table.
-- [ ] Models (Phase 1 plugins: `basePlugin`, `tenantPlugin` where tenant-scoped, `softDeletePlugin` for users):
+- [x] `permissions.ts`: `PERMISSIONS` const (catalogue §1b) + `Permission` type + `PLATFORM_PERMISSIONS`; helper `isPermission(s)`.
+- [x] `system-roles.ts`: `SYSTEM_ROLES: Record<'owner'|'admin'|'manager'|'agent'|'viewer', Permission[]>` per matrix; unit test: owner ⊇ admin ⊇ manager; viewer has no write; every permission belongs to the catalogue; matrix snapshot matches the plan table.
+- [x] Models (Phase 1 plugins: `basePlugin`, `tenantPlugin` where tenant-scoped, `softDeletePlugin` for users):
   - `Account`: fields per data-model §2.1 **+** `ownerId`, `status` (`active|suspended`), `suspendedAt`, `suspendReason`, `isPlatform` (true only for `platform`), `createdAt`. Indexes: `slug` unique, `status`.
   - `User`: per data-model **+** `emailVerifiedAt`, `tokenVersion` (default 0), `platformRole` (`superadmin | null`), `invite: { tokenHash, expiresAt, invitedBy } | null`, `failedLoginCount`? (no — Redis), `lastLoginAt`, `passwordChangedAt`. Email lowercase+trim, `unique`. JSON transform **never** outputs `passwordHash`, `invite.tokenHash`, `tokenVersion`.
   - `Role`: per data-model (`accountId, name, key (owner…), permissions, isSystem`). Index `{ accountId, key }` unique.
   - `RefreshToken`: per data-model (`familyId`, `tokenHash`, `expiresAt` TTL, `revokedAt`, `revokedReason`, `replacedBy`, `userAgent`, `ip`, `lastUsedAt`, `impersonated`? no — impersonation has no refresh).
   - `AuthCode` (new collection `authCodes`): `userId, purpose (verify_email|reset_password), codeHash, attempts, sentCount, lastSentAt, expiresAt (TTL), usedAt`. Index `{ userId, purpose }`, TTL.
   - `ApiKey`, `AuditLog` per data-model (AuditLog: **no update/delete** — model throws on save of existing doc; `at` index).
-- [ ] Update **data-model.md** §2.1 with the added fields + `authCodes` + `platform` account + ERD (Mermaid) in the same commit.
-- [ ] Migrations: `0002-platform-account` (create `platform` account if missing) · `0003-sync-system-roles` (for every account upsert 5 system roles from `SYSTEM_ROLES`; idempotent; re-runnable when the map changes — documented).
-- [ ] `scripts/superadmin-create.ts` + npm `superadmin:create -- <email> [name]`: prompts for password on TTY (or `--password-stdin`), creates/updates user in `platform` account with `platformRole: superadmin`, `emailVerifiedAt: now`; refuses weak passwords; never prints the password.
-- [ ] `scripts/db-seed.ts` + npm `db:seed` (**refuses in production**): demo account `Demo Finance` + one active user per role (`owner@demo.local` … `viewer@demo.local`, password from `SEED_PASSWORD` env or a printed random one) + superadmin `admin@demo.local`; idempotent.
-- [ ] `GET /api/v1/rbac/permissions` (auth required later in T2.3 — here just schema + catalogue export) → `{ permissions, roles: { key, permissions } }` for the frontend.
-- [ ] Tests: model validation + indexes (`listIndexes`), JSON never leaks hashes, migrations idempotent (run twice), seed idempotent, CLI (create + update, weak password rejected), role matrix tests.
+- [x] Update **data-model.md** §2.1 with the added fields + `authCodes` + `platform` account + ERD (Mermaid) in the same commit.
+- [x] Migrations: `0002-platform-account` (create `platform` account if missing) · `0003-sync-system-roles` (for every account upsert 5 system roles from `SYSTEM_ROLES`; idempotent; re-runnable when the map changes — documented).
+- [x] `scripts/superadmin-create.ts` + npm `superadmin:create -- <email> [name]`: prompts for password on TTY (or `--password-stdin`), creates/updates user in `platform` account with `platformRole: superadmin`, `emailVerifiedAt: now`; refuses weak passwords; never prints the password.
+- [x] `scripts/db-seed.ts` + npm `db:seed` (**refuses in production**): demo account `Demo Finance` + one active user per role (`owner@demo.local` … `viewer@demo.local`, password from `SEED_PASSWORD` env or a printed random one) + superadmin `admin@demo.local`; idempotent.
+- [x] `GET /api/v1/rbac/permissions` (auth required later in T2.3 — here just schema + catalogue export) → `{ permissions, roles: { key, permissions } }` for the frontend.
+- [x] Tests: model validation + indexes (`listIndexes`), JSON never leaks hashes, migrations idempotent (run twice), seed idempotent, CLI (create + update, weak password rejected), role matrix tests.
 
 ### T2.2 — Crypto + token services, env, error codes
 
 **Files:** `src/modules/auth/{password.ts, tokens.ts, codes.ts, common-passwords.ts}`, `src/config/env.ts`, `src/shared/errors/error-codes.ts` + `docs/conventions/error-codes.md`, tests.
 
-- [ ] `password.ts`: `hashPassword`, `verifyPassword` (returns `{ ok, needsRehash }`), `DUMMY_HASH` for constant-time misses, `validatePasswordPolicy(password, { email, name })` → `ErrorDetail[]` (length 10–128, not email/name, not common).
-- [ ] `common-passwords.ts`: ~1k most common passwords (lowercase set) — source documented, no network.
-- [ ] `tokens.ts`:
+- [x] `password.ts`: `hashPassword`, `verifyPassword` (returns `{ ok, needsRehash }`), `DUMMY_HASH` for constant-time misses, `validatePasswordPolicy(password, { email, name })` → `ErrorDetail[]` (length 10–128, not email/name, not common).
+- [x] `common-passwords.ts`: ~1k most common passwords (lowercase set) — source documented, no network.
+- [x] `tokens.ts`:
   - `signAccessToken({ userId, accountId, roleId, tokenVersion, sessionId, impersonatorId? }, ttl)` / `verifyAccessToken(token)` → typed claims; expired → `AUTH_TOKEN_EXPIRED`; anything else → `AUTH_UNAUTHENTICATED`; clock tolerance 5 s; `iss`/`aud` checked.
   - `createRefreshToken({ userId, familyId?, userAgent, ip })` → raw + doc; `rotateRefreshToken(raw)` → `{ raw, doc, user }` or throws `AUTH_SESSION_REVOKED` (revoked / reused → revoke family + audit) / `AUTH_UNAUTHENTICATED` (unknown) — runs in `withTransaction`.
   - `revokeFamily`, `revokeAllForUser(userId, reason)`.
   - `hmacToken(raw)` (HMAC-SHA256 with `JWT_REFRESH_SECRET`, timing-safe compare helper).
-- [ ] `codes.ts`: `issueCode(userId, purpose)` (6 digits for verify_email, 32-byte token for reset/invite) with cooldown + hourly cap; `consumeCode(userId|token, purpose, input)` with attempt counting → `AUTH_CODE_INVALID` / `AUTH_TOO_MANY_ATTEMPTS`.
-- [ ] Env: dev fallbacks for `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` outside production (warn once); new `AUTH_COOKIE_DOMAIN` (optional, production subdomain setups) — `.env.example`, README table, env-docs test.
-- [ ] Error codes §1d → `ERROR_CODES` + error-codes.md (sync test stays green) + new error classes if needed (`TooManyAttemptsError` with `retryAfterSec` → `Retry-After` header in errorHandler).
-- [ ] Tests: hash/verify/rehash, policy table, JWT round-trip / expired / wrong secret / wrong aud / alg none rejected, refresh rotation, **reuse → family revoked**, concurrent rotation of the same token (only one wins), code issue/consume/attempts/cooldown/expiry, timing-safe compare.
+- [x] `codes.ts`: `issueCode(userId, purpose)` (6 digits for verify_email, 32-byte token for reset/invite) with cooldown + hourly cap; `consumeCode(userId|token, purpose, input)` with attempt counting → `AUTH_CODE_INVALID` / `AUTH_TOO_MANY_ATTEMPTS`.
+- [x] Env: dev fallbacks for `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` outside production (warn once); new `AUTH_COOKIE_DOMAIN` (optional, production subdomain setups) — `.env.example`, README table, env-docs test.
+- [x] Error codes §1d → `ERROR_CODES` + error-codes.md (sync test stays green) + new error classes if needed (`TooManyAttemptsError` with `retryAfterSec` → `Retry-After` header in errorHandler).
+- [x] Tests: hash/verify/rehash, policy table, JWT round-trip / expired / wrong secret / wrong aud / alg none rejected, refresh rotation, **reuse → family revoked**, concurrent rotation of the same token (only one wins), code issue/consume/attempts/cooldown/expiry, timing-safe compare.
 
 ### T2.3 — Auth middlewares, tenant helpers, suspension
 
 **Files:** `src/shared/middlewares/{authenticate.ts, require-permission.ts, api-key-auth.ts}`, `src/shared/auth/{context.ts, tenant.ts}`, `src/@types/express.d.ts`, tests.
 
-- [ ] `req.auth: AuthContext` = `{ kind: 'user' | 'api_key', userId?, apiKeyId?, accountId, roleKey?, permissions: Set<string>, platformRole?, impersonatorId?, sessionId? }`.
-- [ ] `authenticate()` — Bearer only; verify JWT; load user (+role, +account) lean; checks: user exists & `active`, `tv` match, email verified, account `active` **or** (suspended & method is GET/HEAD) else `AUTH_ACCOUNT_SUSPENDED`; sets `req.auth`; adds `accountId`/`userId` to `req.log` bindings.
-- [ ] `requirePermission(...perms)` (all of) / `requireAnyPermission(...)`; `requirePlatformAdmin()`; `blockWhenImpersonating()`.
-- [ ] `apiKeyAuth({ scopes })` — `X-API-Key`; lookup by `keyHash`; not revoked; account active; sets `req.auth.kind = 'api_key'`; `lastUsedAt` update throttled (≥ 60 s, fire-and-forget).
-- [ ] Tenant helpers: `tenantFilter(req)` → `{ accountId }`; `findOwned(Model, id, req)` → 404 when not in the account (never 403 — no existence leak).
-- [ ] Idempotency middleware scope → `req.auth.accountId` (Phase 1 left it injectable).
-- [ ] OpenAPI: register `bearerAuth` + `apiKeyAuth` security on routes (components already declared in Phase 1).
-- [ ] Tests: missing / malformed / expired / wrong `tv` / disabled user / unverified / suspended (GET ok, POST 403) / permission allowed & denied / platform admin / impersonation block / API key valid / revoked / wrong scope / tenant isolation (user of account A gets 404 on account B id).
-- [ ] **Security test:** grep-based test fails if any `src/modules/**` file reads `req.body.accountId` / `req.query.accountId` / `req.params.accountId`.
+- [x] `req.auth: AuthContext` = `{ kind: 'user' | 'api_key', userId?, apiKeyId?, accountId, roleKey?, permissions: Set<string>, platformRole?, impersonatorId?, sessionId? }`.
+- [x] `authenticate()` — Bearer only; verify JWT; load user (+role, +account) lean; checks: user exists & `active`, `tv` match, email verified, account `active` **or** (suspended & method is GET/HEAD) else `AUTH_ACCOUNT_SUSPENDED`; sets `req.auth`; adds `accountId`/`userId` to `req.log` bindings.
+- [x] `requirePermission(...perms)` (all of) / `requireAnyPermission(...)`; `requirePlatformAdmin()`; `blockWhenImpersonating()`.
+- [x] `apiKeyAuth({ scopes })` — `X-API-Key`; lookup by `keyHash`; not revoked; account active; sets `req.auth.kind = 'api_key'`; `lastUsedAt` update throttled (≥ 60 s, fire-and-forget).
+- [x] Tenant helpers: `tenantFilter(req)` → `{ accountId }`; `findOwned(Model, id, req)` → 404 when not in the account (never 403 — no existence leak).
+- [x] Idempotency middleware scope → `req.auth.accountId` (Phase 1 left it injectable).
+- [x] OpenAPI: register `bearerAuth` + `apiKeyAuth` security on routes (components already declared in Phase 1).
+- [x] Tests: missing / malformed / expired / wrong `tv` / disabled user / unverified / suspended (GET ok, POST 403) / permission allowed & denied / platform admin / impersonation block / API key valid / revoked / wrong scope / tenant isolation (user of account A gets 404 on account B id).
+- [x] **Security test:** grep-based test fails if any `src/modules/**` file reads `req.body.accountId` / `req.query.accountId` / `req.params.accountId`.
 
 ### T2.4 — Signup + email OTP verify + resend
 
 **Routes** (`src/modules/auth/`): `POST /api/v1/auth/signup`, `POST /auth/verify-email`, `POST /auth/verify-email/resend`.
 
-- [ ] Signup body: `{ businessName, name, email, password, phone? (E.164), timezone? }` → validation (zod + password policy).
-- [ ] New email → **transaction**: account (slug from business name, unique suffix), 5 system roles, owner user (`status: active`, `emailVerifiedAt: null`), `account.ownerId`; then `issueCode(verify_email)` → `getEmail().enqueue('auth.verify_email', …, { dedupeKey })`. Existing email → enqueue `auth.account_exists` email. **Both → 202** `{ message }` (same timing budget).
-- [ ] Verify body `{ email, code }` → `consumeCode` → `emailVerifiedAt = now` → **logs the user in** (access token + refresh cookie, same as login) → 200 `{ accessToken, user, account, permissions }`. Audit `auth.email_verified`, `account.created`.
-- [ ] Resend `{ email }` → 202 always; respects cooldown + hourly cap silently.
-- [ ] Email templates: `auth.verify_email` (code, 10 min), `auth.account_exists` (login + reset links). Text + HTML, escaped (Phase 1 template system).
-- [ ] Strict rate limiter on all three routes.
-- [ ] Tests: happy path (OTP read from memory email provider), duplicate email (202 + other template), weak password 422 details, wrong code attempts → 429, expired code, resend cooldown, slug uniqueness, transaction rollback on failure (no orphan account).
+- [x] Signup body: `{ businessName, name, email, password, phone? (E.164), timezone? }` → validation (zod + password policy).
+- [x] New email → **transaction**: account (slug from business name, unique suffix), 5 system roles, owner user (`status: active`, `emailVerifiedAt: null`), `account.ownerId`; then `issueCode(verify_email)` → `getEmail().enqueue('auth.verify_email', …, { dedupeKey })`. Existing email → enqueue `auth.account_exists` email. **Both → 202** `{ message }` (same timing budget).
+- [x] Verify body `{ email, code }` → `consumeCode` → `emailVerifiedAt = now` → **logs the user in** (access token + refresh cookie, same as login) → 200 `{ accessToken, user, account, permissions }`. Audit `auth.email_verified`, `account.created`.
+- [x] Resend `{ email }` → 202 always; respects cooldown + hourly cap silently.
+- [x] Email templates: `auth.verify_email` (code, 10 min), `auth.account_exists` (login + reset links). Text + HTML, escaped (Phase 1 template system).
+- [x] Strict rate limiter on all three routes.
+- [x] Tests: happy path (OTP read from memory email provider), duplicate email (202 + other template), weak password 422 details, wrong code attempts → 429, expired code, resend cooldown, slug uniqueness, transaction rollback on failure (no orphan account).
 
 ### T2.5 — Login / refresh / logout / sessions + lockout
 
 **Routes:** `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/logout-all`, `GET /auth/me`, `GET /auth/sessions`, `DELETE /auth/sessions/:id`.
 
-- [ ] Login `{ email, password }`: lockout check (Redis `auth:lock:<email-hash>`), dummy-hash path, status checks (`disabled` → `AUTH_USER_DISABLED`, unverified → `AUTH_EMAIL_NOT_VERIFIED`), rehash if needed, `lastLoginAt`, new refresh family → cookie + `{ accessToken, expiresIn, user, account, permissions }`. Audit `auth.login` / `auth.login_failed` (meta: reason, no password).
-- [ ] Refresh: cookie only + Origin check → rotate → new cookie + access token; errors clear the cookie.
-- [ ] Logout: revoke current family, clear cookie (204, idempotent). Logout-all: bump `tokenVersion`, revoke all families, push WS `session.revoked`.
-- [ ] `GET /auth/me` → `{ user, account, role, permissions, impersonation? }` (frontend bootstrap).
-- [ ] Sessions: list active families (userAgent, ip, createdAt, lastUsedAt, current flag); revoke one (own sessions only).
-- [ ] Tests: full cookie flow with supertest agent, rotation, reuse detection (old cookie replay → 401 + family revoked + audit), lockout after 5 failures (+ `Retry-After`), CSRF (bad Origin → 403), disabled / unverified / suspended paths, logout idempotent, sessions isolation.
+- [x] Login `{ email, password }`: lockout check (Redis `auth:lock:<email-hash>`), dummy-hash path, status checks (`disabled` → `AUTH_USER_DISABLED`, unverified → `AUTH_EMAIL_NOT_VERIFIED`), rehash if needed, `lastLoginAt`, new refresh family → cookie + `{ accessToken, expiresIn, user, account, permissions }`. Audit `auth.login` / `auth.login_failed` (meta: reason, no password).
+- [x] Refresh: cookie only + Origin check → rotate → new cookie + access token; errors clear the cookie.
+- [x] Logout: revoke current family, clear cookie (204, idempotent). Logout-all: bump `tokenVersion`, revoke all families, push WS `session.revoked`.
+- [x] `GET /auth/me` → `{ user, account, role, permissions, impersonation? }` (frontend bootstrap).
+- [x] Sessions: list active families (userAgent, ip, createdAt, lastUsedAt, current flag); revoke one (own sessions only).
+- [x] Tests: full cookie flow with supertest agent, rotation, reuse detection (old cookie replay → 401 + family revoked + audit), lockout after 5 failures (+ `Retry-After`), CSRF (bad Origin → 403), disabled / unverified / suspended paths, logout idempotent, sessions isolation.
 
 ### T2.6 — Forgot / reset / change password
 
 **Routes:** `POST /auth/forgot-password`, `POST /auth/reset-password`, `POST /auth/change-password` (auth).
 
-- [ ] Forgot `{ email }` → 202 always; active verified user → reset token → email `auth.reset_password` (link `FRONTEND_URL/reset-password?token=…`).
-- [ ] Reset `{ token, password }` → policy → hash → `tokenVersion++` → revoke all refresh tokens → audit → 200 (user must log in again).
-- [ ] Change `{ currentPassword, newPassword }` → verify current → policy → hash → `tokenVersion++` → revoke **other** sessions → new tokens for this session; blocked while impersonating.
-- [ ] Email `auth.password_changed` (security notice) after reset/change.
-- [ ] Tests: token single use, expiry, old access token rejected after reset, other sessions revoked, wrong current password, impersonation blocked.
+- [x] Forgot `{ email }` → 202 always; active verified user → reset token → email `auth.reset_password` (link `FRONTEND_URL/reset-password?token=…`).
+- [x] Reset `{ token, password }` → policy → hash → `tokenVersion++` → revoke all refresh tokens → audit → 200 (user must log in again).
+- [x] Change `{ currentPassword, newPassword }` → verify current → policy → hash → `tokenVersion++` → revoke **other** sessions → new tokens for this session; blocked while impersonating.
+- [x] Email `auth.password_changed` (security notice) after reset/change.
+- [x] Tests: token single use, expiry, old access token rejected after reset, other sessions revoked, wrong current password, impersonation blocked.
 
 ### T2.7 — Account settings API
 
 **Routes:** `GET /api/v1/account` (`account.read`), `PATCH /api/v1/account` (`account.update`).
 
-- [ ] Editable: `name`, `timezone` (validated against `Intl.supportedValuesOf('timeZone')`), `country` (ISO-3166 alpha-2), `defaultLanguage` (`hi|en|hinglish`), `settings.callingWindow` (`HH:mm` start < end, days 0–6 unique, non-empty), `settings.recordingEnabled`, `settings.aiDisclosureEnabled`. Not editable: `slug`, `status`, `ownerId`.
-- [ ] Audit `account.updated` with changed field **names** only.
-- [ ] Tests: each validation rule, permission denied for manager/agent/viewer, suspended account PATCH → 403, audit entry.
+- [x] Editable: `name`, `timezone` (validated against `Intl.supportedValuesOf('timeZone')`), `country` (ISO-3166 alpha-2), `defaultLanguage` (`hi|en|hinglish`), `settings.callingWindow` (`HH:mm` start < end, days 0–6 unique, non-empty), `settings.recordingEnabled`, `settings.aiDisclosureEnabled`. Not editable: `slug`, `status`, `ownerId`.
+- [x] Audit `account.updated` with changed field **names** only.
+- [x] Tests: each validation rule, permission denied for manager/agent/viewer, suspended account PATCH → 403, audit entry.
 
 ### T2.8 — Team management
 
 **Routes** (`src/modules/team/`): `GET /team/users` (`team.read`, filters status/role/search, pagination), `POST /team/invites` (`team.invite`), `POST /team/invites/:userId/resend`, `DELETE /team/invites/:userId` (revoke), `POST /auth/accept-invite` (public), `PATCH /team/users/:id` (`team.update` — role, status), `DELETE /team/users/:id` (`team.remove`, soft delete), `POST /team/transfer-ownership` (owner only).
 
-- [ ] Invite `{ email, name, roleKey }` (roleKey ≠ owner) → existing global email → 409 `CONFLICT_DUPLICATE`; create user `status: invited` + invite token → email `team.invite` (inviter, account name, link `FRONTEND_URL/accept-invite?token=…`, 7 days).
-- [ ] Accept `{ token, name?, password }` → active + verified + logged in (tokens + cookie).
-- [ ] Role change → bump target `tokenVersion` (permissions refresh), push WS `session.revoked`? (no — `user.updated` event so the UI refetches `me`). Disable → `tokenVersion++` + revoke sessions + WS `session.revoked`.
-- [ ] Guards: can't change/disable/remove owner or yourself (except own profile), only owner can grant/remove `admin`, transfer rules (§1b).
-- [ ] Audit every action (`team.invited`, `team.invite_revoked`, `team.role_changed`, `team.disabled`, `team.enabled`, `team.removed`, `account.ownership_transferred`).
-- [ ] Tests: full matrix (who can do what), last-owner protection, invite expiry/reuse, accept sets password + logs in, disabled user's tokens stop working immediately, tenant isolation, pagination/search.
+- [x] Invite `{ email, name, roleKey }` (roleKey ≠ owner) → existing global email → 409 `CONFLICT_DUPLICATE`; create user `status: invited` + invite token → email `team.invite` (inviter, account name, link `FRONTEND_URL/accept-invite?token=…`, 7 days).
+- [x] Accept `{ token, name?, password }` → active + verified + logged in (tokens + cookie).
+- [x] Role change → bump target `tokenVersion` (permissions refresh), push WS `session.revoked`? (no — `user.updated` event so the UI refetches `me`). Disable → `tokenVersion++` + revoke sessions + WS `session.revoked`.
+- [x] Guards: can't change/disable/remove owner or yourself (except own profile), only owner can grant/remove `admin`, transfer rules (§1b).
+- [x] Audit every action (`team.invited`, `team.invite_revoked`, `team.role_changed`, `team.disabled`, `team.enabled`, `team.removed`, `account.ownership_transferred`).
+- [x] Tests: full matrix (who can do what), last-owner protection, invite expiry/reuse, accept sets password + logs in, disabled user's tokens stop working immediately, tenant isolation, pagination/search.
 
 ### T2.9 — API keys
 
 **Routes** (`src/modules/api-keys/`): `GET /api-keys` (`apikeys.read`), `POST /api-keys` (`apikeys.manage`, blocked while impersonating), `DELETE /api-keys/:id` (revoke).
 
-- [ ] Key format `cav_live_<32 base62>` (`cav_test_` outside production); store `prefix` (first 12 chars) + `keyHash` (SHA-256); **raw key returned once** in the create response.
-- [ ] Scopes from a `API_KEY_SCOPES` catalogue (e.g. `calls:write`, `contacts:write`, `campaigns:read`, … — full list in Phase 10, Phase 2 defines the mechanism + current list).
-- [ ] `GET /api/v1/api-keys/whoami` (API-key auth) — test route returning `{ accountId, keyId, scopes }` (documented, used by Phase 10 smoke).
-- [ ] Audit `apikey.created` / `apikey.revoked`; max 20 active keys per account.
-- [ ] Tests: raw key never stored / never returned again, revoked key → 401, wrong scope → 403, `lastUsedAt` throttling, tenant isolation.
+- [x] Key format `cav_live_<32 base62>` (`cav_test_` outside production); store `prefix` (first 12 chars) + `keyHash` (SHA-256); **raw key returned once** in the create response.
+- [x] Scopes from a `API_KEY_SCOPES` catalogue (e.g. `calls:write`, `contacts:write`, `campaigns:read`, … — full list in Phase 10, Phase 2 defines the mechanism + current list).
+- [x] `GET /api/v1/api-keys/whoami` (API-key auth) — test route returning `{ accountId, keyId, scopes }` (documented, used by Phase 10 smoke).
+- [x] Audit `apikey.created` / `apikey.revoked`; max 20 active keys per account.
+- [x] Tests: raw key never stored / never returned again, revoked key → 401, wrong scope → 403, `lastUsedAt` throttling, tenant isolation.
 
 ### T2.10 — Audit log
 
 **Files:** `src/modules/audit/{audit.service.ts, audit.routes.ts, audit-actions.ts}`, `src/core/queues/workers/audit-purge.worker.ts`.
 
-- [ ] `audit.record({ req | system }, action, target?, meta?)` — actor from `req.auth` (user / api_key / system; impersonation → `actor.impersonatorId`), ip, at; **never throws** into the request (logs on failure); meta validated to contain no obvious PII keys (`password`, `token`, `code`, `email` values → stripped).
-- [ ] `AUDIT_ACTIONS` catalogue (typed) — every action string used in Phase 2 listed + documented in a new **docs/conventions/audit.md**.
-- [ ] `GET /api/v1/audit-logs` (`audit.read`) — cursor pagination, filters: `actorId`, `action` (prefix), `from`/`to`, `targetType`; newest first.
-- [ ] Purge job: BullMQ repeatable daily (system queue or `maintenance` queue) deletes entries older than 365 days (batch delete).
-- [ ] Tests: record from user / api key / system / impersonation, PII stripping, immutability (update attempt throws), list filters + pagination + tenant isolation, purge deletes only old entries.
+- [x] `audit.record({ req | system }, action, target?, meta?)` — actor from `req.auth` (user / api_key / system; impersonation → `actor.impersonatorId`), ip, at; **never throws** into the request (logs on failure); meta validated to contain no obvious PII keys (`password`, `token`, `code`, `email` values → stripped).
+- [x] `AUDIT_ACTIONS` catalogue (typed) — every action string used in Phase 2 listed + documented in a new **docs/conventions/audit.md**.
+- [x] `GET /api/v1/audit-logs` (`audit.read`) — cursor pagination, filters: `actorId`, `action` (prefix), `from`/`to`, `targetType`; newest first.
+- [x] Purge job: BullMQ repeatable daily (system queue or `maintenance` queue) deletes entries older than 365 days (batch delete).
+- [x] Tests: record from user / api key / system / impersonation, PII stripping, immutability (update attempt throws), list filters + pagination + tenant isolation, purge deletes only old entries.
 
 ### T2.11 — Superadmin
 
 **Routes** (`src/modules/admin/`, all `requirePlatformAdmin`): `GET /admin/accounts` (search name/slug/owner email, status filter, pagination, counts: users), `GET /admin/accounts/:id` (account + owner + users count + recent audit), `POST /admin/accounts/:id/suspend` `{ reason }`, `POST /admin/accounts/:id/enable`, `POST /admin/accounts/:id/impersonate`, `POST /admin/impersonation/stop`.
 
-- [ ] Suspend → `status: suspended` + WS `account.suspended` to the account (UI shows banner) + audit (platform + target). Enable reverses.
-- [ ] Impersonate → §1b rules; response `{ accessToken, expiresIn, account, user }`; audit both sides; stop → audit end (token simply expires / discarded).
-- [ ] `platform` account can't be suspended / impersonated.
-- [ ] Tests: non-superadmin 403 on every route, suspend → writes blocked + reads ok, impersonation token claims, no refresh cookie issued, blocked actions while impersonating, audit entries.
+- [x] Suspend → `status: suspended` + WS `account.suspended` to the account (UI shows banner) + audit (platform + target). Enable reverses.
+- [x] Impersonate → §1b rules; response `{ accessToken, expiresIn, account, user }`; audit both sides; stop → audit end (token simply expires / discarded).
+- [x] `platform` account can't be suspended / impersonated.
+- [x] Tests: non-superadmin 403 on every route, suspend → writes blocked + reads ok, impersonation token claims, no refresh cookie issued, blocked actions while impersonating, audit entries.
 
 ### T2.12 — WS tickets + realtime auth events
 
-- [ ] `POST /api/v1/ws/tickets` (auth) `{ channel?: 'events' }` → `WsTicketService.issue({ userId, accountId, channel })` → `{ ticket, expiresAt }` (Phase 1 service; `media` channel stays for Phase 7).
-- [ ] Event catalogue additions (websocket.md §5 + backend `events.ts` + frontend `events.ts`): `session.revoked` (user-targeted: `{ reason }`), `account.suspended` / `account.enabled`, `user.updated` (`{ userId }`).
-- [ ] `pushToUser(userId, …)` helper in realtime (route by account + filter user) if not present.
-- [ ] On `session.revoked` for a user → server also closes that user's sockets (4001).
-- [ ] Remove `npm run ws:dev-ticket` dependency from docs (keep the script for DEV, mention the real endpoint).
-- [ ] Tests: ticket requires auth, ticket bound to the caller, events delivered only to the right user/account, sockets closed on revoke.
+- [x] `POST /api/v1/ws/tickets` (auth) `{ channel?: 'events' }` → `WsTicketService.issue({ userId, accountId, channel })` → `{ ticket, expiresAt }` (Phase 1 service; `media` channel stays for Phase 7).
+- [x] Event catalogue additions (websocket.md §5 + backend `events.ts` + frontend `events.ts`): `session.revoked` (user-targeted: `{ reason }`), `account.suspended` / `account.enabled`, `user.updated` (`{ userId }`).
+- [x] `pushToUser(userId, …)` helper in realtime (route by account + filter user) if not present.
+- [x] On `session.revoked` for a user → server also closes that user's sockets (4001).
+- [x] Remove `npm run ws:dev-ticket` dependency from docs (keep the script for DEV, mention the real endpoint).
+- [x] Tests: ticket requires auth, ticket bound to the caller, events delivered only to the right user/account, sockets closed on revoke.
 
 ### T2.13 — Frontend auth infra
 
-- [ ] Backend `gen:openapi` → frontend `gen:api` (all Phase 2 routes typed).
-- [ ] `authStore` (Zustand): `accessToken`, `user`, `account`, `permissions`, `impersonation`, actions `setSession`, `clear`.
-- [ ] `services/api/auth.ts` (login, signup, verify, refresh, logout, me, …) using `unwrap`; `withCredentials` already on.
-- [ ] Interceptors: request → Bearer; response → `AUTH_TOKEN_EXPIRED` single-flight refresh + retry once (guard against loops: refresh/logout calls excluded); other 401 → clear + redirect. Remove Phase 2 TODOs in `client.ts`.
-- [ ] Bootstrap: `<AuthBootstrap>` tries refresh+me on load (spinner), then renders routes; listens to WS `session.revoked` → logout.
-- [ ] Guards `RequireAuth`, `RequirePermission`, `RequirePlatformAdmin`, `RedirectIfAuthed`; hook `usePermission(perm)` / `useCan()`.
-- [ ] Query key convention doc (`src/README.md`) + `queryClient.clear()` on logout.
-- [ ] Tests: interceptor single-flight (3 parallel 401s → 1 refresh), retry once, refresh failure → logout, guards redirect with `next`, permission hook.
+- [x] Backend `gen:openapi` → frontend `gen:api` (all Phase 2 routes typed).
+- [x] `authStore` (Zustand): `accessToken`, `user`, `account`, `permissions`, `impersonation`, actions `setSession`, `clear`.
+- [x] `services/api/auth.ts` (login, signup, verify, refresh, logout, me, …) using `unwrap`; `withCredentials` already on.
+- [x] Interceptors: request → Bearer; response → `AUTH_TOKEN_EXPIRED` single-flight refresh + retry once (guard against loops: refresh/logout calls excluded); other 401 → clear + redirect. Remove Phase 2 TODOs in `client.ts`.
+- [x] Bootstrap: `<AuthBootstrap>` tries refresh+me on load (spinner), then renders routes; listens to WS `session.revoked` → logout.
+- [x] Guards `RequireAuth`, `RequirePermission`, `RequirePlatformAdmin`, `RedirectIfAuthed`; hook `usePermission(perm)` / `useCan()`.
+- [x] Query key convention doc (`src/README.md`) + `queryClient.clear()` on logout.
+- [x] Tests: interceptor single-flight (3 parallel 401s → 1 refresh), retry once, refresh failure → logout, guards redirect with `next`, permission hook.
 
 ### T2.14 — Frontend auth screens
 
-- [ ] Pages: `/login`, `/signup`, `/verify-email` (6-box OTP input, paste support, resend with countdown), `/forgot-password`, `/reset-password?token=`, `/accept-invite?token=`.
-- [ ] react-hook-form + zod (mirror password policy client-side for instant feedback; server stays the authority), `applyFieldErrors`, loading states, error alerts via `getErrorMessage`, `AUTH_EMAIL_NOT_VERIFIED` from login → go to verify screen, 429 → show retry time.
-- [ ] Auth layout (centered card, logo, theme-aware), accessibility (labels, focus, Enter submits).
-- [ ] Tests (RTL): each page happy path + main error paths with mocked API.
+- [x] Pages: `/login`, `/signup`, `/verify-email` (6-box OTP input, paste support, resend with countdown), `/forgot-password`, `/reset-password?token=`, `/accept-invite?token=`.
+- [x] react-hook-form + zod (mirror password policy client-side for instant feedback; server stays the authority), `applyFieldErrors`, loading states, error alerts via `getErrorMessage`, `AUTH_EMAIL_NOT_VERIFIED` from login → go to verify screen, 429 → show retry time.
+- [x] Auth layout (centered card, logo, theme-aware), accessibility (labels, focus, Enter submits).
+- [x] Tests (RTL): each page happy path + main error paths with mocked API.
 
 ### T2.15 — Frontend app shell
 
-- [ ] `AppLayout`: sidebar (menu config with icon, label, path, permission), header (account name, impersonation/suspended banner slot, WS status dot, theme toggle, user menu: profile, sessions, logout), content outlet, breadcrumbs/page title component.
-- [ ] Responsive: permanent drawer ≥ md, collapsible; temporary drawer < md; mobile header menu button.
-- [ ] Theme: light/dark (`colorSchemes`, `useColorScheme`, persisted), brand colors in `theme/`.
-- [ ] Pages: Dashboard skeleton (welcome, account card, placeholder widgets for calls/wallet/campaigns with "coming in Phase X"), 403 page, 404 (existing), error boundary page.
-- [ ] Shared components: `ConfirmDialog` (+ `useConfirm()` promise API), `PageHeader`, `EmptyState`, `DataTable` (MUI table + pagination + loading/empty/error), `StatusChip`.
-- [ ] Realtime ON: `RealtimeProvider getTicket={issueWsTicket}` inside auth; status indicator; handle `account.suspended` / `user.updated` (refetch `me`).
-- [ ] Menu (Phase 2 live items): Dashboard, Team, Settings; later items present but hidden until their phase (config flag).
-- [ ] Tests: menu hides items without permission, drawer responsive behaviour, theme toggle, confirm dialog, banner rendering.
+- [x] `AppLayout`: sidebar (menu config with icon, label, path, permission), header (account name, impersonation/suspended banner slot, WS status dot, theme toggle, user menu: profile, sessions, logout), content outlet, breadcrumbs/page title component.
+- [x] Responsive: permanent drawer ≥ md, collapsible; temporary drawer < md; mobile header menu button.
+- [x] Theme: light/dark (`colorSchemes`, `useColorScheme`, persisted), brand colors in `theme/`.
+- [x] Pages: Dashboard skeleton (welcome, account card, placeholder widgets for calls/wallet/campaigns with "coming in Phase X"), 403 page, 404 (existing), error boundary page.
+- [x] Shared components: `ConfirmDialog` (+ `useConfirm()` promise API), `PageHeader`, `EmptyState`, `DataTable` (MUI table + pagination + loading/empty/error), `StatusChip`.
+- [x] Realtime ON: `RealtimeProvider getTicket={issueWsTicket}` inside auth; status indicator; handle `account.suspended` / `user.updated` (refetch `me`).
+- [x] Menu (Phase 2 live items): Dashboard, Team, Settings; later items present but hidden until their phase (config flag).
+- [x] Tests: menu hides items without permission, drawer responsive behaviour, theme toggle, confirm dialog, banner rendering.
 
 ### T2.16 — Frontend Team + Settings
 
-- [ ] **Team** (`team.read`): table (name, email, role, status, last login), search + filters, invite dialog, resend / revoke invite, change role, enable/disable, remove (ConfirmDialog), transfer ownership (owner only); actions hidden without permission.
-- [ ] **Settings** tabs: Account (`account.update` editable, else read-only; timezone autocomplete, calling window editor), Profile (name, phone), Security (change password, sessions list + revoke, logout-all), API keys (`apikeys.*`: list, create dialog with scopes, **show-once key with copy button**, revoke), Audit log (`audit.read`: table, filters, cursor "load more", times in account TZ).
-- [ ] Tests: per page main flows + permission-based hiding.
+- [x] **Team** (`team.read`): table (name, email, role, status, last login), search + filters, invite dialog, resend / revoke invite, change role, enable/disable, remove (ConfirmDialog), transfer ownership (owner only); actions hidden without permission.
+- [x] **Settings** tabs: Account (`account.update` editable, else read-only; timezone autocomplete, calling window editor), Profile (name, phone), Security (change password, sessions list + revoke, logout-all), API keys (`apikeys.*`: list, create dialog with scopes, **show-once key with copy button**, revoke), Audit log (`audit.read`: table, filters, cursor "load more", times in account TZ).
+- [x] Tests: per page main flows + permission-based hiding.
 
 ### T2.17 — Frontend Superadmin
 
-- [ ] Routes `/admin/accounts` (list, search, status filter), `/admin/accounts/:id` (detail, users count, recent audit, suspend/enable with reason dialog, Impersonate button), "Rates" tab placeholder ("Phase 4").
-- [ ] Impersonation: store real session aside, switch `authStore` to impersonation token, persistent **warning banner** ("Viewing as <account> — Stop"), auto-stop on expiry, Stop → restore superadmin session.
-- [ ] Superadmin menu section only for `platformRole = superadmin`.
-- [ ] Tests: guards, suspend flow, impersonation start/stop/expiry.
+- [x] Routes `/admin/accounts` (list, search, status filter), `/admin/accounts/:id` (detail, users count, recent audit, suspend/enable with reason dialog, Impersonate button), "Rates" tab placeholder ("Phase 4").
+- [x] Impersonation: store real session aside, switch `authStore` to impersonation token, persistent **warning banner** ("Viewing as <account> — Stop"), auto-stop on expiry, Stop → restore superadmin session.
+- [x] Superadmin menu section only for `platformRole = superadmin`.
+- [x] Tests: guards, suspend flow, impersonation start/stop/expiry.
 
 ### T2.18 — E2E, gap audit, docs, sign-off
 
-- [ ] Playwright (`@playwright/test`, Chromium only) in the **frontend repo** (`e2e/`), runs against local backend + frontend dev servers; OTP / invite links read from the **Mailpit API**.
-- [ ] Scenarios: (1) signup → OTP → dashboard → logout → login; (2) owner invites manager → accept invite (new context) → manager sees Team read-only, no API keys/Audit menu; (3) owner changes manager → viewer → menu changes after refresh/event; (4) superadmin suspends account → owner sees banner + write blocked → enable; (5) forgot → reset → old session invalid.
-- [ ] CI: Playwright job (optional / manual trigger until both repos run together in CI — documented).
-- [ ] Gap audit table (requirement → test) like Phase 1; coverage gates kept (thresholds re-measured, round down to 5).
-- [ ] Docs: README (auth setup, seed, superadmin CLI, Mailpit OTP), conventions (error codes, websocket events, audit.md, api.md auth section), data-model.md, ADR updates (0009 implementation notes, 0011 status note), CHANGELOGs, PHASE_2_TASKS, BUILD_PLAN status, **PHASE_2_SIGNOFF.md**.
-- [ ] Security checklist run: no secrets in logs (grep test), cookies flags, CORS + Origin check, rate limits, enumeration responses, token invalidation paths, tenant isolation tests, gitleaks.
+- [x] Playwright (`@playwright/test`, Chromium only) in the **frontend repo** (`e2e/`), runs against local backend + frontend dev servers; OTP / invite links read from the **Mailpit API**.
+- [x] Scenarios: (1) signup → OTP → dashboard → logout → login; (2) owner invites manager → accept invite (new context) → manager sees Team read-only, no API keys/Audit menu; (3) owner changes manager → viewer → menu changes after refresh/event; (4) superadmin suspends account → owner sees banner + write blocked → enable; (5) forgot → reset → old session invalid.
+- [x] CI: Playwright job (optional / manual trigger until both repos run together in CI — documented).
+- [x] Gap audit table (requirement → test) like Phase 1; coverage gates kept (thresholds re-measured, round down to 5).
+- [x] Docs: README (auth setup, seed, superadmin CLI, Mailpit OTP), conventions (error codes, websocket events, audit.md, api.md auth section), data-model.md, ADR updates (0009 implementation notes, 0011 status note), CHANGELOGs, PHASE_2_TASKS, BUILD_PLAN status, **PHASE_2_SIGNOFF.md**.
+- [x] Security checklist run: no secrets in logs (grep test), cookies flags, CORS + Origin check, rate limits, enumeration responses, token invalidation paths, tenant isolation tests, gitleaks.
 
 ---
 
 ## 4. Deliverables checklist
 
-- [ ] Accounts, users, roles, refresh tokens, auth codes, API keys, audit logs models + migrations + seed + superadmin CLI
-- [ ] Permission catalogue + 5 system roles (single source, exported to frontend)
-- [ ] argon2id passwords, JWT access, rotating refresh cookie with reuse detection, token invalidation
-- [ ] Signup + OTP verify, login / refresh / logout / logout-all / me / sessions, forgot / reset / change password
-- [ ] `authenticate`, `requirePermission`, `apiKeyAuth`, tenant helpers, suspension rule
-- [ ] Account settings API
-- [ ] Team: invite / accept / resend / revoke / role / enable-disable / remove / ownership transfer
-- [ ] API keys + `X-API-Key` middleware
-- [ ] Audit log + list API + purge job
-- [ ] Superadmin accounts + suspend / enable + impersonation
-- [ ] `POST /api/v1/ws/tickets` + realtime auth events
-- [ ] Frontend: auth infra, auth screens, app shell, Team, Settings, Superadmin, realtime ON
-- [ ] Playwright E2E for the "Done when" scenario
-- [ ] Docs, CHANGELOGs, sign-off
+- [x] Accounts, users, roles, refresh tokens, auth codes, API keys, audit logs models + migrations + seed + superadmin CLI
+- [x] Permission catalogue + 5 system roles (single source, exported to frontend)
+- [x] argon2id passwords, JWT access, rotating refresh cookie with reuse detection, token invalidation
+- [x] Signup + OTP verify, login / refresh / logout / logout-all / me / sessions, forgot / reset / change password
+- [x] `authenticate`, `requirePermission`, `apiKeyAuth`, tenant helpers, suspension rule
+- [x] Account settings API
+- [x] Team: invite / accept / resend / revoke / role / enable-disable / remove / ownership transfer
+- [x] API keys + `X-API-Key` middleware
+- [x] Audit log + list API + purge job
+- [x] Superadmin accounts + suspend / enable + impersonation
+- [x] `POST /api/v1/ws/tickets` + realtime auth events
+- [x] Frontend: auth infra, auth screens, app shell, Team, Settings, Superadmin, realtime ON
+- [x] Playwright E2E for the "Done when" scenario
+- [x] Docs, CHANGELOGs, sign-off
 
 ## 5. Risks
 
@@ -439,3 +439,4 @@ _Estimate — run batch-wise with detailed run prompts (Batch 1 = T2.1–T2.6, B
 - 2026-10-08: Run prompt [PHASE_2_PROMPT.md](../prompts/PHASE_2_PROMPT.md) added (one file, 3 batches). Precisions there: branch `feature/phase-2-auth` from the phase-1 tip; `jose` verified with CommonJS on Node 24 (fallback `jsonwebtoken`); `@node-rs/argon2` has no install scripts; `PATCH /auth/me` (profile name/phone) added in T2.16; `GET /auth/invite-info` for the accept page; new WS events `account.updated`, `team.changed`; `maintenance` queue for the audit purge; Playwright 1.64.0.
 - 2026-10-08: Batch 1 (T2.1–T2.6) done. Deviations: superadmin CLI + `db:seed` moved from T2.1 to T2.2 (need password hashing); auth limiter is **per IP + route, 30 / 15 min** (new `AUTH_RATE_LIMIT`, own Redis store `rl:auth:`, IPv6 /56 via `ipKeyGenerator`) instead of the global `STRICT_RATE_LIMIT` (10 / 15 min per IP would lock out offices behind one NAT — brute force is covered by the per-email lockout + OTP caps); lockout answers 401 for the first 5 failures and 429 from the 6th; reset checks the token → validates the password → then consumes the token (a weak password doesn't burn the link); `basePlugin` got a `hide` option for secret fields; `authCodes` keeps one live code per user + purpose (new code replaces the old one). Bugs found in the checkpoint and fixed: OTP in the email subject (logged) → subjects never carry secrets; gitleaks false positive on the common-password list → path allowlisted.
 - 2026-10-08: Batch 2 (T2.7–T2.12) done. Precisions: invite revoke deletes the invited user doc; removing a member is a soft delete (email can be invited again — partial unique index); admins can be invited / changed / removed only by the owner; a pending invite can't be enabled / disabled (resend / revoke only); audit `action` is a typed union (`AUDIT_ACTIONS`, 27 actions) kept equal to `audit.md` by a test, and refresh-token reuse is now audited; superadmin actions are audited in the target **and** the platform account; WS ticket endpoint allows only the `events` channel (media in Phase 7), 30 / min per user (per-instance memory store). Process slip: one commit (T2.10) was made while typecheck failed (chained command didn't stop) — fixed and amended before moving on; commits now only after every check passed.
+- 2026-10-08: Batch 3 (T2.13–T2.18) done — frontend auth / shell / Team / Settings / Superadmin and the Playwright suite (5 scenarios, run 2× green). Real bugs the E2E suite found and fixed: (1) a reload during a token refresh signed users out with a false reuse alarm → 10 s lost-response grace in refresh rotation (ADR 0009); (2) `Asia/Kolkata` (our default) failed timezone validation because ICU lists only `Asia/Calcutta` → validate via `Intl.DateTimeFormat`, frontend shows current names (ADR 0017); (3) the permanent sidebar covered the left of every page; (4) starting impersonation landed on /403 → admin routes send an impersonating session to `/`. Also: flaky email-queue test fixed (job removed before `getJob`). Deviations: see [PHASE_2_SIGNOFF.md](PHASE_2_SIGNOFF.md) §5.

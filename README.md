@@ -4,7 +4,7 @@ Multi-tenant AI voice calling platform API (Node.js + Express + TypeScript + Mon
 
 ## Status
 
-**Phase 1 — Backend Foundation: complete** ([sign-off](docs/phases/PHASE_1_SIGNOFF.md)). Next: Phase 2 (auth, accounts, RBAC). Tasks: [docs/phases/PHASE_1_TASKS.md](docs/phases/PHASE_1_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
+**Phase 2 — Auth, Accounts, RBAC + App Shell: complete** ([sign-off](docs/phases/PHASE_2_SIGNOFF.md)); Phase 1 [sign-off](docs/phases/PHASE_1_SIGNOFF.md). Next: Phase 3 (contacts). Tasks: [docs/phases/PHASE_2_TASKS.md](docs/phases/PHASE_2_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Prerequisites
 
@@ -74,7 +74,7 @@ curl -s localhost:5100/api/v1/system/info
 
 ## Authentication & accounts (Phase 2)
 
-- **Flow:** `POST /api/v1/auth/signup` (always 202) → 6-digit code by email → `POST /auth/verify-email` signs in. Then `login`, `refresh` (httpOnly `cav_rt` cookie, rotated on every use — reuse ends the session), `logout`, `logout-all`, `me`, `sessions`, `forgot-password` / `reset-password`, `change-password`. Details: [ADR 0009](docs/adr/0009-auth-tokens.md), [src/README.md](src/README.md#authentication).
+- **Flow:** `POST /api/v1/auth/signup` (always 202) → 6-digit code by email → `POST /auth/verify-email` signs in. Then `login`, `refresh` (httpOnly `cav_rt` cookie, rotated on every use — reuse ends the session; a replay within 10 s whose successor is unused counts as a lost response, not reuse), `logout`, `logout-all`, `me`, `sessions`, `forgot-password` / `reset-password`, `change-password`. Details: [ADR 0009](docs/adr/0009-auth-tokens.md), [src/README.md](src/README.md#authentication).
 - **Local quickstart:**
   ```bash
   npm run infra:up && npm run db:migrate
@@ -252,8 +252,8 @@ The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-
 - **Full-server e2e:** `tests/e2e/server.e2e.test.ts` boots `startServer({ port: 0, … })` with real Mongo (memory) + Redis + workers + realtime + email, then checks the graceful shutdown order.
 - **Email:** `tests/email/` — in-process SMTP server (`smtp-server`), no Mailpit needed.
 - **Docs sync:** `tests/config/env-docs.test.ts` fails when a variable in `env.ts` is missing from `.env.example` or the env table below; `error-codes.test.ts` keeps `ERROR_CODES` = `error-codes.md`.
-- **Coverage gate:** `npm run test:coverage` enforces thresholds in `vitest.config.mts` (statements 90 · branches 80 · functions 90 · lines 90 — Phase 1 sign-off values rounded down). CI runs it.
-- **Browser E2E:** Playwright, added after Phase 2.
+- **Coverage gate:** `npm run test:coverage` enforces thresholds in `vitest.config.mts` (statements 95 · branches 80 · functions 90 · lines 95 — Phase 2 sign-off values rounded down). CI runs it.
+- **Browser E2E:** Playwright lives in the frontend repo (`e2e/`, `npm run e2e`) and starts this backend with an isolated `cav_e2e` database and Redis db 5 — see the frontend README.
 
 ## Code quality
 

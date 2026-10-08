@@ -16,11 +16,11 @@ Source plan: [PHASE_2_PLAN.md](PHASE_2_PLAN.md) · Run prompt (all 3 batches): [
 | [x]  | T2.10 | Audit log + list API + purge job                                                   | BE   | M    |
 | [x]  | T2.11 | Superadmin: accounts, suspend / enable, impersonation                              | BE   | M    |
 | [x]  | T2.12 | WS tickets endpoint + realtime auth events                                         | BE   | S    |
-| [ ]  | T2.13 | Frontend auth infra (store, interceptor, bootstrap, guards)                        | FE   | M    |
-| [ ]  | T2.14 | Frontend auth screens                                                              | FE   | M    |
-| [ ]  | T2.15 | Frontend app shell                                                                 | FE   | L    |
-| [ ]  | T2.16 | Frontend Team + Settings                                                           | FE   | L    |
-| [ ]  | T2.17 | Frontend Superadmin + impersonation                                                | FE   | M    |
-| [ ]  | T2.18 | Playwright E2E, gap audit, docs, Phase 2 sign-off                                  | both | M    |
+| [x]  | T2.13 | Frontend auth infra (store, interceptor, bootstrap, guards)                        | FE   | M    |
+| [x]  | T2.14 | Frontend auth screens                                                              | FE   | M    |
+| [x]  | T2.15 | Frontend app shell                                                                 | FE   | L    |
+| [x]  | T2.16 | Frontend Team + Settings                                                           | FE   | L    |
+| [x]  | T2.17 | Frontend Superadmin + impersonation                                                | FE   | M    |
+| [x]  | T2.18 | Playwright E2E, gap audit, docs, Phase 2 sign-off                                  | both | M    |
 
 **Done when:** naya account bane → team member invite ho → roles se menu badle (Playwright E2E green).

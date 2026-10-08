@@ -72,7 +72,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 | --- | ------------------------------------- | ----------------- | ------- | ----- |
 | 0   | Setup & Architecture Decisions        | 🟢 Abhi           | ✔       | ✔     |
 | 1   | Backend Foundation                    | ✅ Done           | ✔       | –     |
-| 2   | Auth, Accounts, RBAC + App Shell      | 🟢 Abhi           | ✔       | ✔     |
+| 2   | Auth, Accounts, RBAC + App Shell      | ✅ Done           | ✔       | ✔     |
 | 3   | Contacts, Lists & Custom Fields       | 🟢 Abhi           | ✔       | ✔     |
 | 4   | Wallet & Billing                      | 🟢 Abhi           | ✔       | ✔     |
 | 5   | AI Agents & Knowledge Base            | 🟢 Abhi           | ✔       | ✔     |
@@ -125,14 +125,14 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ---
 
-### Phase 2 — Auth, Accounts, RBAC + App Shell 🟢
+### Phase 2 — Auth, Accounts, RBAC + App Shell ✅
 
 **Backend**
 
 - Signup / login (JWT access + refresh), forgot / reset password, email verify (OTP)
 - Account (tenant) → Users; roles: owner / admin / manager / agent / viewer; permission map
 - Team invite, user enable/disable
-- Superadmin: accounts list, enable/suspend, rates set karna, impersonate (audit ke saath)
+- Superadmin: accounts list, enable/suspend, rates set karna (→ Phase 4, placeholder tab), impersonate (audit ke saath)
 - API keys (hashed), audit log (kisne kya kiya)
 - Account settings: timezone, default language, calling window default, business name
 
@@ -144,7 +144,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 - WebSocket context (reconnect + ping), toast/snackbar, confirm dialog
 - Dashboard skeleton, Team page, Settings page, Superadmin pages
 
-**Done when:** Naya account bane, team member invite ho, roles se menu badle.
+**Done when:** Naya account bane, team member invite ho, roles se menu badle. ✅ Playwright `e2e/team-rbac.spec.ts` (frontend) — [sign-off](../phases/PHASE_2_SIGNOFF.md).
 
 ---
 
@@ -430,6 +430,7 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 | Calling window default | 09:00–19:00 (TRAI 9–21 ∩ RBI recovery 8–19), hard block                                            | compliance-notes        |
 | Deployment             | Docker Compose on the client EC2 (isolated) — pending server audit                                 | ADR 0025                |
 | Phase 1                | Ready to start — [PHASE_1_PLAN.md](../phases/PHASE_1_PLAN.md)                                      |                         |
+| Phase 2                | Complete — [PHASE_2_SIGNOFF.md](../phases/PHASE_2_SIGNOFF.md)                                      |                         |
 
 ---
 
@@ -437,3 +438,4 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 
 - 2026-10-08: Node 24 LTS (Node 20 EOL), MongoDB 8.2 (8.0 fails on Linux kernel ≥ 6.19), Redis 7.4, local ports API 5100 / web 3100 / Mongo 27018 / Redis 6380, React 19 + latest MUI, Mantis template not reused until license confirmed — see [ADR index](../adr/README.md).
 - 2026-10-08: Phase 0 complete — decisions table (§8): MongoDB 8.2, OpenAPI types, WS tickets, Asterisk recommendation, 09:00–19:00 calling window; voice AI and deployment pending inputs.
+- 2026-10-08: Phase 2 complete (auth, accounts, RBAC, app shell, superadmin, Playwright E2E) — [PHASE_2_SIGNOFF.md](../phases/PHASE_2_SIGNOFF.md). Superadmin rates deferred to Phase 4 as planned.

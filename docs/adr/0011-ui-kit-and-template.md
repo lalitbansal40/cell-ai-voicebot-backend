@@ -22,3 +22,7 @@ Use **MUI latest stable** with **our own thin layout/theme**. **Do not copy Mant
 - **Positive:** zero license risk.
 - **Negative / trade-offs:** some layout/components to build ourselves.
 - **Follow-ups:** user to confirm Mantis license (owner: project lead) → then accept or supersede this ADR.
+
+## Status note (Phase 2, 2026-10-09)
+
+The Phase 2 dashboard (auth pages, app shell, Team, Settings, Superadmin) is built on **plain MUI 9** with our own layout and theme. **No Mantis code was copied.** The status stays `proposed` until the license question is answered. If a Mantis license is bought later, only visual polish would change; the routes, components and tests stay the same.
