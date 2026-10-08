@@ -120,6 +120,7 @@ describe('GET /contacts', () => {
     ['q=ASHA@example', ['Asha Verma']],
     ['q=98765 43210', ['Asha Verma']],
     ['q=%2B91-98765-00001', ['bharat singh']],
+    ['q=0987650000', ['bharat singh', 'आशा देवी', 'Chetan'].reverse()],
     ['q=आशा', ['आशा देवी']],
     ['tag=vip', ['bharat singh', 'Asha Verma']],
     ['tag=vip,overdue', ['आशा देवी', 'bharat singh', 'Asha Verma']],

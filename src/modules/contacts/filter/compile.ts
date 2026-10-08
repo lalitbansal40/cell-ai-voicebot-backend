@@ -195,7 +195,8 @@ export const compileContactFilter = (
   }
   if (filter.q) {
     const text = escapeRegex(filter.q.toLowerCase().replace(/\s+/g, ' '));
-    const digits = phoneDigits(filter.q);
+    // Trunk / international prefixes (`0`, `00`) are not part of the stored E.164 digits.
+    const digits = phoneDigits(filter.q).replace(/^0+/, '');
     const phoneLike = /^[\d\s+\-().]+$/.test(filter.q) && digits.length >= 3;
     and.push(
       phoneLike

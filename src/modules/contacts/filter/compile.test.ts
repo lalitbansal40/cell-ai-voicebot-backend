@@ -150,6 +150,12 @@ describe('compileContactFilter', () => {
         ],
       },
     ]);
+    expect(compileContactFilter(accountId, { q: '098761' }, ctx).query.$and).toEqual([
+      { $or: [{ searchText: { $regex: '098761' } }, { searchText: { $regex: '98761' } }] },
+    ]);
+    expect(compileContactFilter(accountId, { q: '0091 98761' }, ctx).query.$and).toEqual([
+      { $or: [{ searchText: { $regex: '0091 98761' } }, { searchText: { $regex: '9198761' } }] },
+    ]);
     expect(compileContactFilter(accountId, { q: '98' }, ctx).query.$and).toEqual([
       { searchText: { $regex: '98' } },
     ]);
