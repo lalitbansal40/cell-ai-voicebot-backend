@@ -3,11 +3,14 @@ import { ipKeyGenerator, type Store } from 'express-rate-limit';
 
 import type { Env } from '../../config/env';
 import { AUTH_RATE_LIMIT } from '../../config/limits';
+import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { originCheck } from '../../shared/middlewares/origin-check';
 import { createRateLimiter, type RateLimiterOptions } from '../../shared/middlewares/rate-limit';
 import { blockWhenImpersonating } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
+import { AcceptInviteBody, InviteTokenQuery } from '../team/team.schema';
+import { acceptInvite, inviteInfo } from '../team/team.service';
 
 import {
   changePasswordHandler,
@@ -59,6 +62,20 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
   router.post('/login', limiter, ...handle({ body: LoginBody }, loginHandler));
   router.post('/refresh', limiter, originCheck(deps.env), refreshHandler);
   router.post('/logout', originCheck(deps.env), logoutHandler);
+  router.get(
+    '/invite-info',
+    limiter,
+    ...handle({ query: InviteTokenQuery }, async ({ query, res }) => {
+      ok(res, await inviteInfo(query.token));
+    }),
+  );
+  router.post(
+    '/accept-invite',
+    limiter,
+    ...handle({ body: AcceptInviteBody }, async ({ body, req, res }) => {
+      ok(res, await acceptInvite(req, res, body));
+    }),
+  );
   router.post(
     '/forgot-password',
     limiter,

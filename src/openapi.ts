@@ -9,6 +9,7 @@ import './modules/account/account.schema';
 import './modules/auth/auth.schema';
 import './modules/health/health.schema';
 import './modules/rbac/rbac.schema';
+import './modules/team/team.schema';
 import './modules/system/system.schema';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;

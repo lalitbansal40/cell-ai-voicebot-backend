@@ -186,3 +186,21 @@ describe('auth templates', () => {
     expect(cases[2]?.text).toContain('https://app/reset?token=abc');
   });
 });
+
+describe('team invite template', () => {
+  it('is escaped and keeps the link out of the subject', () => {
+    const email = renderTemplate('team.invite', {
+      inviterName: '<b>Boss</b>',
+      accountName: 'Acme & Co',
+      roleName: 'Manager',
+      acceptUrl: 'https://app/accept-invite?token=SECRET123',
+      days: 7,
+    });
+    expect(email.subject).toBe("You're invited to Acme & Co on Cell AI Voicebot");
+    expect(email.subject).not.toContain('SECRET123');
+    expect(email.html).toContain('&lt;b&gt;Boss&lt;/b&gt;');
+    expect(email.html).toContain('Acme &amp; Co');
+    expect(email.text).toContain('https://app/accept-invite?token=SECRET123');
+    expect(email.text).toContain('7 days');
+  });
+});

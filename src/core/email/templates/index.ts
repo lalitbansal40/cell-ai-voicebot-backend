@@ -9,6 +9,7 @@ import {
   type VerifyEmailVars,
 } from './auth';
 import { systemTest, type SystemTestVars } from './system-test';
+import { teamInvite, type TeamInviteVars } from './team';
 import type { RenderedEmail } from './types';
 
 export { escapeHtml } from './escape';
@@ -17,7 +18,7 @@ export type { RenderedEmail } from './types';
 
 /**
  * Template key → variables. Add a template: create `<name>.ts`, add it here
- * and to TEMPLATES. Phase 2 adds `team.invite` next; Phase 4: `wallet.receipt`, `wallet.low_balance`.
+ * and to TEMPLATES. Phase 4: `wallet.receipt`, `wallet.low_balance`.
  */
 export interface EmailTemplateVars {
   'system.test': SystemTestVars;
@@ -25,6 +26,7 @@ export interface EmailTemplateVars {
   'auth.account_exists': AccountExistsVars;
   'auth.reset_password': ResetPasswordVars;
   'auth.password_changed': PasswordChangedVars;
+  'team.invite': TeamInviteVars;
 }
 
 export type EmailTemplateKey = keyof EmailTemplateVars;
@@ -35,6 +37,7 @@ const TEMPLATES: { [K in EmailTemplateKey]: (vars: EmailTemplateVars[K]) => Rend
   'auth.account_exists': accountExists,
   'auth.reset_password': resetPassword,
   'auth.password_changed': passwordChanged,
+  'team.invite': teamInvite,
 };
 
 export const isEmailTemplateKey = (key: string): key is EmailTemplateKey =>
