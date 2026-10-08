@@ -1,4 +1,4 @@
-import express, { json, type NextFunction, type Request, type Response } from 'express';
+import express, { json, type Request, type Response } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -93,7 +93,7 @@ describe('errorHandler', () => {
 
   it('delegates to next(err) when headers were already sent', () => {
     const err = new Error('late');
-    const next = vi.fn<NextFunction>();
+    const next = vi.fn();
     const status = vi.fn();
     const res = { headersSent: true, status, json: vi.fn() } as unknown as Response;
     errorHandler()(

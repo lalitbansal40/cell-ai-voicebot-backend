@@ -6,7 +6,11 @@ import { describe, expect, it } from 'vitest';
 
 import { createLogger } from '../../src/shared/logger';
 import { httpLogger } from '../../src/shared/middlewares/http-logger';
-import { REQUEST_ID_HEADER, requestId } from '../../src/shared/middlewares/request-id';
+import {
+  getRequestId,
+  REQUEST_ID_HEADER,
+  requestId,
+} from '../../src/shared/middlewares/request-id';
 
 const buildApp = (ignorePaths: string[] = []) => {
   const lines: Record<string, unknown>[] = [];
@@ -86,8 +90,7 @@ describe('httpLogger middleware', () => {
 });
 
 describe('getRequestId', () => {
-  it('returns string ids and ignores other types', async () => {
-    const { getRequestId } = await import('../../src/shared/middlewares/request-id');
+  it('returns string ids and ignores other types', () => {
     expect(getRequestId({ id: 'abc' })).toBe('abc');
     expect(getRequestId({ id: 42 })).toBe('');
     expect(getRequestId({})).toBe('');
