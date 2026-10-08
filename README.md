@@ -95,6 +95,14 @@ curl -s localhost:5100/api/v1/system/info
 - **Audit log** (`/api/v1/audit-logs`): every sensitive action, 365-day retention — catalogue in [audit.md](docs/conventions/audit.md).
 - **Superadmin** (`/api/v1/admin`, platform admins from `npm run superadmin:create`): accounts list / detail, suspend (read-only) / enable, impersonate the owner for 30 minutes (audited, sensitive actions blocked).
 
+## Contacts (Phase 3)
+
+- **Custom fields** (`/api/v1/custom-fields`): typed variables per account — `text`, `number`, `date`, `currency`, `phone`; key `^[a-z][a-z0-9_]*$` (immutable, used as `{{key}}` in flows), max 50, required + default. Currency is sent in rupees and stored as integer micros; dates as `YYYY-MM-DD`.
+- **Contacts** (`/api/v1/contacts`): one contact per phone (E.164, the account's country as default — `098765…`, `+91 98765-…`, `919876…` all work). Search `?q=` matches name, e-mail, external id or the phone in any format; filters `listId`, `tag` / `tagsAll`, `dnd`, `optedOut`, `segmentId`, `createdFrom/To`; `POST /contacts/search` takes a full filter (field conditions such as `days_past_due > 30`, `due_date overdue_by_days 30`). Duplicate phone / external id → `409` with `existingId`; a deleted contact is revived when its phone is added again (hard-deleted after 30 days).
+- **Lists** (`/api/v1/contact-lists`, counts computed live) and **segments** (`/api/v1/segments`, saved filters with preview).
+- **Do-not-call** (`/api/v1/dnd-entries`): add (`contacts.write`), remove only with **`dnd.manage`** (owner / admin, migration `0004`). `POST /contacts/:id/opt-out` also adds the number to the list; undo needs `dnd.manage`.
+- Permissions: `contacts.read` (agents, viewers) to view, `contacts.write` (managers and up) to change. Phone numbers, names and variables never appear in logs.
+
 ## Database (MongoDB)
 
 - Connection: `src/db/mongo.ts` (Mongoose 9, `strictQuery`, `autoIndex` off in production, credentials never logged). Indexes are synced at startup in development/test; in production run `npm run db:sync-indexes` as a deploy step.

@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 3 · Batch 1 (T3.1–T3.6)** — 2026-10-09
+  - Models: contacts, lists, custom fields, segments, DND entries, import / export jobs (+ indexes); migration `0004` adds `dnd.manage` (owner / admin); `CONTACT_LIMITS`; `IMPORT_FILE_INVALID`; `contacts` queue + worker; storage and job queue passed to the API router; 3 WS events (docs-sync test); 14 audit actions.
+  - Normalisation library: phones (account country, Excel lost digits), Indian number grouping, currency as micros, dates (DD/MM default, Excel serials), Unicode tags — 100 % covered.
+  - APIs: custom fields, contacts (CRUD, search any phone format, filters, sort with collation), contact tags, lists (live counts), segments (preview, broken-condition report), do-not-call + opt-out. Conflict errors carry `existingId`.
+  - Fixed during the checkpoint: search by a number typed with a leading `0` / `00`; Hindi vowel signs in tags.
+  - Tests: 540 → 821.
+
 - **Phase 2 · Batch 3 (T2.13–T2.18)** — 2026-10-08
   - `PATCH /api/v1/auth/me` (profile name / phone) for the frontend Settings page.
   - Refresh rotation: a token rotated < 10 s ago whose successor is unused gets a fresh successor (lost response, e.g. reload mid-refresh) instead of revoking the session; any other replay is still reuse.

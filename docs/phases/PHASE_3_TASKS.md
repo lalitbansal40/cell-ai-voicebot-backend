@@ -4,12 +4,12 @@ Source plan: [PHASE_3_PLAN.md](PHASE_3_PLAN.md) — Batch 1 = T3.1–T3.6, Batch
 
 | Done | Task  | Title                                                                                     | Repo | Size |
 | ---- | ----- | ----------------------------------------------------------------------------------------- | ---- | ---- |
-| [ ]  | T3.1  | Models, indexes, migration 0004 (`dnd.manage`), limits, error code, queue, events / audit | BE   | M    |
-| [ ]  | T3.2  | Normalisation library (phone, typed values, tags, email)                                  | BE   | M    |
-| [ ]  | T3.3  | Custom fields API                                                                         | BE   | S    |
-| [ ]  | T3.4  | Contacts CRUD + search / filter / sort + filter compiler + tags                           | BE   | L    |
-| [ ]  | T3.5  | Lists + segments API                                                                      | BE   | M    |
-| [ ]  | T3.6  | DND + opt-out + consent                                                                   | BE   | M    |
+| [x]  | T3.1  | Models, indexes, migration 0004 (`dnd.manage`), limits, error code, queue, events / audit | BE   | M    |
+| [x]  | T3.2  | Normalisation library (phone, typed values, tags, email)                                  | BE   | M    |
+| [x]  | T3.3  | Custom fields API                                                                         | BE   | S    |
+| [x]  | T3.4  | Contacts CRUD + search / filter / sort + filter compiler + tags                           | BE   | L    |
+| [x]  | T3.5  | Lists + segments API                                                                      | BE   | M    |
+| [x]  | T3.6  | DND + opt-out + consent                                                                   | BE   | M    |
 | [ ]  | T3.7  | Upload + CSV / XLSX parsing + import job + suggested mapping + template                   | BE   | L    |
 | [ ]  | T3.8  | Validate (dry run) + error report                                                         | BE   | M    |
 | [ ]  | T3.9  | Import run (batches, resume, cancel, lock, progress) + DND upload                         | BE   | L    |
