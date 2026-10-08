@@ -17,6 +17,19 @@ jobs:
     name: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # Tests use a real Redis (BullMQ, rate limits, WS fan-out) — ADR 0005.
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6380
     steps:
       - uses: actions/checkout@v7
 

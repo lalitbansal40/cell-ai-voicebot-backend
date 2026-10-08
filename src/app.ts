@@ -1,4 +1,5 @@
 import express, { json, urlencoded, type Express } from 'express';
+import type { Store } from 'express-rate-limit';
 
 import type { Env } from './config/env';
 import { JSON_BODY_LIMIT, UNLIMITED_PATHS, URLENCODED_BODY_LIMIT } from './config/limits';
@@ -17,13 +18,15 @@ export interface AppDeps {
   logger: Logger;
   /** Test hook: override the global rate limit (e.g. a tiny limit). */
   rateLimit?: Partial<RateLimiterOptions>;
+  /** Shared rate-limit counters (Redis) — MemoryStore when omitted. */
+  rateLimitStore?: Store;
 }
 
 /**
  * Builds the Express app. Pure: no listening, no I/O — tests use it directly.
  * Pipeline order matters (see src/README.md).
  */
-export const createApp = ({ env, logger, rateLimit }: AppDeps): Express => {
+export const createApp = ({ env, logger, rateLimit, rateLimitStore }: AppDeps): Express => {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', env.TRUST_PROXY);
@@ -33,7 +36,9 @@ export const createApp = ({ env, logger, rateLimit }: AppDeps): Express => {
 
   app.use(securityHeaders(env));
   app.use(corsMiddleware(env));
-  app.use(globalRateLimiter(rateLimit));
+  app.use(
+    globalRateLimiter({ ...(rateLimitStore ? { store: rateLimitStore } : {}), ...rateLimit }),
+  );
 
   app.use(json({ limit: JSON_BODY_LIMIT }));
   app.use(urlencoded({ extended: false, limit: URLENCODED_BODY_LIMIT }));

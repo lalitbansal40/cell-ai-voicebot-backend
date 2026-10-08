@@ -32,7 +32,7 @@ curl -s localhost:5100/api/v1/system/info
 - Env is validated at startup (`src/config/env.ts`); an invalid env prints the offending variable **names** and exits.
 - `Ctrl-C` / `SIGTERM` → graceful shutdown (ordered hooks, 15 s hard timeout).
 - Production build: `npm run build && npm start`.
-- **MongoDB is required**: start it with `npm run infra:up` first (the API exits with a clear message if it can't connect).
+- **MongoDB and Redis are required**: start them with `npm run infra:up` first (the API exits with a clear message if either is unreachable).
 
 ## Database (MongoDB)
 
@@ -44,6 +44,14 @@ curl -s localhost:5100/api/v1/system/info
   2. Register it in `src/db/migrations/index.ts` (ordered array).
   3. `npm run db:migrate` (apply pending) · `npm run db:migrate:status` · `npm run db:migrate:down` (revert last).
      A lock prevents two runners at once; backward-compatible changes first (data.md §10).
+
+## Redis & background jobs
+
+- Connections (`src/core/queues/redis.ts`): one shared **app** connection (rate limits, WS tickets, publish), separate connections per BullMQ queue/worker and for the pub/sub **subscriber**. URLs are logged as host:port only. All closed by the `redis` shutdown hook.
+- Queues (`src/core/queues/queue-factory.ts`): `createQueue(name, deps)` / `createWorker(name, processor, deps)` with default job options (3 attempts, exponential backoff, auto-cleanup). Queue names live in `src/core/queues/names.ts`.
+- `system` queue: heartbeat job every 5 minutes proves the wiring.
+- `WORKERS_ENABLED=false` runs the API without workers (Phase 12 may run workers in their own process).
+- Rate limits use a **Redis store** (`rl:` keys) so every API instance shares the same counters.
 
 ## Local infrastructure
 
@@ -122,6 +130,7 @@ npm 11 blocks dependency install scripts unless approved. Approvals live in `pac
 - `fsevents: false` — ships a prebuilt binary; the rebuild script is not needed.
 - `unrs-resolver: true` — ensures the native binding used by the ESLint import resolver.
 - `mongodb-memory-server: false` — skips the install-time MongoDB download; the binary downloads on first test run instead.
+- `msgpackr-extract: false` — BullMQ's optional native msgpack add-on ships a prebuilt binary (`@msgpackr-extract/*`); the `node-gyp rebuild` script is not needed (msgpackr falls back to JS otherwise).
 
 Run `npm approve-scripts --allow-scripts-pending` after adding dependencies to review new ones.
 
@@ -139,6 +148,7 @@ The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-
 ## Testing
 
 - **Runner:** Vitest ([ADR 0019](docs/adr/0019-testing-stack.md)).
+- **Run `npm run infra:up` before `npm test`** — queue, rate-limit and realtime tests use the real Redis on `127.0.0.1:6380` (MongoDB tests use an in-memory replica set). CI starts a Redis service container.
 - **Unit tests** live next to the code: `src/**/*.test.ts`.
 - **Integration / infra tests** live in `tests/` (e.g. `tests/infra/mongo-replset.test.ts` proves replica-set transactions).
 - **MongoDB in tests:** `mongodb-memory-server` starts a real replica set; the MongoDB version is pinned in `package.json` → `config.mongodbMemoryServer.version` (`8.2.12`, same version line as the Docker image `mongo:8.2`). The first run downloads the binary (~100 MB) into the npm cache.
@@ -181,6 +191,7 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | `TRUST_PROXY`             | no                | 1       | `false` / `true` / hop count / `loopback` — set behind nginx (Phase 12)  |
 | `MONGODB_URI`             | yes               | 1       | MongoDB connection string (replica set)                                  |
 | `REDIS_URL`               | yes               | 1       | Redis connection string                                                  |
+| `WORKERS_ENABLED`         | no                | 1       | `true` (default) / `false` — run BullMQ workers in the API process       |
 | `JWT_ACCESS_SECRET`       | yes · secret      | 2       | Access token signing secret                                              |
 | `JWT_REFRESH_SECRET`      | yes · secret      | 2       | Refresh token signing secret                                             |
 | `JWT_ACCESS_TTL`          | no                | 2       | Access token lifetime (e.g. `15m`)                                       |

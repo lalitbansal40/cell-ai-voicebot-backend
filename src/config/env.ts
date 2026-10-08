@@ -30,6 +30,11 @@ const RawEnvSchema = z.object({
     .string()
     .regex(/^mongodb(\+srv)?:\/\//, 'must start with mongodb:// or mongodb+srv://')
     .optional(),
+  WORKERS_ENABLED: z
+    .enum(['true', 'false'], { message: 'must be true or false' })
+    .default('true')
+    .transform((v) => v === 'true'),
+
   REDIS_URL: z
     .string()
     .regex(/^rediss?:\/\//, 'must start with redis:// or rediss://')

@@ -167,6 +167,14 @@ describe('loadEnv — production rules', () => {
   });
 });
 
+describe('loadEnv — workers', () => {
+  it('enables workers by default', () => expect(loadEnv({}).WORKERS_ENABLED).toBe(true));
+  it('parses false', () =>
+    expect(loadEnv({ WORKERS_ENABLED: 'false' }).WORKERS_ENABLED).toBe(false));
+  it('rejects other values', () =>
+    expect(issuesOf({ WORKERS_ENABLED: 'yes' }).issues[0]?.variable).toBe('WORKERS_ENABLED'));
+});
+
 describe('loadEnv — storage', () => {
   it('requires S3 settings when STORAGE_DRIVER=s3', () => {
     const err = issuesOf({ STORAGE_DRIVER: 's3', S3_BUCKET: 'bucket' });

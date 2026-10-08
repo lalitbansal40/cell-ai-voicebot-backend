@@ -3,8 +3,12 @@ import { createServer, type Server } from 'node:http';
 import { createApp } from './app';
 import { getEnv } from './config/env';
 import { createLifecycle, type Lifecycle } from './core/lifecycle';
+import { closeAllQueues } from './core/queues/queue-factory';
+import { closeAllRedis, getAppRedis, pingRedis, redactRedisUrl } from './core/queues/redis';
+import { startSystemWorker } from './core/queues/workers/system.worker';
 import { connectMongo, disconnectMongo, redactMongoUri, syncAllIndexes } from './db/mongo';
 import { getLogger } from './shared/logger';
+import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
 
 export interface RunningServer {
   server: Server;
@@ -31,7 +35,18 @@ export const startServer = async (): Promise<RunningServer> => {
   lifecycle.onShutdown('mongo', disconnectMongo, 50);
   if (env.NODE_ENV !== 'production') await syncAllIndexes(logger);
 
-  const app = createApp({ env, logger });
+  const redis = getAppRedis(env.REDIS_URL, logger);
+  lifecycle.onShutdown('redis', closeAllRedis, 40);
+  if (!(await pingRedis(redis, 5000))) {
+    logger.fatal(
+      { target: redactRedisUrl(env.REDIS_URL) },
+      'Redis not reachable — run "npm run infra:up"',
+    );
+    throw new Error('Redis not reachable');
+  }
+  lifecycle.onShutdown('queues', closeAllQueues, 30);
+
+  const app = createApp({ env, logger, rateLimitStore: createRedisRateLimitStore(redis) });
   const server = createServer(app);
 
   await new Promise<void>((resolve, reject) => {
@@ -43,7 +58,12 @@ export const startServer = async (): Promise<RunningServer> => {
   });
   logger.info({ port: env.PORT }, `API listening on http://localhost:${env.PORT}`);
 
-  // Later tasks register: ws 20, queues 30, redis 40, mongo 50.
+  if (env.WORKERS_ENABLED) {
+    await startSystemWorker({ redisUrl: env.REDIS_URL, logger });
+    logger.info('workers: started');
+  }
+
+  // Remaining hook slot: ws 20 (T1.10).
   lifecycle.onShutdown(
     'http',
     () =>
