@@ -11,11 +11,11 @@ export const createApiRouter = ({
   env,
   auth = {},
 }: {
-  env: Pick<Env, 'APP_URL'>;
-  auth?: AuthRouterDeps;
+  env: Pick<Env, 'APP_URL' | 'CORS_ORIGINS' | 'NODE_ENV'>;
+  auth?: Omit<AuthRouterDeps, 'env'>;
 }): Router => {
   const router = Router();
-  router.use('/auth', createAuthRouter(auth));
+  router.use('/auth', createAuthRouter({ ...auth, env }));
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());

@@ -209,6 +209,33 @@ describe('/ws/events authentication', () => {
 });
 
 describe('/ws/events delivery', () => {
+  it('pushToUser reaches only that user, and close ends their sockets with 4001', async () => {
+    const inst = await startInstance();
+    const mine = connect((await ticketUrl(inst, ACCOUNT_A, 'user-1')).url);
+    const colleague = connect((await ticketUrl(inst, ACCOUNT_A, 'user-2')).url);
+    await Promise.all([opened(mine), opened(colleague)]);
+    await ready(inst, 2);
+    await inst.realtime.pushToUser(ACCOUNT_A, 'user-1', 'user.updated', { userId: 'user-1' });
+    await mine.next((m) => m.type === 'user.updated');
+    await inst.realtime.pushToUser(
+      ACCOUNT_A,
+      'user-1',
+      'session.revoked',
+      { reason: 'disabled' },
+      { close: true },
+    );
+    await mine.next((m) => m.type === 'session.revoked');
+    expect(await mine.closed).toMatchObject({
+      code: WS_CLOSE.unauthorized,
+      reason: 'session revoked',
+    });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(
+      colleague.messages.filter((m) => m.type === 'user.updated' || m.type === 'session.revoked'),
+    ).toHaveLength(0);
+    expect(colleague.ws.readyState).toBe(WebSocket.OPEN);
+  });
+
   it('isolates accounts', async () => {
     const inst = await startInstance();
     const a = connect((await ticketUrl(inst, ACCOUNT_A)).url);

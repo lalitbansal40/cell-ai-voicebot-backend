@@ -66,6 +66,17 @@ export interface Realtime {
   tickets: WsTicketService;
   pushToAccount: <T>(accountId: string, type: string, data: T) => Promise<WsEventEnvelope<T>>;
   pushToTopic: <T>(topic: string, type: string, data: T) => Promise<WsEventEnvelope<T>>;
+  /**
+   * One user's sockets (all instances). `close: true` closes them with 4001
+   * after delivering the event (session revoked / user disabled).
+   */
+  pushToUser: <T>(
+    accountId: string,
+    userId: string,
+    type: string,
+    data: T,
+    options?: { close?: boolean },
+  ) => Promise<WsEventEnvelope<T>>;
   connectionCount: () => number;
   close: () => Promise<void>;
 }
@@ -82,7 +93,11 @@ interface Client {
   recent: number[];
 }
 
-type FanoutMessage = { target: { accountId: string } | { topic: string }; event: WsEventEnvelope };
+type FanoutTarget =
+  | { accountId: string; userId?: undefined }
+  | { accountId: string; userId: string; close?: boolean }
+  | { topic: string };
+type FanoutMessage = { target: FanoutTarget; event: WsEventEnvelope };
 
 const ClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ping') }),
@@ -133,7 +148,13 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
 
   const deliver = (msg: FanoutMessage): void => {
     if ('accountId' in msg.target) {
-      for (const client of byAccount.get(msg.target.accountId) ?? []) send(client.ws, msg.event);
+      const { userId } = msg.target;
+      const close = 'close' in msg.target && msg.target.close === true;
+      for (const client of byAccount.get(msg.target.accountId) ?? []) {
+        if (userId !== undefined && client.userId !== userId) continue;
+        send(client.ws, msg.event);
+        if (close) client.ws.close(WS_CLOSE.unauthorized, 'session revoked');
+      }
       return;
     }
     const { topic } = msg.target;
@@ -296,6 +317,8 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
     tickets,
     pushToAccount: (accountId, type, data) => publish({ accountId }, type, data),
     pushToTopic: (topic, type, data) => publish({ topic: topic.toLowerCase() }, type, data),
+    pushToUser: (accountId, userId, type, data, options = {}) =>
+      publish({ accountId, userId, ...(options.close ? { close: true } : {}) }, type, data),
     connectionCount: () => all().length,
     close: async () => {
       clearInterval(heartbeat);

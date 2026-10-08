@@ -16,3 +16,6 @@ export const getRealtime = (): Realtime => {
   if (!instance) throw new Error('Realtime is not initialised (server not started)');
   return instance;
 };
+
+/** The running realtime server, or undefined (tests / scripts without a server). */
+export const tryGetRealtime = (): Realtime | undefined => instance;

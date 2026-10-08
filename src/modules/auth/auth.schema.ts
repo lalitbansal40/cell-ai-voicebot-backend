@@ -1,5 +1,5 @@
 import { registry } from '../../shared/openapi/registry';
-import { errors, ok } from '../../shared/openapi/responses';
+import { bearer, errors, noContentResponse, ok } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { PhoneE164Schema } from '../../shared/validation/schemas';
 import { isTimezone } from '../../shared/validation/timezone';
@@ -30,6 +30,22 @@ export const VerifyEmailBody = z.strictObject({
 });
 
 export const EmailOnlyBody = z.strictObject({ email: EmailSchema });
+
+export const LoginBody = z.strictObject({ email: EmailSchema, password: PasswordInputSchema });
+
+export const SessionIdParams = z.strictObject({ id: z.string().min(8).max(64) });
+
+export const SessionSchema = registry.register(
+  'Session',
+  z.object({
+    id: z.string().openapi({ description: 'Session (refresh family) id' }),
+    userAgent: z.string().nullable(),
+    ip: z.string().nullable(),
+    createdAt: z.string(),
+    lastUsedAt: z.string(),
+    current: z.boolean(),
+  }),
+);
 
 export const AcceptedSchema = registry.register(
   'Accepted',
@@ -127,6 +143,75 @@ registry.registerPath({
   summary: 'Confirm the email code and sign in',
   request: json(VerifyEmailBody),
   responses: { 200: ok(AuthSessionSchema, sessionCookie), 422: errors[422], 429: errors[429] },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/login',
+  tags: ['Auth'],
+  summary: 'Sign in with email + password (5 failures in 15 min → 429)',
+  request: json(LoginBody),
+  responses: {
+    200: ok(AuthSessionSchema, sessionCookie),
+    401: errors[401],
+    403: errors[403],
+    422: errors[422],
+    429: errors[429],
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/refresh',
+  tags: ['Auth'],
+  summary:
+    'New access token from the refresh cookie (rotates the cookie; reuse revokes the session)',
+  responses: { 200: ok(AuthSessionSchema, sessionCookie), 401: errors[401], 403: errors[403] },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/logout',
+  tags: ['Auth'],
+  summary: 'End the cookie session (idempotent, clears the cookie)',
+  responses: { 204: noContentResponse },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/auth/logout-all',
+  tags: ['Auth'],
+  summary: 'Sign out of every session (all access tokens stop working)',
+  security: bearer,
+  responses: { 204: noContentResponse, 401: errors[401], 403: errors[403] },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/auth/me',
+  tags: ['Auth'],
+  summary: 'Current user, account, role, permissions and impersonation info',
+  security: bearer,
+  responses: { 200: ok(AuthMeSchema), 401: errors[401] },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/auth/sessions',
+  tags: ['Auth'],
+  summary: 'Active sessions of the current user',
+  security: bearer,
+  responses: { 200: ok(z.array(SessionSchema)), 401: errors[401] },
+});
+
+registry.registerPath({
+  method: 'delete',
+  path: '/api/v1/auth/sessions/{id}',
+  tags: ['Auth'],
+  summary: 'Revoke one of your sessions',
+  security: bearer,
+  request: { params: SessionIdParams },
+  responses: { 204: noContentResponse, 401: errors[401], 404: errors[404] },
 });
 
 registry.registerPath({

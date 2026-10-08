@@ -68,6 +68,7 @@ export const authenticate = (): RequestHandler => async (req, _res, next) => {
     ...(claims.imp ? { impersonatorId: claims.imp } : {}),
     sessionId: claims.sid,
     tokenVersion: user.tokenVersion,
+    ...(claims.exp ? { tokenExpiresAt: new Date(claims.exp * 1000) } : {}),
     account: {
       id: account._id.toString(),
       status: account.status,

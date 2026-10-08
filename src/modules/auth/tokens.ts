@@ -20,6 +20,8 @@ export interface AccessClaims {
   sid: string;
   /** impersonating superadmin's userId */
   imp?: string;
+  /** expiry (unix seconds) — set by verifyAccessToken */
+  exp?: number;
 }
 
 const key = () => new TextEncoder().encode(getAuthSecrets().access);
@@ -29,7 +31,7 @@ export const signAccessToken = async (
   claims: AccessClaims,
   ttl: string,
 ): Promise<{ token: string; expiresAt: Date }> => {
-  const { sub, ...rest } = claims;
+  const { sub, exp: _exp, ...rest } = claims;
   const jwt = new SignJWT({ ...rest })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setSubject(sub)
@@ -57,7 +59,7 @@ export const verifyAccessToken = async (token: string): Promise<AccessClaims> =>
       audience: ACCESS_AUDIENCE,
       clockTolerance: 5,
     });
-    const { sub, acc, rid, tv, sid, imp } = payload as Record<string, unknown>;
+    const { sub, acc, rid, tv, sid, imp, exp } = payload as Record<string, unknown>;
     if (
       !isString(sub) ||
       !isString(acc) ||
@@ -67,7 +69,15 @@ export const verifyAccessToken = async (token: string): Promise<AccessClaims> =>
     ) {
       throw new UnauthenticatedError();
     }
-    return { sub, acc, rid, tv, sid, ...(isString(imp) ? { imp } : {}) };
+    return {
+      sub,
+      acc,
+      rid,
+      tv,
+      sid,
+      ...(isString(imp) ? { imp } : {}),
+      ...(typeof exp === 'number' ? { exp } : {}),
+    };
   } catch (err) {
     if (err instanceof errors.JWTExpired) throw new UnauthenticatedError('AUTH_TOKEN_EXPIRED');
     throw new UnauthenticatedError();

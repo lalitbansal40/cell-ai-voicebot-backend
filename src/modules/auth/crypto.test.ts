@@ -99,7 +99,11 @@ describe('access tokens', () => {
   it('round-trips the claims with iss/aud/exp', async () => {
     const { token, expiresAt } = await signAccessToken({ ...claims, imp: 'admin1' }, '15m');
     expect(expiresAt.getTime() - Date.now()).toBeGreaterThan(14 * 60_000);
-    expect(await verifyAccessToken(token)).toEqual({ ...claims, imp: 'admin1' });
+    expect(await verifyAccessToken(token)).toEqual({
+      ...claims,
+      imp: 'admin1',
+      exp: Math.floor(expiresAt.getTime() / 1000),
+    });
   });
 
   it('reports an expired token as AUTH_TOKEN_EXPIRED', async () => {

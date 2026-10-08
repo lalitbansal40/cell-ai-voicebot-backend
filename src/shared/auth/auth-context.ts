@@ -19,6 +19,8 @@ export interface AuthContext {
   /** Refresh family of the session (`imp_…` while impersonating). */
   sessionId?: string;
   tokenVersion?: number;
+  /** Access token expiry (user tokens). */
+  tokenExpiresAt?: Date;
   account: { id: string; status: AccountStatus; timezone: string; isPlatform: boolean };
 }
 
