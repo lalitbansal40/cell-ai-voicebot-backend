@@ -1,5 +1,6 @@
 import type { Job, Worker } from 'bullmq';
 
+import { deleteListMembers } from '../../../modules/contact-lists/contact-lists.jobs';
 import type { ContactJobData, ContactJobName, ContactJobs } from '../../../modules/contacts/jobs';
 import { isContactJobName } from '../../../modules/contacts/jobs';
 import { deleteFieldValues } from '../../../modules/custom-fields/custom-fields.jobs';
@@ -24,6 +25,7 @@ export type ContactJobHandlers = { [N in ContactJobName]?: ContactJobHandler<N> 
 /** Processors per job name — each task of Phase 3 registers its own here. */
 export const CONTACT_JOB_HANDLERS: ContactJobHandlers = {
   'field.delete_values': (data) => deleteFieldValues(data),
+  'list.delete_members': (data) => deleteListMembers(data),
 };
 
 export const processContactJob =

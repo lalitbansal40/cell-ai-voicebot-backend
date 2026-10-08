@@ -7,12 +7,14 @@ import { createAdminRouter } from './modules/admin/admin.routes';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
+import { createContactListsRouter } from './modules/contact-lists/contact-lists.routes';
 import { createContactTagsRouter, createContactsRouter } from './modules/contacts/contacts.routes';
 import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
+import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
 
@@ -45,6 +47,8 @@ export const createApiRouter = ({
   router.use('/rbac', createRbacRouter());
   router.use('/contacts', createContactsRouter());
   router.use('/contact-tags', createContactTagsRouter());
+  router.use('/contact-lists', createContactListsRouter({ jobs: contacts.jobs }));
+  router.use('/segments', createSegmentsRouter());
   router.use('/custom-fields', createCustomFieldsRouter({ jobs: contacts.jobs }));
   return router;
 };
