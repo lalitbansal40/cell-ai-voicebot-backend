@@ -1,10 +1,12 @@
 import { Router } from 'express';
 
-import { created, noContent, ok } from '../../shared/http/envelope';
+import { accepted, created, noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { requirePermission } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
+import { BulkBody } from './bulk.schema';
+import { runBulk } from './bulk.service';
 import {
   ContactIdParams,
   CreateContactBody,
@@ -21,9 +23,12 @@ import {
   searchContacts,
   updateContact,
 } from './contacts.service';
+import { unavailableContactJobs, type ContactJobs } from './jobs';
 
 /** `/api/v1/contacts` — contacts CRUD, search and filters. */
-export const createContactsRouter = (): Router => {
+export const createContactsRouter = ({
+  jobs = unavailableContactJobs,
+}: { jobs?: ContactJobs } = {}): Router => {
   const router = Router();
   router.use(authenticate());
 
@@ -41,6 +46,15 @@ export const createContactsRouter = (): Router => {
     ...handle({ body: SearchContactsBody }, async ({ body, req, res }) => {
       const page = await searchContacts(req, body);
       ok(res, page.items, page.meta);
+    }),
+  );
+  router.post(
+    '/bulk',
+    requirePermission('contacts.write'),
+    ...handle({ body: BulkBody }, async ({ body, req, res }) => {
+      const result = await runBulk(req, body, jobs);
+      if (result.jobQueued) accepted(res, result);
+      else ok(res, result);
     }),
   );
   router.post(

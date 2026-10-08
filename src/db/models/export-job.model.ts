@@ -28,22 +28,26 @@ export interface ExportJobDoc {
   updatedAt: Date;
 }
 
-const schema = new Schema<ExportJobDoc>({
-  scope: { type: String, enum: EXPORT_SCOPES, required: true },
-  filter: { type: Schema.Types.Mixed, default: () => ({}) },
-  columns: { type: [String], default: [] },
-  status: { type: String, enum: EXPORT_STATUSES, default: 'pending' },
-  progress: {
-    processed: { type: Number, default: 0 },
-    total: { type: Number, default: 0 },
+const schema = new Schema<ExportJobDoc>(
+  {
+    scope: { type: String, enum: EXPORT_SCOPES, required: true },
+    filter: { type: Schema.Types.Mixed, default: () => ({}) },
+    columns: { type: [String], default: [] },
+    status: { type: String, enum: EXPORT_STATUSES, default: 'pending' },
+    progress: {
+      processed: { type: Number, default: 0 },
+      total: { type: Number, default: 0 },
+    },
+    rowCount: { type: Number, default: 0 },
+    fileKey: { type: String, default: null },
+    errorMessage: { type: String, default: null },
+    createdBy: { type: Schema.Types.ObjectId, required: true },
+    completedAt: { type: Date, default: null },
+    expiresAt: { type: Date, default: null },
   },
-  rowCount: { type: Number, default: 0 },
-  fileKey: { type: String, default: null },
-  errorMessage: { type: String, default: null },
-  createdBy: { type: Schema.Types.ObjectId, required: true },
-  completedAt: { type: Date, default: null },
-  expiresAt: { type: Date, default: null },
-});
+  // Keep an empty selection (`{ filter: {} }` = every contact) — don't drop empty objects.
+  { minimize: false },
+);
 schema.plugin(basePlugin, { hide: ['fileKey'] });
 schema.plugin(tenantPlugin);
 schema.index({ accountId: 1, createdAt: -1 });

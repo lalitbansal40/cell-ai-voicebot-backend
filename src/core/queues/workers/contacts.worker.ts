@@ -1,8 +1,10 @@
 import type { Job, Worker } from 'bullmq';
 
+import { runExport } from '../../../modules/contact-exports/export.job';
 import { runImport } from '../../../modules/contact-imports/run.job';
 import { validateImport } from '../../../modules/contact-imports/validate.job';
 import { deleteListMembers } from '../../../modules/contact-lists/contact-lists.jobs';
+import { bulkJob } from '../../../modules/contacts/bulk.service';
 import type { ContactJobData, ContactJobName, ContactJobs } from '../../../modules/contacts/jobs';
 import { isContactJobName } from '../../../modules/contacts/jobs';
 import { deleteFieldValues } from '../../../modules/custom-fields/custom-fields.jobs';
@@ -30,6 +32,8 @@ export const CONTACT_JOB_HANDLERS: ContactJobHandlers = {
   'list.delete_members': (data) => deleteListMembers(data),
   'import.validate': (data, ctx) => validateImport(data, ctx),
   'import.run': (data, ctx, job) => runImport(data, ctx, job),
+  'export.run': (data, ctx) => runExport(data, ctx),
+  'bulk.run': (data) => bulkJob(data),
 };
 
 export const processContactJob =

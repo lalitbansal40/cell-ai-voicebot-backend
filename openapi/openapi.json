@@ -361,6 +361,134 @@
         },
         "required": ["apiKey", "key"]
       },
+      "ContactFilterCondition": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string", "minLength": 1, "maxLength": 40, "example": "days_past_due" },
+          "op": {
+            "type": "string",
+            "enum": [
+              "eq",
+              "neq",
+              "contains",
+              "gt",
+              "gte",
+              "lt",
+              "lte",
+              "between",
+              "on",
+              "before",
+              "after",
+              "within_next_days",
+              "overdue_by_days",
+              "exists",
+              "not_exists"
+            ]
+          },
+          "value": {
+            "anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "number" }],
+            "description": "Currency in rupees, dates `YYYY-MM-DD`, day counts for within_next_days / overdue_by_days"
+          },
+          "value2": {
+            "anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "number" }],
+            "description": "Upper bound for `between`"
+          }
+        },
+        "required": ["key", "op"],
+        "additionalProperties": false
+      },
+      "ContactFilter": {
+        "type": "object",
+        "properties": {
+          "listIds": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "minItems": 1,
+            "maxItems": 50
+          },
+          "tags": {
+            "type": "object",
+            "properties": {
+              "mode": { "type": "string", "enum": ["any", "all"], "default": "any" },
+              "values": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1, "maxLength": 40 },
+                "minItems": 1,
+                "maxItems": 20
+              }
+            },
+            "required": ["values"],
+            "additionalProperties": false
+          },
+          "dnd": { "type": "boolean" },
+          "optedOut": { "type": "boolean" },
+          "createdFrom": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "string", "format": "date" }
+            ]
+          },
+          "createdTo": {
+            "anyOf": [
+              { "type": "string", "format": "date-time" },
+              { "type": "string", "format": "date" }
+            ],
+            "description": "Exclusive"
+          },
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Name, e-mail, external id or phone (any format)"
+          },
+          "conditions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ContactFilterCondition" },
+            "maxItems": 20
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExportJob": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "scope": { "type": "string", "enum": ["ids", "filter", "list", "segment"] },
+          "columns": { "type": "array", "items": { "type": "string" } },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "ready", "failed", "expired"]
+          },
+          "progress": {
+            "type": "object",
+            "properties": { "processed": { "type": "number" }, "total": { "type": "number" } },
+            "required": ["processed", "total"]
+          },
+          "rowCount": { "type": "number" },
+          "errorMessage": { "type": ["string", "null"] },
+          "createdBy": { "type": "string" },
+          "completedAt": { "type": ["string", "null"] },
+          "expiresAt": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" },
+          "downloadUrl": {
+            "type": "string",
+            "description": "Signed (15 min), detail only while ready"
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "columns",
+          "status",
+          "progress",
+          "rowCount",
+          "errorMessage",
+          "createdBy",
+          "completedAt",
+          "expiresAt",
+          "createdAt"
+        ]
+      },
       "CustomField": {
         "type": "object",
         "properties": {
@@ -615,94 +743,6 @@
           "createdAt",
           "updatedAt"
         ]
-      },
-      "ContactFilterCondition": {
-        "type": "object",
-        "properties": {
-          "key": { "type": "string", "minLength": 1, "maxLength": 40, "example": "days_past_due" },
-          "op": {
-            "type": "string",
-            "enum": [
-              "eq",
-              "neq",
-              "contains",
-              "gt",
-              "gte",
-              "lt",
-              "lte",
-              "between",
-              "on",
-              "before",
-              "after",
-              "within_next_days",
-              "overdue_by_days",
-              "exists",
-              "not_exists"
-            ]
-          },
-          "value": {
-            "anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "number" }],
-            "description": "Currency in rupees, dates `YYYY-MM-DD`, day counts for within_next_days / overdue_by_days"
-          },
-          "value2": {
-            "anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "number" }],
-            "description": "Upper bound for `between`"
-          }
-        },
-        "required": ["key", "op"],
-        "additionalProperties": false
-      },
-      "ContactFilter": {
-        "type": "object",
-        "properties": {
-          "listIds": {
-            "type": "array",
-            "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-            "minItems": 1,
-            "maxItems": 50
-          },
-          "tags": {
-            "type": "object",
-            "properties": {
-              "mode": { "type": "string", "enum": ["any", "all"], "default": "any" },
-              "values": {
-                "type": "array",
-                "items": { "type": "string", "minLength": 1, "maxLength": 40 },
-                "minItems": 1,
-                "maxItems": 20
-              }
-            },
-            "required": ["values"],
-            "additionalProperties": false
-          },
-          "dnd": { "type": "boolean" },
-          "optedOut": { "type": "boolean" },
-          "createdFrom": {
-            "anyOf": [
-              { "type": "string", "format": "date-time" },
-              { "type": "string", "format": "date" }
-            ]
-          },
-          "createdTo": {
-            "anyOf": [
-              { "type": "string", "format": "date-time" },
-              { "type": "string", "format": "date" }
-            ],
-            "description": "Exclusive"
-          },
-          "q": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100,
-            "description": "Name, e-mail, external id or phone (any format)"
-          },
-          "conditions": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/ContactFilterCondition" },
-            "maxItems": 20
-          }
-        },
-        "additionalProperties": false
       },
       "Contact": {
         "type": "object",
@@ -2201,6 +2241,174 @@
         }
       }
     },
+    "/api/v1/contact-exports": {
+      "post": {
+        "tags": ["Contact exports"],
+        "summary": "Export contacts as CSV in the background (contacts.export; not while impersonating; ≤ 100,000 rows; file kept 24 h)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": { "type": "string", "enum": ["ids", "filter", "list", "segment"] },
+                  "ids": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                    "minItems": 1,
+                    "maxItems": 1000
+                  },
+                  "filter": { "$ref": "#/components/schemas/ContactFilter" },
+                  "listId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "segmentId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "columns": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1, "maxLength": 40 },
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "description": "Default: all — name, phone, email, external_id, tags, lists, dnd, opted_out, consent_source, consent_at, created_at + every custom field key"
+                  }
+                },
+                "required": ["scope"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ExportJob" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Contact exports"],
+        "summary": "Export history",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ExportJob" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contact-exports/{id}": {
+      "get": {
+        "tags": ["Contact exports"],
+        "summary": "Export status, with a fresh signed download link when ready",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ExportJob" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/custom-fields": {
       "get": {
         "tags": ["Custom fields"],
@@ -2963,6 +3171,125 @@
           },
           "404": {
             "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contacts/bulk": {
+      "post": {
+        "tags": ["Contacts"],
+        "summary": "Bulk action (contacts.write): ≤ 1,000 ids → done now (200 { count }); a filter (≤ 100,000 contacts) → background job (202), result via WS contacts.bulk_completed",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "add_tags",
+                      "remove_tags",
+                      "add_to_list",
+                      "remove_from_list",
+                      "delete",
+                      "add_to_dnd"
+                    ]
+                  },
+                  "ids": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                    "minItems": 1,
+                    "maxItems": 1000
+                  },
+                  "filter": { "$ref": "#/components/schemas/ContactFilter" },
+                  "payload": {
+                    "type": "object",
+                    "properties": {
+                      "tags": {
+                        "type": "array",
+                        "items": { "type": "string", "maxLength": 40 },
+                        "maxItems": 20
+                      },
+                      "listId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                      "reason": { "type": "string", "maxLength": 200 }
+                    },
+                    "default": {},
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["action"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "count": { "type": "number" } },
+                      "required": ["count"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "jobQueued": { "type": "boolean", "enum": [true] },
+                        "count": { "type": "number" }
+                      },
+                      "required": ["jobQueued", "count"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

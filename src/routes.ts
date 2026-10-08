@@ -7,6 +7,7 @@ import { createAdminRouter } from './modules/admin/admin.routes';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
+import { createContactExportsRouter } from './modules/contact-exports/contact-exports.routes';
 import { createContactImportsRouter } from './modules/contact-imports/contact-imports.routes';
 import { createContactListsRouter } from './modules/contact-lists/contact-lists.routes';
 import { createContactTagsRouter, createContactsRouter } from './modules/contacts/contacts.routes';
@@ -48,7 +49,11 @@ export const createApiRouter = ({
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());
   router.use('/contacts', createOptOutRouter());
-  router.use('/contacts', createContactsRouter());
+  router.use('/contacts', createContactsRouter({ jobs: contacts.jobs }));
+  router.use(
+    '/contact-exports',
+    createContactExportsRouter({ storage: contacts.storage, jobs: contacts.jobs }),
+  );
   router.use('/dnd-entries', createDndRouter());
   router.use('/contact-tags', createContactTagsRouter());
   router.use('/contact-lists', createContactListsRouter({ jobs: contacts.jobs }));
