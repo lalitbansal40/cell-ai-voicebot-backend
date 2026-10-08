@@ -1,6 +1,6 @@
 # Phase 1 — Task Tracker
 
-Source plan: [PHASE_1_PLAN.md](PHASE_1_PLAN.md) · Batch 1 prompt (T1.1–T1.6): [../prompts/PHASE_1_BATCH_1_PROMPT.md](../prompts/PHASE_1_BATCH_1_PROMPT.md) · Batch 2 prompt (T1.7–T1.12): [../prompts/PHASE_1_BATCH_2_PROMPT.md](../prompts/PHASE_1_BATCH_2_PROMPT.md)
+Source plan: [PHASE_1_PLAN.md](PHASE_1_PLAN.md) · Batch 1 prompt (T1.1–T1.6): [../prompts/PHASE_1_BATCH_1_PROMPT.md](../prompts/PHASE_1_BATCH_1_PROMPT.md) · Batch 2 prompt (T1.7–T1.12): [../prompts/PHASE_1_BATCH_2_PROMPT.md](../prompts/PHASE_1_BATCH_2_PROMPT.md) · Batch 3 prompt (T1.13–T1.16): [../prompts/PHASE_1_BATCH_3_PROMPT.md](../prompts/PHASE_1_BATCH_3_PROMPT.md)
 
 | Done | Task  | Title                                                | Size |
 | ---- | ----- | ---------------------------------------------------- | ---- |
