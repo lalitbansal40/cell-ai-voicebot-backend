@@ -149,7 +149,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   if (env.WORKERS_ENABLED) {
     await startSystemWorker(queueDeps);
     startEmailWorker({ ...queueDeps, provider: emailProvider });
-    await startMaintenanceWorker(queueDeps);
+    await startMaintenanceWorker({ ...queueDeps, storage });
     startContactsWorker({ ...queueDeps, storage, jobs: contactJobs });
     logger.info('workers: started');
   }
