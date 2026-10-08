@@ -32,7 +32,18 @@ curl -s localhost:5100/api/v1/system/info
 - Env is validated at startup (`src/config/env.ts`); an invalid env prints the offending variable **names** and exits.
 - `Ctrl-C` / `SIGTERM` → graceful shutdown (ordered hooks, 15 s hard timeout).
 - Production build: `npm run build && npm start`.
-- MongoDB / Redis are not needed yet (connected from T1.7 / T1.8) — `npm run infra:up` will be required then.
+- **MongoDB is required**: start it with `npm run infra:up` first (the API exits with a clear message if it can't connect).
+
+## Database (MongoDB)
+
+- Connection: `src/db/mongo.ts` (Mongoose 9, `strictQuery`, `autoIndex` off in production, credentials never logged). Indexes are synced at startup in development/test; in production run `npm run db:sync-indexes` as a deploy step.
+- Transactions: `withTransaction(async (session) => { … })` from `src/db/transaction.ts` (replica set required — local Docker and tests already run one). No external I/O inside.
+- Plugins for models (`src/db/plugins/`): `basePlugin` (timestamps, `id` in JSON), `tenantPlugin` (`accountId`), `softDeletePlugin` (`deletedAt`, auto-filter, `{ withDeleted: true }` to include deleted).
+- Migrations (`src/db/migrations/`):
+  1. Add `NNNN-short-name.ts` exporting `{ name, up(db), down(db) }`.
+  2. Register it in `src/db/migrations/index.ts` (ordered array).
+  3. `npm run db:migrate` (apply pending) · `npm run db:migrate:status` · `npm run db:migrate:down` (revert last).
+     A lock prevents two runners at once; backward-compatible changes first (data.md §10).
 
 ## Local infrastructure
 
@@ -64,28 +75,32 @@ npm run infra:reset   # ⚠️ stop AND delete volumes — wipes ALL local Mongo
 
 ## Scripts
 
-| Script                  | What it does                                                                                    |
-| ----------------------- | ----------------------------------------------------------------------------------------------- |
-| `npm run dev`           | Run the app with `tsx` in watch mode                                                            |
-| `npm run build`         | Compile `src/` to `dist/` (`tsconfig.build.json`)                                               |
-| `npm start`             | Run the compiled app (`dist/index.js`)                                                          |
-| `npm run typecheck`     | Type-check everything (src, tests, scripts) without emitting                                    |
-| `npm run clean`         | Delete `dist/`                                                                                  |
-| `npm run lint`          | ESLint (type-aware), fails on any warning                                                       |
-| `npm run lint:fix`      | ESLint with auto-fix                                                                            |
-| `npm run format`        | Prettier write                                                                                  |
-| `npm run format:check`  | Prettier check                                                                                  |
-| `npm test`              | Run all tests once (Vitest)                                                                     |
-| `npm run test:watch`    | Vitest watch mode                                                                               |
-| `npm run test:coverage` | Tests + coverage report in `coverage/`                                                          |
-| `npm run gen:openapi`   | Generate `openapi/openapi.json` from zod schemas                                                |
-| `npm run openapi:check` | Regenerate and fail if `openapi/openapi.json` is stale                                          |
-| `npm run server:audit`  | READ-ONLY audit of the client server over SSH (needs the key — see docs/client/server-audit.md) |
-| `npm run infra:up`      | Start MongoDB + Redis (Docker) and wait until healthy                                           |
-| `npm run infra:down`    | Stop containers (keeps data)                                                                    |
-| `npm run infra:reset`   | ⚠️ Stop containers and delete data volumes                                                      |
-| `npm run infra:logs`    | Follow container logs                                                                           |
-| `npm run infra:ps`      | Container status                                                                                |
+| Script                      | What it does                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------------- |
+| `npm run dev`               | Run the app with `tsx` in watch mode                                                            |
+| `npm run build`             | Compile `src/` to `dist/` (`tsconfig.build.json`)                                               |
+| `npm start`                 | Run the compiled app (`dist/index.js`)                                                          |
+| `npm run typecheck`         | Type-check everything (src, tests, scripts) without emitting                                    |
+| `npm run clean`             | Delete `dist/`                                                                                  |
+| `npm run lint`              | ESLint (type-aware), fails on any warning                                                       |
+| `npm run lint:fix`          | ESLint with auto-fix                                                                            |
+| `npm run format`            | Prettier write                                                                                  |
+| `npm run format:check`      | Prettier check                                                                                  |
+| `npm test`                  | Run all tests once (Vitest)                                                                     |
+| `npm run test:watch`        | Vitest watch mode                                                                               |
+| `npm run test:coverage`     | Tests + coverage report in `coverage/`                                                          |
+| `npm run gen:openapi`       | Generate `openapi/openapi.json` from zod schemas                                                |
+| `npm run openapi:check`     | Regenerate and fail if `openapi/openapi.json` is stale                                          |
+| `npm run db:migrate`        | Apply pending MongoDB migrations                                                                |
+| `npm run db:migrate:status` | Show applied / pending migrations                                                               |
+| `npm run db:migrate:down`   | Revert the last applied migration                                                               |
+| `npm run db:sync-indexes`   | Build / update indexes of all models (production deploy step)                                   |
+| `npm run server:audit`      | READ-ONLY audit of the client server over SSH (needs the key — see docs/client/server-audit.md) |
+| `npm run infra:up`          | Start MongoDB + Redis (Docker) and wait until healthy                                           |
+| `npm run infra:down`        | Stop containers (keeps data)                                                                    |
+| `npm run infra:reset`       | ⚠️ Stop containers and delete data volumes                                                      |
+| `npm run infra:logs`        | Follow container logs                                                                           |
+| `npm run infra:ps`          | Container status                                                                                |
 
 ## Folder structure
 

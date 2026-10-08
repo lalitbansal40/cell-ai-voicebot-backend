@@ -3,6 +3,7 @@ import { createServer, type Server } from 'node:http';
 import { createApp } from './app';
 import { getEnv } from './config/env';
 import { createLifecycle, type Lifecycle } from './core/lifecycle';
+import { connectMongo, disconnectMongo, redactMongoUri, syncAllIndexes } from './db/mongo';
 import { getLogger } from './shared/logger';
 
 export interface RunningServer {
@@ -17,6 +18,18 @@ export const startServer = async (): Promise<RunningServer> => {
   const env = getEnv();
   const logger = getLogger();
   const lifecycle = createLifecycle(logger);
+
+  try {
+    await connectMongo(env, logger);
+  } catch (err) {
+    logger.fatal(
+      { err, target: redactMongoUri(env.MONGODB_URI) },
+      'MongoDB not reachable — run "npm run infra:up"',
+    );
+    throw err;
+  }
+  lifecycle.onShutdown('mongo', disconnectMongo, 50);
+  if (env.NODE_ENV !== 'production') await syncAllIndexes(logger);
 
   const app = createApp({ env, logger });
   const server = createServer(app);

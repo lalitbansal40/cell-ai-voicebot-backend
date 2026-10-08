@@ -30,7 +30,11 @@
     "infra:ps": "docker compose ps",
     "gen:openapi": "tsx scripts/generate-openapi.ts",
     "openapi:check": "npm run gen:openapi && git diff --exit-code -- openapi/openapi.json",
-    "server:audit": "bash scripts/run-server-audit.sh"
+    "server:audit": "bash scripts/run-server-audit.sh",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/db-migrate.ts up",
+    "db:migrate:down": "tsx --env-file-if-exists=.env scripts/db-migrate.ts down",
+    "db:migrate:status": "tsx --env-file-if-exists=.env scripts/db-migrate.ts status",
+    "db:sync-indexes": "tsx --env-file-if-exists=.env scripts/db-sync-indexes.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
@@ -85,6 +89,7 @@
     "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
     "libphonenumber-js": "^1.13.14",
+    "mongoose": "^9.11.1",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "zod": "^4.6.5"
