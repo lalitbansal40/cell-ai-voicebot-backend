@@ -63,7 +63,7 @@ describe('recordAudit', () => {
 
   it('never throws (bad account id is logged and swallowed)', async () => {
     await expect(
-      recordAudit({ accountId: '', actor: { type: 'system' }, action: 'x' }),
+      recordAudit({ accountId: '', actor: { type: 'system' }, action: 'auth.login' }),
     ).resolves.toBeUndefined();
   });
 });

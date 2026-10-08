@@ -1,0 +1,38 @@
+/**
+ * Audit action catalogue — the only allowed `action` strings.
+ * MUST match docs/conventions/audit.md (enforced by a test).
+ */
+export const AUDIT_ACTIONS = [
+  'account.created',
+  'account.updated',
+  'account.ownership_transferred',
+  'account.suspended',
+  'account.enabled',
+  'auth.email_verified',
+  'auth.login',
+  'auth.login_failed',
+  'auth.logout',
+  'auth.logout_all',
+  'auth.session_revoked',
+  'auth.refresh_reuse_detected',
+  'auth.password_reset_requested',
+  'auth.password_reset',
+  'auth.password_changed',
+  'team.invited',
+  'team.invite_resent',
+  'team.invite_revoked',
+  'team.invite_accepted',
+  'team.role_changed',
+  'team.disabled',
+  'team.enabled',
+  'team.removed',
+  'apikey.created',
+  'apikey.revoked',
+  'admin.impersonation_started',
+  'admin.impersonation_stopped',
+] as const;
+
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const isAuditAction = (value: string): value is AuditAction =>
+  (AUDIT_ACTIONS as readonly string[]).includes(value);

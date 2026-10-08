@@ -5,6 +5,8 @@ import { AuditLogModel, type AuditActor } from '../../db/models/audit-log.model'
 import { getLogger } from '../../shared/logger';
 import { maskEmail } from '../../shared/utils/mask';
 
+import type { AuditAction } from './audit-actions';
+
 export interface AuditActorInput {
   type: AuditActor['type'];
   id?: string | Types.ObjectId | null;
@@ -15,7 +17,7 @@ export interface AuditActorInput {
 export interface AuditInput {
   accountId: string | Types.ObjectId;
   actor: AuditActorInput;
-  action: string;
+  action: AuditAction;
   target?: { type: string; id?: string | null } | null;
   meta?: Record<string, unknown> | null;
   ip?: string | null;
@@ -78,7 +80,7 @@ export const actorFromRequest = (req: Request): AuditActorInput => {
 /** Audit for the caller's own account. */
 export const auditRequest = (
   req: Request,
-  action: string,
+  action: AuditAction,
   extra: { target?: AuditInput['target']; meta?: AuditInput['meta']; accountId?: string } = {},
 ): Promise<void> =>
   recordAudit({

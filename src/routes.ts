@@ -3,6 +3,7 @@ import { Router } from 'express';
 import type { Env } from './config/env';
 import { createAccountRouter } from './modules/account/account.routes';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
+import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
@@ -22,6 +23,7 @@ export const createApiRouter = ({
   router.use('/account', createAccountRouter());
   router.use('/team', createTeamRouter());
   router.use('/api-keys', createApiKeysRouter());
+  router.use('/audit-logs', createAuditRouter());
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());

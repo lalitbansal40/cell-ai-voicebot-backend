@@ -9,6 +9,7 @@ import {
 import { withTransaction } from '../../db/transaction';
 import { UnauthenticatedError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
+import { recordAudit } from '../audit/audit.service';
 
 import { hmacToken, randomToken } from './hmac';
 
@@ -28,16 +29,26 @@ export const durationMs = (value: string): number => {
 export const refreshTtlMs = (): number => durationMs(getEnv().JWT_REFRESH_TTL);
 
 type ReuseHook = (doc: RefreshTokenDoc) => void | Promise<void>;
-let onReuseDetected: ReuseHook = (doc) => {
+
+/** Default: warn + audit `auth.refresh_reuse_detected` (a refresh token leaked or was replayed). */
+const defaultReuseHook: ReuseHook = async (doc) => {
   getLogger().warn(
     { userId: doc.userId.toString(), familyId: doc.familyId },
     'auth: refresh token reuse detected',
   );
+  await recordAudit({
+    accountId: doc.accountId,
+    actor: { type: 'user', id: doc.userId },
+    action: 'auth.refresh_reuse_detected',
+    target: { type: 'session', id: doc.familyId },
+    ip: doc.ip ?? null,
+  });
 };
+let onReuseDetected: ReuseHook = defaultReuseHook;
 
-/** Lets the audit module record `auth.refresh_reuse_detected` without a circular import. */
-export const setReuseDetectedHook = (hook: ReuseHook): void => {
-  onReuseDetected = hook;
+/** Tests may replace the reuse hook; `undefined` restores the default. */
+export const setReuseDetectedHook = (hook: ReuseHook | undefined): void => {
+  onReuseDetected = hook ?? defaultReuseHook;
 };
 
 /** Creates a refresh token (new family = new login session). Returns the raw token once. */

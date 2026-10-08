@@ -26,6 +26,7 @@ const ids = () => ({ userId: new Types.ObjectId(), accountId: new Types.ObjectId
 
 afterEach(() => {
   vi.useRealTimers();
+  setReuseDetectedHook(undefined);
 });
 
 describe('refresh tokens', () => {

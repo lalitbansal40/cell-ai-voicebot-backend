@@ -21,6 +21,7 @@ import {
   redactRedisUrl,
 } from './core/queues/redis';
 import { startEmailWorker } from './core/queues/workers/email.worker';
+import { startMaintenanceWorker } from './core/queues/workers/maintenance.worker';
 import { startSystemWorker } from './core/queues/workers/system.worker';
 import { createRealtime, setRealtime } from './core/realtime';
 import { createStorage } from './core/storage';
@@ -142,6 +143,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   if (env.WORKERS_ENABLED) {
     await startSystemWorker(queueDeps);
     startEmailWorker({ ...queueDeps, provider: emailProvider });
+    await startMaintenanceWorker(queueDeps);
     logger.info('workers: started');
   }
 
