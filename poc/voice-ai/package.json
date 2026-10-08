@@ -1,0 +1,31 @@
+{
+  "name": "cav-poc-voice-ai",
+  "version": "0.0.1",
+  "description": "Phase 0 Voice AI PoC — OpenAI Realtime for Hindi / English / Hinglish loan-recovery calls (T0.15)",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "run": "tsx --env-file-if-exists=../../.env src/runner.ts",
+    "serve": "tsx --env-file-if-exists=../../.env src/server.ts",
+    "tts-check": "tsx --env-file-if-exists=../../.env src/tts-check.ts",
+    "report": "tsx src/report.ts"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3"
+  },
+  "allowScripts": {
+    "esbuild": true
+  }
+}
