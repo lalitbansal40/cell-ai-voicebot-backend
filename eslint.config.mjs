@@ -64,6 +64,17 @@ export default tseslint.config(
     rules: { 'no-console': 'off' },
   },
 
+  // Tests read untyped HTTP bodies (supertest `res.body` is `any`); production code keeps these rules.
+  {
+    files: ['tests/**', '**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+    },
+  },
+
   // Plain JS / config files: no type-aware linting.
   {
     files: ['**/*.{js,mjs,cjs}', '*.config.ts', '*.config.mts'],

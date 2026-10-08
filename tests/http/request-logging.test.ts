@@ -84,3 +84,12 @@ describe('httpLogger middleware', () => {
     expect(lines.filter((l) => l.res !== undefined)).toHaveLength(0);
   });
 });
+
+describe('getRequestId', () => {
+  it('returns string ids and ignores other types', async () => {
+    const { getRequestId } = await import('../../src/shared/middlewares/request-id');
+    expect(getRequestId({ id: 'abc' })).toBe('abc');
+    expect(getRequestId({ id: 42 })).toBe('');
+    expect(getRequestId({})).toBe('');
+  });
+});

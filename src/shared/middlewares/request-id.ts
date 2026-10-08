@@ -12,3 +12,10 @@ export const requestId = (): RequestHandler => (req, res, next) => {
   res.setHeader(REQUEST_ID_HEADER, req.id);
   next();
 };
+
+/**
+ * Request id as a string. pino-http types `IncomingMessage.id` as `string | number | object`;
+ * our middleware always sets a string, so anything else means "no id".
+ */
+export const getRequestId = (req: { id?: unknown }): string =>
+  typeof req.id === 'string' ? req.id : '';
