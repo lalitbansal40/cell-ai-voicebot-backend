@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 1 · Batch 2 (T1.7–T1.12)** — 2026-10-08
+  - MongoDB: mongoose 9 connection (strictQuery, autoIndex off in production, redacted URI logs), `withTransaction`, index sync in dev/test, `db:sync-indexes`, plugins (base `id` JSON, tenant `accountId`, soft delete incl. aggregate + `withDeleted`), migrations runner with lock + baseline (`db:migrate`, `db:migrate:down`, `db:migrate:status`).
+  - Redis + BullMQ: separate app / queue / subscriber connections, queue + worker factory with default job options and graceful close, `system` heartbeat worker, `WORKERS_ENABLED`, Redis-backed rate-limit store shared across instances; CI Redis service.
+  - `GET /health` (liveness) and `GET /ready` (Mongo + Redis, 503 when down or shutting down) at the root; OpenAPI regenerated.
+  - WebSocket `/ws/events`: single-use Redis tickets (`GETDEL`), close codes 4001/4003/4008/4009/4010, limits, heartbeat, topic subscribe, Redis `ws:fanout` across instances; `npm run ws:dev-ticket`.
+  - Idempotency-Key middleware + model (24 h TTL, 422/409, `Idempotent-Replayed`, 5xx not stored) — not mounted on routes yet.
+  - Storage: `StorageProvider` with local (HMAC-signed `/files/*key` URLs) and S3 (multipart upload, presigned URLs) drivers.
+  - Graceful shutdown order http → ws → queues → redis → mongo; tests share one in-memory replica set.
+  - Tests: 139 → 248.
+
 - **Phase 1 · Batch 1 (T1.1–T1.6)** — 2026-10-08
   - Env config: zod schema for every variable, fail-fast startup, names-only errors, production rules (JWT ≥ 32 chars, 32-byte `ENCRYPTION_KEY`, explicit URLs/CORS); new `TRUST_PROXY`, `CLIENT_SSH_KEY_PATH`.
   - Logging: pino + pino-http, `X-Request-Id`, redaction, phone/email masking, no query strings/bodies in logs.

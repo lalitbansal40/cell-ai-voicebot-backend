@@ -283,3 +283,4 @@ _Estimate — adjust per review. Run task-wise with prompts built from [TASK_PRO
 ## Changelog
 
 - 2026-10-08: Batch 1 (T1.1–T1.6) done — system info route moved to T1.4; Redis rate-limit store moved to T1.8; `express` installed in T1.2 (types needed by middlewares); `getAppInfo` moved to `src/shared/app-info.ts` (avoids an import cycle).
+- 2026-10-08: Batch 2 (T1.7–T1.12) done — T1.12 (storage) was completed in Batch 2 as planned; **Batch 3 = T1.13–T1.16**. WS server buffers client messages until the ticket is verified (prevents lost early messages); heartbeat liveness (`pong`) is tracked separately from app-level idle (4008). Tests now share **one** in-memory MongoDB replica set via Vitest `globalSetup` (one DB per test file) — parallel replica sets made transactions hang intermittently. Frontend `gen:api` for `/health` + `/ready` deferred to T1.15.
