@@ -635,17 +635,23 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 
 ## 4. Risks & mitigations
 
-| Risk                                               | Asar                   | Mitigation                                                                |
-| -------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------- |
-| OpenAI Realtime Hindi/Hinglish quality kam         | Core product weak      | T0.15 mein jaldi pata; Option B (Indian STT/TTS) fallback                 |
-| AI cost per minute zyada                           | Client ke liye mehenga | Cost model; `speak` nodes (sasta TTS) zyada, AI sirf zaroorat pe; caching |
-| Latency > 1.5 sec                                  | Baatcheet unnatural    | Server close to OpenAI region, streaming, VAD tuning                      |
-| Client ka DB Mongo nahi                            | Stack mismatch         | Apna Mongo (Docker / Atlas) — Phase 12                                    |
-| Mac Docker pe SIP/RTP issues                       | Lab atke               | Linux VM                                                                  |
-| Mantis/MUI template license                        | Legal issue            | Mantis copy nahi; plain MUI; license verify (T0.4 ADR 0011)               |
-| Secrets leak (SSH key, DB password chat mein aaye) | Security               | Password manager, rotate on doubt, gitleaks in CI                         |
-| Client ke server pe galti se change                | Doosri app down        | T0.19 strict read-only rules                                              |
-| Client answers late                                | SIP phases late        | Web Call Tester se baaki 75% build — plan already aisa hai                |
+_Status updated at sign-off (2026-10-08)._
+
+| Risk                                                       | Asar                            | Mitigation                                                                                         | Status                                                |
+| ---------------------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| OpenAI Realtime Hindi/Hinglish quality kam                 | Core product weak               | T0.15 PoC (14 scenarios); Option B (Indian STT/TTS) fallback                                       | ⏳ open — PoC live runs pending (no key)              |
+| AI cost per minute zyada                                   | Client ke liye mehenga          | Cost model; mini model (~3× sasta); IVR `speak` nodes jahan possible                               | ⏳ estimates only (mini ≈ ₹3.4/min, full ≈ ₹10.7/min) |
+| Latency > 1.5 sec                                          | Baatcheet unnatural             | Streaming, VAD tuning, server region                                                               | ⏳ open — PoC measures it                             |
+| Client ka DB Mongo nahi                                    | Stack mismatch                  | Apna MongoDB 8.2 (Docker) — Phase 12                                                               | ⏳ open — answers #5                                  |
+| **MongoDB 8.0 fails on Linux kernel ≥ 6.19**               | DB start nahi hota              | MongoDB 8.2 everywhere (Docker, tests, prod)                                                       | ✅ mitigated (ADR 0004)                               |
+| Mac Docker pe SIP/RTP issues                               | Lab atke                        | IPv4 host lookup; Linux VM for softphone tests                                                     | ✅ lab passed                                         |
+| **npm 11 blocks install scripts**                          | Tools silently missing binaries | `allowScripts` reviewed per dependency; `npm approve-scripts --allow-scripts-pending` on every add | ✅ process in READMEs                                 |
+| **TypeScript / ESLint version pins**                       | Upgrades break lint             | TS `~6.0`, ESLint `^9`; Dependabot ignores majors; `openapi-typescript` via npm `overrides`        | ✅ documented (ADR 0029, dependabot.yml)              |
+| Mantis/MUI template license                                | Legal issue                     | Mantis copy nahi; plain MUI                                                                        | ⏳ open — user confirmation                           |
+| Secrets leak (SSH key, DB password chat mein aaye)         | Security                        | Password manager, rotate before prod, gitleaks in CI + push protection                             | ⏳ rotation pending                                   |
+| Client ke server pe galti se change                        | Doosri app down                 | Read-only allowlist audit script; isolated deploy plan                                             | ✅ tooling ready (audit blocked: no key)              |
+| Client answers late                                        | SIP phases late                 | Web Call Tester se ~75% build                                                                      | ⏳ open                                               |
+| **Regulatory change (RBI recovery drafts, TRAI AI rules)** | Rework of call rules            | Configurable window / caps / disclosure; re-check before go-live                                   | ⏳ monitor                                            |
 
 ---
 

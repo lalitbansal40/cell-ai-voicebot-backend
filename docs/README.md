@@ -21,6 +21,8 @@ Source of truth for plans, decisions and conventions. (PDF exports are kept outs
 - [plans/OVERVIEW_PLAN.md](plans/OVERVIEW_PLAN.md) — v1 overview (archived)
 - [phases/PHASE_0_PLAN.md](phases/PHASE_0_PLAN.md) — Phase 0 detailed plan
 - [phases/PHASE_0_TASKS.md](phases/PHASE_0_TASKS.md) — Phase 0 task tracker
+- [phases/PHASE_0_SIGNOFF.md](phases/PHASE_0_SIGNOFF.md) — Phase 0 sign-off
+- [phases/PHASE_1_PLAN.md](phases/PHASE_1_PLAN.md) · [phases/PHASE_1_TASKS.md](phases/PHASE_1_TASKS.md) — Phase 1 detailed plan + tracker
 - [prompts/PHASE_0_BATCH_1_PROMPT.md](prompts/PHASE_0_BATCH_1_PROMPT.md) — Phase 0 batch 1 run prompt
 - [prompts/PHASE_0_BATCH_2_4_PROMPT.md](prompts/PHASE_0_BATCH_2_4_PROMPT.md) — Phase 0 batches 2–4 run prompt (T0.11–T0.20)
 - [prompts/TASK_PROMPT_TEMPLATE.md](prompts/TASK_PROMPT_TEMPLATE.md) — template for task-wise prompts

@@ -415,6 +415,25 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 
 ---
 
+## 8. Decisions after Phase 0 (2026-10-08)
+
+| Area                   | Final decision                                                                                     | Reference               |
+| ---------------------- | -------------------------------------------------------------------------------------------------- | ----------------------- |
+| Runtime                | Node 24 LTS, TypeScript 6.0 (pinned — typescript-eslint support), ESLint 9 (pinned)                | ADR 0002, CHANGELOG     |
+| Database               | MongoDB **8.2** replica set (8.0 fails on Linux kernel ≥ 6.19)                                     | ADR 0004                |
+| Local ports            | API 5100 · web 3100 · Mongo 27018 · Redis 6380                                                     | ADR 0028                |
+| Frontend               | Vite 8 + React 19 + MUI 9 + React Router 8 + React Query; **no Mantis copy** until licensed        | ADR 0010, 0011          |
+| API contract           | zod → OpenAPI 3.1 (`openapi/openapi.json`) → generated frontend types                              | ADR 0029                |
+| WebSocket auth         | Single-use 60 s tickets (no JWT in URLs)                                                           | websocket.md            |
+| Voice AI               | OpenAI Realtime (`gpt-realtime-2.1` / **`-mini`**, native G.711 μ-law) — **pending PoC live runs** | ADR 0021, PoC results   |
+| SIP media server       | **Asterisk (ARI + ExternalMedia)** recommended — proven in the local lab                           | ADR 0022, sip-lab-notes |
+| Calling window default | 09:00–19:00 (TRAI 9–21 ∩ RBI recovery 8–19), hard block                                            | compliance-notes        |
+| Deployment             | Docker Compose on the client EC2 (isolated) — pending server audit                                 | ADR 0025                |
+| Phase 1                | Ready to start — [PHASE_1_PLAN.md](../phases/PHASE_1_PLAN.md)                                      |                         |
+
+---
+
 ## Changelog
 
 - 2026-10-08: Node 24 LTS (Node 20 EOL), MongoDB 8.2 (8.0 fails on Linux kernel ≥ 6.19), Redis 7.4, local ports API 5100 / web 3100 / Mongo 27018 / Redis 6380, React 19 + latest MUI, Mantis template not reused until license confirmed — see [ADR index](../adr/README.md).
+- 2026-10-08: Phase 0 complete — decisions table (§8): MongoDB 8.2, OpenAPI types, WS tickets, Asterisk recommendation, 09:00–19:00 calling window; voice AI and deployment pending inputs.

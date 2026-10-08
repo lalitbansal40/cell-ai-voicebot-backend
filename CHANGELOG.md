@@ -28,6 +28,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   - Local SIP lab (`poc/sip-lab`): Asterisk 20 + ARI + ExternalMedia, SIPp caller — end-to-end pass (142 RTP packets, DTMF 5/7); Asterisk recommended for Phase 13 (ADR 0022 note).
   - Per-minute cost model draft (`docs/cost/cost-model.md`, `poc/cost-model/calc.mjs`) — AI and telephony inputs still estimates.
 
+- **Phase 0 · Batch 4 (T0.18–T0.20)** — 2026-10-08
+  - Compliance research notes (TRAI 140/1600 series, RBI recovery 08:00–19:00 drafts, DPDP Rules 2025 timeline, recording / AI disclosure) + client legal questions.
+  - Read-only client server audit script (`npm run server:audit`) + template — **blocked: SSH key not available**.
+  - Phase 0 sign-off (`docs/phases/PHASE_0_SIGNOFF.md`), build-plan decisions table, updated risk register, Phase 1 detailed plan.
+- **Phase 0 complete** (release `v0.0.1` to be tagged after merge). Pending inputs: OpenAI key (PoC live runs), client SSH key (server audit), client answers (SIP, DB, domain, telephony rate).
+
 ### Changed
 
 - Plan updates: Node 20 → 24 LTS (Node 20 EOL), MongoDB 8.0 → 8.2 (8.0 fails on Linux kernel ≥ 6.19), ports → 5100/3100/27018/6380, React 18 → 19, ESLint 10 → 9 (plugin peer compatibility), TypeScript 7 → 6.0 (typescript-eslint support); `openapi-typescript` runs on TS 6 via npm `overrides` (ADR 0029); lint-staged skips ESLint-ignored files (`--no-warn-ignored`).
