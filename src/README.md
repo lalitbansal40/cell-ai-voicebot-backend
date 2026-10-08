@@ -7,7 +7,7 @@ Module-based structure (see [ADR 0003](../docs/adr/0003-backend-code-structure.m
 | `index.ts`                               | Process entry: `startServer()`; re-exports `getAppInfo`                                                                                                                                                                                               | Phase 1      |
 | `server.ts`                              | `startServer()` — validates env, connects Mongo + Redis, builds the app, listens on `PORT`, starts realtime + workers, registers shutdown hooks, installs signal handlers                                                                             | Phase 1      |
 | `app.ts`                                 | `createApp({ env, logger })` — pure Express app (no I/O); the request pipeline below                                                                                                                                                                  | Phase 1      |
-| `routes.ts`                              | `createApiRouter()` — mounts every module router under `/api/v1`                                                                                                                                                                                      | Phase 1      |
+| `routes.ts`                              | `createApiRouter({ env })` — mounts every module router under `/api/v1` (+ `GET /openapi.json`)                                                                                                                                                       | Phase 1      |
 | `openapi.ts`                             | Assembles the OpenAPI 3.1 document from all module schemas (`npm run gen:openapi`)                                                                                                                                                                    | Phase 0+     |
 | `config/`                                | `env.ts` (zod env schema, fail-fast, names-only errors), `limits.ts` (body + rate limits)                                                                                                                                                             | Phase 1      |
 | `shared/errors/`                         | `error-codes.ts` (≡ docs/conventions/error-codes.md, test-enforced), `AppError` + subclasses                                                                                                                                                          | Phase 1      |
@@ -40,6 +40,7 @@ Module-based structure (see [ADR 0003](../docs/adr/0003-backend-code-structure.m
 | `modules/public-api/`                    | API-key authenticated public API                                                                                                                                                                                                                      | Phase 10     |
 | `modules/system/`                        | `GET /api/v1/system/info` (controller + routes + schema)                                                                                                                                                                                              | Phase 1      |
 | `modules/health/`                        | `GET /health` (liveness) and `GET /ready` (Mongo + Redis ping, 503 when down or shutting down) at the root                                                                                                                                            | Phase 1      |
+| `modules/docs/`                          | `GET /api/v1/openapi.json` (spec, always on) and Swagger UI at `/api/docs` (`API_DOCS_ENABLED`; `swagger-ui-dist` assets, own `init.js`, strict CSP)                                                                                                  | Phase 1      |
 | `modules/files/`                         | `GET /files/*key?exp=&sig=` signed downloads (local storage driver only)                                                                                                                                                                              | Phase 1      |
 | `jobs/`                                  | Scheduled / cron jobs                                                                                                                                                                                                                                 | Phase 4+     |
 | `db/`                                    | `mongo.ts` (connect, ping, index sync), `transaction.ts`, `plugins/` (base, tenant, soft delete), `migrate.ts` + `migrations/` registry, `models/` (`idempotency-key.model.ts`)                                                                       | Phase 1      |
@@ -72,11 +73,11 @@ Order matters — every request goes through:
 
 1. `requestId` — accepts a safe `X-Request-Id` or generates a UUID; echoed in the response.
 2. `httpLogger` — pino-http access log (method, path without query, status, time); `req.log` child logger with `requestId`. Health paths are not logged.
-3. `securityHeaders` — helmet (no CSP for the JSON API, HSTS only in production).
+3. `securityHeaders` — helmet (no CSP for the JSON API — the docs router adds `docsCsp()`; HSTS only in production).
 4. `corsMiddleware` — exact-match `CORS_ORIGINS` allowlist; unknown origins get no CORS headers.
 5. `globalRateLimiter` — 300 req/min per IP (`trust proxy` aware), `RateLimit-*` headers, 429 envelope; Redis store in the server (MemoryStore in unit tests).
 6. Body parsers — JSON 1 MB, urlencoded 100 KB.
-7. `/health`, `/ready` (root — load balancers), `/files/*` (local storage only), then `/api/v1` routers (`routes.ts`).
+7. `/health`, `/ready` (root — load balancers), `/files/*` (local storage only), `/api/docs` Swagger UI (`API_DOCS_ENABLED`, own strict CSP), then `/api/v1` routers (`routes.ts`, incl. `GET /api/v1/openapi.json`).
 8. `notFound` → 404 `RESOURCE_NOT_FOUND`.
 9. `errorHandler` → every error becomes the error envelope; 5xx messages are never exposed.
 

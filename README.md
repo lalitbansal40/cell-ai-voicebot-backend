@@ -156,6 +156,7 @@ npm 11 blocks dependency install scripts unless approved. Approvals live in `pac
 - `unrs-resolver: true` — ensures the native binding used by the ESLint import resolver.
 - `mongodb-memory-server: false` — skips the install-time MongoDB download; the binary downloads on first test run instead.
 - `msgpackr-extract: false` — BullMQ's optional native msgpack add-on ships a prebuilt binary (`@msgpackr-extract/*`); the `node-gyp rebuild` script is not needed (msgpackr falls back to JS otherwise).
+- `@scarf/scarf: false` — pulled in by `swagger-ui-dist`; its postinstall only sends install analytics.
 
 No install scripts needed for `nodemailer` / `smtp-server` (pure JS). `smtp-server` has no bundled types and `@types/smtp-server` would pull in `@types/nodemailer` (clashes with nodemailer 10's own types), so tests use a minimal local declaration (`tests/@types/smtp-server.d.ts`).
 
@@ -171,6 +172,8 @@ The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-
 - Regenerate after **every** schema change and commit the JSON in the same commit.
 - `npm run openapi:check` regenerates and fails if the committed file is stale — CI runs it.
 - The frontend generates its types from this file (`npm run gen:api` in the frontend repo).
+- **Served:** `GET /api/v1/openapi.json` (always on, raw OpenAPI JSON with `servers = APP_URL`).
+- **Swagger UI:** <http://localhost:5100/api/docs> (or <http://localhost:3100/api/docs> through the frontend dev proxy). On by default outside production; production needs `API_DOCS_ENABLED=true`. "Try it out" calls the same origin.
 
 ## Testing
 
@@ -216,6 +219,7 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | `CORS_ORIGINS`            | yes               | 1       | Comma-separated allowed origins                                                                 |
 | `LOG_LEVEL`               | no                | 1       | pino log level                                                                                  |
 | `TRUST_PROXY`             | no                | 1       | `false` / `true` / hop count / `loopback` — set behind nginx (Phase 12)                         |
+| `API_DOCS_ENABLED`        | no                | 1       | Swagger UI at `/api/docs` — default on outside production, off in production                    |
 | `MONGODB_URI`             | yes               | 1       | MongoDB connection string (replica set)                                                         |
 | `REDIS_URL`               | yes               | 1       | Redis connection string                                                                         |
 | `WORKERS_ENABLED`         | no                | 1       | `true` (default) / `false` — run BullMQ workers in the API process                              |

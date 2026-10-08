@@ -71,7 +71,8 @@
     "fsevents": false,
     "unrs-resolver": true,
     "mongodb-memory-server": false,
-    "msgpackr-extract": false
+    "msgpackr-extract": false,
+    "@scarf/scarf": false
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs}": [
@@ -104,6 +105,7 @@
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "rate-limit-redis": "^6.0.1",
+    "swagger-ui-dist": "^5.33.1",
     "ws": "^8.22.0",
     "zod": "^4.6.5"
   }

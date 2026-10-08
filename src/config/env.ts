@@ -26,6 +26,7 @@ const RawEnvSchema = z.object({
   CORS_ORIGINS: optionalString,
   LOG_LEVEL: LogLevelSchema.optional(),
   TRUST_PROXY: optionalString,
+  API_DOCS_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
 
   MONGODB_URI: z
     .string()
@@ -99,6 +100,7 @@ export type Env = Readonly<
     | 'EMAIL_DRIVER'
     | 'SMTP_SECURE'
     | 'MAIL_FROM'
+    | 'API_DOCS_ENABLED'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -110,6 +112,7 @@ export type Env = Readonly<
     EMAIL_DRIVER: 'smtp' | 'log';
     SMTP_SECURE: boolean;
     MAIL_FROM: string;
+    API_DOCS_ENABLED: boolean;
   }
 >;
 
@@ -256,6 +259,8 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     EMAIL_DRIVER: emailDriver,
     SMTP_SECURE: raw.SMTP_SECURE !== undefined ? raw.SMTP_SECURE === 'true' : raw.SMTP_PORT === 465,
     MAIL_FROM: raw.MAIL_FROM ?? DEV_MAIL_FROM,
+    API_DOCS_ENABLED:
+      raw.API_DOCS_ENABLED !== undefined ? raw.API_DOCS_ENABLED === 'true' : !production,
   });
 };
 

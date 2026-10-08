@@ -4,6 +4,7 @@ import type { Store } from 'express-rate-limit';
 import type { Env } from './config/env';
 import { JSON_BODY_LIMIT, UNLIMITED_PATHS, URLENCODED_BODY_LIMIT } from './config/limits';
 import { LocalStorage, type StorageProvider } from './core/storage';
+import { createDocsRouter } from './modules/docs/docs.routes';
 import { createFilesRouter } from './modules/files/files.routes';
 import type { ReadinessDeps } from './modules/health/health.controller';
 import { createHealthRouter } from './modules/health/health.routes';
@@ -60,7 +61,8 @@ export const createApp = ({
 
   app.use(createHealthRouter(readiness ?? { checks: {}, isShuttingDown: () => false }));
   if (storage instanceof LocalStorage) app.use(createFilesRouter(storage));
-  app.use('/api/v1', createApiRouter());
+  if (env.API_DOCS_ENABLED) app.use(createDocsRouter());
+  app.use('/api/v1', createApiRouter({ env }));
 
   app.use(notFound());
   app.use(errorHandler());

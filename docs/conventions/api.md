@@ -213,6 +213,8 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 
 ## 15. Versioning & deprecation
 
+- The contract is served at **`GET /api/v1/openapi.json`** (OpenAPI 3.1, raw document — **not** wrapped in the success envelope) and browsable at **`/api/docs`** (Swagger UI, off in production unless `API_DOCS_ENABLED=true`). [ADR 0029](../adr/0029-shared-api-types-via-openapi.md).
+
 - Breaking changes go to `/api/v2`; `/api/v1` keeps working until it is retired.
 - Deprecated endpoints send `Deprecation` and `Sunset` headers before removal.
 - Additive changes (new optional fields, new endpoints) are not breaking.

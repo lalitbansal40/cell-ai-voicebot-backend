@@ -24,4 +24,11 @@ Backend and frontend are separate repos ([ADR 0001](0001-repo-structure.md)). Th
 
 - **Positive:** one source of truth; types, docs and validation cannot drift; public API gets a real spec.
 - **Negative / trade-offs:** two-step workflow (backend `gen:openapi`, then frontend `gen:api`); generated files in git; the `overrides` workaround must be re-checked on upgrades.
-- **Follow-ups:** serve `/api/v1/openapi.json` + Swagger UI in dev (Phase 1); add a frontend CI job that diffs `schema.gen.ts` against the published spec once the backend is deployed.
+- **Follow-ups:** ~~serve `/api/v1/openapi.json` + Swagger UI in dev (Phase 1)~~ done in T1.14 (see below); add a frontend CI job that diffs `schema.gen.ts` against the published spec once the backend is deployed.
+
+## Update (Phase 1 · T1.14) — spec served + Swagger UI
+
+- `GET /api/v1/openapi.json` serves the document built at runtime (`buildOpenApiDocument({ serverUrl: APP_URL })`), **always on** (the Phase 10 public API needs it; it holds no secrets). Raw OpenAPI JSON (not in the success envelope), `Cache-Control: no-cache` + ETag. The committed file keeps the local server URL; `info.version` comes from `package.json` via `getAppInfo()`.
+- Swagger UI at **`/api/docs`**, enabled by `API_DOCS_ENABLED` (default: on outside production, off in production). Built from **`swagger-ui-dist`** with our own HTML + `init.js` and a strict route-level CSP (`script-src 'self'`, no inline scripts). The stock `index.html` / `swagger-initializer.js` (Petstore demo) are never served.
+- **Why not `swagger-ui-express`:** last release 2024-05 and it injects an inline init script, which would need `'unsafe-inline'` in `script-src`.
+- `swagger-ui-dist` depends on `@scarf/scarf`, whose postinstall sends install analytics — denied in `allowScripts` (`"@scarf/scarf": false`).

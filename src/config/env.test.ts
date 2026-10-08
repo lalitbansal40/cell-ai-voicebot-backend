@@ -240,3 +240,17 @@ describe('loadEnv — email', () => {
     expect(issuesOf(noFrom).issues.map((i) => i.variable)).toEqual(['MAIL_FROM']);
   });
 });
+
+describe('loadEnv — API docs', () => {
+  it('enables Swagger UI outside production by default', () => {
+    expect(loadEnv({}).API_DOCS_ENABLED).toBe(true);
+    expect(loadEnv({ NODE_ENV: 'test' }).API_DOCS_ENABLED).toBe(true);
+  });
+
+  it('disables it in production unless explicitly enabled', () => {
+    expect(loadEnv(validProduction).API_DOCS_ENABLED).toBe(false);
+    expect(loadEnv({ ...validProduction, API_DOCS_ENABLED: 'true' }).API_DOCS_ENABLED).toBe(true);
+    expect(loadEnv({ API_DOCS_ENABLED: 'false' }).API_DOCS_ENABLED).toBe(false);
+    expect(issuesOf({ API_DOCS_ENABLED: 'on' }).issues[0]?.variable).toBe('API_DOCS_ENABLED');
+  });
+});
