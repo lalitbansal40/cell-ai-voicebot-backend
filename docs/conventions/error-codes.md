@@ -32,6 +32,19 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `PROVIDER_UNAVAILABLE`        | 503  | Telephony / external provider unreachable                                   | 7/13  |
 | `PROVIDER_ERROR`              | 502  | Telephony / external provider returned an error                             | 7/13  |
 
+## Client-only codes (frontend — never sent by the server)
+
+The dashboard turns every failed request into an `ApiError` (`src/services/api/errors.ts` in the frontend repo). When there is no valid error envelope it uses one of these codes; `status` is `0` when no response arrived.
+
+| Code               | Status      | When                                                                        |
+| ------------------ | ----------- | --------------------------------------------------------------------------- |
+| `NETWORK_ERROR`    | — (0)       | No response (server down, offline, CORS blocked, DNS)                       |
+| `TIMEOUT`          | — (0)       | Request exceeded the client timeout (15 s)                                  |
+| `REQUEST_CANCELED` | — (0)       | Request aborted by the app (navigation, unmount)                            |
+| `UNKNOWN_ERROR`    | as received | Response without a valid envelope (e.g. proxy 502 HTML) or a non-HTTP error |
+
+These codes are **not** in `error-codes.ts` (the sync test only reads rows with a numeric status) and must never be returned by the API.
+
 ## Rules
 
 1. Add new codes here **and** in `error-codes.ts` together; never reuse a code for a different meaning.

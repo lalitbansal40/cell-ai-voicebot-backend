@@ -29,7 +29,17 @@ describe('CORS allowlist', () => {
     const res = await request(app).get('/api/v1/system/info').set('Origin', ORIGIN);
     expect(res.headers['access-control-allow-origin']).toBe(ORIGIN);
     expect(res.headers['access-control-allow-credentials']).toBe('true');
-    expect(res.headers['access-control-expose-headers']).toContain('X-Request-Id');
+    const exposed = String(res.headers['access-control-expose-headers']);
+    for (const header of [
+      'X-Request-Id',
+      'RateLimit-Limit',
+      'RateLimit-Remaining',
+      'RateLimit-Reset',
+      'Retry-After',
+      'Idempotent-Replayed',
+    ]) {
+      expect(exposed).toContain(header);
+    }
   });
 
   it('sends no CORS headers for an unknown origin (browser blocks it)', async () => {

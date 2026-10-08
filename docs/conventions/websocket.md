@@ -122,3 +122,27 @@ New events must be added to this table in the same PR that emits them.
 - **Limits** (defaults): 5 connections per user, 50 per account (**4009**), 20 client messages/s (**4008** `rate limit`), 64 KB max payload (**1009**), 20 topics per connection.
 - **Topics**: only `call:<id>` / `campaign:<id>`; ownership check is a hook — **TODO(P7/P8)**: verify the resource belongs to the account.
 - **Shutdown**: hook `ws` (20) closes every client with **1001** `server shutting down`.
+
+## 11. Frontend client (`src/services/realtime/` in the frontend repo)
+
+- **`RealtimeClient`** (framework-agnostic) + `RealtimeProvider` and hooks `useWsStatus()`, `useWsEvent(type, handler)`, `useWsTopic(topic)`. One connection per browser tab.
+- **URL:** `VITE_WS_URL` is the **base** (`ws://localhost:3100/ws` in dev, through the Vite proxy); the client appends `/events?ticket=…`. Unset → derived from the page origin (`wss:` on HTTPS).
+- **Ticket provider:** `getTicket()` calls `POST /api/v1/ws/tickets` from **Phase 2**; until then the provider is `null` and the client stays idle. A failing ticket call leaves the client `idle` (no retry loop).
+- **States:** `idle` → `connecting` → `open` → `reconnecting` / `closed`.
+- **Keepalive:** `{ "type": "ping" }` every **25 s** while open.
+- **Reconnect:** full-jitter exponential backoff — `random() × min(30 s, 1 s × 2^attempt)`; reset after a successful open; the browser `online` event reconnects immediately.
+- **Close codes:**
+
+| Code                          | Client behaviour                                                   |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `1000`                        | Closed on purpose — no reconnect                                   |
+| `4003`                        | Forbidden — no reconnect (`lastError = forbidden`)                 |
+| `4001` / `4010`               | New ticket + reconnect; **3 in a row** → `closed` (`unauthorized`) |
+| `4009`                        | Too many connections — reconnect after the max delay (30 s)        |
+| `4008`, `1001`, `1006`, other | Reconnect with backoff                                             |
+
+- **Topics** are reference-counted (two components on `call:<id>` → one `subscribe` frame) and re-sent after every reconnect.
+- **Events** are de-duplicated by `id` (last 200); unknown `type`s are ignored (forward compatible).
+- **After a reconnect** the app invalidates React Query caches so the screen refetches (missed events are not replayed — §6).
+- The typed event map mirrors §5 and backend `src/core/realtime/events.ts` — update all three together.
+- DEV only: `/dev/realtime` page — paste a URL from `npm run ws:dev-ticket` to watch live events.

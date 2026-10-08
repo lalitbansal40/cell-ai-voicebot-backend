@@ -16,6 +16,7 @@ export const CORS_EXPOSED_HEADERS = [
   'RateLimit-Remaining',
   'RateLimit-Reset',
   'Retry-After',
+  'Idempotent-Replayed',
 ];
 
 /**
