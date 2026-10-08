@@ -14,6 +14,9 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov'],
       include: ['src/**'],
       exclude: ['src/**/*.test.ts', 'src/**/README.md'],
+      // Gate = measured coverage at Phase 1 sign-off rounded down to the nearest 5
+      // (92.9 / 82.8 / 90.2 / 94.5) — CI fails if coverage drops below it.
+      thresholds: { statements: 90, branches: 80, functions: 90, lines: 90 },
     },
   },
 });

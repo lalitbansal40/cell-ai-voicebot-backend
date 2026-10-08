@@ -83,6 +83,9 @@ const RawEnvSchema = z.object({
 
 type RawEnv = z.infer<typeof RawEnvSchema>;
 
+/** Every supported variable name (docs sync test: .env.example + README table). */
+export const ENV_KEYS = Object.keys(RawEnvSchema.shape) as readonly (keyof RawEnv)[];
+
 export type NodeEnv = z.infer<typeof NodeEnvSchema>;
 export type LogLevel = z.infer<typeof LogLevelSchema>;
 export type TrustProxy = boolean | number | string;

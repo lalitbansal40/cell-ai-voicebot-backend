@@ -296,6 +296,37 @@ describe('/ws/events delivery', () => {
 });
 
 describe('/ws/events limits & lifecycle', () => {
+  it('limits connections per account across users (4009)', async () => {
+    const inst = await startInstance({ perUser: 5, perAccount: 2 });
+    const a = connect((await ticketUrl(inst, ACCOUNT_A, 'user-1')).url);
+    const b = connect((await ticketUrl(inst, ACCOUNT_A, 'user-2')).url);
+    await Promise.all([opened(a), opened(b)]);
+    await ready(inst, 2);
+    const third = connect((await ticketUrl(inst, ACCOUNT_A, 'user-3')).url);
+    expect((await third.closed).code).toBe(WS_CLOSE.tooManyConnections);
+    const otherAccount = connect((await ticketUrl(inst, ACCOUNT_B, 'user-9')).url);
+    await opened(otherAccount);
+    await ready(inst, 3);
+    expect(inst.realtime.connectionCount()).toBe(3);
+  });
+
+  it('ignores topics beyond maxTopics per connection', async () => {
+    const inst = await startInstance({ maxTopics: 1 });
+    const sub = connect((await ticketUrl(inst)).url);
+    await opened(sub);
+    await ready(inst, 1);
+    const second = 'campaign:66f1c2a9e4b0c1d2e3f4a5b7';
+    sub.ws.send(JSON.stringify({ type: 'subscribe', topics: [CAMPAIGN, second] }));
+    sub.ws.send(JSON.stringify({ type: 'ping' }));
+    await sub.next((m) => m.type === 'pong');
+    await inst.realtime.pushToTopic(second, 'campaign.progress', { campaignId: 'b', stats: {} });
+    await inst.realtime.pushToTopic(CAMPAIGN, 'campaign.progress', { campaignId: 'a', stats: {} });
+    const got = await sub.next((m) => m.type === 'campaign.progress');
+    expect(got.data).toEqual({ campaignId: 'a', stats: {} });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(sub.messages.filter((m) => m.type === 'campaign.progress')).toHaveLength(1);
+  });
+
   it('limits connections per user (4009)', async () => {
     const inst = await startInstance({ perUser: 1 });
     const first = connect((await ticketUrl(inst)).url);

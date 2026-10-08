@@ -16,7 +16,7 @@ Source plan: [PHASE_1_PLAN.md](PHASE_1_PLAN.md) · Batch 1 prompt (T1.1–T1.6):
 | [x]  | T1.10 | WebSocket /ws/events                                 | M    |
 | [x]  | T1.11 | Idempotency middleware                               | M    |
 | [x]  | T1.12 | StorageProvider (local + S3)                         | S    |
-| [ ]  | T1.13 | Email service (SMTP)                                 | S    |
-| [ ]  | T1.14 | OpenAPI served + Swagger UI (dev)                    | S    |
-| [ ]  | T1.15 | Frontend: API errors + WS hook                       | M    |
-| [ ]  | T1.16 | Integration tests, docs, sign-off                    | M    |
+| [x]  | T1.13 | Email service (SMTP)                                 | S    |
+| [x]  | T1.14 | OpenAPI served + Swagger UI (dev)                    | S    |
+| [x]  | T1.15 | Frontend: API errors + WS hook                       | M    |
+| [x]  | T1.16 | Integration tests, docs, sign-off                    | M    |

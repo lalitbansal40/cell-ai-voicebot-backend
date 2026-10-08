@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 1 · Batch 3 (T1.13–T1.16) — Phase 1 complete** — 2026-10-08
+  - Email: `EMAIL_DRIVER` (smtp | log; production requires smtp), `SMTP_SECURE`, pooled nodemailer SMTP provider, log provider (masked, never the body), escaped TS templates with text parts, BullMQ `email` queue (5 attempts, SMTP 5xx not retried, 24 h dedupe), shutdown hook `email` (35), Mailpit in docker-compose (1025 / 8025), `npm run email:test`, ADR 0030.
+  - API docs: `GET /api/v1/openapi.json` (always on, `servers = APP_URL`, ETag), Swagger UI at `/api/docs` behind `API_DOCS_ENABLED` (off in production by default) with a strict route-level CSP; app version read from package.json (correct under `node dist`); `@scarf/scarf` install script denied.
+  - Conventions: client-only error codes, frontend WS client notes (websocket.md §11); CORS exposes `Idempotent-Replayed`.
+  - `startServer(options)` injectable; full-server e2e test (requests, WS, email, ordered shutdown); WS per-account limit + max-topics tests; env-docs sync test; coverage gate (90/80/90/90) in CI.
+  - Docs: fresh-machine run guide + ports table, Phase 1 sign-off ([PHASE_1_SIGNOFF.md](docs/phases/PHASE_1_SIGNOFF.md)).
+  - Tests: 248 → 306.
+
 - **Phase 1 · Batch 2 (T1.7–T1.12)** — 2026-10-08
   - MongoDB: mongoose 9 connection (strictQuery, autoIndex off in production, redacted URI logs), `withTransaction`, index sync in dev/test, `db:sync-indexes`, plugins (base `id` JSON, tenant `accountId`, soft delete incl. aggregate + `withDeleted`), migrations runner with lock + baseline (`db:migrate`, `db:migrate:down`, `db:migrate:status`).
   - Redis + BullMQ: separate app / queue / subscriber connections, queue + worker factory with default job options and graceful close, `system` heartbeat worker, `WORKERS_ENABLED`, Redis-backed rate-limit store shared across instances; CI Redis service.

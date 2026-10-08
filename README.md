@@ -4,13 +4,13 @@ Multi-tenant AI voice calling platform API (Node.js + Express + TypeScript + Mon
 
 ## Status
 
-Phase 0 — setup & architecture decisions. See [docs/phases/PHASE_0_TASKS.md](docs/phases/PHASE_0_TASKS.md).
+**Phase 1 — Backend Foundation: complete** ([sign-off](docs/phases/PHASE_1_SIGNOFF.md)). Next: Phase 2 (auth, accounts, RBAC). Tasks: [docs/phases/PHASE_1_TASKS.md](docs/phases/PHASE_1_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Prerequisites
 
 - **Node.js 24 LTS** (`.nvmrc` = `24`; `engine-strict=true` blocks other versions)
 - **npm ≥ 10**
-- **Docker Desktop** (for local MongoDB + Redis)
+- **Docker Desktop** (for local MongoDB + Redis + Mailpit)
 
 Full setup notes: [docs/setup/prerequisites.md](docs/setup/prerequisites.md).
 
@@ -21,6 +21,43 @@ npm ci            # install exact dependencies from the lockfile
 npm run dev       # run src/index.ts with tsx in watch mode
 ```
 
+### Run locally (fresh machine)
+
+1. Clone **both** repos side by side (the frontend generates its API types from `../cell-ai-voicebot-backend/openapi/openapi.json`):
+   ```bash
+   git clone <backend-repo-url> cell-ai-voicebot-backend
+   git clone <frontend-repo-url> cell-ai-voicebot-frontend
+   ```
+2. Backend (Node 24, Docker Desktop running):
+   ```bash
+   cd cell-ai-voicebot-backend
+   npm ci
+   cp .env.example .env        # local defaults work as-is; for Mailpit set SMTP_HOST=127.0.0.1 SMTP_PORT=1025
+   npm run infra:up            # MongoDB 27018 + Redis 6380 + Mailpit 1025/8025
+   npm run db:migrate          # apply migrations (baseline)
+   npm run dev                 # http://localhost:5100
+   ```
+   Check: <http://localhost:5100/health>, <http://localhost:5100/ready>, Swagger UI <http://localhost:5100/api/docs>, Mailpit <http://localhost:8025> (`npm run email:test -- you@example.com`).
+3. Frontend:
+   ```bash
+   cd ../cell-ai-voicebot-frontend
+   npm ci
+   cp .env.example .env.local
+   npm run dev                 # http://localhost:3100 (proxies /api and /ws to :5100)
+   ```
+4. Tests: `npm test` in each repo (backend needs `npm run infra:up` first). Stop infra with `npm run infra:down`.
+
+| Port  | What                               |
+| ----- | ---------------------------------- |
+| 5100  | Backend API + `/ws/events`         |
+| 3100  | Frontend dev server (3101 preview) |
+| 27018 | MongoDB (replica set `rs0`)        |
+| 6380  | Redis                              |
+| 1025  | Mailpit SMTP                       |
+| 8025  | Mailpit web UI                     |
+
+All bound to `127.0.0.1` ([ADR 0028](docs/adr/0028-local-dev-ports.md)).
+
 ## Running the API
 
 ```bash
@@ -30,7 +67,7 @@ curl -s localhost:5100/api/v1/system/info
 ```
 
 - Env is validated at startup (`src/config/env.ts`); an invalid env prints the offending variable **names** and exits.
-- `Ctrl-C` / `SIGTERM` → graceful shutdown (ordered hooks, 15 s hard timeout).
+- `Ctrl-C` / `SIGTERM` → graceful shutdown: http → ws → queues → email → redis → mongo (15 s hard timeout).
 - Production build: `npm run build && npm start`.
 - Health: `GET /health` (process alive) · `GET /ready` (MongoDB + Redis reachable; **503** when a dependency is down or the server is shutting down) — use `/ready` for load-balancer checks.
 - **MongoDB and Redis are required**: start them with `npm run infra:up` first (the API exits with a clear message if either is unreachable).
@@ -182,8 +219,12 @@ The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-
 - **Unit tests** live next to the code: `src/**/*.test.ts`.
 - **Integration / infra tests** live in `tests/` (e.g. `tests/infra/mongo-replset.test.ts` proves replica-set transactions).
 - **MongoDB in tests:** `tests/setup/mongo.global.ts` starts **one** in-memory replica set for the whole run (Vitest `globalSetup`); each test file gets its own database via `startTestMongo()` (`tests/helpers/mongo.ts`). One shared replica set instead of one per file — parallel replica-set start-ups made transactions hang intermittently. The replica set: the MongoDB version is pinned in `package.json` → `config.mongodbMemoryServer.version` (`8.2.12`, same version line as the Docker image `mongo:8.2`). The first run downloads the binary (~100 MB) into the npm cache.
-- **API tests:** Supertest (from Phase 1).
-- **E2E:** Playwright, added after Phase 2.
+- **API tests:** Supertest against `createApp` (`tests/http/`).
+- **Full-server e2e:** `tests/e2e/server.e2e.test.ts` boots `startServer({ port: 0, … })` with real Mongo (memory) + Redis + workers + realtime + email, then checks the graceful shutdown order.
+- **Email:** `tests/email/` — in-process SMTP server (`smtp-server`), no Mailpit needed.
+- **Docs sync:** `tests/config/env-docs.test.ts` fails when a variable in `env.ts` is missing from `.env.example` or the env table below; `error-codes.test.ts` keeps `ERROR_CODES` = `error-codes.md`.
+- **Coverage gate:** `npm run test:coverage` enforces thresholds in `vitest.config.mts` (statements 90 · branches 80 · functions 90 · lines 90 — Phase 1 sign-off values rounded down). CI runs it.
+- **Browser E2E:** Playwright, added after Phase 2.
 
 ## Code quality
 
@@ -197,13 +238,13 @@ The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-
 
 GitHub Actions (`.github/workflows/ci.yml`) on every pull request and on pushes to `main` / `dev`:
 
-- **verify** — `npm ci`, lint, format check, typecheck, tests, build (Node from `.nvmrc`).
+- **verify** — `npm ci`, lint, format check, typecheck, tests **with the coverage gate**, build (Node from `.nvmrc`), with a Redis service container.
 - `verify` also runs `npm run openapi:check` and caches the MongoDB test binary.
 - **secrets-scan** — gitleaks over the full git history (`.gitleaks.toml`).
 - **audit** — `npm audit --audit-level=high` (informational, non-blocking).
 - **commitlint** — checks every commit message in a PR.
 
-Run the same checks locally: `npm run lint && npm run format:check && npm run typecheck && npm test && npm run build`.
+Run the same checks locally: `npm run lint && npm run format:check && npm run typecheck && npm run test:coverage && npm run build && npm run openapi:check`.
 Dependabot (`.github/dependabot.yml`) opens weekly grouped update PRs. Repo settings to apply by hand: [GitHub settings](docs/setup/github-settings.md).
 
 ## Environment variables

@@ -71,7 +71,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 | #   | Phase                                 | Status            | Backend | UI    |
 | --- | ------------------------------------- | ----------------- | ------- | ----- |
 | 0   | Setup & Architecture Decisions        | 🟢 Abhi           | ✔       | ✔     |
-| 1   | Backend Foundation                    | 🟢 Abhi           | ✔       | –     |
+| 1   | Backend Foundation                    | ✅ Done           | ✔       | –     |
 | 2   | Auth, Accounts, RBAC + App Shell      | 🟢 Abhi           | ✔       | ✔     |
 | 3   | Contacts, Lists & Custom Fields       | 🟢 Abhi           | ✔       | ✔     |
 | 4   | Wallet & Billing                      | 🟢 Abhi           | ✔       | ✔     |
@@ -109,7 +109,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ---
 
-### Phase 1 — Backend Foundation 🟢
+### Phase 1 — Backend Foundation ✅
 
 - Express app, env validation (fail-fast), structured logger (pino), request ID
 - Global error handler, 404, validation middleware, async wrapper

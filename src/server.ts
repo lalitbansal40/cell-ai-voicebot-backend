@@ -1,11 +1,18 @@
 import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 import { createApp } from './app';
-import { getEnv } from './config/env';
-import { createEmailProvider, createEmailService, setEmail, type EmailJobData } from './core/email';
+import { getEnv, type Env } from './config/env';
+import {
+  createEmailProvider,
+  createEmailService,
+  setEmail,
+  type EmailJobData,
+  type EmailProvider,
+} from './core/email';
 import { createLifecycle, type Lifecycle } from './core/lifecycle';
 import { QUEUES } from './core/queues/names';
-import { closeAllQueues, createQueue } from './core/queues/queue-factory';
+import { closeAllQueues, createQueue, DEFAULT_QUEUE_PREFIX } from './core/queues/queue-factory';
 import {
   closeAllRedis,
   createSubscriber,
@@ -24,21 +31,41 @@ import {
   redactMongoUri,
   syncAllIndexes,
 } from './db/mongo';
-import { getLogger } from './shared/logger';
+import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
 
 export interface RunningServer {
   server: Server;
   lifecycle: Lifecycle;
+  /** Actual listening port (differs from env.PORT when `port: 0`). */
+  port: number;
+}
+
+/** Overrides for tests (e2e). Production calls `startServer()` with none. */
+export interface StartServerOptions {
+  env?: Env;
+  logger?: Logger;
+  /** Listen port; `0` = random free port. Default `env.PORT`. */
+  port?: number;
+  /** SIGINT/SIGTERM handlers (default true; tests call `lifecycle.shutdown()`). */
+  installSignalHandlers?: boolean;
+  /** BullMQ key prefix (default `cav`) — tests isolate their jobs. */
+  queuePrefix?: string;
+  /** Email provider override (default from EMAIL_DRIVER). */
+  emailProvider?: EmailProvider;
+  /** Called after shutdown (default `process.exit`). */
+  exit?: (code: number) => void;
 }
 
 const FORCE_CLOSE_AFTER_MS = 5_000;
 
 /** Validates env, builds the app, listens and wires graceful shutdown. */
-export const startServer = async (): Promise<RunningServer> => {
-  const env = getEnv();
-  const logger = getLogger();
-  const lifecycle = createLifecycle(logger);
+export const startServer = async (options: StartServerOptions = {}): Promise<RunningServer> => {
+  const env = options.env ?? getEnv();
+  const logger = options.logger ?? getLogger();
+  const lifecycle = createLifecycle(logger, { exit: options.exit });
+  const prefix = options.queuePrefix ?? DEFAULT_QUEUE_PREFIX;
+  const queueDeps = { redisUrl: env.REDIS_URL, logger, prefix };
 
   try {
     await connectMongo(env, logger);
@@ -63,11 +90,11 @@ export const startServer = async (): Promise<RunningServer> => {
   }
   lifecycle.onShutdown('queues', closeAllQueues, 30);
 
-  const emailProvider = createEmailProvider(env, logger);
+  const emailProvider = options.emailProvider ?? createEmailProvider(env, logger);
   setEmail(
     createEmailService({
       provider: emailProvider,
-      queue: createQueue<EmailJobData>(QUEUES.email, { redisUrl: env.REDIS_URL, logger }),
+      queue: createQueue<EmailJobData>(QUEUES.email, queueDeps),
       logger,
     }),
   );
@@ -85,8 +112,8 @@ export const startServer = async (): Promise<RunningServer> => {
       if (ok) logger.info('email: smtp ready');
       else logger.warn('email: smtp verify failed — queued emails will retry');
     });
-  } else {
-    logger.info(`email: ${emailProvider.driver} driver (emails are logged, not sent)`);
+  } else if (emailProvider.driver === 'log') {
+    logger.info('email: log driver (emails are logged, not sent)');
   }
 
   const app = createApp({
@@ -103,16 +130,17 @@ export const startServer = async (): Promise<RunningServer> => {
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
-    server.listen(env.PORT, () => {
+    server.listen(options.port ?? env.PORT, () => {
       server.off('error', reject);
       resolve();
     });
   });
-  logger.info({ port: env.PORT }, `API listening on http://localhost:${env.PORT}`);
+  const { port } = server.address() as AddressInfo;
+  logger.info({ port }, `API listening on http://localhost:${port}`);
 
   if (env.WORKERS_ENABLED) {
-    await startSystemWorker({ redisUrl: env.REDIS_URL, logger });
-    startEmailWorker({ redisUrl: env.REDIS_URL, logger, provider: emailProvider });
+    await startSystemWorker(queueDeps);
+    startEmailWorker({ ...queueDeps, provider: emailProvider });
     logger.info('workers: started');
   }
 
@@ -145,7 +173,7 @@ export const startServer = async (): Promise<RunningServer> => {
       }),
     10,
   );
-  lifecycle.installSignalHandlers();
+  if (options.installSignalHandlers ?? true) lifecycle.installSignalHandlers();
 
-  return { server, lifecycle };
+  return { server, lifecycle, port };
 };
