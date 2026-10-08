@@ -1,24 +1,23 @@
 import { MongoClient } from 'mongodb';
-import { MongoMemoryReplSet } from 'mongodb-memory-server';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 
 /**
- * Infra smoke test: proves a single-node replica set supports multi-document
- * transactions — the wallet (hold / capture / release + ledger) depends on this.
- * MongoDB binary version is pinned in package.json → config.mongodbMemoryServer.
+ * Infra smoke test: proves the (shared, in-memory) single-node replica set
+ * supports multi-document transactions — the wallet (hold / capture / release
+ * + ledger) depends on this. MongoDB binary version is pinned in
+ * package.json → config.mongodbMemoryServer; the replica set is started once
+ * per run by tests/setup/mongo.global.ts.
  */
 describe('MongoDB replica set (infra)', () => {
-  let replSet: MongoMemoryReplSet;
   let client: MongoClient;
 
   beforeAll(async () => {
-    replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
-    client = await MongoClient.connect(replSet.getUri());
+    client = await MongoClient.connect(inject('mongoUriTemplate').replace('__DB__', 'infra_test'));
   });
 
   afterAll(async () => {
+    await client?.db('infra_test').dropDatabase();
     await client?.close();
-    await replSet?.stop();
   });
 
   it('commits a multi-document transaction across two collections', async () => {

@@ -165,7 +165,7 @@ The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-
 - **Run `npm run infra:up` before `npm test`** — queue, rate-limit and realtime tests use the real Redis on `127.0.0.1:6380` (MongoDB tests use an in-memory replica set). CI starts a Redis service container.
 - **Unit tests** live next to the code: `src/**/*.test.ts`.
 - **Integration / infra tests** live in `tests/` (e.g. `tests/infra/mongo-replset.test.ts` proves replica-set transactions).
-- **MongoDB in tests:** `mongodb-memory-server` starts a real replica set; the MongoDB version is pinned in `package.json` → `config.mongodbMemoryServer.version` (`8.2.12`, same version line as the Docker image `mongo:8.2`). The first run downloads the binary (~100 MB) into the npm cache.
+- **MongoDB in tests:** `tests/setup/mongo.global.ts` starts **one** in-memory replica set for the whole run (Vitest `globalSetup`); each test file gets its own database via `startTestMongo()` (`tests/helpers/mongo.ts`). One shared replica set instead of one per file — parallel replica-set start-ups made transactions hang intermittently. The replica set: the MongoDB version is pinned in `package.json` → `config.mongodbMemoryServer.version` (`8.2.12`, same version line as the Docker image `mongo:8.2`). The first run downloads the binary (~100 MB) into the npm cache.
 - **API tests:** Supertest (from Phase 1).
 - **E2E:** Playwright, added after Phase 2.
 
