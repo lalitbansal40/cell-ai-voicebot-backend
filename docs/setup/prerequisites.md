@@ -45,3 +45,5 @@
 
 - The client's production database type is **unknown** (password shared, but not the engine). If it is not MongoDB, we run our own MongoDB for production (decided in Phase 12).
 - Docker Desktop must be started manually on this machine before `npm run infra:up`.
+- Docker Desktop's VM runs Linux kernel 7.0; **MongoDB 8.0 does not start on kernels ≥ 6.19**, so we use MongoDB 8.2 (ADR 0004). The production server's kernel must be checked in the server audit (T0.19) / Phase 12.
+- Other unrelated containers (e.g. a local Supabase stack) run on this machine — never stop or remove them; only use `npm run infra:*` for this project.

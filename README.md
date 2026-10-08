@@ -21,6 +21,34 @@ npm ci            # install exact dependencies from the lockfile
 npm run dev       # run src/index.ts with tsx in watch mode
 ```
 
+## Local infrastructure
+
+MongoDB (single-node replica set `rs0`) and Redis run in Docker ([docker-compose.yml](docker-compose.yml)). Docker Desktop must be running.
+
+```bash
+npm run infra:up      # start + wait until healthy (first start also initiates the replica set)
+npm run infra:ps      # status
+npm run infra:logs    # follow logs
+npm run infra:down    # stop (data volumes are kept)
+npm run infra:reset   # ⚠️ stop AND delete volumes — wipes ALL local MongoDB + Redis data
+```
+
+| Service | Image                       | Host address      | Connection string                                           |
+| ------- | --------------------------- | ----------------- | ----------------------------------------------------------- |
+| MongoDB | `mongo:8.2`                 | `127.0.0.1:27018` | `mongodb://127.0.0.1:27018/cell_ai_voicebot?replicaSet=rs0` |
+| Redis   | `redis:7.4-alpine` (AOF on) | `127.0.0.1:6380`  | `redis://127.0.0.1:6380`                                    |
+
+- **MongoDB Compass:** connect with `mongodb://127.0.0.1:27018/?replicaSet=rs0`.
+- If replica-set discovery from the host ever fails, append `&directConnection=true` to the URI.
+- Ports are bound to `127.0.0.1` only and avoid the defaults (27017 / 6379) so other local databases don't clash ([ADR 0028](docs/adr/0028-local-dev-ports.md)).
+- Why `mongo:8.2` and not 8.0: MongoDB 8.0 refuses to start on Linux kernels ≥ 6.19 (Docker Desktop's VM kernel) — see [ADR 0004](docs/adr/0004-database.md).
+
+**Troubleshooting**
+
+- `Cannot connect to the Docker daemon` → start Docker Desktop.
+- Port already in use → `lsof -nP -iTCP:27018 -sTCP:LISTEN` (or `:6380`) to find the process.
+- Mongo container unhealthy → `npm run infra:logs`; a stale volume from another setup can be wiped with `npm run infra:reset` (deletes data).
+
 ## Scripts
 
 | Script                  | What it does                                                 |
@@ -37,6 +65,11 @@ npm run dev       # run src/index.ts with tsx in watch mode
 | `npm test`              | Run all tests once (Vitest)                                  |
 | `npm run test:watch`    | Vitest watch mode                                            |
 | `npm run test:coverage` | Tests + coverage report in `coverage/`                       |
+| `npm run infra:up`      | Start MongoDB + Redis (Docker) and wait until healthy        |
+| `npm run infra:down`    | Stop containers (keeps data)                                 |
+| `npm run infra:reset`   | ⚠️ Stop containers and delete data volumes                   |
+| `npm run infra:logs`    | Follow container logs                                        |
+| `npm run infra:ps`      | Container status                                             |
 
 ## Folder structure
 
@@ -66,7 +99,7 @@ Run `npm approve-scripts --allow-scripts-pending` after adding dependencies to r
 - **Runner:** Vitest ([ADR 0019](docs/adr/0019-testing-stack.md)).
 - **Unit tests** live next to the code: `src/**/*.test.ts`.
 - **Integration / infra tests** live in `tests/` (e.g. `tests/infra/mongo-replset.test.ts` proves replica-set transactions).
-- **MongoDB in tests:** `mongodb-memory-server` starts a real replica set; the MongoDB version is pinned in `package.json` → `config.mongodbMemoryServer.version` (`8.0.32`, same major as Docker). The first run downloads the binary (~100 MB) into the npm cache.
+- **MongoDB in tests:** `mongodb-memory-server` starts a real replica set; the MongoDB version is pinned in `package.json` → `config.mongodbMemoryServer.version` (`8.2.12`, same version line as the Docker image `mongo:8.2`). The first run downloads the binary (~100 MB) into the npm cache.
 - **API tests:** Supertest (from Phase 1).
 - **E2E:** Playwright, added after Phase 2.
 

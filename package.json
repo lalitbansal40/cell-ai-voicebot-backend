@@ -22,7 +22,12 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "infra:up": "docker compose up -d --wait",
+    "infra:down": "docker compose down",
+    "infra:reset": "docker compose down -v",
+    "infra:logs": "docker compose logs -f --tail=100",
+    "infra:ps": "docker compose ps"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
@@ -64,7 +69,7 @@
   },
   "config": {
     "mongodbMemoryServer": {
-      "version": "8.0.32"
+      "version": "8.2.12"
     }
   }
 }

@@ -417,4 +417,4 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 
 ## Changelog
 
-- 2026-10-08: Node 24 LTS (Node 20 EOL), MongoDB 8.0, Redis 7.4, local ports API 5100 / web 3100 / Mongo 27018 / Redis 6380, React 19 + latest MUI, Mantis template not reused until license confirmed — see [ADR index](../adr/README.md).
+- 2026-10-08: Node 24 LTS (Node 20 EOL), MongoDB 8.2 (8.0 fails on Linux kernel ≥ 6.19), Redis 7.4, local ports API 5100 / web 3100 / Mongo 27018 / Redis 6380, React 19 + latest MUI, Mantis template not reused until license confirmed — see [ADR index](../adr/README.md).

@@ -163,7 +163,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 | 0001 | Repo structure           | 2 alag repos (backend, frontend) — already bane hain                                                                         |
 | 0002 | Backend language/runtime | Node 24 LTS + TypeScript (strict) + Express 5 (Node 20 April 2026 me EOL)                                                    |
 | 0003 | Backend code structure   | **Module-based**: `src/modules/<feature>/` + shared `src/core`, `src/shared` (neeche T0.5)                                   |
-| 0004 | Database                 | MongoDB 8.0 + Mongoose; **replica set** (wallet ke multi-document transactions ke liye zaroori)                              |
+| 0004 | Database                 | MongoDB 8.2 + Mongoose; **replica set** (wallet ke multi-document transactions ke liye zaroori)                              |
 | 0005 | Queue / jobs             | Redis 7.4 + BullMQ                                                                                                           |
 | 0006 | Validation               | zod (request validation + env + shared schemas)                                                                              |
 | 0007 | Logging                  | pino (JSON logs), request ID                                                                                                 |
@@ -311,7 +311,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Steps:**
 
 - [ ] Backend repo mein `docker-compose.yml`:
-  - **MongoDB 8.0** — single-node **replica set** (`--replSet rs0` + init script), volume, healthcheck, port `127.0.0.1:27018`
+  - **MongoDB 8.2** — single-node **replica set** (`--replSet rs0` + init script), volume, healthcheck, port `127.0.0.1:27018`
   - **Redis 7.4** — `appendonly yes`, volume, healthcheck, port `127.0.0.1:6380`
   - (optional) mongo-express / RedisInsight — profile ke peeche
 - [ ] Ports sirf `127.0.0.1` pe bind (bahar expose nahi)
@@ -666,4 +666,4 @@ _Ye andaaza hai — PoC results ke hisaab se aage-peeche ho sakta hai._
 
 ## Changelog
 
-- 2026-10-08: Node 24 LTS (Node 20 EOL), MongoDB 8.0, Redis 7.4, local ports API 5100 / web 3100 / Mongo 27018 / Redis 6380, React 19 + latest MUI, Mantis template not reused until license confirmed — see [ADR index](../adr/README.md).
+- 2026-10-08: Node 24 LTS (Node 20 EOL), MongoDB 8.2 (8.0 fails on Linux kernel ≥ 6.19), Redis 7.4, local ports API 5100 / web 3100 / Mongo 27018 / Redis 6380, React 19 + latest MUI, Mantis template not reused until license confirmed — see [ADR index](../adr/README.md).
