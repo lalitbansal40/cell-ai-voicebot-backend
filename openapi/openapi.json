@@ -833,6 +833,122 @@
         }
       }
     },
+    "/api/v1/account": {
+      "get": {
+        "tags": ["Account"],
+        "summary": "Your account and its settings (account.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PublicAccount" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Account"],
+        "summary": "Update account settings (account.update) — nested settings are merged",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+                  "timezone": { "type": "string", "example": "Asia/Kolkata" },
+                  "country": { "type": "string", "pattern": "^[A-Z]{2}$" },
+                  "defaultLanguage": { "type": "string", "enum": ["hi", "en", "hinglish"] },
+                  "settings": {
+                    "type": "object",
+                    "properties": {
+                      "callingWindow": {
+                        "type": "object",
+                        "properties": {
+                          "start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                          "end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                          "days": {
+                            "type": "array",
+                            "items": { "type": "integer", "minimum": 0, "maximum": 6 },
+                            "minItems": 1,
+                            "maxItems": 7
+                          }
+                        },
+                        "required": ["start", "end", "days"],
+                        "additionalProperties": false,
+                        "example": { "start": "09:00", "end": "19:00", "days": [1, 2, 3, 4, 5, 6] }
+                      },
+                      "recordingEnabled": { "type": "boolean" },
+                      "aiDisclosureEnabled": { "type": "boolean" }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PublicAccount" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["System"],

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import type { Env } from './config/env';
+import { createAccountRouter } from './modules/account/account.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
@@ -16,6 +17,7 @@ export const createApiRouter = ({
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));
+  router.use('/account', createAccountRouter());
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());
