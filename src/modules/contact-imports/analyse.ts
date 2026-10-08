@@ -42,6 +42,7 @@ export interface ExistingContact {
   email?: string | null;
   externalId?: string | null;
   variables?: Record<string, VariableValue>;
+  source?: { importJobId?: Types.ObjectId | null };
 }
 
 export interface ImportPlan {
@@ -79,7 +80,7 @@ export const loadPlan = async (
  * `seen` carries in-file duplicates across batches and resumed runs.
  */
 export const analyseBatch = async (
-  job: Pick<ImportJobDoc, 'accountId' | 'kind'>,
+  job: Pick<ImportJobDoc, 'accountId' | 'kind'> & { _id?: Types.ObjectId },
   plan: ImportPlan,
   rows: ParsedSheet['rows'],
   seen: Map<string, number>,
@@ -101,7 +102,14 @@ export const analyseBatch = async (
         accountId: job.accountId,
         phoneE164: { $in: phones },
       })
-        .select({ phoneE164: 1, name: 1, email: 1, externalId: 1, variables: 1 })
+        .select({
+          phoneE164: 1,
+          name: 1,
+          email: 1,
+          externalId: 1,
+          variables: 1,
+          'source.importJobId': 1,
+        })
         .lean<(ExistingContact & { phoneE164: string })[]>();
       for (const c of found) existing.set(c.phoneE164, c);
       const externalIds = [
@@ -167,10 +175,12 @@ export const analyseBatch = async (
     );
     if (required.reasons.length)
       return { candidate, cells, outcome: 'invalid', reasons: required.reasons };
+    // Written by this same import before a crash (batch saved, checkpoint not): still "created".
+    const ownRow = Boolean(match && job._id && match.source?.importJobId?.equals(job._id));
     return {
       candidate,
       cells,
-      outcome: match ? (updateExisting ? 'updated' : 'unchanged') : 'created',
+      outcome: !match || ownRow ? 'created' : updateExisting ? 'updated' : 'unchanged',
       reasons: [],
       variables: required.variables,
       onDnd: dnd.has(phone),

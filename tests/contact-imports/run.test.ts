@@ -344,6 +344,41 @@ describe('import run — options and edge cases', () => {
     );
   });
 
+  it('a batch written right before a crash (checkpoint lost) still counts as created on resume', async () => {
+    const { t, owner } = await setupAccount();
+    const acc = t.account._id.toString();
+    const id = await readyToRun(owner, acc, csvBuffer(borrowerRows(700)));
+    vi.spyOn(ImportJobModel, 'updateOne').mockRejectedValueOnce(
+      new Error('crash before checkpoint'),
+    );
+    await expect(
+      runImport({ accountId: acc, importJobId: id }, deps, {
+        attemptsMade: 0,
+        opts: { attempts: 3 },
+      }),
+    ).rejects.toThrow('crash before checkpoint');
+    expect(
+      await ContactModel.countDocuments({ accountId: t.account._id, 'source.importJobId': id }),
+    ).toBe(500);
+    vi.restoreAllMocks();
+    expect(
+      (
+        await runImport({ accountId: acc, importJobId: id }, deps, {
+          attemptsMade: 1,
+          opts: { attempts: 3 },
+        })
+      ).status,
+    ).toBe('completed');
+    expect((await ImportJobModel.findById(id).lean())?.totals).toMatchObject({
+      rows: 700,
+      created: 700,
+      updated: 0,
+    });
+    expect(
+      await ContactModel.countDocuments({ accountId: t.account._id, 'source.importJobId': id }),
+    ).toBe(700);
+  });
+
   it('retries a batch once after a duplicate-key race', async () => {
     const { t, owner } = await setupAccount();
     const acc = t.account._id.toString();

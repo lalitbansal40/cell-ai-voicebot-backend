@@ -27,6 +27,7 @@ import {
 import { auditRequest } from '../audit/audit.service';
 import { NAME_COLLATION } from '../contact-lists/contact-lists.service';
 import { loadContactContext, type ContactContext } from '../contacts/context';
+import { isoDay } from '../contacts/filter/compile';
 import type { ContactJobs } from '../contacts/jobs';
 import { acquireJobLock, releaseJobLock } from '../contacts/locks';
 import { normalizeTags } from '../contacts/normalize/tags';
@@ -186,8 +187,12 @@ export const listImports = async (req: Request, q: z.infer<typeof ListImportsQue
 };
 
 /** `March batch 2026-10-09`, or `… (2)`, `… (3)` when that name is taken. */
-const defaultListName = async (accountId: Types.ObjectId, fileName: string): Promise<string> => {
-  const base = `${fileName.replace(/\.(csv|xlsx)$/i, '').slice(0, 80)} ${new Date().toISOString().slice(0, 10)}`;
+const defaultListName = async (
+  accountId: Types.ObjectId,
+  fileName: string,
+  timezone: string,
+): Promise<string> => {
+  const base = `${fileName.replace(/\.(csv|xlsx)$/i, '').slice(0, 80)} ${isoDay(new Date(), timezone)}`;
   for (let n = 1; n < 1000; n += 1) {
     const name = n === 1 ? base : `${base} (${n})`;
     const taken = await ContactListModel.exists({ accountId, name }).collation(NAME_COLLATION);
@@ -239,7 +244,10 @@ export const setMapping = async (
   let options: ImportOptions | null = null;
   if (job.kind === 'contacts') {
     const raw = body.options ?? {
-      list: { mode: 'new' as const, name: await defaultListName(job.accountId, job.fileName) },
+      list: {
+        mode: 'new' as const,
+        name: await defaultListName(job.accountId, job.fileName, ctx.timezone),
+      },
       updateExisting: true,
       tags: [],
     };
