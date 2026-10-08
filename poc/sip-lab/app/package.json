@@ -1,0 +1,29 @@
+{
+  "name": "cav-poc-sip-lab-app",
+  "version": "0.0.1",
+  "description": "Phase 0 SIP lab — ARI app that bridges a SIP call to an ExternalMedia RTP stream (T0.16)",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "start": "tsx src/index.ts",
+    "gen-caller-wav": "tsx src/gen-caller-wav.ts"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3"
+  },
+  "allowScripts": {
+    "esbuild": true
+  }
+}

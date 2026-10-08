@@ -1,0 +1,53 @@
+# Local SIP lab (T0.16): SIPp caller → Asterisk (PJSIP + ARI) → Node app via ExternalMedia RTP.
+# Ports bound to 127.0.0.1 only. Project name keeps it separate from every other container.
+name: cav-sip-lab
+
+services:
+  asterisk:
+    image: andrius/asterisk:20
+    container_name: cav-sip-lab-asterisk
+    networks:
+      lab:
+        ipv4_address: 172.29.0.10
+    ports:
+      - '127.0.0.1:8088:8088' # ARI / HTTP
+      - '127.0.0.1:5060:5060/udp' # SIP (optional softphone)
+      - '127.0.0.1:10000-10050:10000-10050/udp' # RTP
+    volumes:
+      - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./asterisk/http.conf:/etc/asterisk/http.conf:ro
+      - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./generated/ari.conf:/etc/asterisk/ari.conf:ro
+      - ./generated/pjsip_softphone.conf:/etc/asterisk/pjsip_softphone.conf:ro
+
+  sipp:
+    build: ./sipp
+    image: cav-sip-lab-sipp:local
+    profiles: ['call']
+    networks:
+      lab:
+        ipv4_address: 172.29.0.30
+    volumes:
+      - ./sipp:/sipp
+      - ./generated:/generated:ro
+    command:
+      - '172.29.0.10:5060'
+      - '-sf'
+      - '/sipp/uac-rtp-dtmf.xml'
+      - '-s'
+      - '100'
+      - '-m'
+      - '1'
+      - '-i'
+      - '172.29.0.30'
+      - '-mi'
+      - '172.29.0.30'
+      - '-trace_err'
+      - '-nostdin'
+
+networks:
+  lab:
+    ipam:
+      config:
+        - subnet: 172.29.0.0/24

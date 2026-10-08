@@ -1,0 +1,3 @@
+generated/
+# lab credentials stay local; the example is committed
+!.env.lab.example
