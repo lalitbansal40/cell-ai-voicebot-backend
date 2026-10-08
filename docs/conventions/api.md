@@ -73,6 +73,7 @@ Lists return an array in `data` and pagination in `meta`:
 - `code` comes from the [error code catalogue](error-codes.md) — `DOMAIN_REASON`, UPPER_SNAKE_CASE.
 - `message` is safe to show a user: no stack traces, no internal names, no SQL/Mongo errors.
 - `details` is optional; used for field-level validation errors (`path` uses dot notation: `variables.amount`).
+- On `409 CONFLICT_DUPLICATE` a detail may carry `existingId` — the id of the record that already exists (e.g. the contact with that phone), so the UI can link to it.
 - `requestId` always matches the `X-Request-Id` response header.
 
 ## 5. HTTP status codes

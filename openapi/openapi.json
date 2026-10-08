@@ -26,7 +26,11 @@
         "type": "object",
         "properties": {
           "path": { "type": "string", "example": "phone" },
-          "message": { "type": "string", "example": "Must be an E.164 number" }
+          "message": { "type": "string", "example": "Must be an E.164 number" },
+          "existingId": {
+            "type": "string",
+            "description": "On CONFLICT_DUPLICATE: id of the record that already exists"
+          }
         },
         "required": ["path", "message"]
       },
@@ -357,6 +361,39 @@
         },
         "required": ["apiKey", "key"]
       },
+      "CustomField": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "key": { "type": "string", "example": "loan_amount" },
+          "label": { "type": "string", "example": "Loan amount" },
+          "type": { "$ref": "#/components/schemas/FieldType" },
+          "required": { "type": "boolean" },
+          "defaultValue": {
+            "anyOf": [{ "type": "string" }, { "type": "number" }, { "type": "null" }],
+            "description": "Stored form: currency in micros, date `YYYY-MM-DD`"
+          },
+          "order": { "type": "number" },
+          "usageCount": {
+            "type": "number",
+            "description": "Contacts with a value (only with `?withUsage=true`)"
+          },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "key",
+          "label",
+          "type",
+          "required",
+          "defaultValue",
+          "order",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "FieldType": { "type": "string", "enum": ["text", "number", "date", "currency", "phone"] },
       "Health": {
         "type": "object",
         "properties": {
@@ -1738,6 +1775,305 @@
           },
           "401": {
             "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/custom-fields": {
+      "get": {
+        "tags": ["Custom fields"],
+        "summary": "Custom field definitions in display order (contacts.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "required": false,
+            "name": "withUsage",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CustomField" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Custom fields"],
+        "summary": "Create a custom field (contacts.write; max 50 per account; key immutable)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,39}$",
+                    "example": "loan_amount"
+                  },
+                  "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "type": { "$ref": "#/components/schemas/FieldType" },
+                  "required": { "type": "boolean", "default": false },
+                  "defaultValue": {
+                    "anyOf": [
+                      { "type": "string", "maxLength": 1000 },
+                      { "type": "number" },
+                      { "type": "null" }
+                    ],
+                    "description": "Currency in rupees (stored as micros); dates `YYYY-MM-DD` or `DD/MM/YYYY`"
+                  }
+                },
+                "required": ["key", "label", "type"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/CustomField" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/custom-fields/{id}": {
+      "patch": {
+        "tags": ["Custom fields"],
+        "summary": "Update label / required / default; type only while no contact has a value",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "type": { "$ref": "#/components/schemas/FieldType" },
+                  "required": { "type": "boolean" },
+                  "defaultValue": {
+                    "anyOf": [
+                      { "type": "string", "maxLength": 1000 },
+                      { "type": "number" },
+                      { "type": "null" }
+                    ],
+                    "description": "Currency in rupees (stored as micros); dates `YYYY-MM-DD` or `DD/MM/YYYY`"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/CustomField" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Custom fields"],
+        "summary": "Delete a field; its values are removed from all contacts in the background (202)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted — values removed in background",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "jobQueued": { "type": "boolean", "enum": [true] } },
+                      "required": ["jobQueued"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/custom-fields/order": {
+      "put": {
+        "tags": ["Custom fields"],
+        "summary": "Set the display order (all field ids of the account, in order)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                    "minItems": 1,
+                    "maxItems": 50
+                  }
+                },
+                "required": ["ids"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CustomField" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

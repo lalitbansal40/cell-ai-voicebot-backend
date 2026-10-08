@@ -4,6 +4,8 @@ import { ERROR_CODES, type ErrorCode } from './error-codes';
 export interface ErrorDetail {
   path: string;
   message: string;
+  /** On duplicates (`CONFLICT_DUPLICATE`): id of the record that already exists. */
+  existingId?: string;
 }
 
 /**
@@ -52,8 +54,9 @@ export class ConflictError extends AppError {
   constructor(
     code: 'CONFLICT_DUPLICATE' | 'CONFLICT_INVALID_STATE' = 'CONFLICT_DUPLICATE',
     message?: string,
+    details?: ErrorDetail[],
   ) {
-    super(code, message);
+    super(code, message, details);
   }
 }
 

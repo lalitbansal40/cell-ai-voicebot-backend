@@ -32,3 +32,7 @@ export const created = <T>(res: Response, data: T): Response =>
   res.status(201).json({ success: true, data } satisfies SuccessEnvelope<T>);
 
 export const noContent = (res: Response): Response => res.status(204).end();
+
+/** 202 — work continues in the background (job queued). */
+export const accepted = <T>(res: Response, data: T): Response =>
+  res.status(202).json({ success: true, data } satisfies SuccessEnvelope<T>);

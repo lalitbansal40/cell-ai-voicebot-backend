@@ -2,6 +2,7 @@ import type { Job, Worker } from 'bullmq';
 
 import type { ContactJobData, ContactJobName, ContactJobs } from '../../../modules/contacts/jobs';
 import { isContactJobName } from '../../../modules/contacts/jobs';
+import { deleteFieldValues } from '../../../modules/custom-fields/custom-fields.jobs';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -21,7 +22,9 @@ export type ContactJobHandler<N extends ContactJobName = ContactJobName> = (
 export type ContactJobHandlers = { [N in ContactJobName]?: ContactJobHandler<N> };
 
 /** Processors per job name — each task of Phase 3 registers its own here. */
-export const CONTACT_JOB_HANDLERS: ContactJobHandlers = {};
+export const CONTACT_JOB_HANDLERS: ContactJobHandlers = {
+  'field.delete_values': (data) => deleteFieldValues(data),
+};
 
 export const processContactJob =
   (ctx: ContactJobContext, handlers: ContactJobHandlers = CONTACT_JOB_HANDLERS) =>

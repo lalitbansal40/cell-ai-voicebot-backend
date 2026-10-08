@@ -9,6 +9,10 @@ export const ErrorDetailSchema = registry.register(
   z.object({
     path: z.string().openapi({ example: 'phone' }),
     message: z.string().openapi({ example: 'Must be an E.164 number' }),
+    existingId: z
+      .string()
+      .optional()
+      .openapi({ description: 'On CONFLICT_DUPLICATE: id of the record that already exists' }),
   }),
 );
 
