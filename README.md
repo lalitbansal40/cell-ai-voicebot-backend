@@ -122,6 +122,21 @@ The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-
 - Git hooks (Husky): `pre-commit` runs lint-staged (ESLint fix + Prettier on staged files); `commit-msg` runs commitlint (Conventional Commits).
 - Commit format: `type(scope): message [TASK-TAG]`, e.g. `feat(contacts): add csv import [P3-T3.2]`.
 
+## CI
+
+<!-- CI badge: add after the first run — see docs/setup/github-settings.md -->
+
+GitHub Actions (`.github/workflows/ci.yml`) on every pull request and on pushes to `main` / `dev`:
+
+- **verify** — `npm ci`, lint, format check, typecheck, tests, build (Node from `.nvmrc`).
+- `verify` also runs `npm run openapi:check` and caches the MongoDB test binary.
+- **secrets-scan** — gitleaks over the full git history (`.gitleaks.toml`).
+- **audit** — `npm audit --audit-level=high` (informational, non-blocking).
+- **commitlint** — checks every commit message in a PR.
+
+Run the same checks locally: `npm run lint && npm run format:check && npm run typecheck && npm test && npm run build`.
+Dependabot (`.github/dependabot.yml`) opens weekly grouped update PRs. Repo settings to apply by hand: [GitHub settings](docs/setup/github-settings.md).
+
 ## Environment variables
 
 Copy `.env.example` → `.env` (gitignored). Values live only in `.env`, server env and the password manager — never in git. Policy: [docs/conventions/secrets.md](docs/conventions/secrets.md).

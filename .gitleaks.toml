@@ -1,0 +1,11 @@
+# gitleaks config — default rules + project allowlist.
+title = "cell-ai-voicebot gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented placeholders, never real secrets"
+regexes = [
+  '''change-me(-32-bytes-base64)?''',
+]

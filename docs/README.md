@@ -34,5 +34,6 @@ Source of truth for plans, decisions and conventions. (PDF exports are kept outs
 - [conventions/definition-of-done.md](conventions/definition-of-done.md)
 - [conventions/secrets.md](conventions/secrets.md) — secrets policy
 - [setup/prerequisites.md](setup/prerequisites.md)
+- [setup/github-settings.md](setup/github-settings.md) — manual GitHub settings (push, branch protection, security)
 - [client/CLIENT_QUESTIONS.md](client/CLIENT_QUESTIONS.md) · [client/answers.md](client/answers.md)
 - [poc/README.md](poc/README.md) · [cost/README.md](cost/README.md) · [compliance/README.md](compliance/README.md)
