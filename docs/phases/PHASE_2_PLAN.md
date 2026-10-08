@@ -436,3 +436,4 @@ _Estimate — run batch-wise with detailed run prompts (Batch 1 = T2.1–T2.6, B
 ## Changelog
 
 - 2026-10-08: Plan created after Phase 1 sign-off.
+- 2026-10-08: Run prompt [PHASE_2_PROMPT.md](../prompts/PHASE_2_PROMPT.md) added (one file, 3 batches). Precisions there: branch `feature/phase-2-auth` from the phase-1 tip; `jose` verified with CommonJS on Node 24 (fallback `jsonwebtoken`); `@node-rs/argon2` has no install scripts; `PATCH /auth/me` (profile name/phone) added in T2.16; `GET /auth/invite-info` for the accept page; new WS events `account.updated`, `team.changed`; `maintenance` queue for the audit purge; Playwright 1.64.0.

@@ -1,6 +1,6 @@
 # Phase 2 — Task Tracker
 
-Source plan: [PHASE_2_PLAN.md](PHASE_2_PLAN.md) · Batch prompts: added per batch (Batch 1 = T2.1–T2.6, Batch 2 = T2.7–T2.12, Batch 3 = T2.13–T2.18).
+Source plan: [PHASE_2_PLAN.md](PHASE_2_PLAN.md) · Run prompt (all 3 batches): [../prompts/PHASE_2_PROMPT.md](../prompts/PHASE_2_PROMPT.md) — Batch 1 = T2.1–T2.6, Batch 2 = T2.7–T2.12, Batch 3 = T2.13–T2.18.
 
 | Done | Task  | Title                                                                              | Repo | Size |
 | ---- | ----- | ---------------------------------------------------------------------------------- | ---- | ---- |
