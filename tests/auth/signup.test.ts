@@ -41,7 +41,8 @@ afterEach(() => {
 
 describe('POST /api/v1/auth/signup', () => {
   it('creates account + roles + unverified owner and emails a code', async () => {
-    const body = signupBody({ phone: '+919876543210', timezone: 'Asia/Dubai' });
+    // Asia/Kolkata: ICU lists it only as the alias Asia/Calcutta — must still pass.
+    const body = signupBody({ phone: '+919876543210', timezone: 'Asia/Kolkata' });
     const res = await request(app).post('/api/v1/auth/signup').send(body);
     expect(res.status).toBe(202);
     expect(res.body).toEqual({
@@ -54,7 +55,7 @@ describe('POST /api/v1/auth/signup', () => {
     const account = await AccountModel.findById(user?.accountId).lean();
     expect(account).toMatchObject({
       name: 'Demo Finance',
-      timezone: 'Asia/Dubai',
+      timezone: 'Asia/Kolkata',
       status: 'active',
     });
     expect(account?.ownerId?.toString()).toBe(user?._id.toString());
