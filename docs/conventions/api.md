@@ -164,6 +164,14 @@ GET /api/v1/calls?limit=50&cursor=eyJjcmVhdGVkQXQiOi…
 - Same key + **different** body → `422 IDEMPOTENCY_KEY_REUSED`.
 - Same key while the first request is still running → `409 IDEMPOTENCY_IN_PROGRESS`.
 
+### Implementation (Phase 1)
+
+- Middleware `idempotency({ scope, required })` in `src/shared/middlewares/idempotency.ts`, records in `idempotencyKeys` (unique `{ accountId, key }`, TTL index on `expiresAt`).
+- The request fingerprint is `sha256(method + path + key-order-independent JSON body)`.
+- The result is stored **before** the response is sent, so an immediate retry always sees it. Replays carry **`Idempotent-Replayed: true`**.
+- 4xx responses are stored and replayed; 5xx responses are not stored (the record is deleted, so the client can retry).
+- Mounted per route from Phase 4 / 8 (trigger call, start campaign, top-up); the scope is the authenticated `accountId` (Phase 2).
+
 ## 11. File uploads
 
 - `multipart/form-data`, file field name **`file`** (extra fields as normal form fields).
