@@ -72,6 +72,21 @@ curl -s localhost:5100/api/v1/system/info
 - Health: `GET /health` (process alive) · `GET /ready` (MongoDB + Redis reachable; **503** when a dependency is down or the server is shutting down) — use `/ready` for load-balancer checks.
 - **MongoDB and Redis are required**: start them with `npm run infra:up` first (the API exits with a clear message if either is unreachable).
 
+## Authentication & accounts (Phase 2)
+
+- **Flow:** `POST /api/v1/auth/signup` (always 202) → 6-digit code by email → `POST /auth/verify-email` signs in. Then `login`, `refresh` (httpOnly `cav_rt` cookie, rotated on every use — reuse ends the session), `logout`, `logout-all`, `me`, `sessions`, `forgot-password` / `reset-password`, `change-password`. Details: [ADR 0009](docs/adr/0009-auth-tokens.md), [src/README.md](src/README.md#authentication).
+- **Local quickstart:**
+  ```bash
+  npm run infra:up && npm run db:migrate
+  npm run db:seed                       # Demo Finance + <role>@demo.local users + admin@platform.local
+  npm run superadmin:create -- you@example.com "Your Name"   # optional, prompts for a password
+  npm run dev
+  ```
+  Signup / reset emails land in **Mailpit** (<http://localhost:8025>) when `SMTP_HOST=127.0.0.1`, `SMTP_PORT=1025`.
+- **Access token:** `Authorization: Bearer <jwt>` (15 min). Roles: owner, admin, manager, agent, viewer — permissions in `src/modules/rbac/permissions.ts` (`GET /api/v1/rbac/permissions`).
+- **Limits:** auth routes 30 / 15 min per IP and route; 5 failed logins / 15 min per email → 429 with `Retry-After`; email codes 10 min, 5 tries, resend every 60 s (max 5 / hour).
+- Passwords: argon2id, 10–128 characters, not your email / name, not a common password. Secrets (passwords, codes, tokens, cookies) never appear in logs or email subjects.
+
 ## Database (MongoDB)
 
 - Connection: `src/db/mongo.ts` (Mongoose 9, `strictQuery`, `autoIndex` off in production, credentials never logged). Indexes are synced at startup in development/test; in production run `npm run db:sync-indexes` as a deploy step.

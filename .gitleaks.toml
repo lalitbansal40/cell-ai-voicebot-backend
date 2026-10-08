@@ -5,7 +5,12 @@ title = "cell-ai-voicebot gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Documented placeholders, never real secrets"
+description = "Documented placeholders and public data, never real secrets"
 regexes = [
   '''change-me(-32-bytes-base64)?''',
+]
+# Public list of common passwords (SecLists, MIT) used by the password policy —
+# random-looking entries trigger `generic-api-key`.
+paths = [
+  '''src/modules/auth/common-passwords\.ts''',
 ]

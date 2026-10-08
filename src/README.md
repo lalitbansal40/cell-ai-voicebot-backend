@@ -71,6 +71,15 @@ Startup: validate env → logger → connect **MongoDB** (fail fast) → sync in
 
 Shutdown hooks (ascending order, 15 s hard limit): **http 10** → **ws 20** → **queues 30** → **email 35** → **redis 40** → **mongo 50**.
 
+## Authentication
+
+- **Dashboard:** `authenticate()` → `req.auth` (`AuthContext`: accountId, userId, roleKey, permissions, impersonatorId, account status). Guard routes with `requirePermission('team.invite')` etc.; never read `accountId` from the request (`tenantFilter(req)`, `findOwnedOr404`).
+- **Tokens:** HS256 access JWT (`sub`, `acc`, `rid`, `tv`, `sid`, `imp?`) + opaque refresh token in the `cav_rt` cookie (HMAC-stored, rotated, reuse → family revoked). `users.tokenVersion` bump = every access token of the user dies at once.
+- **Services:** `modules/auth/` — `auth.service` (signup, OTP), `login.service` (login, refresh, logout, sessions, me), `password.service` (forgot / reset / change), `refresh.service`, `codes.service`, `tokens`, `password`, `session` (AuthSession + cookie), `lockout`.
+- **Public API:** `apiKeyAuth({ scopes })` (`X-API-Key`).
+- **Audit:** `recordAudit()` / `auditRequest(req, action)` (`modules/audit/`) — never throws, sanitizes meta.
+- **Realtime from services:** `notifyAccount` / `notifyUser` (`core/realtime/notify.ts`) — no-op without a running server.
+
 ## Request pipeline (`createApp`)
 
 Order matters — every request goes through:

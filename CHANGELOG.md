@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 2 · Batch 1 (T2.1–T2.6)** — 2026-10-08
+  - Tenancy & auth models (accounts, users, roles, refresh tokens, auth codes, API keys, immutable audit log), permission catalogue + 5 system roles, migrations 0002 (platform account) / 0003 (sync roles), `npm run db:seed`, `npm run superadmin:create`.
+  - argon2id passwords + policy (1,000 common passwords), HS256 access JWT (`jose`), rotating refresh cookie with reuse detection, email OTP + reset tokens, 7 new auth error codes, `Retry-After` support, stronger log redaction.
+  - `authenticate` / permission guards / `apiKeyAuth` / Origin check / tenant helpers + a security test that modules never read `accountId` from the request.
+  - Signup + email OTP, login (per-email lockout), refresh, logout, logout-all, me, sessions, forgot / reset / change password; realtime `pushToUser`.
+  - Fixes from the checkpoint: no OTP in email subjects (subjects are logged); gitleaks allowlist for the common-password list.
+  - Tests: 310 → 456.
+
 - **Phase 1 · Batch 3 (T1.13–T1.16) — Phase 1 complete** — 2026-10-08
   - Email: `EMAIL_DRIVER` (smtp | log; production requires smtp), `SMTP_SECURE`, pooled nodemailer SMTP provider, log provider (masked, never the body), escaped TS templates with text parts, BullMQ `email` queue (5 attempts, SMTP 5xx not retried, 24 h dedupe), shutdown hook `email` (35), Mailpit in docker-compose (1025 / 8025), `npm run email:test`, ADR 0030.
   - API docs: `GET /api/v1/openapi.json` (always on, `servers = APP_URL`, ETag), Swagger UI at `/api/docs` behind `API_DOCS_ENABLED` (off in production by default) with a strict route-level CSP; app version read from package.json (correct under `node dist`); `@scarf/scarf` install script denied.

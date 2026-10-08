@@ -4,12 +4,12 @@ Source plan: [PHASE_2_PLAN.md](PHASE_2_PLAN.md) · Run prompt (all 3 batches): [
 
 | Done | Task  | Title                                                                              | Repo | Size |
 | ---- | ----- | ---------------------------------------------------------------------------------- | ---- | ---- |
-| [ ]  | T2.1  | Data models, permission catalogue, system roles, migrations, seeds, superadmin CLI | BE   | M    |
-| [ ]  | T2.2  | Crypto + token services, env, error codes                                          | BE   | M    |
-| [ ]  | T2.3  | Auth middlewares, tenant helpers, suspension                                       | BE   | M    |
-| [ ]  | T2.4  | Signup + email OTP verify + resend                                                 | BE   | M    |
-| [ ]  | T2.5  | Login / refresh / logout / me / sessions + lockout                                 | BE   | M    |
-| [ ]  | T2.6  | Forgot / reset / change password                                                   | BE   | S    |
+| [x]  | T2.1  | Data models, permission catalogue, system roles, migrations, seeds, superadmin CLI | BE   | M    |
+| [x]  | T2.2  | Crypto + token services, env, error codes                                          | BE   | M    |
+| [x]  | T2.3  | Auth middlewares, tenant helpers, suspension                                       | BE   | M    |
+| [x]  | T2.4  | Signup + email OTP verify + resend                                                 | BE   | M    |
+| [x]  | T2.5  | Login / refresh / logout / me / sessions + lockout                                 | BE   | M    |
+| [x]  | T2.6  | Forgot / reset / change password                                                   | BE   | S    |
 | [ ]  | T2.7  | Account settings API                                                               | BE   | S    |
 | [ ]  | T2.8  | Team management (invite → ownership transfer)                                      | BE   | L    |
 | [ ]  | T2.9  | API keys + `X-API-Key` auth                                                        | BE   | M    |
