@@ -254,3 +254,12 @@ describe('loadEnv — API docs', () => {
     expect(issuesOf({ API_DOCS_ENABLED: 'on' }).issues[0]?.variable).toBe('API_DOCS_ENABLED');
   });
 });
+
+describe('loadEnv — auth extras', () => {
+  it('keeps AUTH_COOKIE_DOMAIN and SEED_PASSWORD optional', () => {
+    const env = loadEnv({});
+    expect(env.AUTH_COOKIE_DOMAIN).toBeUndefined();
+    expect(env.SEED_PASSWORD).toBeUndefined();
+    expect(loadEnv({ AUTH_COOKIE_DOMAIN: '.example.com' }).AUTH_COOKIE_DOMAIN).toBe('.example.com');
+  });
+});

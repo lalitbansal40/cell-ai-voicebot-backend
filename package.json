@@ -36,7 +36,9 @@
     "db:migrate:status": "tsx --env-file-if-exists=.env scripts/db-migrate.ts status",
     "db:sync-indexes": "tsx --env-file-if-exists=.env scripts/db-sync-indexes.ts",
     "ws:dev-ticket": "tsx --env-file-if-exists=.env scripts/ws-dev-ticket.ts",
-    "email:test": "tsx --env-file-if-exists=.env scripts/email-test.ts"
+    "email:test": "tsx --env-file-if-exists=.env scripts/email-test.ts",
+    "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
+    "superadmin:create": "tsx --env-file-if-exists=.env scripts/superadmin-create.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
@@ -93,12 +95,14 @@
     "@aws-sdk/client-s3": "^3.1147.0",
     "@aws-sdk/lib-storage": "^3.1147.0",
     "@aws-sdk/s3-request-presigner": "^3.1147.0",
+    "@node-rs/argon2": "^2.2.2",
     "bullmq": "^6.3.11",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
     "ioredis": "^6.0.0",
+    "jose": "^6.2.12",
     "libphonenumber-js": "^1.13.14",
     "mongoose": "^9.11.1",
     "nodemailer": "^10.0.16",

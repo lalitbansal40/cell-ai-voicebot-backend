@@ -2,7 +2,12 @@ import express, { json, type Request, type Response } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 
-import { AppError, ConflictError, ValidationError } from '../../src/shared/errors/app-error';
+import {
+  AppError,
+  ConflictError,
+  TooManyAttemptsError,
+  ValidationError,
+} from '../../src/shared/errors/app-error';
 import { createLogger } from '../../src/shared/logger';
 import { errorHandler } from '../../src/shared/middlewares/error-handler';
 import { httpLogger } from '../../src/shared/middlewares/http-logger';
@@ -27,6 +32,9 @@ const buildApp = () => {
   app.get('/internal-app-error', () => {
     throw new AppError('INTERNAL_ERROR', 'internal detail must not leak');
   });
+  app.get('/locked', () => {
+    throw new TooManyAttemptsError(42.3);
+  });
   app.post('/echo', (req, res) => {
     res.json(req.body);
   });
@@ -50,6 +58,15 @@ describe('errorHandler', () => {
         requestId: res.headers['x-request-id'],
       },
     });
+  });
+
+  it('sends Retry-After for errors that carry it', async () => {
+    const res = await request(app).get('/locked');
+    expect(res.status).toBe(429);
+    expect(res.headers['retry-after']).toBe('43');
+    expect(res.body.error.code).toBe('AUTH_TOO_MANY_ATTEMPTS');
+    const plain = await request(app).get('/validation');
+    expect(plain.headers['retry-after']).toBeUndefined();
   });
 
   it('handles rejected async handlers (Express 5)', async () => {

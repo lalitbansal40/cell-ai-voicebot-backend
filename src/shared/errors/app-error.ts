@@ -16,12 +16,14 @@ export class AppError extends Error {
   readonly details?: ErrorDetail[];
   /** False for 5xx: the client gets the generic catalogue message instead. */
   readonly expose: boolean;
+  /** Sent as `Retry-After` (seconds) by the error handler. */
+  readonly retryAfterSec?: number;
 
   constructor(
     code: ErrorCode,
     message?: string,
     details?: ErrorDetail[],
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; retryAfterSec?: number },
   ) {
     const entry = ERROR_CODES[code];
     super(message ?? entry.message, options);
@@ -30,6 +32,7 @@ export class AppError extends Error {
     this.status = entry.status;
     this.details = details;
     this.expose = entry.status < 500;
+    this.retryAfterSec = options?.retryAfterSec;
   }
 }
 
@@ -59,10 +62,20 @@ export class UnauthenticatedError extends AppError {
     code:
       | 'AUTH_UNAUTHENTICATED'
       | 'AUTH_TOKEN_EXPIRED'
-      | 'AUTH_INVALID_CREDENTIALS' = 'AUTH_UNAUTHENTICATED',
+      | 'AUTH_INVALID_CREDENTIALS'
+      | 'AUTH_SESSION_REVOKED' = 'AUTH_UNAUTHENTICATED',
     message?: string,
   ) {
     super(code, message);
+  }
+}
+
+/** Lockout / attempt caps / resend cooldown → 429 with `Retry-After`. */
+export class TooManyAttemptsError extends AppError {
+  constructor(retryAfterSec: number, message?: string) {
+    super('AUTH_TOO_MANY_ATTEMPTS', message, undefined, {
+      retryAfterSec: Math.max(1, Math.ceil(retryAfterSec)),
+    });
   }
 }
 

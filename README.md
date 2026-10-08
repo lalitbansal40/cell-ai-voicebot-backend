@@ -144,34 +144,36 @@ npm run infra:reset   # ⚠️ stop AND delete volumes — wipes ALL local Mongo
 
 ## Scripts
 
-| Script                       | What it does                                                                                    |
-| ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| `npm run dev`                | Run the app with `tsx` in watch mode                                                            |
-| `npm run build`              | Compile `src/` to `dist/` (`tsconfig.build.json`)                                               |
-| `npm start`                  | Run the compiled app (`dist/index.js`)                                                          |
-| `npm run typecheck`          | Type-check everything (src, tests, scripts) without emitting                                    |
-| `npm run clean`              | Delete `dist/`                                                                                  |
-| `npm run lint`               | ESLint (type-aware), fails on any warning                                                       |
-| `npm run lint:fix`           | ESLint with auto-fix                                                                            |
-| `npm run format`             | Prettier write                                                                                  |
-| `npm run format:check`       | Prettier check                                                                                  |
-| `npm test`                   | Run all tests once (Vitest)                                                                     |
-| `npm run test:watch`         | Vitest watch mode                                                                               |
-| `npm run test:coverage`      | Tests + coverage report in `coverage/`                                                          |
-| `npm run gen:openapi`        | Generate `openapi/openapi.json` from zod schemas                                                |
-| `npm run openapi:check`      | Regenerate and fail if `openapi/openapi.json` is stale                                          |
-| `npm run db:migrate`         | Apply pending MongoDB migrations                                                                |
-| `npm run db:migrate:status`  | Show applied / pending migrations                                                               |
-| `npm run db:migrate:down`    | Revert the last applied migration                                                               |
-| `npm run db:sync-indexes`    | Build / update indexes of all models (production deploy step)                                   |
-| `npm run ws:dev-ticket`      | DEV ONLY — print a single-use `/ws/events` ticket URL for fake ids                              |
-| `npm run email:test -- <to>` | DEV ONLY — send the `system.test` email now with the configured driver (Mailpit locally)        |
-| `npm run server:audit`       | READ-ONLY audit of the client server over SSH (needs the key — see docs/client/server-audit.md) |
-| `npm run infra:up`           | Start MongoDB + Redis + Mailpit (Docker) and wait until healthy                                 |
-| `npm run infra:down`         | Stop containers (keeps data)                                                                    |
-| `npm run infra:reset`        | ⚠️ Stop containers and delete data volumes                                                      |
-| `npm run infra:logs`         | Follow container logs                                                                           |
-| `npm run infra:ps`           | Container status                                                                                |
+| Script                                        | What it does                                                                                                                                                 |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run dev`                                 | Run the app with `tsx` in watch mode                                                                                                                         |
+| `npm run build`                               | Compile `src/` to `dist/` (`tsconfig.build.json`)                                                                                                            |
+| `npm start`                                   | Run the compiled app (`dist/index.js`)                                                                                                                       |
+| `npm run typecheck`                           | Type-check everything (src, tests, scripts) without emitting                                                                                                 |
+| `npm run clean`                               | Delete `dist/`                                                                                                                                               |
+| `npm run lint`                                | ESLint (type-aware), fails on any warning                                                                                                                    |
+| `npm run lint:fix`                            | ESLint with auto-fix                                                                                                                                         |
+| `npm run format`                              | Prettier write                                                                                                                                               |
+| `npm run format:check`                        | Prettier check                                                                                                                                               |
+| `npm test`                                    | Run all tests once (Vitest)                                                                                                                                  |
+| `npm run test:watch`                          | Vitest watch mode                                                                                                                                            |
+| `npm run test:coverage`                       | Tests + coverage report in `coverage/`                                                                                                                       |
+| `npm run gen:openapi`                         | Generate `openapi/openapi.json` from zod schemas                                                                                                             |
+| `npm run openapi:check`                       | Regenerate and fail if `openapi/openapi.json` is stale                                                                                                       |
+| `npm run db:migrate`                          | Apply pending MongoDB migrations                                                                                                                             |
+| `npm run db:migrate:status`                   | Show applied / pending migrations                                                                                                                            |
+| `npm run db:migrate:down`                     | Revert the last applied migration                                                                                                                            |
+| `npm run db:sync-indexes`                     | Build / update indexes of all models (production deploy step)                                                                                                |
+| `npm run db:seed`                             | DEV ONLY — demo account "Demo Finance" with `<role>@demo.local` users + `admin@platform.local` superadmin (password `SEED_PASSWORD` or random, printed once) |
+| `npm run superadmin:create -- <email> [name]` | Create / update a platform superadmin (hidden password prompt or `--password-stdin`; no HTTP route exists)                                                   |
+| `npm run ws:dev-ticket`                       | DEV ONLY — print a single-use `/ws/events` ticket URL for fake ids                                                                                           |
+| `npm run email:test -- <to>`                  | DEV ONLY — send the `system.test` email now with the configured driver (Mailpit locally)                                                                     |
+| `npm run server:audit`                        | READ-ONLY audit of the client server over SSH (needs the key — see docs/client/server-audit.md)                                                              |
+| `npm run infra:up`                            | Start MongoDB + Redis + Mailpit (Docker) and wait until healthy                                                                                              |
+| `npm run infra:down`                          | Stop containers (keeps data)                                                                                                                                 |
+| `npm run infra:reset`                         | ⚠️ Stop containers and delete data volumes                                                                                                                   |
+| `npm run infra:logs`                          | Follow container logs                                                                                                                                        |
+| `npm run infra:ps`                            | Container status                                                                                                                                             |
 
 ## Folder structure
 
@@ -195,6 +197,7 @@ npm 11 blocks dependency install scripts unless approved. Approvals live in `pac
 - `mongodb-memory-server: false` — skips the install-time MongoDB download; the binary downloads on first test run instead.
 - `msgpackr-extract: false` — BullMQ's optional native msgpack add-on ships a prebuilt binary (`@msgpackr-extract/*`); the `node-gyp rebuild` script is not needed (msgpackr falls back to JS otherwise).
 - `@scarf/scarf: false` — pulled in by `swagger-ui-dist`; its postinstall only sends install analytics.
+- No install scripts for `jose` (pure JS) or `@node-rs/argon2` (prebuilt N-API binaries per platform).
 
 No install scripts needed for `nodemailer` / `smtp-server` (pure JS). `smtp-server` has no bundled types and `@types/smtp-server` would pull in `@types/nodemailer` (clashes with nodemailer 10's own types), so tests use a minimal local declaration (`tests/@types/smtp-server.d.ts`).
 
@@ -270,6 +273,8 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | `JWT_ACCESS_TTL`          | no                | 2       | Access token lifetime (e.g. `15m`)                                                              |
 | `JWT_REFRESH_TTL`         | no                | 2       | Refresh token lifetime (e.g. `30d`)                                                             |
 | `ENCRYPTION_KEY`          | yes · secret      | 2       | 32-byte base64 key for PII encryption at rest                                                   |
+| `AUTH_COOKIE_DOMAIN`      | no                | 2       | Refresh-cookie domain (e.g. `.example.com`); empty = host-only                                  |
+| `SEED_PASSWORD`           | no (dev only)     | 2       | Password for `npm run db:seed` users; empty = random, printed once                              |
 | `OPENAI_API_KEY`          | yes · secret      | 5/7     | OpenAI API key                                                                                  |
 | `OPENAI_REALTIME_MODEL`   | yes               | 7       | Realtime model name (set after PoC T0.15)                                                       |
 | `STORAGE_DRIVER`          | no                | 7/9     | `local` or `s3`                                                                                 |

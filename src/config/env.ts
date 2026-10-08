@@ -47,6 +47,10 @@ const RawEnvSchema = z.object({
   JWT_ACCESS_TTL: z.string().regex(DURATION, 'must look like 15m, 30d, 3600s').default('15m'),
   JWT_REFRESH_TTL: z.string().regex(DURATION, 'must look like 15m, 30d, 3600s').default('30d'),
   ENCRYPTION_KEY: optionalString,
+  /** Cookie domain for the refresh cookie (e.g. `.example.com`); empty = host-only. */
+  AUTH_COOKIE_DOMAIN: optionalString,
+  /** DEV ONLY — password for `npm run db:seed` users (random when empty). */
+  SEED_PASSWORD: optionalString,
 
   OPENAI_API_KEY: optionalString,
   OPENAI_REALTIME_MODEL: optionalString,

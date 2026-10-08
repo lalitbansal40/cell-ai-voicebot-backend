@@ -51,5 +51,6 @@ export const errorHandler = (): ErrorRequestHandler => (err, req, res, next) => 
       requestId: getRequestId(req),
     },
   };
+  if (appError.retryAfterSec !== undefined) res.set('Retry-After', String(appError.retryAfterSec));
   res.status(appError.status).json(body);
 };
