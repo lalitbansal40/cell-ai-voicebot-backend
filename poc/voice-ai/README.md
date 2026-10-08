@@ -56,7 +56,7 @@ Output per scenario (`output/<runId>/<scenario>__<mode>__<model>__<voice>/`): `c
 ## 2. Report
 
 ```bash
-npm run report -- --run <runId> --usd-inr 84
+npm run report -- --run <runId> --usd-inr 96.83
 ```
 
 Rewrites the metrics section (between `METRICS` markers) of the results doc: per-scenario table, aggregates by model × mode, Go / No-go thresholds.

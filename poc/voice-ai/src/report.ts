@@ -2,7 +2,7 @@
  * Aggregates output/<runId>/*\/summary.json into the metrics section of
  * docs/poc/voice-ai-poc-results.md (between the METRICS markers).
  *
- *   npm run report -- --run <runId> [--usd-inr 84.5]
+ *   npm run report -- --run <runId> [--usd-inr 96.83]
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -140,7 +140,7 @@ const main = (): void => {
       .sort()
       .at(-1);
   if (!runId) throw new Error('No run found in output/. Pass --run <runId>.');
-  const usdInr = Number(arg('usd-inr') ?? '84');
+  const usdInr = Number(arg('usd-inr') ?? '96.83');
   const runDir = path.join(OUTPUT_DIR, runId);
   if (!existsSync(runDir)) throw new Error(`Run folder not found: ${runDir}`);
   const summaries = readdirSync(runDir)

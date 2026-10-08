@@ -36,10 +36,10 @@ Other: `gpt-4o-mini-tts` $0.60 / 1M text-in tokens + $12 / 1M audio-out tokens �
 
 Assumes ~10 audio tokens/s for customer audio, ~20 audio tokens/s for bot audio, a 50/50 talk split, and conversation context re-billed as (mostly cached) input each turn. Real usage comes from `response.done.usage` in the runs.
 
-| Model                   | Bot audio out / min of bot speech | Rough all-in per call minute |
-| ----------------------- | --------------------------------- | ---------------------------- |
-| `gpt-realtime-2.1-mini` | ≈ $0.024                          | ≈ $0.02–0.05 (≈ ₹2–4)        |
-| `gpt-realtime-2.1`      | ≈ $0.077                          | ≈ $0.07–0.15 (≈ ₹6–13)       |
+| Model                   | Bot audio out / min of bot speech | Rough all-in per call minute       |
+| ----------------------- | --------------------------------- | ---------------------------------- |
+| `gpt-realtime-2.1-mini` | ≈ $0.024                          | ≈ $0.02–0.05 (≈ ₹2–5 at ₹96.83/$)  |
+| `gpt-realtime-2.1`      | ≈ $0.077                          | ≈ $0.07–0.15 (≈ ₹7–15 at ₹96.83/$) |
 
 The mini model is ~3× cheaper — the PoC runs **all** scenarios on mini and the key scenarios on the full model to decide whether the quality difference justifies the cost.
 
@@ -125,6 +125,6 @@ _Pending._
 4. `npm run run -- --resume <runId> --models gpt-realtime-2.1 --modes g711_ulaw --scenarios 01,03,05,07,14`
 5. `npm run run -- --resume <runId> --scenarios 01 --modes g711_ulaw --voices marin,cedar,coral`
 6. `npm run tts-check`
-7. `npm run report -- --run <runId> --usd-inr <today's rate>`
+7. `npm run report -- --run <runId> --usd-inr <today's rate, e.g. 96.83>`
 8. Listen and fill sections 4–7; optionally talk to it yourself with `npm run serve`.
 9. Update [ADR 0021](../adr/0021-voice-ai-provider.md) and the [cost model](../cost/cost-model.md) with the measured numbers.
