@@ -79,7 +79,7 @@ export const validateImport = async (
           progress: { processed, total: plan.sheet.rows.length },
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean();
     if (!updated) await deleteQuietly(storage, errorReportKey); // canceled meanwhile
     report(processed, plan.sheet.rows.length, updated ? 'validated' : 'canceled', true);

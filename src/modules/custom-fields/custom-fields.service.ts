@@ -172,7 +172,7 @@ export const updateCustomField = async (
   const updated = await CustomFieldModel.findOneAndUpdate(
     { _id: field._id, accountId: field.accountId },
     { $set: set },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<CustomFieldDoc>();
   if (!updated) throw new NotFoundError();
   await auditRequest(req, 'custom_field.updated', {

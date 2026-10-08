@@ -154,7 +154,7 @@ export const suspendAccount = async (req: Request, id: string, reason: string) =
   const updated = await AccountModel.findByIdAndUpdate(
     account._id,
     { $set: { status: 'suspended', suspendedAt: new Date(), suspendReason: reason } },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<AccountDoc>();
   if (!updated) throw new NotFoundError();
   await auditBothSides(req, updated, 'account.suspended', { reason });
@@ -170,7 +170,7 @@ export const enableAccount = async (req: Request, id: string) => {
   const updated = await AccountModel.findByIdAndUpdate(
     account._id,
     { $set: { status: 'active', suspendedAt: null, suspendReason: null } },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<AccountDoc>();
   if (!updated) throw new NotFoundError();
   await auditBothSides(req, updated, 'account.enabled');

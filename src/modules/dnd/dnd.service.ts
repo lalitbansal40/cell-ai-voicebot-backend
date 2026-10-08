@@ -169,7 +169,7 @@ export const optOut = async (req: Request, id: string): Promise<PublicContact> =
   const updated = await ContactModel.findOneAndUpdate(
     { _id: contact._id, accountId: contact.accountId },
     { $set: { optedOutAt: new Date(), dnd: true } },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<ContactDoc>();
   await auditRequest(req, 'contact.opted_out', {
     target: { type: 'contact', id: contact._id.toString() },
@@ -192,7 +192,7 @@ export const undoOptOut = async (req: Request, id: string): Promise<PublicContac
     return ContactModel.findOneAndUpdate(
       { _id: contact._id, accountId: contact.accountId },
       { $set: { optedOutAt: null, dnd: false } },
-      { new: true, session },
+      { returnDocument: 'after', session },
     ).lean<ContactDoc>();
   });
   await auditRequest(req, 'dnd.removed', {

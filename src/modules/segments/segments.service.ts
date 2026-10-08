@@ -163,7 +163,7 @@ export const updateSegment = async (
           ...(body.filter ? { filter: body.filter } : {}),
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<SegmentDoc>();
     if (!updated) throw new NotFoundError('Segment not found');
     return toPublicSegment(ctx, updated, await countFor(ctx, updated.filter));

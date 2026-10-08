@@ -160,7 +160,7 @@ export const updateList = async (
           ...(body.description === undefined ? {} : { description: body.description }),
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<ContactListDoc>();
     if (!updated) throw new NotFoundError('List not found');
     const counts = await countMembers(list.accountId, [list._id]);

@@ -76,7 +76,7 @@ export const runExport = async (
   const job = await ExportJobModel.findOneAndUpdate(
     { _id, accountId: account, status: 'pending' },
     { $set: { status: 'processing' } },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<ExportJobDoc>();
   if (!job) {
     await releaseJobLock('export', accountId, exportJobId);

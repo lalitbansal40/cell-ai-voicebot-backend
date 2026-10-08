@@ -150,7 +150,7 @@ const retryLostRotation = async (
     const successor = await RefreshTokenModel.findOneAndUpdate(
       { _id: existing.replacedBy, familyId: existing.familyId, revokedAt: null },
       { $set: { revokedAt: new Date(), revokedReason: 'rotated' } },
-      { session, new: true },
+      { session, returnDocument: 'after' },
     ).lean();
     if (!successor) return null;
     const issued = await issueSuccessor(existing, meta, session);
@@ -194,7 +194,7 @@ export const rotateRefresh = async (
     const claimed = await RefreshTokenModel.findOneAndUpdate(
       { _id: existing._id, revokedAt: null },
       { $set: { revokedAt: new Date(), revokedReason: 'rotated', lastUsedAt: new Date() } },
-      { session, new: true },
+      { session, returnDocument: 'after' },
     ).lean();
     if (!claimed) {
       // Lost a race with a concurrent rotation of the same token → reuse.

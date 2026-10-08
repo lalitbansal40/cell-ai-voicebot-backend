@@ -381,7 +381,7 @@ export const createContact = async (
       const revived = await ContactModel.findOneAndUpdate(
         { _id: deleted._id, accountId: ctx.accountId, deletedAt: { $ne: null } },
         { $set: { ...fields, searchText, deletedAt: null } },
-        { new: true },
+        { returnDocument: 'after' },
       ).lean<ContactDoc>();
       if (revived) return toPublicContact(revived);
     }
@@ -429,7 +429,7 @@ export const updateContact = async (
     const updated = await ContactModel.findOneAndUpdate(
       { _id: current._id, accountId: ctx.accountId },
       { $set: set },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<ContactDoc>();
     if (!updated) throw new NotFoundError('Contact not found');
     return { ...toPublicContact(updated), lists: await listNames(ctx.accountId, updated.listIds) };

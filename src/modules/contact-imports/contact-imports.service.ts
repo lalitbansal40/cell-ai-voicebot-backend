@@ -292,7 +292,7 @@ export const setMapping = async (
         errorMessage: null,
       },
     },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<ImportJobDoc>();
   if (!updated)
     throw new ConflictError('CONFLICT_INVALID_STATE', 'The import changed meanwhile — reload it.');
@@ -309,7 +309,7 @@ export const cancelImport = async (
     const updated = await ImportJobModel.findOneAndUpdate(
       { _id: job._id, accountId: job.accountId, status: 'importing' },
       { $set: { cancelRequested: true } },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<ImportJobDoc>();
     return toPublicImport(updated ?? job);
   }
@@ -328,7 +328,7 @@ export const cancelImport = async (
         'columns.$[].samples': [],
       },
     },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<ImportJobDoc>();
   if (!updated)
     throw new ConflictError('CONFLICT_INVALID_STATE', 'The import changed meanwhile — reload it.');
@@ -396,7 +396,7 @@ export const startValidation = async (
     const updated = await ImportJobModel.findOneAndUpdate(
       { _id: job._id, accountId: job.accountId, status: { $in: ['mapped', 'validated'] } },
       { $set: { status: 'validating', 'progress.processed': 0, 'progress.total': job.rowCount } },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<ImportJobDoc>();
     if (!updated)
       throw new ConflictError(
@@ -519,7 +519,7 @@ export const startImport = async (
             totals: emptyImportTotals(),
           },
         },
-        { new: true, session },
+        { returnDocument: 'after', session },
       ).lean<ImportJobDoc>();
     });
     if (!updated)

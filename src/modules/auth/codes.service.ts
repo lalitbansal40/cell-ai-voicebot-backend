@@ -72,7 +72,7 @@ export const consumeOtp = async (userId: Types.ObjectId, code: string): Promise<
     const updated = await AuthCodeModel.findOneAndUpdate(
       { _id: doc._id },
       { $inc: { attempts: 1 } },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean();
     if ((updated?.attempts ?? OTP_MAX_ATTEMPTS) >= OTP_MAX_ATTEMPTS) {
       throw new TooManyAttemptsError(OTP_RESEND_COOLDOWN_MS / 1000);

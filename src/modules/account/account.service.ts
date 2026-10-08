@@ -32,7 +32,7 @@ export const updateAccount = async (
   const account = await AccountModel.findOneAndUpdate(
     { _id: auth.accountId },
     { $set },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   ).lean<AccountDoc>();
   if (!account) throw new NotFoundError();
   const fields = Object.keys($set);

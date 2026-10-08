@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import express, { json, Router } from 'express';
 import { Types } from 'mongoose';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createApp } from '../../src/app';
 import { AccountModel } from '../../src/db/models/account.model';
@@ -288,9 +288,12 @@ describe('apiKeyAuth', () => {
     const t = await createTestAccount();
     const { raw, doc } = await makeKey(t.account._id, []);
     await request(app).get('/key').set('X-API-Key', raw);
-    await new Promise((r) => setTimeout(r, 50));
-    const first = (await ApiKeyModel.findById(doc._id).lean())?.lastUsedAt;
-    expect(first).toBeInstanceOf(Date);
+    // the middleware updates lastUsedAt in the background — wait for it instead of sleeping
+    const first = await vi.waitFor(async () => {
+      const at = (await ApiKeyModel.findById(doc._id).lean())?.lastUsedAt;
+      expect(at).toBeInstanceOf(Date);
+      return at;
+    });
     await request(app).get('/key').set('X-API-Key', raw);
     await new Promise((r) => setTimeout(r, 50));
     expect((await ApiKeyModel.findById(doc._id).lean())?.lastUsedAt?.getTime()).toBe(
