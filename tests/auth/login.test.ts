@@ -301,3 +301,36 @@ describe('sessions', () => {
     expect(cookieOf(res)).toMatch(/cav_rt=;/);
   });
 });
+
+describe('PATCH /auth/me', () => {
+  it('updates your own name and phone, clears the phone with null', async () => {
+    const { user, token } = await t.addUser('agent');
+    const res = await request(app)
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'New Name', phone: '+919876543210' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.user).toMatchObject({ name: 'New Name', phone: '+919876543210' });
+    const cleared = await request(app)
+      .patch('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ phone: null });
+    expect(cleared.body.data.user.phone).toBeNull();
+    expect((await UserModel.findById(user._id).lean())?.name).toBe('New Name');
+  });
+
+  it('validates input and needs a session', async () => {
+    const { token } = await t.addUser('agent');
+    for (const body of [{}, { phone: '123' }, { name: '' }, { email: 'x@y.co' }]) {
+      expect(
+        (
+          await request(app)
+            .patch('/api/v1/auth/me')
+            .set('Authorization', `Bearer ${token}`)
+            .send(body)
+        ).status,
+      ).toBe(422);
+    }
+    expect((await request(app).patch('/api/v1/auth/me').send({ name: 'x' })).status).toBe(401);
+  });
+});

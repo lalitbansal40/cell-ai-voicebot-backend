@@ -183,3 +183,16 @@ export const revokeSession = async (
   if (familyId === auth.sessionId) clearRefreshCookie(res);
   await auditRequest(req, 'auth.session_revoked', { target: { type: 'session', id: familyId } });
 };
+
+/** `PATCH /auth/me` — the caller's own name / phone (null clears the phone). */
+export const updateProfile = async (
+  req: Request,
+  body: { name?: string; phone?: string | null },
+): Promise<AuthSessionBody> => {
+  const auth = requireAuth(req);
+  const $set: Record<string, unknown> = {};
+  if (body.name !== undefined) $set.name = body.name;
+  if (body.phone !== undefined) $set.phone = body.phone;
+  await UserModel.updateOne({ _id: auth.userId }, { $set });
+  return me(req);
+};

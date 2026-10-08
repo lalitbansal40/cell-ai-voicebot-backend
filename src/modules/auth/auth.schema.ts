@@ -43,6 +43,13 @@ export const ChangePasswordBody = z.strictObject({
   newPassword: PasswordInputSchema,
 });
 
+export const UpdateProfileBody = z
+  .strictObject({
+    name: z.string().trim().min(1).max(80).optional(),
+    phone: PhoneE164Schema.nullable().optional(),
+  })
+  .refine((b) => b.name !== undefined || b.phone !== undefined, 'Send name and/or phone');
+
 export const SessionIdParams = z.strictObject({ id: z.string().min(8).max(64) });
 
 export const SessionSchema = registry.register(
@@ -266,4 +273,14 @@ registry.registerPath({
   security: bearer,
   request: json(ChangePasswordBody),
   responses: { 200: ok(AuthSessionSchema), 401: errors[401], 403: errors[403], 422: errors[422] },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/auth/me',
+  tags: ['Auth'],
+  summary: 'Update your own name / phone',
+  security: bearer,
+  request: json(UpdateProfileBody),
+  responses: { 200: ok(AuthMeSchema), 401: errors[401], 422: errors[422] },
 });

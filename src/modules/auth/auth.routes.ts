@@ -34,8 +34,10 @@ import {
   ResetPasswordBody,
   SessionIdParams,
   SignupBody,
+  UpdateProfileBody,
   VerifyEmailBody,
 } from './auth.schema';
+import { updateProfile } from './login.service';
 
 export interface AuthRouterDeps {
   env: Pick<Env, 'CORS_ORIGINS' | 'NODE_ENV'>;
@@ -94,6 +96,13 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
   );
   router.post('/logout-all', authenticate(), blockWhenImpersonating(), logoutAllHandler);
   router.get('/me', authenticate(), meHandler);
+  router.patch(
+    '/me',
+    authenticate(),
+    ...handle({ body: UpdateProfileBody }, async ({ body, req, res }) => {
+      ok(res, await updateProfile(req, body));
+    }),
+  );
   router.get('/sessions', authenticate(), sessionsHandler);
   router.delete(
     '/sessions/:id',
