@@ -1,4 +1,5 @@
 import { registry } from '../../shared/openapi/registry';
+import { bearer, errors, ok } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 
 export const PermissionInfoSchema = z.object({
@@ -13,8 +14,17 @@ export const SystemRoleSchema = z.object({
   permissions: z.array(z.string()),
 });
 
-/** `GET /api/v1/rbac/permissions` — the catalogue + built-in roles (route mounted in T2.3). */
+/** `GET /api/v1/rbac/permissions` — the catalogue + built-in roles. */
 export const RbacCatalogSchema = registry.register(
   'RbacCatalog',
   z.object({ permissions: z.array(PermissionInfoSchema), roles: z.array(SystemRoleSchema) }),
 );
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/rbac/permissions',
+  tags: ['RBAC'],
+  summary: 'Permission catalogue and built-in roles',
+  security: bearer,
+  responses: { 200: ok(RbacCatalogSchema), 401: errors[401] },
+});

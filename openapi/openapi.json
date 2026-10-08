@@ -88,6 +88,39 @@
         },
         "required": ["status", "checks"]
       },
+      "RbacCatalog": {
+        "type": "object",
+        "properties": {
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": { "type": "string", "example": "team.invite" },
+                "group": { "type": "string", "example": "Team" },
+                "description": { "type": "string" }
+              },
+              "required": ["key", "group", "description"]
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": ["owner", "admin", "manager", "agent", "viewer"]
+                },
+                "name": { "type": "string" },
+                "permissions": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["key", "name", "permissions"]
+            }
+          }
+        },
+        "required": ["permissions", "roles"]
+      },
       "AppInfo": {
         "type": "object",
         "properties": {
@@ -147,6 +180,36 @@
           },
           "503": {
             "description": "A dependency is down or the server is shutting down (PROVIDER_UNAVAILABLE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rbac/permissions": {
+      "get": {
+        "tags": ["RBAC"],
+        "summary": "Permission catalogue and built-in roles",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/RbacCatalog" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

@@ -6,6 +6,7 @@ import { registry } from './shared/openapi/registry';
 // Module schemas register their paths/components on import. Add every module
 // with API routes here.
 import './modules/health/health.schema';
+import './modules/rbac/rbac.schema';
 import './modules/system/system.schema';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;

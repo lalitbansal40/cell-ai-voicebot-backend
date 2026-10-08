@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser';
 import express, { json, urlencoded, type Express } from 'express';
 import type { Store } from 'express-rate-limit';
 
@@ -58,6 +59,7 @@ export const createApp = ({
 
   app.use(json({ limit: JSON_BODY_LIMIT }));
   app.use(urlencoded({ extended: false, limit: URLENCODED_BODY_LIMIT }));
+  app.use(cookieParser());
 
   app.use(createHealthRouter(readiness ?? { checks: {}, isShuttingDown: () => false }));
   if (storage instanceof LocalStorage) app.use(createFilesRouter(storage));

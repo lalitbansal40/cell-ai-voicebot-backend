@@ -170,7 +170,7 @@ GET /api/v1/calls?limit=50&cursor=eyJjcmVhdGVkQXQiOi…
 - The request fingerprint is `sha256(method + path + key-order-independent JSON body)`.
 - The result is stored **before** the response is sent, so an immediate retry always sees it. Replays carry **`Idempotent-Replayed: true`**.
 - 4xx responses are stored and replayed; 5xx responses are not stored (the record is deleted, so the client can retry).
-- Mounted per route from Phase 4 / 8 (trigger call, start campaign, top-up); the scope is the authenticated `accountId` (Phase 2).
+- Mounted per route from Phase 4 / 8 (trigger call, start campaign, top-up) with `idempotency({ scope: accountScope })` — `accountScope` (`src/shared/auth/tenant.ts`) returns the authenticated `accountId` (Phase 2).
 
 ## 11. File uploads
 
@@ -193,6 +193,8 @@ Both use the **same `/api/v1/...` paths and the same envelopes**. Only authentic
 - Public API: `X-API-Key` + key **scopes** (e.g. `calls:write`, `contacts:write`, `campaigns:read`). The full scope list is defined in Phase 10.
 
 ## 13. Tenant scoping (security rule)
+
+- Implementation (Phase 2): `tenantFilter(req)` / `findOwnedOr404(Model, id, req)` in `src/shared/auth/tenant.ts`; `tests/security/tenant-scope.test.ts` fails if any module reads `body|query|params.accountId`. A document of another account answers **404**, never 403.
 
 - `accountId` is **never** read from the request body, query or path. It always comes from the authenticated context (user session or API key).
 - Every database query is scoped by `accountId` ([data.md](data.md)).
