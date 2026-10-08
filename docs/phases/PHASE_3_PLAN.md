@@ -406,3 +406,4 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T3.1–T3.6
 ## Changelog
 
 - 2026-10-09: Plan created after Phase 2 sign-off.
+- 2026-10-09: Run prompt [PHASE_3_PROMPT.md](../prompts/PHASE_3_PROMPT.md) added (one file, 3 batches). Precisions there: storage passed to API routers / workers by dependency injection; module layout; filter schema shape; import / export job API; Redis locks; maintenance job names + crons; `read-excel-file` CJS check (fallback `exceljs`).
