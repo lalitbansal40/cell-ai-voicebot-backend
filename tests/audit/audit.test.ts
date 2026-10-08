@@ -120,7 +120,8 @@ describe('GET /api/v1/audit-logs', () => {
 describe('refresh reuse is audited', () => {
   it('records auth.refresh_reuse_detected', async () => {
     const first = await issueRefresh({ userId: manager.user._id, accountId: t.account._id });
-    await rotateRefresh(first.raw);
+    const second = await rotateRefresh(first.raw);
+    await rotateRefresh(second.raw); // successor used → replaying `first` is real reuse
     await expect(rotateRefresh(first.raw)).rejects.toMatchObject({ code: 'AUTH_SESSION_REVOKED' });
     expect(
       await AuditLogModel.countDocuments({

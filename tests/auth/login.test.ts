@@ -159,11 +159,29 @@ describe('POST /auth/refresh', () => {
     const { user } = await t.addUser('agent');
     const first = rawCookie(await loginAs(user.email));
     const second = rawCookie(await refreshWith(first));
+    const third = rawCookie(await refreshWith(second));
     const replay = await refreshWith(first);
     expect(replay.status).toBe(401);
     expect(replay.body.error.code).toBe('AUTH_SESSION_REVOKED');
     expect(cookieOf(replay)).toMatch(/cav_rt=;.*Expires=Thu, 01 Jan 1970/);
-    expect((await refreshWith(second)).body.error.code).toBe('AUTH_SESSION_REVOKED');
+    expect((await refreshWith(third)).body.error.code).toBe('AUTH_SESSION_REVOKED');
+  });
+
+  it('recovers when a refresh response was lost (reload mid-refresh)', async () => {
+    const { user } = await t.addUser('agent');
+    const reuses = () =>
+      AuditLogModel.countDocuments({
+        action: 'auth.refresh_reuse_detected',
+        'actor.id': user._id,
+      });
+    const before = await reuses();
+    const first = rawCookie(await loginAs(user.email));
+    await refreshWith(first); // the browser never stored this response's cookie
+    const retry = await refreshWith(first);
+    expect(retry.status).toBe(200);
+    const next = rawCookie(retry);
+    expect((await refreshWith(next)).status).toBe(200);
+    expect(await reuses()).toBe(before);
   });
 
   it('rejects a missing cookie, a foreign Origin and disabled users', async () => {

@@ -11,6 +11,13 @@ export const OTP_MAX_SENDS_PER_HOUR = 5;
 export const RESET_TTL_MS = 30 * 60_000;
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60_000;
 export const IMPERSONATION_TTL = '30m';
+/**
+ * A just-rotated refresh token presented again within this window, while its
+ * successor is still unused, is a lost response (page reload / dropped
+ * connection mid-refresh), not a leak — it gets a fresh successor instead of
+ * revoking the family (ADR 0009).
+ */
+export const REFRESH_REUSE_GRACE_MS = 10_000;
 
 export const LOCKOUT_THRESHOLD = 5;
 export const LOCKOUT_WINDOW_SEC = 15 * 60;

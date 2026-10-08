@@ -1,4 +1,4 @@
-import type { Types } from 'mongoose';
+import type { ClientSession, Types } from 'mongoose';
 
 import { getEnv } from '../../config/env';
 import {
@@ -11,6 +11,7 @@ import { UnauthenticatedError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
 import { recordAudit } from '../audit/audit.service';
 
+import { REFRESH_REUSE_GRACE_MS } from './auth.constants';
 import { hmacToken, randomToken } from './hmac';
 
 export interface SessionMeta {
@@ -99,10 +100,75 @@ export const revokeAllForUser = async (
   return res.modifiedCount;
 };
 
+/** Creates the next token of `parent`'s family and links it as `replacedBy`. */
+const issueSuccessor = async (
+  parent: RefreshTokenDoc,
+  meta: SessionMeta,
+  session: ClientSession,
+): Promise<{ raw: string; doc: RefreshTokenDoc }> => {
+  const next = randomToken();
+  const [created] = await RefreshTokenModel.create(
+    [
+      {
+        userId: parent.userId,
+        accountId: parent.accountId,
+        familyId: parent.familyId,
+        tokenHash: hmacToken(next),
+        expiresAt: new Date(Date.now() + refreshTtlMs()),
+        userAgent: meta.userAgent?.slice(0, 300) ?? parent.userAgent ?? null,
+        ip: meta.ip ?? parent.ip ?? null,
+        lastUsedAt: new Date(),
+      },
+    ],
+    { session },
+  );
+  if (!created) throw new Error('refresh token not created');
+  await RefreshTokenModel.updateOne(
+    { _id: parent._id },
+    { $set: { replacedBy: created._id } },
+    { session },
+  );
+  return { raw: next, doc: created.toObject({ transform: false }) };
+};
+
+const reuseDetected = async (existing: RefreshTokenDoc): Promise<never> => {
+  await revokeFamily(existing.familyId, 'reuse_detected');
+  await onReuseDetected(existing);
+  throw new UnauthenticatedError('AUTH_SESSION_REVOKED');
+};
+
+/**
+ * Grace path: `existing` was rotated less than REFRESH_REUSE_GRACE_MS ago and
+ * the client never received its successor. If that successor is still unused,
+ * it is replaced by a new one; otherwise this is real reuse.
+ */
+const retryLostRotation = async (
+  existing: RefreshTokenDoc,
+  meta: SessionMeta,
+): Promise<{ raw: string; doc: RefreshTokenDoc; previous: RefreshTokenDoc } | null> =>
+  withTransaction(async (session) => {
+    const successor = await RefreshTokenModel.findOneAndUpdate(
+      { _id: existing.replacedBy, familyId: existing.familyId, revokedAt: null },
+      { $set: { revokedAt: new Date(), revokedReason: 'rotated' } },
+      { session, new: true },
+    ).lean();
+    if (!successor) return null;
+    const issued = await issueSuccessor(existing, meta, session);
+    return { ...issued, previous: existing };
+  });
+
+const withinGrace = (doc: RefreshTokenDoc): boolean =>
+  doc.revokedReason === 'rotated' &&
+  Boolean(doc.replacedBy) &&
+  Boolean(doc.revokedAt) &&
+  Date.now() - (doc.revokedAt as Date).getTime() < REFRESH_REUSE_GRACE_MS;
+
 /**
  * Rotates a refresh token: the presented one is revoked (`rotated`) and a new
  * one in the same family is returned. A token that was already rotated or
  * revoked means it leaked → the whole family is revoked (AUTH_SESSION_REVOKED).
+ * Exception: a token rotated within REFRESH_REUSE_GRACE_MS whose successor was
+ * never used (the response was lost) gets a fresh successor instead.
  * The conditional update makes concurrent rotations safe: exactly one wins,
  * the loser is treated as reuse.
  */
@@ -114,9 +180,11 @@ export const rotateRefresh = async (
   const existing = await RefreshTokenModel.findOne({ tokenHash }).lean();
   if (!existing) throw new UnauthenticatedError();
   if (existing.revokedAt) {
-    await revokeFamily(existing.familyId, 'reuse_detected');
-    await onReuseDetected(existing);
-    throw new UnauthenticatedError('AUTH_SESSION_REVOKED');
+    if (withinGrace(existing)) {
+      const retried = await retryLostRotation(existing, meta);
+      if (retried) return retried;
+    }
+    return reuseDetected(existing);
   }
   if (existing.expiresAt.getTime() <= Date.now()) {
     throw new UnauthenticatedError('AUTH_SESSION_REVOKED');
@@ -138,33 +206,8 @@ export const rotateRefresh = async (
       await onReuseDetected(existing);
       throw new UnauthenticatedError('AUTH_SESSION_REVOKED');
     }
-    const next = randomToken();
-    const [created] = await RefreshTokenModel.create(
-      [
-        {
-          userId: existing.userId,
-          accountId: existing.accountId,
-          familyId: existing.familyId,
-          tokenHash: hmacToken(next),
-          expiresAt: new Date(Date.now() + refreshTtlMs()),
-          userAgent: meta.userAgent?.slice(0, 300) ?? existing.userAgent ?? null,
-          ip: meta.ip ?? existing.ip ?? null,
-          lastUsedAt: new Date(),
-        },
-      ],
-      { session },
-    );
-    if (!created) throw new Error('refresh token not created');
-    await RefreshTokenModel.updateOne(
-      { _id: existing._id },
-      { $set: { replacedBy: created._id } },
-      { session },
-    );
-    return {
-      raw: next,
-      doc: created.toObject({ transform: false }),
-      previous: claimed,
-    };
+    const issued = await issueSuccessor(existing, meta, session);
+    return { ...issued, previous: claimed };
   });
 };
 

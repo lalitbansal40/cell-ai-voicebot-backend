@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AuthCodeModel } from '../../src/db/models/auth-code.model';
 import { RefreshTokenModel } from '../../src/db/models/refresh-token.model';
+import { REFRESH_REUSE_GRACE_MS } from '../../src/modules/auth/auth.constants';
 import {
   consumeOtp,
   consumeResetToken,
@@ -61,12 +62,52 @@ describe('refresh tokens', () => {
     setReuseDetectedHook(hook);
     const first = await issueRefresh({ userId, accountId });
     const second = await rotateRefresh(first.raw);
+    // Outside the lost-response grace window.
+    await RefreshTokenModel.updateOne(
+      { _id: first.doc._id },
+      { $set: { revokedAt: new Date(Date.now() - REFRESH_REUSE_GRACE_MS - 1) } },
+    );
     await expect(rotateRefresh(first.raw)).rejects.toMatchObject({ code: 'AUTH_SESSION_REVOKED' });
     expect(hook).toHaveBeenCalledTimes(1);
     await expect(rotateRefresh(second.raw)).rejects.toMatchObject({ code: 'AUTH_SESSION_REVOKED' });
     const family = await RefreshTokenModel.find({ familyId: first.doc.familyId }).lean();
     expect(family.every((t) => t.revokedAt)).toBe(true);
     expect(family.some((t) => t.revokedReason === 'reuse_detected')).toBe(true);
+  });
+
+  it('gives a fresh successor when a just-rotated token comes back (lost response)', async () => {
+    const { userId, accountId } = ids();
+    const hook = vi.fn();
+    setReuseDetectedHook(hook);
+    const first = await issueRefresh({ userId, accountId });
+    const lost = await rotateRefresh(first.raw);
+    const retried = await rotateRefresh(first.raw, { ip: '10.0.0.9' });
+    expect(hook).not.toHaveBeenCalled();
+    expect(retried.doc.familyId).toEqual(first.doc.familyId);
+    expect(retried.doc.ip).toBe('10.0.0.9');
+    // The lost successor is dead; the new one works and the family lives on.
+    await expect(rotateRefresh(lost.raw)).rejects.toMatchObject({ code: 'AUTH_SESSION_REVOKED' });
+    expect(hook).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a grace-window retry as reuse once the successor was used', async () => {
+    const { userId, accountId } = ids();
+    const hook = vi.fn();
+    setReuseDetectedHook(hook);
+    const first = await issueRefresh({ userId, accountId });
+    const second = await rotateRefresh(first.raw);
+    const third = await rotateRefresh(second.raw);
+    await expect(rotateRefresh(first.raw)).rejects.toMatchObject({ code: 'AUTH_SESSION_REVOKED' });
+    expect(hook).toHaveBeenCalledTimes(1);
+    await expect(rotateRefresh(third.raw)).rejects.toMatchObject({ code: 'AUTH_SESSION_REVOKED' });
+  });
+
+  it('never grants grace to tokens revoked for other reasons', async () => {
+    const { userId, accountId } = ids();
+    setReuseDetectedHook(() => undefined);
+    const first = await issueRefresh({ userId, accountId });
+    await revokeFamily(first.doc.familyId, 'logout');
+    await expect(rotateRefresh(first.raw)).rejects.toMatchObject({ code: 'AUTH_SESSION_REVOKED' });
   });
 
   it('lets exactly one of two concurrent rotations win', async () => {
