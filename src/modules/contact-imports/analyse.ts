@@ -32,8 +32,16 @@ export interface AnalysedRow {
   /** Valid rows: final variables (existing merged + defaults). */
   variables?: Record<string, VariableValue>;
   onDnd?: boolean;
-  /** Contacts that exist (live) for this phone. */
-  existingId?: Types.ObjectId;
+  /** The live contact with this phone, if any. */
+  existing?: ExistingContact;
+}
+
+export interface ExistingContact {
+  _id: Types.ObjectId;
+  name?: string | null;
+  email?: string | null;
+  externalId?: string | null;
+  variables?: Record<string, VariableValue>;
 }
 
 export interface ImportPlan {
@@ -84,10 +92,8 @@ export const analyseBatch = async (
     ...new Set(candidates.map((c) => c.candidate.phoneE164).filter((p): p is string => Boolean(p))),
   ];
 
-  const existing = new Map<
-    string,
-    { _id: Types.ObjectId; variables?: Record<string, VariableValue> }
-  >();
+  const existing = new Map<string, ExistingContact>();
+  const externalOwner = new Map<string, string>();
   const dnd = new Set<string>();
   if (phones.length) {
     if (job.kind === 'contacts') {
@@ -95,11 +101,23 @@ export const analyseBatch = async (
         accountId: job.accountId,
         phoneE164: { $in: phones },
       })
-        .select({ phoneE164: 1, variables: 1 })
-        .lean<
-          { _id: Types.ObjectId; phoneE164: string; variables?: Record<string, VariableValue> }[]
-        >();
+        .select({ phoneE164: 1, name: 1, email: 1, externalId: 1, variables: 1 })
+        .lean<(ExistingContact & { phoneE164: string })[]>();
       for (const c of found) existing.set(c.phoneE164, c);
+      const externalIds = [
+        ...new Set(
+          candidates.map((c) => c.candidate.externalId).filter((e): e is string => Boolean(e)),
+        ),
+      ];
+      if (externalIds.length) {
+        const owners = await ContactModel.find({
+          accountId: job.accountId,
+          externalId: { $in: externalIds },
+        })
+          .select({ externalId: 1, phoneE164: 1 })
+          .lean<{ externalId: string; phoneE164: string }[]>();
+        for (const o of owners) externalOwner.set(o.externalId, o.phoneE164);
+      }
     }
     const entries = await DndEntryModel.find({
       accountId: job.accountId,
@@ -122,6 +140,14 @@ export const analyseBatch = async (
       };
     }
     if (phone) seen.set(phone, candidate.rowNumber);
+    const ext = candidate.externalId;
+    if (ext && job.kind === 'contacts') {
+      const firstRow = seen.get(`ext:${ext}`);
+      const owner = externalOwner.get(ext);
+      if (firstRow !== undefined) candidate.reasons.push(`duplicate_external_id:${firstRow}`);
+      else if (owner && owner !== phone) candidate.reasons.push('external_id_taken');
+      else seen.set(`ext:${ext}`, candidate.rowNumber);
+    }
     if (candidate.reasons.length || !phone) {
       return {
         candidate,
@@ -148,7 +174,7 @@ export const analyseBatch = async (
       reasons: [],
       variables: required.variables,
       onDnd: dnd.has(phone),
-      ...(match ? { existingId: match._id } : {}),
+      ...(match ? { existing: match } : {}),
     };
   });
 };

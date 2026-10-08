@@ -1,5 +1,6 @@
 import type { Job, Worker } from 'bullmq';
 
+import { runImport } from '../../../modules/contact-imports/run.job';
 import { validateImport } from '../../../modules/contact-imports/validate.job';
 import { deleteListMembers } from '../../../modules/contact-lists/contact-lists.jobs';
 import type { ContactJobData, ContactJobName, ContactJobs } from '../../../modules/contacts/jobs';
@@ -28,6 +29,7 @@ export const CONTACT_JOB_HANDLERS: ContactJobHandlers = {
   'field.delete_values': (data) => deleteFieldValues(data),
   'list.delete_members': (data) => deleteListMembers(data),
   'import.validate': (data, ctx) => validateImport(data, ctx),
+  'import.run': (data, ctx, job) => runImport(data, ctx, job),
 };
 
 export const processContactJob =

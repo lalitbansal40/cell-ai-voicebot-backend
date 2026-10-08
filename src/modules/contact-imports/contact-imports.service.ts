@@ -7,12 +7,14 @@ import type { z } from 'zod';
 import { CONTACT_LIMITS } from '../../config/limits';
 import { storageKey, type StorageProvider } from '../../core/storage';
 import { ContactListModel } from '../../db/models/contact-list.model';
+import { CustomFieldModel } from '../../db/models/custom-field.model';
 import {
   emptyImportTotals,
   ImportJobModel,
   type ImportJobDoc,
   type ImportKind,
 } from '../../db/models/import-job.model';
+import { withTransaction } from '../../db/transaction';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import {
@@ -22,6 +24,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../../shared/errors/app-error';
+import { auditRequest } from '../audit/audit.service';
 import { NAME_COLLATION } from '../contact-lists/contact-lists.service';
 import { loadContactContext, type ContactContext } from '../contacts/context';
 import type { ContactJobs } from '../contacts/jobs';
@@ -182,8 +185,17 @@ export const listImports = async (req: Request, q: z.infer<typeof ListImportsQue
   };
 };
 
-const defaultListName = (fileName: string): string =>
-  `${fileName.replace(/\.(csv|xlsx)$/i, '').slice(0, 80)} ${new Date().toISOString().slice(0, 10)}`;
+/** `March batch 2026-10-09`, or `… (2)`, `… (3)` when that name is taken. */
+const defaultListName = async (accountId: Types.ObjectId, fileName: string): Promise<string> => {
+  const base = `${fileName.replace(/\.(csv|xlsx)$/i, '').slice(0, 80)} ${new Date().toISOString().slice(0, 10)}`;
+  for (let n = 1; n < 1000; n += 1) {
+    const name = n === 1 ? base : `${base} (${n})`;
+    const taken = await ContactListModel.exists({ accountId, name }).collation(NAME_COLLATION);
+    if (!taken) return name;
+  }
+  /* c8 ignore next */
+  return `${base} ${Date.now()}`;
+};
 
 const assertMappable = (job: ImportJobDoc) => {
   if (!(MAPPABLE as readonly string[]).includes(job.status)) {
@@ -227,7 +239,7 @@ export const setMapping = async (
   let options: ImportOptions | null = null;
   if (job.kind === 'contacts') {
     const raw = body.options ?? {
-      list: { mode: 'new' as const, name: defaultListName(job.fileName) },
+      list: { mode: 'new' as const, name: await defaultListName(job.accountId, job.fileName) },
       updateExisting: true,
       tags: [],
     };
@@ -399,6 +411,130 @@ export const startValidation = async (
       { _id: job._id, status: 'validating' },
       { $set: { status: job.status } },
     );
+    throw err;
+  }
+};
+
+/**
+ * `validated` → `importing`: creates the mapping's new fields and the target
+ * list in one transaction, then queues `import.run` (PHASE_3_PLAN T3.9).
+ */
+export const startImport = async (
+  req: Request,
+  id: string,
+  jobs: ContactJobs,
+): Promise<PublicImportJob> => {
+  const job = await findImport(req, id);
+  if (job.status !== 'validated') {
+    throw new ConflictError(
+      'CONFLICT_INVALID_STATE',
+      'Check the file first (validate), then start the import.',
+    );
+  }
+  const accountId = job.accountId.toString();
+  const jobId = job._id.toString();
+  if (!(await acquireJobLock('import', accountId, jobId))) {
+    throw new ConflictError('CONFLICT_INVALID_STATE', RUNNING_MESSAGE);
+  }
+  try {
+    const ctx = await loadContactContext(job.accountId);
+    const columns = (job.mapping as { columns: ColumnMapping[] }).columns;
+    const options = job.options as ImportOptions | null;
+    const newFields = columns.filter((c) => c.target === 'new_field');
+    const clash = newFields.find((c) => ctx.byKey.has(c.key ?? ''));
+    if (clash) {
+      throw new ConflictError(
+        'CONFLICT_INVALID_STATE',
+        `A field "${clash.key ?? ''}" was created meanwhile — map the column to it and check again.`,
+      );
+    }
+    if (ctx.fields.length + newFields.length > CONTACT_LIMITS.customFieldsPerAccount) {
+      throw new ConflictError('CONFLICT_INVALID_STATE', 'Too many custom fields for this account.');
+    }
+
+    const updated = await withTransaction(async (session) => {
+      const maxOrder = Math.max(0, ...ctx.fields.map((f) => f.order));
+      if (newFields.length) {
+        await CustomFieldModel.create(
+          newFields.map((c, i) => ({
+            accountId: job.accountId,
+            key: c.key,
+            label: c.label,
+            type: c.type,
+            required: false,
+            defaultValue: null,
+            order: maxOrder + i + 1,
+          })),
+          { session, ordered: true },
+        );
+      }
+      let listId: Types.ObjectId | null = null;
+      if (job.kind === 'contacts' && options) {
+        if (options.list.mode === 'existing') {
+          listId = new Types.ObjectId(options.list.listId);
+          const exists = await ContactListModel.exists({
+            _id: listId,
+            accountId: job.accountId,
+          }).session(session);
+          if (!exists)
+            throw new ConflictError(
+              'CONFLICT_INVALID_STATE',
+              'The chosen list was deleted — pick another one.',
+            );
+        } else {
+          const taken = await ContactListModel.findOne({
+            accountId: job.accountId,
+            name: options.list.name,
+          })
+            .collation(NAME_COLLATION)
+            .session(session)
+            .lean();
+          if (taken)
+            throw new ConflictError(
+              'CONFLICT_DUPLICATE',
+              'A list with this name exists now — pick it as an existing list.',
+            );
+          const [list] = await ContactListModel.create(
+            [
+              {
+                accountId: job.accountId,
+                name: options.list.name,
+                source: { type: 'upload', fileName: job.fileName },
+              },
+            ],
+            { session },
+          );
+          listId = list?._id ?? null;
+        }
+      }
+      return ImportJobModel.findOneAndUpdate(
+        { _id: job._id, accountId: job.accountId, status: 'validated' },
+        {
+          $set: {
+            status: 'importing',
+            startedAt: new Date(),
+            listId,
+            cancelRequested: false,
+            progress: { processed: 0, total: job.rowCount },
+            totals: emptyImportTotals(),
+          },
+        },
+        { new: true, session },
+      ).lean<ImportJobDoc>();
+    });
+    if (!updated)
+      throw new ConflictError(
+        'CONFLICT_INVALID_STATE',
+        'The import changed meanwhile — reload it.',
+      );
+    await jobs.enqueue('import.run', { accountId, importJobId: jobId });
+    await auditRequest(req, 'contacts.import_started', {
+      target: { type: 'import_job', id: jobId },
+      meta: { kind: job.kind, rows: job.rowCount },
+    });
+    return toPublicImport(updated);
+  } catch (err) {
+    await releaseJobLock('import', accountId, jobId);
     throw err;
   }
 };

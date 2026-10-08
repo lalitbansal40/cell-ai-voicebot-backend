@@ -64,7 +64,7 @@ export const fakeZip = (claimedSize: number, entries = 1): Buffer => {
 
 /** `n` data rows of fake borrowers (phones +9190000xxxxx). */
 export const borrowerRows = (n: number): string[][] => [
-  ['Name', 'Mobile No', 'Loan Amt', 'Due Date'],
+  ['Name', 'Mobile No', 'Loan Amount', 'Due Date'],
   ...Array.from({ length: n }, (_, i) => [
     `Test Borrower ${String(i + 1).padStart(3, '0')}`,
     `90000${String(i).padStart(5, '0')}`,

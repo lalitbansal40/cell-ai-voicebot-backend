@@ -14,6 +14,7 @@ export const REASON_TEXT: Record<string, string> = {
   phone_lost_digits: 'Phone lost digits in Excel (format the column as Text)',
   email_invalid: 'E-mail is not valid',
   tags_invalid: 'Tags are not valid',
+  external_id_taken: 'External id belongs to another contact',
 };
 
 export const describeReason = (reason: string): string => {
@@ -28,6 +29,8 @@ export const describeReason = (reason: string): string => {
       return `${detail}: required`;
     case 'duplicate_of_row':
       return `Same phone as row ${detail}`;
+    case 'duplicate_external_id':
+      return `Same external id as row ${detail}`;
     default:
       return reason;
   }

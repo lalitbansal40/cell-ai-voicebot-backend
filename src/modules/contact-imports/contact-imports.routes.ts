@@ -23,6 +23,7 @@ import {
   importTemplate,
   listImports,
   setMapping,
+  startImport,
   startValidation,
   uploadImport,
   type UploadedFile,
@@ -111,6 +112,13 @@ export const createContactImportsRouter = ({
     requirePermission('contacts.import'),
     ...handle({ params: ImportIdParams }, async ({ params, req, res }) => {
       accepted(res, await startValidation(req, params.id, jobs));
+    }),
+  );
+  router.post(
+    '/:id/start',
+    requirePermission('contacts.import'),
+    ...handle({ params: ImportIdParams }, async ({ params, req, res }) => {
+      accepted(res, await startImport(req, params.id, jobs));
     }),
   );
   router.post(

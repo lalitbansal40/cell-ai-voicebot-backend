@@ -198,6 +198,22 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'post',
+  path: '/api/v1/contact-imports/{id}/start',
+  tags,
+  summary:
+    'Import (validated → importing): creates new fields + the list, then writes in batches of 500 in the background',
+  security: bearer,
+  request: { params: ImportIdParams },
+  responses: {
+    202: ok(ImportJobSchema, 'Queued'),
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
+  },
+});
+
+registry.registerPath({
+  method: 'post',
   path: '/api/v1/contact-imports/{id}/cancel',
   tags,
   summary:
