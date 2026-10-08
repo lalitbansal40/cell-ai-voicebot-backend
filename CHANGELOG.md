@@ -12,7 +12,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   - Conventions: client-only error codes, frontend WS client notes (websocket.md §11); CORS exposes `Idempotent-Replayed`.
   - `startServer(options)` injectable; full-server e2e test (requests, WS, email, ordered shutdown); WS per-account limit + max-topics tests; env-docs sync test; coverage gate (90/80/90/90) in CI.
   - Docs: fresh-machine run guide + ports table, Phase 1 sign-off ([PHASE_1_SIGNOFF.md](docs/phases/PHASE_1_SIGNOFF.md)).
-  - Tests: 248 → 306.
+  - Fix (found in the checkpoint): `closeAllQueues` bounded to 5 s — after a Redis restart BullMQ `worker.close()` could hang and the shutdown never reached the email / redis / mongo hooks.
+  - Tests: 248 → 310.
 
 - **Phase 1 · Batch 2 (T1.7–T1.12)** — 2026-10-08
   - MongoDB: mongoose 9 connection (strictQuery, autoIndex off in production, redacted URI logs), `withTransaction`, index sync in dev/test, `db:sync-indexes`, plugins (base `id` JSON, tenant `accountId`, soft delete incl. aggregate + `withDeleted`), migrations runner with lock + baseline (`db:migrate`, `db:migrate:down`, `db:migrate:status`).

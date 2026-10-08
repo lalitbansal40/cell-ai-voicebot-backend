@@ -25,9 +25,9 @@ Verification: see §6 (filled at the `[P1-B3-DONE]` checkpoint).
 | T1.13 Email                     | ✅     | `c783961`                                 | smtp / log drivers, queued sending, Mailpit, ADR 0030                                          |
 | T1.14 OpenAPI served + Swagger  | ✅     | `bddd764`                                 | `/api/v1/openapi.json` always on; `/api/docs` behind `API_DOCS_ENABLED`                        |
 | T1.15 Frontend errors + WS hook | ✅     | `41454d5`, `9d7ac02` (fe), `c9c5313` (fe) | `ApiError`, query error policy, `RealtimeClient` + hooks, DEV `/dev/realtime`, API status card |
-| T1.16 Integration tests + docs  | ✅     | `[P1-T1.16]` commits (both repos)         | full-server e2e, gap tests, env-docs sync test, coverage gates, docs pass, this document       |
+| T1.16 Integration tests + docs  | ✅     | `6938730`, `60dbcc9`, `94f9361` (fe)      | full-server e2e, gap tests, env-docs sync test, coverage gates, docs pass, this document       |
 
-Batch checkpoints: `2b062b3` `[P1-B1-DONE]`, `bd295e2` `[P1-B2-DONE]`, `[P1-B3-DONE]`. Run prompts: [Batch 1](../prompts/PHASE_1_BATCH_1_PROMPT.md) · [Batch 2](../prompts/PHASE_1_BATCH_2_PROMPT.md) · [Batch 3](../prompts/PHASE_1_BATCH_3_PROMPT.md).
+Batch checkpoints: `2b062b3` `[P1-B1-DONE]`, `bd295e2` `[P1-B2-DONE]`, `[P1-B3-DONE]` (the commit that adds this document's §6). Run prompts: [Batch 1](../prompts/PHASE_1_BATCH_1_PROMPT.md) · [Batch 2](../prompts/PHASE_1_BATCH_2_PROMPT.md) · [Batch 3](../prompts/PHASE_1_BATCH_3_PROMPT.md).
 
 ## 2. Deliverables checklist (PHASE_1_PLAN §3)
 
@@ -78,8 +78,8 @@ Gaps found in the audit and closed in T1.16: WS **per-account** connection limit
 
 | Metric                                      | Backend                               | Frontend                  |
 | ------------------------------------------- | ------------------------------------- | ------------------------- |
-| Tests (start of Phase 1 → now)              | 13 → 306 (Batch 1: 139, Batch 2: 248) | 7 → 85                    |
-| Coverage (stmts / branches / funcs / lines) | 92.9 / 82.9 / 90.2 / 94.5             | 90.9 / 86.9 / 84.0 / 94.1 |
+| Tests (start of Phase 1 → now)              | 13 → 310 (Batch 1: 139, Batch 2: 248) | 7 → 85                    |
+| Coverage (stmts / branches / funcs / lines) | 92.9 / 82.9 / 90.4 / 94.6             | 90.9 / 86.9 / 84.0 / 94.1 |
 | Coverage gate (CI)                          | 90 / 80 / 90 / 90                     | 90 / 85 / 80 / 90         |
 
 **Key versions:** Node 24.19, TypeScript 6.0.3, Express 5.2.1, mongoose 9.11.1 (MongoDB 8.2), ioredis 6.0.0, BullMQ 6.3.11, ws 8.22.0, zod 4.6.5, pino 10.4.0, helmet 8.3.0, express-rate-limit 8.7.1 + rate-limit-redis 6.0.1, nodemailer 10.0.16, swagger-ui-dist 5.33.1, zod-to-openapi 9.1.0, AWS SDK v3 3.1147, Vitest 5.0.3; frontend React 19, MUI 9, React Router 8, React Query 5.104, axios 1.20.
@@ -103,7 +103,21 @@ Gaps found in the audit and closed in T1.16: WS **per-account** connection limit
 
 ## 6. Verification (P1-B3-DONE)
 
-_Filled at the checkpoint commit._
+Checked on 2026-10-08 (`npm run infra:up`):
+
+| Check                                                                                                                                                                           | Result                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Backend `npm ci`, lint, format:check, typecheck, `test:coverage` (310 tests, gate met), build, `openapi:check`, actionlint                                                      | ✅                                                                                     |
+| Frontend `npm ci`, lint, format:check, typecheck, `test:coverage` (85 tests, gate met), build, actionlint; DEV page absent from `dist/`                                         | ✅                                                                                     |
+| Fresh clone of both repos → `npm ci` + full checks (no `.env`), frontend `gen:api` against the cloned backend spec → no diff                                                    | ✅                                                                                     |
+| `/health`, `/ready` 200; `/api/v1/openapi.json` 200; `/api/docs` 200 with the strict CSP; API through the Vite proxy (`:3100`)                                                  | ✅                                                                                     |
+| `npm run email:test` + a queued email through the running worker → both in Mailpit                                                                                              | ✅                                                                                     |
+| `db:migrate:status` → `0001-baseline` applied                                                                                                                                   | ✅                                                                                     |
+| Frontend `RealtimeClient` through the Vite proxy (`ws://localhost:3100/ws/events`) receives a Redis-published event; a bad ticket stops after 3 × 4001 (`unauthorized`)         | ✅ (Node script — no browser on this machine)                                          |
+| Redis stopped → `/ready` 503 → started → 200                                                                                                                                    | ✅                                                                                     |
+| `kill -INT` → hooks http → ws → queues → email → redis → mongo, `shutdown: complete`, exit 0, port 5100 free (also right after a Redis restart, after the `closeAllQueues` fix) | ✅                                                                                     |
+| Secret scan (grep) + gitleaks over both histories                                                                                                                               | ✅ no findings                                                                         |
+| Browser check of the home page card and `/dev/realtime` UI                                                                                                                      | ⚠️ not done (no browser here) — covered by RTL tests and the proxy / Node checks above |
 
 ## 7. Remaining TODOs (by phase)
 
