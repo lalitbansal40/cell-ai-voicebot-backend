@@ -10,6 +10,7 @@ import './modules/admin/admin.schema';
 import './modules/api-keys/api-keys.schema';
 import './modules/audit/audit.schema';
 import './modules/auth/auth.schema';
+import './modules/contacts/contacts.schema';
 import './modules/custom-fields/custom-fields.schema';
 import './modules/health/health.schema';
 import './modules/rbac/rbac.schema';

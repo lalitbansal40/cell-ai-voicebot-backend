@@ -1,6 +1,7 @@
 import type { ZodType } from 'zod';
 
-import { ErrorEnvelopeSchema, successEnvelope } from './common.schemas';
+import { ErrorEnvelopeSchema, OffsetPageMetaSchema, successEnvelope } from './common.schemas';
+import { z } from './zod';
 
 const error = (description: string) => ({
   description,
@@ -22,6 +23,20 @@ export const errors = {
 export const ok = <T extends ZodType>(schema: T, description = 'OK') => ({
   description,
   content: { 'application/json': { schema: successEnvelope(schema) } },
+});
+
+/** `{ success, data: T[], meta: OffsetPageMeta }` (api.md §6). */
+export const okPage = <T extends ZodType>(item: T, description = 'OK') => ({
+  description,
+  content: {
+    'application/json': {
+      schema: z.object({
+        success: z.literal(true),
+        data: z.array(item),
+        meta: OffsetPageMetaSchema,
+      }),
+    },
+  },
 });
 
 export const noContentResponse = { description: 'No content' };

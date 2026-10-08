@@ -7,6 +7,7 @@ import { createAdminRouter } from './modules/admin/admin.routes';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
+import { createContactTagsRouter, createContactsRouter } from './modules/contacts/contacts.routes';
 import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
@@ -42,6 +43,8 @@ export const createApiRouter = ({
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());
+  router.use('/contacts', createContactsRouter());
+  router.use('/contact-tags', createContactTagsRouter());
   router.use('/custom-fields', createCustomFieldsRouter({ jobs: contacts.jobs }));
   return router;
 };
