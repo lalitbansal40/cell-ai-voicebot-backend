@@ -24,25 +24,25 @@ Koi bhi business client (jaise finance / loan company) hamare platform pe aata h
 
 > Morning mein client 100 customers ki list upload karta hai aur campaign start karta hai.
 >
-> Bot bolta hai: *"Namaste Lalit Bansal ji, aapka ₹5,500 ka loan 120 din se pending hai. Agar aapne payment kar diya hai to 1 dabaiye, baat karne ke liye 2 dabaiye."*
+> Bot bolta hai: _"Namaste Lalit Bansal ji, aapka ₹5,500 ka loan 120 din se pending hai. Agar aapne payment kar diya hai to 1 dabaiye, baat karne ke liye 2 dabaiye."_
 >
 > - **1 press** → API node client ke system mein check karta hai ki payment sach mein hua ya nahi → uske hisaab se aage ka message → call end node
-> - **2 press / customer bolta hai "haan maine pay kar diya"** → AI agent node: *"Theek hai, hum check kar lete hain"* → function call se payment check → result ke hisaab se jawab
+> - **2 press / customer bolta hai "haan maine pay kar diya"** → AI agent node: _"Theek hai, hum check kar lete hain"_ → function call se payment check → result ke hisaab se jawab
 > - Customer Hindi mein bole to Hindi, English mein bole to English — aur usi tone/emotion ke saath
 
 ### Teen tarah ki calls support karni hain
 
-| Type | Kya hota hai |
-|---|---|
-| **Outbound – Single** | Ek number pe call (test ya API se trigger) |
-| **Outbound – Bulk Campaign** | List upload karke sabko call, schedule + retry ke saath |
-| **Inbound** | Customer khud call kare → bot poochhe "Hum aapki kaise madad kar sakte hain?" → automation ya trained AI jawab de |
+| Type                         | Kya hota hai                                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Outbound – Single**        | Ek number pe call (test ya API se trigger)                                                                        |
+| **Outbound – Bulk Campaign** | List upload karke sabko call, schedule + retry ke saath                                                           |
+| **Inbound**                  | Customer khud call kare → bot poochhe "Hum aapki kaise madad kar sakte hain?" → automation ya trained AI jawab de |
 
 ### Do "levels" ki calling
 
-| Level | Kya hai | Kab possible |
-|---|---|---|
-| **Level 1 – IVR / DTMF bot** | Pehle se likha message (TTS ya audio) bolta hai, customer key press karta hai, uske hisaab se action | NotifyNow jaisi broadcast APIs se jaldi ho sakta hai |
+| Level                             | Kya hai                                                                                                                            | Kab possible                                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Level 1 – IVR / DTMF bot**      | Pehle se likha message (TTS ya audio) bolta hai, customer key press karta hai, uske hisaab se action                               | NotifyNow jaisi broadcast APIs se jaldi ho sakta hai                                           |
 | **Level 2 – Live AI Voice Agent** | Customer normal baat karta hai, AI real-time sunta, samajhta, function call karta aur jawab deta hai — language + emotion ke saath | Iske liye **real-time audio streaming** wala telephony provider chahiye (neeche Phase 0 dekho) |
 
 ---
@@ -53,12 +53,12 @@ Koi bhi business client (jaise finance / loan company) hamare platform pe aata h
 
 NotifyNow ki jo APIs abhi hamare paas hain:
 
-| API | Kaam |
-|---|---|
-| `POST /api/voice/test` | Ek number pe TTS test call (phone, message, language) |
-| `POST /api/voice/send-campaign` (JSON) | Ek message ko TTS mein bol ke contacts ki list ko call, DTMF on/off, webhook_url, retries |
-| `POST /api/voice/send-campaign` (multipart) | Apni audio file (mp3) ke saath campaign |
-| `/api/webhooks/voice/call-status` | Call status webhook |
+| API                                         | Kaam                                                                                      |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `POST /api/voice/test`                      | Ek number pe TTS test call (phone, message, language)                                     |
+| `POST /api/voice/send-campaign` (JSON)      | Ek message ko TTS mein bol ke contacts ki list ko call, DTMF on/off, webhook_url, retries |
+| `POST /api/voice/send-campaign` (multipart) | Apni audio file (mp3) ke saath campaign                                                   |
+| `/api/webhooks/voice/call-status`           | Call status webhook                                                                       |
 
 **Isse kya ho sakta hai:** Level 1 — ek message bolna, ek key press capture karna, status webhook lena.
 
@@ -77,10 +77,10 @@ NotifyNow ki jo APIs abhi hamare paas hain:
 
 ### 2.2 AI voice pipeline (Level 2 ke liye)
 
-| Option | Kaise | Fayda | Nuksaan |
-|---|---|---|---|
-| **A. Speech-to-Speech** (jaise OpenAI Realtime) | Audio seedha model mein, audio seedha bahar | Sabse kam latency, language + emotion natural, function calling built-in | Mehenga per minute, voice choice limited |
-| **B. STT → LLM → TTS** (jaise Deepgram/Sarvam → GPT → ElevenLabs/Sarvam) | 3 alag steps | Sasta, Indian languages ke liye better options, har part badal sakte hain | Latency zyada, barge-in/turn-taking khud handle karna padega |
+| Option                                                                   | Kaise                                       | Fayda                                                                     | Nuksaan                                                      |
+| ------------------------------------------------------------------------ | ------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **A. Speech-to-Speech** (jaise OpenAI Realtime)                          | Audio seedha model mein, audio seedha bahar | Sabse kam latency, language + emotion natural, function calling built-in  | Mehenga per minute, voice choice limited                     |
+| **B. STT → LLM → TTS** (jaise Deepgram/Sarvam → GPT → ElevenLabs/Sarvam) | 3 alag steps                                | Sasta, Indian languages ke liye better options, har part badal sakte hain | Latency zyada, barge-in/turn-taking khud handle karna padega |
 
 **Recommendation:** Dono ko Phase 0 mein ek chhote PoC se test karenge (Hindi + English + Hinglish, phone quality audio pe). AI layer bhi **provider-agnostic** rakhenge taaki baad mein badal sakein.
 
@@ -316,27 +316,27 @@ NotifyNow ki jo APIs abhi hamare paas hain:
 
 ## 5. MVP kya hoga
 
-| Milestone | Phases | Client kya kar payega |
-|---|---|---|
-| **MVP-1 (IVR bot)** | 0 → 5 | List upload, personalised TTS call, key press capture, bulk campaign, wallet, results |
-| **MVP-2 (Flow builder)** | 6 | Khud ka multi-step call flow + API check |
-| **MVP-3 (AI voicebot)** | 7 → 8 | Live AI baatcheet, language/emotion, function calls, inbound |
-| **Full product** | 9 → 12 | Analytics, API, compliance, scale, launch |
+| Milestone                | Phases | Client kya kar payega                                                                 |
+| ------------------------ | ------ | ------------------------------------------------------------------------------------- |
+| **MVP-1 (IVR bot)**      | 0 → 5  | List upload, personalised TTS call, key press capture, bulk campaign, wallet, results |
+| **MVP-2 (Flow builder)** | 6      | Khud ka multi-step call flow + API check                                              |
+| **MVP-3 (AI voicebot)**  | 7 → 8  | Live AI baatcheet, language/emotion, function calls, inbound                          |
+| **Full product**         | 9 → 12 | Analytics, API, compliance, scale, launch                                             |
 
 ---
 
 ## 6. AutoChatix se kya reuse karenge
 
-| AutoChatix | Voicebot mein |
-|---|---|
-| Graph engine (`automationExecuter` / `nodeHandler`) | Call Flow Engine ka base pattern |
-| `AiConfig` + `openai.service` (function calling, key pool, retries, cost calc) | AI Agent config + runtime |
-| Agent tools (handoff, create_task…) | Voice agent built-in tools |
-| Wallet + Ledger (micro-units, hold/capture/release) | Call + AI billing (atomic debit fix ke saath) |
-| Campaign controller + crons (resume stuck campaigns) | Bulk calling campaigns (queue ke saath) |
-| `pushToAccount` WebSocket | Live call/campaign status |
-| Auth, roles, API keys, outbound webhooks, Razorpay | Same pattern |
-| Frontend: Mantis MUI, reactflow builder, Wallet page | Same base |
+| AutoChatix                                                                     | Voicebot mein                                 |
+| ------------------------------------------------------------------------------ | --------------------------------------------- |
+| Graph engine (`automationExecuter` / `nodeHandler`)                            | Call Flow Engine ka base pattern              |
+| `AiConfig` + `openai.service` (function calling, key pool, retries, cost calc) | AI Agent config + runtime                     |
+| Agent tools (handoff, create_task…)                                            | Voice agent built-in tools                    |
+| Wallet + Ledger (micro-units, hold/capture/release)                            | Call + AI billing (atomic debit fix ke saath) |
+| Campaign controller + crons (resume stuck campaigns)                           | Bulk calling campaigns (queue ke saath)       |
+| `pushToAccount` WebSocket                                                      | Live call/campaign status                     |
+| Auth, roles, API keys, outbound webhooks, Razorpay                             | Same pattern                                  |
+| Frontend: Mantis MUI, reactflow builder, Wallet page                           | Same base                                     |
 
 ---
 
@@ -352,4 +352,4 @@ NotifyNow ki jo APIs abhi hamare paas hain:
 
 ---
 
-*Next step: Phase 0 ko detail karke tasks mein todna.*
+_Next step: Phase 0 ko detail karke tasks mein todna._

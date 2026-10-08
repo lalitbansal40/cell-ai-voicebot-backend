@@ -2,18 +2,18 @@
 
 Source of truth for plans, decisions and conventions. (PDF exports are kept outside the repo.)
 
-| Folder | What's inside |
-| --- | --- |
-| [plans/](plans/) | Product build plan (v2) and the archived v1 overview |
-| [phases/](phases/) | Detailed per-phase plans and task trackers |
-| [prompts/](prompts/) | Autonomous run prompts and the task prompt template |
-| [adr/](adr/) | Architecture Decision Records |
+| Folder                       | What's inside                                                     |
+| ---------------------------- | ----------------------------------------------------------------- |
+| [plans/](plans/)             | Product build plan (v2) and the archived v1 overview              |
+| [phases/](phases/)           | Detailed per-phase plans and task trackers                        |
+| [prompts/](prompts/)         | Autonomous run prompts and the task prompt template               |
+| [adr/](adr/)                 | Architecture Decision Records                                     |
 | [conventions/](conventions/) | Definition of Done, secrets policy, API / data / code conventions |
-| [setup/](setup/) | Machine prerequisites and setup notes |
-| [poc/](poc/) | Proof-of-concept results (Voice AI, SIP lab) |
-| [client/](client/) | Questions sent to the client and their answers |
-| [cost/](cost/) | Cost model |
-| [compliance/](compliance/) | Compliance research notes |
+| [setup/](setup/)             | Machine prerequisites and setup notes                             |
+| [poc/](poc/)                 | Proof-of-concept results (Voice AI, SIP lab)                      |
+| [client/](client/)           | Questions sent to the client and their answers                    |
+| [cost/](cost/)               | Cost model                                                        |
+| [compliance/](compliance/)   | Compliance research notes                                         |
 
 ## Key files
 

@@ -23,13 +23,13 @@ npm run dev       # run src/index.ts with tsx in watch mode
 
 ## Scripts
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | Run the app with `tsx` in watch mode |
-| `npm run build` | Compile `src/` to `dist/` (`tsconfig.build.json`) |
-| `npm start` | Run the compiled app (`dist/index.js`) |
+| Script              | What it does                                                 |
+| ------------------- | ------------------------------------------------------------ |
+| `npm run dev`       | Run the app with `tsx` in watch mode                         |
+| `npm run build`     | Compile `src/` to `dist/` (`tsconfig.build.json`)            |
+| `npm start`         | Run the compiled app (`dist/index.js`)                       |
 | `npm run typecheck` | Type-check everything (src, tests, scripts) without emitting |
-| `npm run clean` | Delete `dist/` |
+| `npm run clean`     | Delete `dist/`                                               |
 
 ## Folder structure
 

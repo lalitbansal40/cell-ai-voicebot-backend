@@ -6,9 +6,9 @@ Ye plan `OVERVIEW_PLAN.md` (v1) ki jagah leta hai. v1 NotifyNow ki broadcast API
 
 **Har phase pe tag:**
 
-| Tag | Matlab |
-|---|---|
-| 🟢 **Abhi** | Client ke jawab ke bina poora ban sakta hai |
+| Tag            | Matlab                                                         |
+| -------------- | -------------------------------------------------------------- |
+| 🟢 **Abhi**    | Client ke jawab ke bina poora ban sakta hai                    |
 | 🟡 **Partial** | Zyada tar ban sakta hai, kuch hissa client details pe ruka hai |
 | 🔴 **Blocked** | Client details (SIP / DB / domain) ke bina shuru nahi ho sakta |
 
@@ -53,39 +53,39 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ### Key decisions
 
-| Cheez | Decision | Kyun |
-|---|---|---|
-| Telephony | **Apna SIP media server** (Asterisk ARI ya FreeSWITCH — Phase 13 PoC mein final) | Client ne SIP diya hai; live audio stream milega |
-| Provider layer | **TelephonyProvider interface** — `WebCall`, `SIP`, `NotifyNow` implementations | Bina SIP ke bhi poora system browser se test ho sake |
-| **Web Call Tester** | Browser mic se "call" — same flow, same AI, same billing, same logs | SIP aane tak 75% product isi se build + test hoga |
-| Voice AI | **OpenAI Realtime** (speech-to-speech) pehle; STT→LLM→TTS adapter baad mein option | Sabse kam latency, Hindi/English switch + tone natural, function calling built-in |
-| Audio | Telephony G.711 (8kHz μ-law/A-law) ↔ AI format, resampling bridge mein | SIP aur AI ke audio format alag hote hain |
-| Queue | Redis + BullMQ | Bulk calls ki concurrency, retry, rate limit, restart-safe |
-| Money | Micro-units (₹1 = 1,000,000), ledger, hold → capture/release, **atomic debit** | AutoChatix pattern, uska AI-charge wala gap fix karke |
-| Hosting | Client ka EC2 (13.232.191.62), **doosri app se poori tarah alag** | Client ki condition |
+| Cheez               | Decision                                                                           | Kyun                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Telephony           | **Apna SIP media server** (Asterisk ARI ya FreeSWITCH — Phase 13 PoC mein final)   | Client ne SIP diya hai; live audio stream milega                                  |
+| Provider layer      | **TelephonyProvider interface** — `WebCall`, `SIP`, `NotifyNow` implementations    | Bina SIP ke bhi poora system browser se test ho sake                              |
+| **Web Call Tester** | Browser mic se "call" — same flow, same AI, same billing, same logs                | SIP aane tak 75% product isi se build + test hoga                                 |
+| Voice AI            | **OpenAI Realtime** (speech-to-speech) pehle; STT→LLM→TTS adapter baad mein option | Sabse kam latency, Hindi/English switch + tone natural, function calling built-in |
+| Audio               | Telephony G.711 (8kHz μ-law/A-law) ↔ AI format, resampling bridge mein             | SIP aur AI ke audio format alag hote hain                                         |
+| Queue               | Redis + BullMQ                                                                     | Bulk calls ki concurrency, retry, rate limit, restart-safe                        |
+| Money               | Micro-units (₹1 = 1,000,000), ledger, hold → capture/release, **atomic debit**     | AutoChatix pattern, uska AI-charge wala gap fix karke                             |
+| Hosting             | Client ka EC2 (13.232.191.62), **doosri app se poori tarah alag**                  | Client ki condition                                                               |
 
 ---
 
 ## 3. Phases — summary
 
-| # | Phase | Status | Backend | UI |
-|---|---|---|---|---|
-| 0 | Setup & Architecture Decisions | 🟢 Abhi | ✔ | ✔ |
-| 1 | Backend Foundation | 🟢 Abhi | ✔ | – |
-| 2 | Auth, Accounts, RBAC + App Shell | 🟢 Abhi | ✔ | ✔ |
-| 3 | Contacts, Lists & Custom Fields | 🟢 Abhi | ✔ | ✔ |
-| 4 | Wallet & Billing | 🟢 Abhi | ✔ | ✔ |
-| 5 | AI Agents & Knowledge Base | 🟢 Abhi | ✔ | ✔ |
-| 6 | Call Flow Engine & Builder | 🟢 Abhi | ✔ | ✔ |
-| 7 | Voice Runtime + Web Call Tester | 🟢 Abhi | ✔ | ✔ |
-| 8 | Campaigns & Call Scheduler | 🟢 Abhi (dry-run) | ✔ | ✔ |
-| 9 | Call Records, Transcripts & Analytics | 🟢 Abhi | ✔ | ✔ |
-| 10 | Integrations, Public API & Webhooks | 🟢 Abhi | ✔ | ✔ |
-| 11 | Security, Compliance & QA | 🟡 Partial | ✔ | ✔ |
-| 12 | Server Setup & Deployment | 🟡 Partial | ✔ | ✔ |
-| 13 | SIP Telephony Integration | 🔴 Blocked | ✔ | thoda |
-| 14 | Inbound Calls | 🔴 Blocked | ✔ | thoda |
-| 15 | Pilot & Launch | 🔴 Blocked | ✔ | ✔ |
+| #   | Phase                                 | Status            | Backend | UI    |
+| --- | ------------------------------------- | ----------------- | ------- | ----- |
+| 0   | Setup & Architecture Decisions        | 🟢 Abhi           | ✔       | ✔     |
+| 1   | Backend Foundation                    | 🟢 Abhi           | ✔       | –     |
+| 2   | Auth, Accounts, RBAC + App Shell      | 🟢 Abhi           | ✔       | ✔     |
+| 3   | Contacts, Lists & Custom Fields       | 🟢 Abhi           | ✔       | ✔     |
+| 4   | Wallet & Billing                      | 🟢 Abhi           | ✔       | ✔     |
+| 5   | AI Agents & Knowledge Base            | 🟢 Abhi           | ✔       | ✔     |
+| 6   | Call Flow Engine & Builder            | 🟢 Abhi           | ✔       | ✔     |
+| 7   | Voice Runtime + Web Call Tester       | 🟢 Abhi           | ✔       | ✔     |
+| 8   | Campaigns & Call Scheduler            | 🟢 Abhi (dry-run) | ✔       | ✔     |
+| 9   | Call Records, Transcripts & Analytics | 🟢 Abhi           | ✔       | ✔     |
+| 10  | Integrations, Public API & Webhooks   | 🟢 Abhi           | ✔       | ✔     |
+| 11  | Security, Compliance & QA             | 🟡 Partial        | ✔       | ✔     |
+| 12  | Server Setup & Deployment             | 🟡 Partial        | ✔       | ✔     |
+| 13  | SIP Telephony Integration             | 🔴 Blocked        | ✔       | thoda |
+| 14  | Inbound Calls                         | 🔴 Blocked        | ✔       | thoda |
+| 15  | Pilot & Launch                        | 🔴 Blocked        | ✔       | ✔     |
 
 **Client ke jawab ke bina:** Backend ~70%, UI ~90%, total ~75%.
 
@@ -128,6 +128,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 ### Phase 2 — Auth, Accounts, RBAC + App Shell 🟢
 
 **Backend**
+
 - Signup / login (JWT access + refresh), forgot / reset password, email verify (OTP)
 - Account (tenant) → Users; roles: owner / admin / manager / agent / viewer; permission map
 - Team invite, user enable/disable
@@ -136,6 +137,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 - Account settings: timezone, default language, calling window default, business name
 
 **Frontend**
+
 - Login, signup, forgot/reset password, OTP screens
 - Main layout: sidebar, header, theme (light/dark), responsive
 - Permission-gated routes + menu, 403/404 pages
@@ -200,6 +202,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 ### Phase 6 — Call Flow Engine & Builder 🟢
 
 **Engine (backend)** — AutoChatix graph engine jaisa, par **call events** se chalega:
+
 - Flow = nodes + edges (`condition` wali edges), versioning (draft / published)
 - Per-call session: current node, variables (contact vars + collected data), history
 - Nodes:
@@ -215,6 +218,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 - **Text simulator:** call ko text mein chalao (speak = text, DTMF = buttons)
 
 **Builder (frontend)** — reactflow:
+
 - Drag-drop palette, node editors, edge conditions, variable picker (`{{name}}`, `{{amount}}`)
 - Validation (dangling nodes, missing end, unconfigured node), auto-layout
 - Save / publish / versions / duplicate, import/export JSON
@@ -307,12 +311,14 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 ### Phase 12 — Server Setup & Deployment 🟡
 
 **Abhi ho sakta hai:**
+
 - Server ka **read-only audit**: running apps, ports, PM2/Docker, nginx, disk, RAM — kuch change nahi
 - Isolated deploy plan: alag user/folder, alag ports, alag PM2 namespace / Docker network, alag nginx server block, **doosri app ko touch nahi**
 - Dockerfiles / PM2 ecosystem, CI/CD (GitHub Actions → server), staging + production env
 - Backups (Mongo dump schedule), log rotation, monitoring + alerts (uptime, errors, queue stuck, disk)
 
 **Client details chahiye:**
+
 - 🔴 Database details (type, host, user, db name) → production DB connect
 - 🔴 Domain / subdomain → nginx + SSL (Let's Encrypt) + webhooks ke HTTPS URL
 
@@ -365,16 +371,16 @@ Client se chahiye: inbound DID number.
 
 ## 5. Client details → kaunsa phase unblock hota hai
 
-| Client se chahiye | Unblock |
-|---|---|
-| SIP host / port / transport / auth | Phase 13 |
-| Caller ID + inbound DID numbers | Phase 13, 14 |
-| Codecs, RTP range, concurrent limit | Phase 13, 8 (real concurrency) |
-| Server pe pehle se kya chal raha hai / ports | Phase 12, 13 |
-| Database details | Phase 12 |
-| Domain / subdomain | Phase 12 (SSL, webhooks) |
-| Payment check API docs (client ka system) | Phase 15 (tab tak mock API) |
-| Real script + languages + calling hours | Phase 15 (tab tak template) |
+| Client se chahiye                            | Unblock                        |
+| -------------------------------------------- | ------------------------------ |
+| SIP host / port / transport / auth           | Phase 13                       |
+| Caller ID + inbound DID numbers              | Phase 13, 14                   |
+| Codecs, RTP range, concurrent limit          | Phase 13, 8 (real concurrency) |
+| Server pe pehle se kya chal raha hai / ports | Phase 12, 13                   |
+| Database details                             | Phase 12                       |
+| Domain / subdomain                           | Phase 12 (SSL, webhooks)       |
+| Payment check API docs (client ka system)    | Phase 15 (tab tak mock API)    |
+| Real script + languages + calling hours      | Phase 15 (tab tak template)    |
 
 ---
 

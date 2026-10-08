@@ -12,6 +12,7 @@
 **Project:** Cell AI Voicebot — multi-tenant AI voice calling platform (MERN + TypeScript). Poora product plan: `docs/BUILD_PLAN.md`. Is batch ka source plan: `docs/phases/PHASE_0_PLAN.md` (tasks T0.1–T0.10). Dono padh lo pehle.
 
 **Folder layout (abhi):**
+
 ```
 /Users/lalitbansal/Documents/cell-ai-voicebot/          ← git repo NAHI hai
   docs/                                                  ← plans (BUILD_PLAN, OVERVIEW_PLAN, CLIENT_QUESTIONS, phases/, prompts/) + PDFs
@@ -28,28 +29,28 @@
 
 ## 1. LOCKED DECISIONS (plan se kuch updates — inhi ko follow karo)
 
-| Cheez | Decision | Note |
-|---|---|---|
-| Node | **Node 24 LTS** (`.nvmrc` = `24`, `engines.node` = `">=24 <25"`) | Plan me Node 20 likha tha — Node 20 **April 2026 me EOL** ho chuka hai. Docs update karne hain (T0.3) |
-| Package manager | **npm** (lockfile commit hoga), `.npmrc` me `engine-strict=true` | |
-| Backend module system | `package.json` `"type": "commonjs"`; tsconfig `module` + `moduleResolution` = **`NodeNext`** | Relative imports bina extension (CJS mode) |
-| Backend dev runner | `tsx watch` · build `tsc` · start `node dist/index.js` | esbuild nahi |
-| Path aliases | Backend: **nahi**. Frontend: `@/` → `src/` | |
-| MongoDB | **MongoDB 8.0** (Docker), **single-node replica set** `rs0` | Plan me 7 likha tha — update docs |
-| Redis | **Redis 7.4** (`redis:7.4-alpine`), AOF on | |
-| Local ports | Backend API **5100** · Frontend dev **3100** · Mongo **27018** · Redis **6380** | AutoChatix (5005/3000) aur kisi local Mongo/Redis se clash na ho. Plan me 5005/3000 likha tha — update docs |
-| Frontend | **Vite (latest) + React 19 + TypeScript** | Plan me React 18 likha tha — latest stable lo, update docs |
-| UI kit | **MUI latest stable major** (`@mui/material`, `@emotion/react`, `@emotion/styled`, `@mui/icons-material`) | AutoChatix ka Mantis template copy **NAHI** (license check pending — neeche T0.4 ADR 0011) |
-| Router | `react-router` latest (v7+, data router `createBrowserRouter`) | |
-| Server state | `@tanstack/react-query` (+ devtools sirf dev) | |
-| Validation | `zod` latest (v4+) | Phase 0 me sirf frontend dep; backend Phase 1 |
-| Lint | ESLint 9+ flat config, `typescript-eslint` (type-aware), `eslint-plugin-import-x`, `eslint-config-prettier`; frontend + `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` | |
-| Format | Prettier | |
-| Git hooks | Husky (latest) + lint-staged + commitlint (`@commitlint/config-conventional`) | |
-| Tests | Vitest (+ `@vitest/coverage-v8`); backend `mongodb-memory-server` (replica set, MongoDB 8.0 binary); frontend `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom` | |
-| Docs ka ghar | **Backend repo ka `docs/`** (source of truth). Frontend README wahan link karega | |
-| Task tracking | File-based: `docs/phases/PHASE_0_TASKS.md` (GitHub Projects nahi) | |
-| TypeScript | Latest stable jo `typescript-eslint` officially support karta ho | Agar latest unsupported ho to highest supported version lo, report me note |
+| Cheez                 | Decision                                                                                                                                                                                                    | Note                                                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Node                  | **Node 24 LTS** (`.nvmrc` = `24`, `engines.node` = `">=24 <25"`)                                                                                                                                            | Plan me Node 20 likha tha — Node 20 **April 2026 me EOL** ho chuka hai. Docs update karne hain (T0.3)       |
+| Package manager       | **npm** (lockfile commit hoga), `.npmrc` me `engine-strict=true`                                                                                                                                            |                                                                                                             |
+| Backend module system | `package.json` `"type": "commonjs"`; tsconfig `module` + `moduleResolution` = **`NodeNext`**                                                                                                                | Relative imports bina extension (CJS mode)                                                                  |
+| Backend dev runner    | `tsx watch` · build `tsc` · start `node dist/index.js`                                                                                                                                                      | esbuild nahi                                                                                                |
+| Path aliases          | Backend: **nahi**. Frontend: `@/` → `src/`                                                                                                                                                                  |                                                                                                             |
+| MongoDB               | **MongoDB 8.0** (Docker), **single-node replica set** `rs0`                                                                                                                                                 | Plan me 7 likha tha — update docs                                                                           |
+| Redis                 | **Redis 7.4** (`redis:7.4-alpine`), AOF on                                                                                                                                                                  |                                                                                                             |
+| Local ports           | Backend API **5100** · Frontend dev **3100** · Mongo **27018** · Redis **6380**                                                                                                                             | AutoChatix (5005/3000) aur kisi local Mongo/Redis se clash na ho. Plan me 5005/3000 likha tha — update docs |
+| Frontend              | **Vite (latest) + React 19 + TypeScript**                                                                                                                                                                   | Plan me React 18 likha tha — latest stable lo, update docs                                                  |
+| UI kit                | **MUI latest stable major** (`@mui/material`, `@emotion/react`, `@emotion/styled`, `@mui/icons-material`)                                                                                                   | AutoChatix ka Mantis template copy **NAHI** (license check pending — neeche T0.4 ADR 0011)                  |
+| Router                | `react-router` latest (v7+, data router `createBrowserRouter`)                                                                                                                                              |                                                                                                             |
+| Server state          | `@tanstack/react-query` (+ devtools sirf dev)                                                                                                                                                               |                                                                                                             |
+| Validation            | `zod` latest (v4+)                                                                                                                                                                                          | Phase 0 me sirf frontend dep; backend Phase 1                                                               |
+| Lint                  | ESLint 9+ flat config, `typescript-eslint` (type-aware), `eslint-plugin-import-x`, `eslint-config-prettier`; frontend + `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`                          |                                                                                                             |
+| Format                | Prettier                                                                                                                                                                                                    |                                                                                                             |
+| Git hooks             | Husky (latest) + lint-staged + commitlint (`@commitlint/config-conventional`)                                                                                                                               |                                                                                                             |
+| Tests                 | Vitest (+ `@vitest/coverage-v8`); backend `mongodb-memory-server` (replica set, MongoDB 8.0 binary); frontend `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom` |                                                                                                             |
+| Docs ka ghar          | **Backend repo ka `docs/`** (source of truth). Frontend README wahan link karega                                                                                                                            |                                                                                                             |
+| Task tracking         | File-based: `docs/phases/PHASE_0_TASKS.md` (GitHub Projects nahi)                                                                                                                                           |                                                                                                             |
+| TypeScript            | Latest stable jo `typescript-eslint` officially support karta ho                                                                                                                                            | Agar latest unsupported ho to highest supported version lo, report me note                                  |
 
 **Version rule:** Har package ka **latest stable** version lo (`npm install <pkg>` bina version ke). Agar koi peer-dependency conflict aaye to compatible version chuno — `--force` / `--legacy-peer-deps` **kabhi nahi**. Final report me har major dependency ka installed version likho.
 
@@ -90,6 +91,7 @@
 ## T0.1 — Machine prerequisites check (koi commit nahi — findings T0.3 me doc banenge)
 
 **Karna:**
+
 1. Ye commands chalao aur output note karo: `node -v`, `npm -v`, `docker --version`, `docker compose version`, `docker info --format '{{.ServerVersion}}'` (daemon chal raha hai?), `git --version`, `git config --global user.name`, `git config --global init.defaultBranch`, `sw_vers -productVersion`, `uname -m`.
 2. Docker daemon band ho to report me blocker likho; T0.9 me compose file phir bhi banao, sirf runtime verify skip + report.
 3. Dono remotes reachable: `git -C cell-ai-voicebot-backend ls-remote origin` aur frontend ke liye same (khaali output + exit 0 = OK). Fail → report (push user karega, isse kaam nahi rukta).
@@ -144,6 +146,7 @@
 5. **`.github/pull_request_template.md`**: sections — What changed · Why · How tested (commands) · Screenshots (UI) · Checklist (`[ ] lint`, `[ ] typecheck`, `[ ] tests`, `[ ] build`, `[ ] .env.example updated`, `[ ] docs updated`, `[ ] no secrets`).
 
 **Git steps (dono repos):**
+
 1. `git status` — backend me confirm `.env` untracked hai aur `.gitignore` banne ke baad `git check-ignore .env` → `.env` print kare.
 2. `git add -A` → `git status` (sirf upar wali files stage hon) → commit: `chore: initial repo setup [P0-T0.2]`.
 3. `git branch dev` → `git checkout -b feature/phase-0-setup dev`.
@@ -193,36 +196,36 @@
 1. `docs/adr/0000-template.md`: `# NNNN — Title` · **Status:** proposed | accepted | deferred | superseded · **Date** · **Context** · **Options considered** (pros/cons) · **Decision** · **Consequences** (positive / negative / follow-ups).
 2. Har ADR alag file `docs/adr/NNNN-kebab-title.md`, **real content** ke saath (context 2–5 lines, kam se kam 2 options, decision, consequences). Language: Hinglish ya simple English — consistent rakho.
 
-| # | Title | Status | Decision (summary) |
-|---|---|---|---|
-| 0001 | Repo structure | accepted | 2 repos (backend, frontend); docs backend repo me |
-| 0002 | Runtime & language | accepted | Node 24 LTS + TypeScript strict; Node 20 EOL reason |
-| 0003 | Backend code structure | accepted | Module-based `src/modules/<feature>` + `src/core` + `src/shared` (T0.5 tree) |
-| 0004 | Database | accepted | MongoDB 8 + Mongoose; replica set (wallet transactions); local Docker, prod Phase 12 |
-| 0005 | Queue & background jobs | accepted | Redis 7.4 + BullMQ |
-| 0006 | Validation | accepted | zod (requests, env, shared schemas → OpenAPI) |
-| 0007 | Logging | accepted | pino JSON logs + request ID; PII masking |
-| 0008 | Real-time transport | accepted | `ws`; `/ws/events` (JSON) + `/ws/media` (binary audio) |
-| 0009 | Auth tokens | accepted | Short JWT access token + refresh token httpOnly Secure SameSite cookie, rotation + reuse detection |
-| 0010 | Frontend build tool | accepted | Vite + React 19 + TS (CRA deprecated) |
-| 0011 | UI kit & template | **proposed** | MUI latest. AutoChatix frontend `package.json` name `mantis-react-ts` hai (Mantis **TypeScript = paid/Pro** version lagta hai). AutoChatix frontend ka README / LICENSE / `package.json` padh ke jo mile wo context me likho. Decision: jab tak user license confirm na kare, **Mantis code copy nahi**; apna thin layout plain MUI pe. Follow-up: user confirm kare |
-| 0012 | Frontend state | accepted | React Query (server) + Zustand (small client state, jab zaroorat ho); Redux nahi |
-| 0013 | Forms | accepted | react-hook-form + zod resolver |
-| 0014 | Flow builder library | accepted | `@xyflow/react` (reactflow v12+) |
-| 0015 | Naming conventions | accepted | camelCase (code, API JSON, Mongo fields); collections plural; files kebab-case; React components PascalCase |
-| 0016 | Money representation | accepted | Integer micro-units (₹1 = 1,000,000), suffix `Micros`, `currency` field; floats kabhi nahi |
-| 0017 | Dates & timezones | accepted | DB/API UTC ISO-8601; account timezone default `Asia/Kolkata`; `date-fns` + `@date-fns/tz` |
-| 0018 | Phone numbers | accepted | E.164 store; `libphonenumber-js`; default region IN |
-| 0019 | Testing stack | accepted | Vitest, Supertest, mongodb-memory-server (replset), RTL + jsdom; Playwright e2e baad me |
-| 0020 | Telephony abstraction | accepted | `TelephonyProvider` interface; impls WebCall, SIP, NotifyNow (optional) |
-| 0021 | Voice AI provider | proposed | Default OpenAI Realtime behind `VoiceAiProvider` interface; final after PoC T0.15 |
-| 0022 | SIP media server | deferred | Asterisk ARI vs FreeSWITCH — Phase 13 PoC + T0.16 lab |
-| 0023 | File storage | accepted | `StorageProvider` interface — local disk (dev) / S3 (prod) |
-| 0024 | API versioning & style | accepted | REST `/api/v1`, envelope `{success,data,meta}` / `{success:false,error:{code,message,details}}` (detail T0.11) |
-| 0025 | Deployment style | deferred | Docker Compose vs PM2 — Phase 12 (server audit T0.19 ke baad) |
-| 0026 | Package manager | accepted | npm + committed lockfile + `engine-strict` |
-| 0027 | Module system | accepted | Backend CommonJS output with `module/moduleResolution: NodeNext`; frontend ESM (Vite) |
-| 0028 | Local dev ports | accepted | API 5100, web 3100, Mongo 27018, Redis 6380 (AutoChatix clash avoid) |
+| #    | Title                   | Status       | Decision (summary)                                                                                                                                                                                                                                                                                                                                                   |
+| ---- | ----------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0001 | Repo structure          | accepted     | 2 repos (backend, frontend); docs backend repo me                                                                                                                                                                                                                                                                                                                    |
+| 0002 | Runtime & language      | accepted     | Node 24 LTS + TypeScript strict; Node 20 EOL reason                                                                                                                                                                                                                                                                                                                  |
+| 0003 | Backend code structure  | accepted     | Module-based `src/modules/<feature>` + `src/core` + `src/shared` (T0.5 tree)                                                                                                                                                                                                                                                                                         |
+| 0004 | Database                | accepted     | MongoDB 8 + Mongoose; replica set (wallet transactions); local Docker, prod Phase 12                                                                                                                                                                                                                                                                                 |
+| 0005 | Queue & background jobs | accepted     | Redis 7.4 + BullMQ                                                                                                                                                                                                                                                                                                                                                   |
+| 0006 | Validation              | accepted     | zod (requests, env, shared schemas → OpenAPI)                                                                                                                                                                                                                                                                                                                        |
+| 0007 | Logging                 | accepted     | pino JSON logs + request ID; PII masking                                                                                                                                                                                                                                                                                                                             |
+| 0008 | Real-time transport     | accepted     | `ws`; `/ws/events` (JSON) + `/ws/media` (binary audio)                                                                                                                                                                                                                                                                                                               |
+| 0009 | Auth tokens             | accepted     | Short JWT access token + refresh token httpOnly Secure SameSite cookie, rotation + reuse detection                                                                                                                                                                                                                                                                   |
+| 0010 | Frontend build tool     | accepted     | Vite + React 19 + TS (CRA deprecated)                                                                                                                                                                                                                                                                                                                                |
+| 0011 | UI kit & template       | **proposed** | MUI latest. AutoChatix frontend `package.json` name `mantis-react-ts` hai (Mantis **TypeScript = paid/Pro** version lagta hai). AutoChatix frontend ka README / LICENSE / `package.json` padh ke jo mile wo context me likho. Decision: jab tak user license confirm na kare, **Mantis code copy nahi**; apna thin layout plain MUI pe. Follow-up: user confirm kare |
+| 0012 | Frontend state          | accepted     | React Query (server) + Zustand (small client state, jab zaroorat ho); Redux nahi                                                                                                                                                                                                                                                                                     |
+| 0013 | Forms                   | accepted     | react-hook-form + zod resolver                                                                                                                                                                                                                                                                                                                                       |
+| 0014 | Flow builder library    | accepted     | `@xyflow/react` (reactflow v12+)                                                                                                                                                                                                                                                                                                                                     |
+| 0015 | Naming conventions      | accepted     | camelCase (code, API JSON, Mongo fields); collections plural; files kebab-case; React components PascalCase                                                                                                                                                                                                                                                          |
+| 0016 | Money representation    | accepted     | Integer micro-units (₹1 = 1,000,000), suffix `Micros`, `currency` field; floats kabhi nahi                                                                                                                                                                                                                                                                           |
+| 0017 | Dates & timezones       | accepted     | DB/API UTC ISO-8601; account timezone default `Asia/Kolkata`; `date-fns` + `@date-fns/tz`                                                                                                                                                                                                                                                                            |
+| 0018 | Phone numbers           | accepted     | E.164 store; `libphonenumber-js`; default region IN                                                                                                                                                                                                                                                                                                                  |
+| 0019 | Testing stack           | accepted     | Vitest, Supertest, mongodb-memory-server (replset), RTL + jsdom; Playwright e2e baad me                                                                                                                                                                                                                                                                              |
+| 0020 | Telephony abstraction   | accepted     | `TelephonyProvider` interface; impls WebCall, SIP, NotifyNow (optional)                                                                                                                                                                                                                                                                                              |
+| 0021 | Voice AI provider       | proposed     | Default OpenAI Realtime behind `VoiceAiProvider` interface; final after PoC T0.15                                                                                                                                                                                                                                                                                    |
+| 0022 | SIP media server        | deferred     | Asterisk ARI vs FreeSWITCH — Phase 13 PoC + T0.16 lab                                                                                                                                                                                                                                                                                                                |
+| 0023 | File storage            | accepted     | `StorageProvider` interface — local disk (dev) / S3 (prod)                                                                                                                                                                                                                                                                                                           |
+| 0024 | API versioning & style  | accepted     | REST `/api/v1`, envelope `{success,data,meta}` / `{success:false,error:{code,message,details}}` (detail T0.11)                                                                                                                                                                                                                                                       |
+| 0025 | Deployment style        | deferred     | Docker Compose vs PM2 — Phase 12 (server audit T0.19 ke baad)                                                                                                                                                                                                                                                                                                        |
+| 0026 | Package manager         | accepted     | npm + committed lockfile + `engine-strict`                                                                                                                                                                                                                                                                                                                           |
+| 0027 | Module system           | accepted     | Backend CommonJS output with `module/moduleResolution: NodeNext`; frontend ESM (Vite)                                                                                                                                                                                                                                                                                |
+| 0028 | Local dev ports         | accepted     | API 5100, web 3100, Mongo 27018, Redis 6380 (AutoChatix clash avoid)                                                                                                                                                                                                                                                                                                 |
 
 3. `docs/adr/README.md`: index table (number, title, status, link).
 4. `docs/README.md` me ADR index ka link.
@@ -356,6 +359,7 @@
 **Commits:** backend `chore(tooling): add eslint, prettier, husky, lint-staged and commitlint [P0-T0.7]` · frontend same message.
 
 **VERIFY:**
+
 - `npm run lint` ✓ · `npm run format:check` ✓
 - **lint-staged check (commit kiye bina):** ek badly-formatted temp file (`tmp-format-check.ts`) banao → `git add` → `npx lint-staged` chalao → file auto-format hui confirm → `git restore --staged tmp-format-check.ts && rm tmp-format-check.ts` (history me kuch na jaye)
 - **commitlint check:** `echo "bad message" | npx commitlint` → **fail** hona chahiye · `echo "chore: valid message" | npx commitlint` → pass
@@ -366,6 +370,7 @@
 ## T0.8 — Testing setup (DONO repos) → commit per repo
 
 **Backend:**
+
 1. devDeps: `vitest`, `@vitest/coverage-v8`, `mongodb-memory-server`, `supertest`, `@types/supertest`.
 2. **`vitest.config.ts`:** `environment: 'node'`, `include: ['src/**/*.test.ts', 'tests/**/*.test.ts']`, `coverage: { provider: 'v8', reporter: ['text', 'html', 'lcov'], include: ['src/**'], exclude: ['src/**/*.test.ts'] }`, `testTimeout: 30000` (infra test ke liye), `hookTimeout: 120000`.
 3. **`src/index.test.ts`:** `getAppInfo()` — name sahi, node `v24` se start, env default `development`.
@@ -374,6 +379,7 @@
 6. Pehla run MongoDB binary download karega (~100MB) — normal hai; report me time note.
 
 **Frontend:**
+
 1. devDeps: `vitest`, `@vitest/coverage-v8`, `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`.
 2. `vite.config.ts` me `test` block (import `defineConfig` from `vitest/config`): `environment: 'jsdom'`, `setupFiles: ['./src/test/setup.ts']`, `css: false`, coverage v8 same reporters.
 3. **`src/test/setup.ts`:** `import '@testing-library/jest-dom/vitest'` + `afterEach(cleanup)`.
@@ -421,6 +427,7 @@
 **Commit:** `chore(infra): add docker compose for mongodb replica set and redis [P0-T0.9]`
 
 **VERIFY:**
+
 - `npm run infra:up` → dono healthy (`npm run infra:ps`)
 - `docker exec cav-mongo mongosh --port 27018 --quiet --eval "rs.status().members[0].stateStr"` → `PRIMARY`
 - Host se: `docker exec cav-mongo mongosh "mongodb://127.0.0.1:27018/?replicaSet=rs0" --quiet --eval "db.runCommand({ping:1}).ok"` → `1`

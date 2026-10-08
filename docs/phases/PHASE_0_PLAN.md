@@ -18,13 +18,13 @@ Phase 0 ke end tak:
 
 ### Phase 0 mein kya NAHI hoga (scope se bahar)
 
-| Kaam | Kaunse phase mein |
-|---|---|
-| Express app, logger, error handler, DB connection code | Phase 1 |
-| Login / signup / users | Phase 2 |
-| Koi bhi business feature (contacts, wallet, flows…) | Phase 3+ |
-| Client ke server pe kuch install / deploy | Phase 12 |
-| Real SIP trunk se call | Phase 13 |
+| Kaam                                                   | Kaunse phase mein |
+| ------------------------------------------------------ | ----------------- |
+| Express app, logger, error handler, DB connection code | Phase 1           |
+| Login / signup / users                                 | Phase 2           |
+| Koi bhi business feature (contacts, wallet, flows…)    | Phase 3+          |
+| Client ke server pe kuch install / deploy              | Phase 12          |
+| Real SIP trunk se call                                 | Phase 13          |
 
 Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye ki tooling kaam kar raha hai.
 
@@ -32,28 +32,28 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 
 ## 1. Tasks ka overview
 
-| # | Task | Size | Depends on |
-|---|---|---|---|
-| T0.1 | Machine prerequisites & accounts | S | – |
-| T0.2 | Git & repo hygiene (dono repos) | S | T0.1 |
-| T0.3 | Docs folder ka ghar + project management setup | S | T0.2 |
-| T0.4 | Architecture Decision Records (ADRs) | M | T0.3 |
-| T0.5 | Backend scaffold (TypeScript project) | M | T0.4 |
-| T0.6 | Frontend scaffold (Vite + React + TS) | M | T0.4 |
-| T0.7 | Code quality tooling (ESLint, Prettier, Husky…) | S | T0.5, T0.6 |
-| T0.8 | Testing setup (dono repos) | S | T0.5, T0.6 |
-| T0.9 | Local infra: Docker Compose (MongoDB + Redis) | S | T0.5 |
-| T0.10 | Env & secrets conventions | S | T0.5, T0.6 |
-| T0.11 | API, WebSocket & data conventions doc | M | T0.4 |
-| T0.12 | Shared types strategy + proof | S | T0.5, T0.6, T0.11 |
-| T0.13 | Core data model draft (ERD) | M | T0.11 |
-| T0.14 | CI pipeline (GitHub Actions) | S | T0.7, T0.8 |
-| T0.15 | **Voice AI PoC** | L | T0.1 |
-| T0.16 | SIP local lab (optional, recommended) | M | T0.1 |
-| T0.17 | Cost model draft | S | T0.15 |
-| T0.18 | Compliance research notes | S | – |
-| T0.19 | Client server access check (read-only) | S | Key file |
-| T0.20 | Phase 0 review, sign-off & plan update | S | Sab |
+| #     | Task                                            | Size | Depends on        |
+| ----- | ----------------------------------------------- | ---- | ----------------- |
+| T0.1  | Machine prerequisites & accounts                | S    | –                 |
+| T0.2  | Git & repo hygiene (dono repos)                 | S    | T0.1              |
+| T0.3  | Docs folder ka ghar + project management setup  | S    | T0.2              |
+| T0.4  | Architecture Decision Records (ADRs)            | M    | T0.3              |
+| T0.5  | Backend scaffold (TypeScript project)           | M    | T0.4              |
+| T0.6  | Frontend scaffold (Vite + React + TS)           | M    | T0.4              |
+| T0.7  | Code quality tooling (ESLint, Prettier, Husky…) | S    | T0.5, T0.6        |
+| T0.8  | Testing setup (dono repos)                      | S    | T0.5, T0.6        |
+| T0.9  | Local infra: Docker Compose (MongoDB + Redis)   | S    | T0.5              |
+| T0.10 | Env & secrets conventions                       | S    | T0.5, T0.6        |
+| T0.11 | API, WebSocket & data conventions doc           | M    | T0.4              |
+| T0.12 | Shared types strategy + proof                   | S    | T0.5, T0.6, T0.11 |
+| T0.13 | Core data model draft (ERD)                     | M    | T0.11             |
+| T0.14 | CI pipeline (GitHub Actions)                    | S    | T0.7, T0.8        |
+| T0.15 | **Voice AI PoC**                                | L    | T0.1              |
+| T0.16 | SIP local lab (optional, recommended)           | M    | T0.1              |
+| T0.17 | Cost model draft                                | S    | T0.15             |
+| T0.18 | Compliance research notes                       | S    | –                 |
+| T0.19 | Client server access check (read-only)          | S    | Key file          |
+| T0.20 | Phase 0 review, sign-off & plan update          | S    | Sab               |
 
 **Size:** S = chhota (kuch ghante) · M = medium (~1 din) · L = bada (2–3 din, timeboxed)
 
@@ -70,6 +70,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Kyun:** Sabka setup ek jaisa ho, "mere machine pe chal raha hai" wali problem na aaye.
 
 **Steps:**
+
 - [ ] **Node 24 LTS** install (direct installer, ya `nvm`/`fnm`: `nvm install 24 && nvm use 24`); `node -v` se verify
 - [ ] Package manager decide: **npm** (AutoChatix jaisa) — `npm -v` ≥ 10
 - [ ] **Docker Desktop** install + chalu; `docker compose version` verify
@@ -91,6 +92,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Kyun:** Shuru se saaf git history, galti se secret commit na ho.
 
 **Steps (har repo mein):**
+
 - [ ] Branch strategy: `main` (production-ready) · `dev` (integration) · `feature/<phase>-<short-name>` · `fix/<name>` · `chore/<name>`
 - [ ] Commit convention: **Conventional Commits** (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`)
 - [ ] `.gitignore`: `node_modules/`, `dist/`, `build/`, `coverage/`, `.env`, `.env.*` (par `!.env.example`), `*.log`, `logs/`, `recordings/`, `uploads/`, `*.pem`, `*.key`, `.DS_Store`, `poc/**/output/`
@@ -115,6 +117,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Decision:** Parent folder `cell-ai-voicebot/` git repo nahi hai. **Docs backend repo ke `docs/` mein move honge** (versioned, PR se review).
 
 **Steps:**
+
 - [ ] Backend repo mein structure:
   ```
   docs/
@@ -155,35 +158,36 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 
 **ADRs likhne hain (recommendation ke saath):**
 
-| # | Decision | Recommendation |
-|---|---|---|
-| 0001 | Repo structure | 2 alag repos (backend, frontend) — already bane hain |
-| 0002 | Backend language/runtime | Node 24 LTS + TypeScript (strict) + Express 5 (Node 20 April 2026 me EOL) |
-| 0003 | Backend code structure | **Module-based**: `src/modules/<feature>/` + shared `src/core`, `src/shared` (neeche T0.5) |
-| 0004 | Database | MongoDB 8.0 + Mongoose; **replica set** (wallet ke multi-document transactions ke liye zaroori) |
-| 0005 | Queue / jobs | Redis 7.4 + BullMQ |
-| 0006 | Validation | zod (request validation + env + shared schemas) |
-| 0007 | Logging | pino (JSON logs), request ID |
-| 0008 | Real-time | `ws` library — 2 endpoints: `/ws/events` (dashboard) aur `/ws/media` (web call audio) |
-| 0009 | Auth tokens | Access token (JWT, short) + refresh token (httpOnly secure cookie, rotate) |
-| 0010 | Frontend build | **Vite** + React 19 + TypeScript (CRA deprecated hai) |
-| 0011 | UI kit | MUI latest stable; AutoChatix ka **Mantis template copy nahi** jab tak license confirm na ho (TS version paid/Pro lagta hai) |
-| 0012 | Frontend state | React Query (server state) + Zustand ya Context (chhota UI state); Redux nahi |
-| 0013 | Forms | react-hook-form + zod |
-| 0014 | Flow builder | reactflow (`@xyflow/react`) |
-| 0015 | Naming case | Code + API + Mongo fields **camelCase**; collections plural |
-| 0016 | Money | Integer micro-units (₹1 = 1,000,000), field suffix `Micros`, currency alag field |
-| 0017 | Dates / time | DB mein UTC; account timezone (default `Asia/Kolkata`); library `date-fns` + `date-fns-tz` (ya dayjs) |
-| 0018 | Phone numbers | E.164 store; `libphonenumber-js` se parse/validate; default region IN |
-| 0019 | Testing | Backend: Vitest + Supertest + mongodb-memory-server; Frontend: Vitest + React Testing Library; e2e: Playwright (baad mein) |
-| 0020 | Telephony abstraction | `TelephonyProvider` interface; implementations: WebCall, SIP, NotifyNow (optional) |
-| 0021 | Voice AI | PoC (T0.15) ke baad final; default: OpenAI Realtime; `VoiceAiProvider` interface |
-| 0022 | Media server | **Deferred** — Phase 13 PoC (Asterisk ARI vs FreeSWITCH); T0.16 lab notes input |
-| 0023 | File storage | `StorageProvider` interface — local disk (dev) / S3 (prod) |
-| 0024 | API versioning | `/api/v1/...` |
-| 0025 | Deployment style | Docker Compose ya PM2 — Phase 12 mein final (client server audit ke baad) |
+| #    | Decision                 | Recommendation                                                                                                               |
+| ---- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| 0001 | Repo structure           | 2 alag repos (backend, frontend) — already bane hain                                                                         |
+| 0002 | Backend language/runtime | Node 24 LTS + TypeScript (strict) + Express 5 (Node 20 April 2026 me EOL)                                                    |
+| 0003 | Backend code structure   | **Module-based**: `src/modules/<feature>/` + shared `src/core`, `src/shared` (neeche T0.5)                                   |
+| 0004 | Database                 | MongoDB 8.0 + Mongoose; **replica set** (wallet ke multi-document transactions ke liye zaroori)                              |
+| 0005 | Queue / jobs             | Redis 7.4 + BullMQ                                                                                                           |
+| 0006 | Validation               | zod (request validation + env + shared schemas)                                                                              |
+| 0007 | Logging                  | pino (JSON logs), request ID                                                                                                 |
+| 0008 | Real-time                | `ws` library — 2 endpoints: `/ws/events` (dashboard) aur `/ws/media` (web call audio)                                        |
+| 0009 | Auth tokens              | Access token (JWT, short) + refresh token (httpOnly secure cookie, rotate)                                                   |
+| 0010 | Frontend build           | **Vite** + React 19 + TypeScript (CRA deprecated hai)                                                                        |
+| 0011 | UI kit                   | MUI latest stable; AutoChatix ka **Mantis template copy nahi** jab tak license confirm na ho (TS version paid/Pro lagta hai) |
+| 0012 | Frontend state           | React Query (server state) + Zustand ya Context (chhota UI state); Redux nahi                                                |
+| 0013 | Forms                    | react-hook-form + zod                                                                                                        |
+| 0014 | Flow builder             | reactflow (`@xyflow/react`)                                                                                                  |
+| 0015 | Naming case              | Code + API + Mongo fields **camelCase**; collections plural                                                                  |
+| 0016 | Money                    | Integer micro-units (₹1 = 1,000,000), field suffix `Micros`, currency alag field                                             |
+| 0017 | Dates / time             | DB mein UTC; account timezone (default `Asia/Kolkata`); library `date-fns` + `date-fns-tz` (ya dayjs)                        |
+| 0018 | Phone numbers            | E.164 store; `libphonenumber-js` se parse/validate; default region IN                                                        |
+| 0019 | Testing                  | Backend: Vitest + Supertest + mongodb-memory-server; Frontend: Vitest + React Testing Library; e2e: Playwright (baad mein)   |
+| 0020 | Telephony abstraction    | `TelephonyProvider` interface; implementations: WebCall, SIP, NotifyNow (optional)                                           |
+| 0021 | Voice AI                 | PoC (T0.15) ke baad final; default: OpenAI Realtime; `VoiceAiProvider` interface                                             |
+| 0022 | Media server             | **Deferred** — Phase 13 PoC (Asterisk ARI vs FreeSWITCH); T0.16 lab notes input                                              |
+| 0023 | File storage             | `StorageProvider` interface — local disk (dev) / S3 (prod)                                                                   |
+| 0024 | API versioning           | `/api/v1/...`                                                                                                                |
+| 0025 | Deployment style         | Docker Compose ya PM2 — Phase 12 mein final (client server audit ke baad)                                                    |
 
 **Steps:**
+
 - [ ] Template file `docs/adr/0000-template.md`
 - [ ] Har ADR ki ek file, status `proposed`
 - [ ] Review → `accepted`
@@ -198,6 +202,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Kyun:** Ek saaf TypeScript project jisme aage ke saare phases fit ho jayein.
 
 **Steps:**
+
 - [ ] `npm init` → `package.json`: name `cell-ai-voicebot-backend`, `private`, `engines: { node: ">=24 <25" }`
 - [ ] `.nvmrc` → `24`
 - [ ] Dependencies (sirf Phase 0 ke liye zaroori): `typescript`, `tsx` (dev run/watch), `@types/node`
@@ -244,6 +249,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 ### T0.6 — Frontend scaffold
 
 **Steps:**
+
 - [ ] `npm create vite@latest` → React + TypeScript template
 - [ ] `.nvmrc` → `24`, `package.json` private + engines
 - [ ] Core deps: `react-router-dom`, `@tanstack/react-query`, `@mui/material` (+ `@emotion/*`, icons), `axios`, `zod`, `react-hook-form`, `notistack`
@@ -273,6 +279,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 ### T0.7 — Code quality tooling (dono repos)
 
 **Steps:**
+
 - [ ] **ESLint** (flat config `eslint.config.js`): `typescript-eslint` (type-aware), `eslint-plugin-import` (order, no-cycle), frontend mein `react-hooks` + `react-refresh`
 - [ ] Rules: `no-console` (warn, logger use karo — backend), `@typescript-eslint/no-floating-promises` (error — async bugs pakadta hai), `no-explicit-any` (warn), unused vars error
 - [ ] **Prettier** (`.prettierrc`): `singleQuote`, `semi`, `printWidth: 100`, `trailingComma: all`; `eslint-config-prettier` (conflict off)
@@ -288,6 +295,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 ### T0.8 — Testing setup
 
 **Steps:**
+
 - [ ] Backend: **Vitest** + `supertest` (Phase 1 se use) + `mongodb-memory-server` (replica set mode) — config + ek sample unit test
 - [ ] Frontend: Vitest + `@testing-library/react` + `jsdom` + `@testing-library/user-event` — ek sample component test
 - [ ] Coverage config (`v8`), `coverage/` gitignored
@@ -301,6 +309,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 ### T0.9 — Local infra (Docker Compose)
 
 **Steps:**
+
 - [ ] Backend repo mein `docker-compose.yml`:
   - **MongoDB 8.0** — single-node **replica set** (`--replSet rs0` + init script), volume, healthcheck, port `127.0.0.1:27018`
   - **Redis 7.4** — `appendonly yes`, volume, healthcheck, port `127.0.0.1:6380`
@@ -318,6 +327,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 ### T0.10 — Env & secrets conventions
 
 **Steps:**
+
 - [ ] Naming: UPPER_SNAKE_CASE; frontend vars `VITE_` prefix (ye **browser mein public** hote hain — secret kabhi nahi)
 - [ ] Backend `.env.example` — saare known vars, comment ke saath ki kaunsa phase use karega:
   - App: `NODE_ENV`, `PORT`, `APP_URL`, `FRONTEND_URL`, `LOG_LEVEL`, `CORS_ORIGINS`
@@ -345,6 +355,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Kyun:** Har phase mein API ek jaisi dikhe; frontend ko andaaza lagana na pade.
 
 **`docs/conventions/api.md`:**
+
 - [ ] Base path `/api/v1`, resources plural + kebab-case (`/api/v1/ai-agents`)
 - [ ] Methods: GET list/detail, POST create/action, PATCH partial update, DELETE
 - [ ] Actions: `POST /api/v1/campaigns/:id/pause`
@@ -360,6 +371,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 - [ ] File upload: multipart, size limits
 
 **`docs/conventions/websocket.md`:**
+
 - [ ] Endpoints: `/ws/events` (JSON events), `/ws/media` (binary audio, web call)
 - [ ] Auth: connect time pe token (query/subprotocol), server account verify kare
 - [ ] Event envelope: `{ "type": "call.status", "data": {...}, "ts": "…" }`
@@ -367,6 +379,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 - [ ] Ping/pong + reconnect rules
 
 **`docs/conventions/data.md`:**
+
 - [ ] Har tenant document mein `accountId` (indexed) — **har query scoped**
 - [ ] `createdAt` / `updatedAt` (timestamps), `createdBy` jahan zaroori
 - [ ] Soft delete policy (`deletedAt`) — kin collections pe
@@ -386,6 +399,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Recommendation:** **(a)** — backend zod schemas single source of truth; `zod-to-openapi` se spec; frontend `npm run gen:api` se types.
 
 **Steps:**
+
 - [ ] ADR likhna (decision)
 - [ ] Chhota proof: backend mein ek dummy schema → `openapi.json` → frontend mein typed client generate
 - [ ] Script names fix: backend `gen:openapi`, frontend `gen:api`
@@ -399,6 +413,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Kyun:** Aage ke phases ke models pehle se soche hue hon — baad mein bade migrations na karne padein.
 
 **Entities (sirf fields ka outline + relations):**
+
 - [ ] Account, User, Role/Permission, ApiKey, AuditLog
 - [ ] Contact, ContactList, CustomFieldDefinition, DndEntry, Tag
 - [ ] Wallet, LedgerEntry, RateCard, Invoice
@@ -419,6 +434,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 ### T0.14 — CI pipeline (GitHub Actions)
 
 **Steps:**
+
 - [ ] Workflow `ci.yml` (dono repos): trigger PR + push on `main`/`dev`
 - [ ] Steps: checkout → setup Node 24 (cache npm) → `npm ci` → `lint` → `typecheck` → `test` → `build`
 - [ ] Backend: tests ke liye mongodb-memory-server (Docker zaroori nahi)
@@ -438,6 +454,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Timebox:** 2–3 din. Code `poc/voice-ai/` mein (main app ka hissa nahi).
 
 **Steps:**
+
 - [ ] OpenAI docs se **current Realtime model naam + pricing** verify karna (models jaldi badalte hain)
 - [ ] Mini setup: local web page (browser mic) ⇄ Node relay (WebSocket) ⇄ OpenAI Realtime
 - [ ] Session config:
@@ -451,24 +468,25 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 
 **Test scenarios (har ek ka result note karna):**
 
-| # | Scenario | Kya check karna |
-|---|---|---|
-| 1 | Hindi mein greeting + loan reminder | Naam, ₹5,500, "120 din" sahi bola? |
-| 2 | Customer English mein jawab de | AI English mein switch hua? |
-| 3 | Beech mein language badle (Hindi ↔ English) | Switch smooth? |
-| 4 | Hinglish ("maine kal pay kar diya tha") | Samjha? |
-| 5 | "Maine pay kar diya" → function call | Function call hua, result ke hisaab se jawab? |
-| 6 | Customer gussa / chillaye | Calm + polite raha? |
-| 7 | Bot ke bolte waqt customer bole (barge-in) | Bot ruka? |
-| 8 | 10 second chuppi | "Hello, kya aap sun rahe hain?" |
-| 9 | Background noise (TV / traffic) | Galat trigger to nahi? |
-| 10 | Numbers / dates / amounts | ₹, dates, EMI sahi pronunciation? |
-| 11 | Indian naam (Bansal, Chaudhary, Iyer…) | Pronunciation |
-| 12 | Off-topic sawaal / abusive language | Guardrail follow? |
-| 13 | "Baad mein call karo" | Callback time poochha? |
-| 14 | Lambi call (5+ min) | Context yaad raha? cost kitna? |
+| #   | Scenario                                    | Kya check karna                               |
+| --- | ------------------------------------------- | --------------------------------------------- |
+| 1   | Hindi mein greeting + loan reminder         | Naam, ₹5,500, "120 din" sahi bola?            |
+| 2   | Customer English mein jawab de              | AI English mein switch hua?                   |
+| 3   | Beech mein language badle (Hindi ↔ English) | Switch smooth?                                |
+| 4   | Hinglish ("maine kal pay kar diya tha")     | Samjha?                                       |
+| 5   | "Maine pay kar diya" → function call        | Function call hua, result ke hisaab se jawab? |
+| 6   | Customer gussa / chillaye                   | Calm + polite raha?                           |
+| 7   | Bot ke bolte waqt customer bole (barge-in)  | Bot ruka?                                     |
+| 8   | 10 second chuppi                            | "Hello, kya aap sun rahe hain?"               |
+| 9   | Background noise (TV / traffic)             | Galat trigger to nahi?                        |
+| 10  | Numbers / dates / amounts                   | ₹, dates, EMI sahi pronunciation?             |
+| 11  | Indian naam (Bansal, Chaudhary, Iyer…)      | Pronunciation                                 |
+| 12  | Off-topic sawaal / abusive language         | Guardrail follow?                             |
+| 13  | "Baad mein call karo"                       | Callback time poochha?                        |
+| 14  | Lambi call (5+ min)                         | Context yaad raha? cost kitna?                |
 
 **Measure karna:**
+
 - [ ] **Latency:** customer chup → bot ki pehli awaaz (p50 / p95) — target ~1 sec
 - [ ] **Cost per minute** (usage events se tokens → ₹)
 - [ ] Transcription accuracy (Hindi / Hinglish)
@@ -490,6 +508,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Timebox:** 1–2 din. Code `poc/sip-lab/`.
 
 **Steps:**
+
 - [ ] Docker mein **Asterisk** (ARI enabled) chalana
 - [ ] Softphone (Zoiper / Linphone) se Asterisk pe register → test call
 - [ ] Node ARI app: call answer kare → ek audio file play kare → DTMF capture kare
@@ -508,6 +527,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 ### T0.17 — Cost model draft
 
 **Steps:**
+
 - [ ] Inputs list:
   - AI cost per minute (T0.15 se)
   - TTS cost (`speak` nodes)
@@ -531,6 +551,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Note:** Ye legal advice nahi — client / unke legal se confirm karwana hai.
 
 **Steps (topics):**
+
 - [ ] **TRAI:** commercial calls rules, DND / NCPR, promotional vs transactional/service calls, caller ID / series
 - [ ] **RBI recovery guidelines:** calling time (8am–7pm), no threats / abusive language, identity disclose, privacy
 - [ ] **DPDP Act 2023:** personal data, consent, purpose limitation, retention, delete request
@@ -547,12 +568,14 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 **Kyun:** Pata chale server pe kya chal raha hai (Node version, Docker, Mongo, ports) — Phase 12 ke decisions isi pe depend.
 
 **Rules (strict):**
+
 - ❌ Kuch install / update / restart / delete nahi
 - ❌ Koi config file edit nahi
 - ❌ Doosri app ke logs / data copy nahi
 - ✅ Sirf dekhna aur note karna
 
 **Steps:**
+
 - [ ] SSH login (`ubuntu@13.232.191.62`, key file) — kaam kare
 - [ ] Note: OS version, CPU/RAM/disk free, Node/npm version (agar hai), Docker hai ya nahi, PM2 hai ya nahi
 - [ ] Running services / listening ports (kaunsi app kaunsa port)
@@ -569,6 +592,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 ### T0.20 — Phase 0 review, sign-off & plan update
 
 **Steps:**
+
 - [ ] Saare tasks ke "Done when" check
 - [ ] Dono repos: fresh clone → README follow → `npm ci` → `npm run check` pass (naye machine pe setup verify)
 - [ ] ADRs final, `BUILD_PLAN.md` mein decisions update (jaise voice AI, folder structure)
@@ -584,6 +608,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 ## 3. Phase 0 — Final Deliverables checklist
 
 **Repos & tooling**
+
 - [ ] Backend repo: scaffold, scripts, tsconfig strict, folder structure, hello entry
 - [ ] Frontend repo: Vite + React + TS + MUI + React Query, hello page
 - [ ] ESLint, Prettier, Husky, lint-staged, EditorConfig — dono repos
@@ -594,6 +619,7 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 - [ ] README dono repos (setup steps verified on fresh clone)
 
 **Docs**
+
 - [ ] ADRs (0001–0025)
 - [ ] Conventions: API, WebSocket, data, code style, secrets
 - [ ] Data model ERD
@@ -609,32 +635,32 @@ Phase 0 mein sirf **hello-world level** code hoga, sirf ye prove karne ke liye k
 
 ## 4. Risks & mitigations
 
-| Risk | Asar | Mitigation |
-|---|---|---|
-| OpenAI Realtime Hindi/Hinglish quality kam | Core product weak | T0.15 mein jaldi pata; Option B (Indian STT/TTS) fallback |
-| AI cost per minute zyada | Client ke liye mehenga | Cost model; `speak` nodes (sasta TTS) zyada, AI sirf zaroorat pe; caching |
-| Latency > 1.5 sec | Baatcheet unnatural | Server close to OpenAI region, streaming, VAD tuning |
-| Client ka DB Mongo nahi | Stack mismatch | Apna Mongo (Docker / Atlas) — Phase 12 |
-| Mac Docker pe SIP/RTP issues | Lab atke | Linux VM |
-| Mantis/MUI template license | Legal issue | Mantis copy nahi; plain MUI; license verify (T0.4 ADR 0011) |
-| Secrets leak (SSH key, DB password chat mein aaye) | Security | Password manager, rotate on doubt, gitleaks in CI |
-| Client ke server pe galti se change | Doosri app down | T0.19 strict read-only rules |
-| Client answers late | SIP phases late | Web Call Tester se baaki 75% build — plan already aisa hai |
+| Risk                                               | Asar                   | Mitigation                                                                |
+| -------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------- |
+| OpenAI Realtime Hindi/Hinglish quality kam         | Core product weak      | T0.15 mein jaldi pata; Option B (Indian STT/TTS) fallback                 |
+| AI cost per minute zyada                           | Client ke liye mehenga | Cost model; `speak` nodes (sasta TTS) zyada, AI sirf zaroorat pe; caching |
+| Latency > 1.5 sec                                  | Baatcheet unnatural    | Server close to OpenAI region, streaming, VAD tuning                      |
+| Client ka DB Mongo nahi                            | Stack mismatch         | Apna Mongo (Docker / Atlas) — Phase 12                                    |
+| Mac Docker pe SIP/RTP issues                       | Lab atke               | Linux VM                                                                  |
+| Mantis/MUI template license                        | Legal issue            | Mantis copy nahi; plain MUI; license verify (T0.4 ADR 0011)               |
+| Secrets leak (SSH key, DB password chat mein aaye) | Security               | Password manager, rotate on doubt, gitleaks in CI                         |
+| Client ke server pe galti se change                | Doosri app down        | T0.19 strict read-only rules                                              |
+| Client answers late                                | SIP phases late        | Web Call Tester se baaki 75% build — plan already aisa hai                |
 
 ---
 
 ## 5. Recommended order (day-wise idea)
 
-| Din | Kaam |
-|---|---|
-| 1 | T0.1, T0.2, T0.3 · T0.15 PoC shuru (parallel) |
-| 2 | T0.4 ADRs, T0.5 backend scaffold, T0.6 frontend scaffold |
-| 3 | T0.7, T0.8, T0.9, T0.10 · PoC continue |
-| 4 | T0.11 conventions, T0.12 shared types, T0.13 ERD |
-| 5 | T0.14 CI, T0.17 cost model, T0.18 compliance, T0.19 server audit |
-| 6 | T0.16 SIP lab (optional), T0.20 review + sign-off |
+| Din | Kaam                                                             |
+| --- | ---------------------------------------------------------------- |
+| 1   | T0.1, T0.2, T0.3 · T0.15 PoC shuru (parallel)                    |
+| 2   | T0.4 ADRs, T0.5 backend scaffold, T0.6 frontend scaffold         |
+| 3   | T0.7, T0.8, T0.9, T0.10 · PoC continue                           |
+| 4   | T0.11 conventions, T0.12 shared types, T0.13 ERD                 |
+| 5   | T0.14 CI, T0.17 cost model, T0.18 compliance, T0.19 server audit |
+| 6   | T0.16 SIP lab (optional), T0.20 review + sign-off                |
 
-*Ye andaaza hai — PoC results ke hisaab se aage-peeche ho sakta hai.*
+_Ye andaaza hai — PoC results ke hisaab se aage-peeche ho sakta hai._
 
 ---
 

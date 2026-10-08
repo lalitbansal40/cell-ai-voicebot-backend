@@ -32,8 +32,8 @@
 ## 3. Locked decisions
 
 | Topic | Decision | Note |
-| --- | --- | --- |
-| … | … | … |
+| ----- | -------- | ---- |
+| …     | …        | …    |
 
 ## 4. Rules of engagement
 
