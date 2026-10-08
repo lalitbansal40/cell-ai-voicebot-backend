@@ -11,4 +11,5 @@ A task / PR is **done** only when every item below is true.
 - [ ] No secrets in code, docs, commits or logs
 - [ ] Tenant scoping: every DB query is scoped by `accountId` (Phase 1+)
 - [ ] PR template filled (what, why, how tested, screenshots for UI)
+- [ ] Follows the conventions: [API](api.md), [error codes](error-codes.md), [WebSocket](websocket.md), [data](data.md), [code style](code-style.md)
 - [ ] Reviewed and merged into `dev`

@@ -25,6 +25,11 @@ Source of truth for plans, decisions and conventions. (PDF exports are kept outs
 - [prompts/PHASE_0_BATCH_2_4_PROMPT.md](prompts/PHASE_0_BATCH_2_4_PROMPT.md) — Phase 0 batches 2–4 run prompt (T0.11–T0.20)
 - [prompts/TASK_PROMPT_TEMPLATE.md](prompts/TASK_PROMPT_TEMPLATE.md) — template for task-wise prompts
 - [adr/README.md](adr/README.md) — ADR index
+- [conventions/api.md](conventions/api.md) — REST API conventions
+- [conventions/error-codes.md](conventions/error-codes.md) — error code catalogue
+- [conventions/websocket.md](conventions/websocket.md) — WebSocket conventions + event catalogue
+- [conventions/data.md](conventions/data.md) — MongoDB data conventions + PII inventory
+- [conventions/code-style.md](conventions/code-style.md) — code style
 - [conventions/definition-of-done.md](conventions/definition-of-done.md)
 - [conventions/secrets.md](conventions/secrets.md) — secrets policy
 - [setup/prerequisites.md](setup/prerequisites.md)

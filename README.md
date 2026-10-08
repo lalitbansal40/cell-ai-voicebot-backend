@@ -160,4 +160,5 @@ All project docs (plans, ADRs, conventions) live in [`docs/`](docs/README.md).
 
 - [Definition of Done](docs/conventions/definition-of-done.md)
 - [Secrets policy](docs/conventions/secrets.md)
+- [API conventions](docs/conventions/api.md) · [Error codes](docs/conventions/error-codes.md) · [WebSocket](docs/conventions/websocket.md) · [Data](docs/conventions/data.md) · [Code style](docs/conventions/code-style.md)
 - [Architecture Decision Records](docs/adr/README.md)
