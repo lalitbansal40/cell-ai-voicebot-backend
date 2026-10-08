@@ -8,3 +8,7 @@
 *.pdf binary
 *.mp3 binary
 *.wav binary
+
+# Sample sheets stay byte-exact (BOM + CRLF, like Excel exports)
+docs/samples/*.csv binary
+*.xlsx binary
