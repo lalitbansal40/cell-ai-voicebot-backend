@@ -359,7 +359,7 @@ describe('mapping, cancel, history, template, error report', () => {
     expect(res.headers['content-type']).toContain('text/csv');
     expect(res.headers['content-disposition']).toContain('contacts-template.csv');
     expect(res.text).toBe(
-      '﻿name,phone,email,external_id,tags,loan_amount,due_date,dpd,alt_phone,note\r\n' +
+      '\uFEFFname,phone,email,external_id,tags,loan_amount,due_date,dpd,alt_phone,note\r\n' +
         'Asha Verma,+919876543210,asha@example.com,LN-1001,vip,12500.00,2026-10-05,30,+919876543211,Sample\r\n',
     );
     expect((await request(app).get(`${URL}/template.csv`).set(auth(viewer))).status).toBe(403);

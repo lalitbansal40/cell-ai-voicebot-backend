@@ -24,6 +24,8 @@ import {
 } from '../../shared/errors/app-error';
 import { NAME_COLLATION } from '../contact-lists/contact-lists.service';
 import { loadContactContext, type ContactContext } from '../contacts/context';
+import type { ContactJobs } from '../contacts/jobs';
+import { acquireJobLock, releaseJobLock } from '../contacts/locks';
 import { normalizeTags } from '../contacts/normalize/tags';
 import { formatFieldValue } from '../contacts/normalize/values';
 
@@ -355,4 +357,48 @@ export const errorReportUrl = async (
   if (!job.errorReportKey) throw new NotFoundError('This import has no error report');
   const expiresInSec = CONTACT_LIMITS.exportUrlTtlSec;
   return { url: await storage.signedUrl(job.errorReportKey, { expiresInSec }), expiresInSec };
+};
+
+const RUNNING_MESSAGE =
+  'Another import is being checked or imported for this account — wait for it to finish.';
+
+/** `mapped` / `validated` → `validating` + queued dry run (one per account at a time). */
+export const startValidation = async (
+  req: Request,
+  id: string,
+  jobs: ContactJobs,
+): Promise<PublicImportJob> => {
+  const job = await findImport(req, id);
+  if (job.status !== 'mapped' && job.status !== 'validated') {
+    throw new ConflictError(
+      'CONFLICT_INVALID_STATE',
+      job.status === 'uploaded' ? 'Map the columns first.' : `This import is ${job.status}.`,
+    );
+  }
+  const accountId = job.accountId.toString();
+  const jobId = job._id.toString();
+  if (!(await acquireJobLock('import', accountId, jobId))) {
+    throw new ConflictError('CONFLICT_INVALID_STATE', RUNNING_MESSAGE);
+  }
+  try {
+    const updated = await ImportJobModel.findOneAndUpdate(
+      { _id: job._id, accountId: job.accountId, status: { $in: ['mapped', 'validated'] } },
+      { $set: { status: 'validating', 'progress.processed': 0, 'progress.total': job.rowCount } },
+      { new: true },
+    ).lean<ImportJobDoc>();
+    if (!updated)
+      throw new ConflictError(
+        'CONFLICT_INVALID_STATE',
+        'The import changed meanwhile — reload it.',
+      );
+    await jobs.enqueue('import.validate', { accountId, importJobId: jobId });
+    return toPublicImport(updated);
+  } catch (err) {
+    await releaseJobLock('import', accountId, jobId);
+    await ImportJobModel.updateOne(
+      { _id: job._id, status: 'validating' },
+      { $set: { status: job.status } },
+    );
+    throw err;
+  }
 };

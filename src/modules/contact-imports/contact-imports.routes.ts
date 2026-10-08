@@ -4,7 +4,7 @@ import multer, { memoryStorage, MulterError } from 'multer';
 import { CONTACT_LIMITS } from '../../config/limits';
 import type { StorageProvider } from '../../core/storage';
 import { AppError, ValidationError } from '../../shared/errors/app-error';
-import { created, ok } from '../../shared/http/envelope';
+import { accepted, created, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { requirePermission } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
@@ -23,6 +23,7 @@ import {
   importTemplate,
   listImports,
   setMapping,
+  startValidation,
   uploadImport,
   type UploadedFile,
 } from './contact-imports.service';
@@ -54,7 +55,7 @@ export const uploadFile: RequestHandler = (req, res, next) => {
 /** `/api/v1/contact-imports` — upload → map → validate → import. */
 export const createContactImportsRouter = ({
   storage,
-  jobs: _jobs = unavailableContactJobs,
+  jobs = unavailableContactJobs,
 }: { storage?: StorageProvider; jobs?: ContactJobs } = {}): Router => {
   const router = Router();
   const files = (): StorageProvider => {
@@ -104,6 +105,13 @@ export const createContactImportsRouter = ({
         ok(res, await setMapping(req, params.id, body, files()));
       },
     ),
+  );
+  router.post(
+    '/:id/validate',
+    requirePermission('contacts.import'),
+    ...handle({ params: ImportIdParams }, async ({ params, req, res }) => {
+      accepted(res, await startValidation(req, params.id, jobs));
+    }),
   );
   router.post(
     '/:id/cancel',

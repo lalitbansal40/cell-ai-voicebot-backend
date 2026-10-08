@@ -2769,6 +2769,56 @@
         }
       }
     },
+    "/api/v1/contact-imports/{id}/validate": {
+      "post": {
+        "tags": ["Contact imports"],
+        "summary": "Dry run in the background (mapped / validated → validating → validated). Progress: WS import.progress or GET /{id}.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ImportJob" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/contact-imports/{id}/cancel": {
       "post": {
         "tags": ["Contact imports"],

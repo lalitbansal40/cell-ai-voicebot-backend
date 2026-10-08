@@ -1,7 +1,7 @@
 {
   "name": "cell-ai-voicebot-backend",
   "version": "0.0.1",
-  "description": "Cell AI Voicebot — multi-tenant AI voice calling platform API",
+  "description": "Cell AI Voicebot \u2014 multi-tenant AI voice calling platform API",
   "private": true,
   "license": "UNLICENSED",
   "type": "commonjs",
@@ -38,7 +38,8 @@
     "ws:dev-ticket": "tsx --env-file-if-exists=.env scripts/ws-dev-ticket.ts",
     "email:test": "tsx --env-file-if-exists=.env scripts/email-test.ts",
     "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
-    "superadmin:create": "tsx --env-file-if-exists=.env scripts/superadmin-create.ts"
+    "superadmin:create": "tsx --env-file-if-exists=.env scripts/superadmin-create.ts",
+    "samples:contacts": "tsx scripts/make-contact-samples.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
