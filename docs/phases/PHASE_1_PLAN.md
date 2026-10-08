@@ -149,6 +149,8 @@ Phase 2 (auth, accounts, RBAC, app shell) isi foundation pe seedha shuru ho sake
 
 ### T1.8 — Redis + BullMQ
 
+> **Update (Batch 1):** also plug the **Redis store into `createRateLimiter()`** (`src/shared/middlewares/rate-limit.ts`, MemoryStore until then) so rate limits are shared across API instances.
+
 **Steps:**
 
 - [ ] Deps: `ioredis`, `bullmq`.
@@ -158,6 +160,8 @@ Phase 2 (auth, accounts, RBAC, app shell) isi foundation pe seedha shuru ho sake
 - [ ] Tests: use a real Redis (local Docker) when `REDIS_URL` reachable, else skip with a clear message — **or** add `redis-memory-server`; decide in task, document in README.
 
 ### T1.9 — Health, readiness, system info
+
+> **Update (Batch 1):** `GET /api/v1/system/info` was implemented in **T1.4** as the first route; T1.9 now covers `/health` and `/ready` only.
 
 **Steps:**
 
@@ -273,3 +277,9 @@ Phase 2 (auth, accounts, RBAC, app shell) isi foundation pe seedha shuru ho sake
 | 6   | T1.15, T1.16        |
 
 _Estimate — adjust per review. Run task-wise with prompts built from [TASK_PROMPT_TEMPLATE.md](../prompts/TASK_PROMPT_TEMPLATE.md)._
+
+---
+
+## Changelog
+
+- 2026-10-08: Batch 1 (T1.1–T1.6) done — system info route moved to T1.4; Redis rate-limit store moved to T1.8; `express` installed in T1.2 (types needed by middlewares); `getAppInfo` moved to `src/shared/app-info.ts` (avoids an import cycle).

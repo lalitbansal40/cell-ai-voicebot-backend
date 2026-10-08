@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 1 · Batch 1 (T1.1–T1.6)** — 2026-10-08
+  - Env config: zod schema for every variable, fail-fast startup, names-only errors, production rules (JWT ≥ 32 chars, 32-byte `ENCRYPTION_KEY`, explicit URLs/CORS); new `TRUST_PROXY`, `CLIENT_SSH_KEY_PATH`.
+  - Logging: pino + pino-http, `X-Request-Id`, redaction, phone/email masking, no query strings/bodies in logs.
+  - Errors: `ERROR_CODES` (test-synced with the doc), `AppError` family, success/error envelopes, error + 404 handlers.
+  - Express 5 app (`createApp`), server bootstrap, ordered graceful shutdown with 15 s timeout, `GET /api/v1/system/info`.
+  - Validation: `validate` / typed `handle()` (results on `req.valid`), shared schemas (ObjectId, pagination, cursor, sort allowlist, E.164 phone, money micros, strict query).
+  - Security: helmet, CORS allowlist, body limits (JSON 1 MB / form 100 KB), rate limiting (draft-6 headers, 429 envelope), `trust proxy`.
+  - Tests: 13 → 139.
+
 - **Phase 0 · Batch 1 (T0.1–T0.10)** — 2026-10-08
   - Repo hygiene: `.gitignore`, `.gitattributes`, `.editorconfig`, PR template; branches `main` → `dev` → `feature/phase-0-setup` (both repos).
   - Docs home in `docs/` (plans, phases, prompts, ADRs, conventions, setup, client, PoC/cost/compliance placeholders); task tracker; task prompt template; Definition of Done.

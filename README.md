@@ -21,6 +21,19 @@ npm ci            # install exact dependencies from the lockfile
 npm run dev       # run src/index.ts with tsx in watch mode
 ```
 
+## Running the API
+
+```bash
+cp .env.example .env     # first time; adjust values (never commit .env)
+npm run dev              # tsx watch, loads .env → http://localhost:5100
+curl -s localhost:5100/api/v1/system/info
+```
+
+- Env is validated at startup (`src/config/env.ts`); an invalid env prints the offending variable **names** and exits.
+- `Ctrl-C` / `SIGTERM` → graceful shutdown (ordered hooks, 15 s hard timeout).
+- Production build: `npm run build && npm start`.
+- MongoDB / Redis are not needed yet (connected from T1.7 / T1.8) — `npm run infra:up` will be required then.
+
 ## Local infrastructure
 
 MongoDB (single-node replica set `rs0`) and Redis run in Docker ([docker-compose.yml](docker-compose.yml)). Docker Desktop must be running.
