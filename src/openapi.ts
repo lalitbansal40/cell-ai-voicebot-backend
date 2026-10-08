@@ -12,6 +12,7 @@ import './modules/audit/audit.schema';
 import './modules/auth/auth.schema';
 import './modules/contact-lists/contact-lists.schema';
 import './modules/contacts/contacts.schema';
+import './modules/dnd/dnd.schema';
 import './modules/segments/segments.schema';
 import './modules/custom-fields/custom-fields.schema';
 import './modules/health/health.schema';

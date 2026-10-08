@@ -11,6 +11,7 @@ import { createContactListsRouter } from './modules/contact-lists/contact-lists.
 import { createContactTagsRouter, createContactsRouter } from './modules/contacts/contacts.routes';
 import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
+import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
@@ -45,7 +46,9 @@ export const createApiRouter = ({
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());
+  router.use('/contacts', createOptOutRouter());
   router.use('/contacts', createContactsRouter());
+  router.use('/dnd-entries', createDndRouter());
   router.use('/contact-tags', createContactTagsRouter());
   router.use('/contact-lists', createContactListsRouter({ jobs: contacts.jobs }));
   router.use('/segments', createSegmentsRouter());
