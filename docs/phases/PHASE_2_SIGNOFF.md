@@ -106,7 +106,18 @@ Batch checkpoints: `9a7355b` `[P2-B1-DONE]`, `61bf9fa` `[P2-B2-DONE]`, `[P2-B3-D
 
 ## 6. Verification (P2-B3-DONE)
 
-_Filled at the checkpoint._
+Checked on 2026-10-09 (`npm run infra:up`; dev servers stopped):
+
+| Check                                                                                                                                                               | Result                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Backend lint, format:check, typecheck, build, `openapi:check`, `test:coverage` (540 tests, gate 95 / 80 / 90 / 95 met), actionlint                                  | ✅                                                            |
+| Frontend lint, format:check, typecheck, `test:coverage` (187 tests, gate 90 / 85 / 85 / 90 met), build (DEV page absent from `dist/`), actionlint (incl. `e2e.yml`) | ✅                                                            |
+| Playwright E2E — 5 scenarios, **run twice in a row**                                                                                                                | ✅ 5 / 5 both runs (~27 s each)                               |
+| Fresh clone of both repos side by side → `npm ci` + all checks **without any `.env`**, `gen:api` → no diff, E2E from the clone (= CI workflow conditions)           | ✅ (E2E 5 / 5)                                                |
+| Backend logs during E2E (`E2E_BACKEND_LOGS=1`, 570 lines): no passwords, codes, reset / invite tokens, cookies, `Bearer`, JWTs; recipients masked (`e***@…`)        | ✅                                                            |
+| Cookie flags, Origin check, auth rate limits, enumeration-safe responses, token invalidation, tenant isolation                                                      | ✅ covered by the tests in §3                                 |
+| gitleaks over both full histories + grep for key patterns / tracked `.env`                                                                                          | ✅ no findings (test passphrases allowlisted in the frontend) |
+| `npm run infra:down` at the end                                                                                                                                     | ✅                                                            |
 
 ## 7. Remaining TODOs (by phase)
 
