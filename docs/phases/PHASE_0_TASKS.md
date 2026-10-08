@@ -28,3 +28,5 @@ Source plan: [PHASE_0_PLAN.md](PHASE_0_PLAN.md) · Batch 1 prompt: [../prompts/P
 | [x]  | T0.20 | Phase 0 review, sign-off & plan update                                      | S    | 4     |
 
 Sign-off: [PHASE_0_SIGNOFF.md](PHASE_0_SIGNOFF.md) · Next: [PHASE_1_PLAN.md](PHASE_1_PLAN.md) / [PHASE_1_TASKS.md](PHASE_1_TASKS.md)
+
+**Status:** Phase 0 complete (`P0-DONE`, 2026-10-08) — T0.15 live runs and T0.19 audit pending external inputs (OpenAI key, client SSH key).
