@@ -68,6 +68,143 @@
         },
         "required": ["nextCursor", "hasMore"]
       },
+      "Accepted": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "example": "Check your email for a verification code." }
+        },
+        "required": ["message"]
+      },
+      "PublicUser": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "phone": { "type": ["string", "null"] },
+          "status": { "type": "string", "enum": ["invited", "active", "disabled"] },
+          "emailVerifiedAt": { "type": ["string", "null"] },
+          "lastLoginAt": { "type": ["string", "null"] },
+          "platformRole": { "type": ["string", "null"], "enum": ["superadmin", null] },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "phone",
+          "status",
+          "emailVerifiedAt",
+          "lastLoginAt",
+          "platformRole",
+          "createdAt"
+        ]
+      },
+      "PublicAccount": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "status": { "type": "string", "enum": ["active", "suspended"] },
+          "suspendReason": { "type": ["string", "null"] },
+          "ownerId": { "type": ["string", "null"] },
+          "isPlatform": { "type": "boolean" },
+          "timezone": { "type": "string" },
+          "country": { "type": "string" },
+          "defaultLanguage": { "type": "string", "enum": ["hi", "en", "hinglish"] },
+          "settings": {
+            "type": "object",
+            "properties": {
+              "callingWindow": {
+                "type": "object",
+                "properties": {
+                  "start": { "type": "string", "example": "09:00" },
+                  "end": { "type": "string", "example": "19:00" },
+                  "days": {
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0, "maximum": 6 },
+                    "example": [1, 2, 3, 4, 5, 6]
+                  }
+                },
+                "required": ["start", "end", "days"]
+              },
+              "recordingEnabled": { "type": "boolean" },
+              "aiDisclosureEnabled": { "type": "boolean" }
+            },
+            "required": ["callingWindow", "recordingEnabled", "aiDisclosureEnabled"]
+          },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "status",
+          "suspendReason",
+          "ownerId",
+          "isPlatform",
+          "timezone",
+          "country",
+          "defaultLanguage",
+          "settings",
+          "createdAt"
+        ]
+      },
+      "AuthMe": {
+        "type": "object",
+        "properties": {
+          "user": { "$ref": "#/components/schemas/PublicUser" },
+          "account": { "$ref": "#/components/schemas/PublicAccount" },
+          "role": {
+            "type": "object",
+            "properties": { "key": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["key", "name"]
+          },
+          "permissions": { "type": "array", "items": { "type": "string" } },
+          "impersonation": {
+            "type": ["object", "null"],
+            "properties": {
+              "impersonatorId": { "type": "string" },
+              "expiresAt": { "type": "string" }
+            },
+            "required": ["impersonatorId", "expiresAt"]
+          }
+        },
+        "required": ["user", "account", "role", "permissions", "impersonation"]
+      },
+      "AuthSession": {
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string" },
+          "expiresIn": { "type": "integer", "example": 900 },
+          "user": { "$ref": "#/components/schemas/PublicUser" },
+          "account": { "$ref": "#/components/schemas/PublicAccount" },
+          "role": {
+            "type": "object",
+            "properties": { "key": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["key", "name"]
+          },
+          "permissions": { "type": "array", "items": { "type": "string" } },
+          "impersonation": {
+            "type": ["object", "null"],
+            "properties": {
+              "impersonatorId": { "type": "string" },
+              "expiresAt": { "type": "string" }
+            },
+            "required": ["impersonatorId", "expiresAt"]
+          }
+        },
+        "required": [
+          "accessToken",
+          "expiresIn",
+          "user",
+          "account",
+          "role",
+          "permissions",
+          "impersonation"
+        ]
+      },
       "Health": {
         "type": "object",
         "properties": {
@@ -135,6 +272,171 @@
     "parameters": {}
   },
   "paths": {
+    "/api/v1/auth/signup": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Create an account + owner; sends a 6-digit email code (always 202)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "businessName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80,
+                    "example": "Demo Finance"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "example": "Asha Verma"
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "example": "asha@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "format": "password"
+                  },
+                  "phone": { "type": "string" },
+                  "timezone": { "type": "string", "example": "Asia/Kolkata" }
+                },
+                "required": ["businessName", "name", "email", "password"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Confirm the email code and sign in",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "example": "asha@example.com"
+                  },
+                  "code": { "type": "string", "pattern": "^\\d{6}$", "example": "042917" }
+                },
+                "required": ["email", "code"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in. Sets the httpOnly `cav_rt` refresh cookie (Path=/api/v1/auth, SameSite=Strict).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AuthSession" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-email/resend": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Send a new email code (always 202; 60 s cooldown, 5 per hour)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "example": "asha@example.com"
+                  }
+                },
+                "required": ["email"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": ["System"],

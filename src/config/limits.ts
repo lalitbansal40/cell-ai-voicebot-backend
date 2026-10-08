@@ -13,3 +13,10 @@ export const UNLIMITED_PATHS: readonly string[] = ['/health', '/ready'];
 
 /** Default lifetime of signed download URLs (seconds). */
 export const SIGNED_URL_TTL_SEC = 900;
+
+/**
+ * Public auth routes (signup, OTP, login, refresh, reset, accept invite):
+ * per IP **and** route. Generous enough for an office behind one NAT;
+ * brute force is stopped by the per-email lockout and OTP attempt caps.
+ */
+export const AUTH_RATE_LIMIT = { windowMs: 15 * 60_000, limit: 30 } as const;

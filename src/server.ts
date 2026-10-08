@@ -120,6 +120,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     env,
     logger,
     rateLimitStore: createRedisRateLimitStore(redis),
+    authRateLimitStore: createRedisRateLimitStore(redis, 'rl:auth:'),
     storage: createStorage(env, logger),
     readiness: {
       checks: { mongo: () => pingMongo(), redis: () => pingRedis(redis) },

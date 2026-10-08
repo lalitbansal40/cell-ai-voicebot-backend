@@ -30,6 +30,9 @@ export interface AppDeps {
   readiness?: ReadinessDeps;
   /** File storage; the local driver also mounts the signed `/files/*` download route. */
   storage?: StorageProvider;
+  /** Auth routes limiter: separate Redis store (`rl:auth:`) + test overrides. */
+  authRateLimitStore?: Store;
+  authRateLimit?: Partial<RateLimiterOptions>;
 }
 
 /**
@@ -43,6 +46,8 @@ export const createApp = ({
   rateLimitStore,
   readiness,
   storage,
+  authRateLimitStore,
+  authRateLimit,
 }: AppDeps): Express => {
   const app = express();
   app.disable('x-powered-by');
@@ -64,7 +69,13 @@ export const createApp = ({
   app.use(createHealthRouter(readiness ?? { checks: {}, isShuttingDown: () => false }));
   if (storage instanceof LocalStorage) app.use(createFilesRouter(storage));
   if (env.API_DOCS_ENABLED) app.use(createDocsRouter());
-  app.use('/api/v1', createApiRouter({ env }));
+  app.use(
+    '/api/v1',
+    createApiRouter({
+      env,
+      auth: { rateLimitStore: authRateLimitStore, rateLimit: authRateLimit },
+    }),
+  );
 
   app.use(notFound());
   app.use(errorHandler());
