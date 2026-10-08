@@ -16,10 +16,10 @@ Source plan: [PHASE_0_PLAN.md](PHASE_0_PLAN.md) · Batch 1 prompt: [../prompts/P
 | [x]  | T0.8  | Testing setup (both repos)                      | S    | 1     |
 | [x]  | T0.9  | Local infra: Docker Compose (MongoDB + Redis)   | S    | 1     |
 | [x]  | T0.10 | Env & secrets conventions                       | S    | 1     |
-| [ ]  | T0.11 | API, WebSocket & data conventions doc           | M    | 2     |
-| [ ]  | T0.12 | Shared types strategy + proof                   | S    | 2     |
-| [ ]  | T0.13 | Core data model draft (ERD)                     | M    | 2     |
-| [ ]  | T0.14 | CI pipeline (GitHub Actions)                    | S    | 2     |
+| [x]  | T0.11 | API, WebSocket & data conventions doc           | M    | 2     |
+| [x]  | T0.12 | Shared types strategy + proof                   | S    | 2     |
+| [x]  | T0.13 | Core data model draft (ERD)                     | M    | 2     |
+| [x]  | T0.14 | CI pipeline (GitHub Actions)                    | S    | 2     |
 | [ ]  | T0.15 | Voice AI PoC                                    | L    | 3     |
 | [ ]  | T0.16 | SIP local lab (optional, recommended)           | M    | 3     |
 | [ ]  | T0.17 | Cost model draft                                | S    | 3     |

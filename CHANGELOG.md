@@ -17,6 +17,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   - Local infra: Docker Compose with MongoDB 8.2 single-node replica set (27018) and Redis 7.4 (6380).
   - `.env.example` (both repos) and secrets policy.
 
+- **Phase 0 · Batch 2 (T0.11–T0.14)** — 2026-10-08
+  - Conventions: API (envelopes, pagination, idempotency, headers), error code catalogue, WebSocket (single-use tickets, event catalogue, media protocol), data (tenancy, soft delete, PII inventory), code style.
+  - OpenAPI 3.1 generated from zod schemas (`npm run gen:openapi`, `openapi:check`); frontend types generated with `openapi-typescript` (`npm run gen:api`) — ADR 0029.
+  - Core data model draft with Mermaid ERDs (`docs/conventions/data-model.md`).
+  - GitHub Actions CI (verify, gitleaks secrets scan, npm audit, commitlint), Dependabot, `.gitleaks.toml`, GitHub settings guide.
+
 ### Changed
 
-- Plan updates: Node 20 → 24 LTS (Node 20 EOL), MongoDB 8.0 → 8.2 (8.0 fails on Linux kernel ≥ 6.19), ports → 5100/3100/27018/6380, React 18 → 19, ESLint 10 → 9 (plugin peer compatibility), TypeScript 7 → 6.0 (typescript-eslint support).
+- Plan updates: Node 20 → 24 LTS (Node 20 EOL), MongoDB 8.0 → 8.2 (8.0 fails on Linux kernel ≥ 6.19), ports → 5100/3100/27018/6380, React 18 → 19, ESLint 10 → 9 (plugin peer compatibility), TypeScript 7 → 6.0 (typescript-eslint support); `openapi-typescript` runs on TS 6 via npm `overrides` (ADR 0029); lint-staged skips ESLint-ignored files (`--no-warn-ignored`).
