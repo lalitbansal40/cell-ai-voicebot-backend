@@ -80,6 +80,18 @@ export const historyWindow = (turns: TurnSession['turns']): ChatMessage[] => {
     : messages;
 };
 
+/**
+ * What to search the knowledge with: the user's words; a very short message
+ * ("haan", "kitna?") also takes the last assistant turn for context — a long
+ * one would only be diluted by it.
+ */
+export const retrievalQuery = (userText: string, turns: TurnSession['turns']): string => {
+  const words = userText.trim().split(/\s+/).filter(Boolean).length;
+  if (words >= 4) return userText.trim();
+  const lastAssistant = [...turns].reverse().find((t) => t.role === 'assistant')?.text ?? '';
+  return `${userText}\n${lastAssistant}`.trim();
+};
+
 const knowledgeBlock = (hits: { chunkId: string; title: string; text: string }[]): string =>
   [
     KNOWLEDGE_PREAMBLE,
@@ -153,12 +165,10 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
     // ── knowledge (user text + the last assistant turn) ──
     const messages: ChatMessage[] = [{ role: 'system', content: compiled.instructions }];
     if (agent.knowledge.knowledgeBaseIds.length) {
-      const lastAssistant =
-        [...session.turns].reverse().find((t) => t.role === 'assistant')?.text ?? '';
       const found = await searchKnowledgeBases(
         accountId,
         agent.knowledge.knowledgeBaseIds,
-        `${input.userText}\n${lastAssistant}`.trim(),
+        retrievalQuery(input.userText, session.turns),
         { topK: agent.knowledge.topK, minScore: agent.knowledge.minScoreHundredths / 100 },
         { provider: input.provider, model: input.embeddingModel },
       );

@@ -10,6 +10,7 @@ import type { HttpToolOptions } from '../../src/core/ai/http-tool';
 import {
   HISTORY_MARKER,
   historyWindow,
+  retrievalQuery,
   runAgentTurn,
   type TurnInput,
 } from '../../src/core/ai/run-turn';
@@ -249,7 +250,18 @@ describe('runAgentTurn — conversations', () => {
     const agent = await makeAgent({
       knowledge: { knowledgeBaseIds: [kb._id], topK: 2, minScoreHundredths: 10 },
     });
-    const out = await turn(agent, 'late fee kitni lagti hai?');
+    // an earlier assistant turn must not dilute the search (P5-B2 manual check)
+    const out = await turn(agent, 'late fee kitni lagti hai?', {
+      session: session({
+        turns: [
+          {
+            role: 'assistant',
+            text: 'Theek hai, 10 Oct 2026 tak ka promise note kar liya.',
+            clientTurnId: null,
+          },
+        ],
+      }),
+    });
     expect(out.turn.text).toBe(
       'Due date ke baad har din ₹50 late fee lagti hai, maximum ₹500 tak.',
     );
@@ -411,6 +423,18 @@ describe('runAgentTurn — guardrails, fallbacks and gates', () => {
     const all = writes.join('\n');
     for (const s of ['SECRET-USER-TEXT', 'vinamra recovery', 'Asha Verma', '9000000002'])
       expect(all).not.toContain(s);
+  });
+});
+
+describe('retrievalQuery', () => {
+  it('uses the user words, adding the last assistant turn only to short messages', () => {
+    const turns = [
+      { role: 'assistant' as const, text: 'Aapki EMI ₹2,500 hai.', clientTurnId: null },
+      { role: 'user' as const, text: 'ok', clientTurnId: null },
+    ];
+    expect(retrievalQuery('late fee kitni lagti hai?', turns)).toBe('late fee kitni lagti hai?');
+    expect(retrievalQuery('kitna?', turns)).toBe('kitna?\nAapki EMI ₹2,500 hai.');
+    expect(retrievalQuery('haan', [])).toBe('haan');
   });
 });
 
