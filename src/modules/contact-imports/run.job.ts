@@ -103,12 +103,19 @@ const contactWrites = async (
         callCount: 0,
       };
       const deletedId = revive.get(phone);
+      // A revived contact keeps its opt-out and call history (compliance record).
+      const {
+        optedOutAt: _optedOut,
+        lastCalledAt: _lastCalled,
+        callCount: _calls,
+        ...revived
+      } = doc;
       ops.push(
         deletedId
           ? {
               updateOne: {
                 filter: { _id: deletedId, accountId: job.accountId },
-                update: { $set: { ...doc, deletedAt: null } },
+                update: { $set: { ...revived, deletedAt: null } },
               },
             }
           : {

@@ -275,6 +275,15 @@ describe('import run — options and edge cases', () => {
       source: { type: 'manual' },
       variables: { loan_amount: 1 },
       deletedAt: new Date(),
+      optedOutAt: new Date('2026-09-01T00:00:00Z'),
+      lastCalledAt: new Date('2026-09-02T00:00:00Z'),
+      callCount: 3,
+    });
+    await DndEntryModel.create({
+      accountId: t.account._id,
+      phoneE164: '+919000100003',
+      source: 'manual',
+      reason: 'Opted out',
     });
     const id = await readyToRun(owner, acc);
     await runImport({ accountId: acc, importJobId: id }, deps);
@@ -289,6 +298,11 @@ describe('import run — options and edge cases', () => {
       deletedAt: null,
       name: 'Test Borrower 003',
       source: { type: 'import' },
+      // opt-out and call history survive delete + re-import
+      optedOutAt: new Date('2026-09-01T00:00:00Z'),
+      lastCalledAt: new Date('2026-09-02T00:00:00Z'),
+      callCount: 3,
+      dnd: true,
     });
   });
 
