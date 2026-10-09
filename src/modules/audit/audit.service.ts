@@ -23,7 +23,8 @@ export interface AuditInput {
   ip?: string | null;
 }
 
-const SECRET_KEY = /pass|token|secret|code|otp|cookie|authorization|hash/i;
+// `token` but not token counts (`inputTokens`, `aiTextPer1kTokensMicros`)
+const SECRET_KEY = /pass|token(?!s)|secret|code|otp|cookie|authorization|hash/i;
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 /** Drops secret-looking keys and masks e-mail values (data.md §9). */

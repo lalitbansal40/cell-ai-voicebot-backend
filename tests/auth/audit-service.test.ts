@@ -36,6 +36,22 @@ describe('sanitizeMeta', () => {
     expect(sanitizeMeta(null)).toBeNull();
     expect(sanitizeMeta(42)).toBe(42);
   });
+
+  it('keeps token counts and per-token prices (only real tokens are dropped)', () => {
+    expect(
+      sanitizeMeta({
+        accessToken: 'a',
+        token: 'b',
+        changes: { aiTextPer1kTokensMicros: { from: 1, to: 2 } },
+        inputTokens: 10,
+        embeddingTokens: 5,
+      }),
+    ).toEqual({
+      changes: { aiTextPer1kTokensMicros: { from: 1, to: 2 } },
+      inputTokens: 10,
+      embeddingTokens: 5,
+    });
+  });
 });
 
 describe('recordAudit', () => {
