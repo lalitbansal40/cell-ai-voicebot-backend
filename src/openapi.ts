@@ -7,6 +7,7 @@ import { registry } from './shared/openapi/registry';
 // with API routes here.
 import './modules/account/account.schema';
 import './modules/admin/admin.schema';
+import './modules/ai-agents/agents.schema';
 import './modules/api-keys/api-keys.schema';
 import './modules/audit/audit.schema';
 import './modules/auth/auth.schema';

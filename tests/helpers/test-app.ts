@@ -11,7 +11,15 @@ export const buildTestApp = (
   overrides: NodeJS.ProcessEnv = {},
   deps: Pick<
     AppDeps,
-    'rateLimit' | 'authRateLimit' | 'storage' | 'contactJobs' | 'payments' | 'billingJobs'
+    | 'rateLimit'
+    | 'authRateLimit'
+    | 'storage'
+    | 'contactJobs'
+    | 'payments'
+    | 'billingJobs'
+    | 'aiProvider'
+    | 'aiJobs'
+    | 'aiRateLimitStores'
   > = {},
 ) => {
   const env = testEnv(overrides);

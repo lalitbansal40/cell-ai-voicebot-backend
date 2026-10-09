@@ -2,13 +2,14 @@ import { Router } from 'express';
 import type { Store } from 'express-rate-limit';
 
 import type { Env } from './config/env';
-import type { AiProvider } from './core/ai';
+import { createFakeProvider, type AiProvider } from './core/ai';
 import type { AiJobs } from './core/ai/jobs';
 import { unavailableBillingJobs, type BillingJobs } from './core/billing/jobs';
 import { createPaymentProvider, type PaymentProvider } from './core/payments';
 import type { StorageProvider } from './core/storage';
 import { createAccountRouter } from './modules/account/account.routes';
 import { createAdminRouter } from './modules/admin/admin.routes';
+import { createAgentsRouter } from './modules/ai-agents/agents.routes';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
@@ -59,7 +60,7 @@ export const createApiRouter = ({
   auth = {},
   contacts = {},
   billing = {},
-  ai: _ai,
+  ai = { provider: createFakeProvider() },
 }: {
   env: Pick<
     Env,
@@ -72,6 +73,9 @@ export const createApiRouter = ({
     | 'RAZORPAY_KEY_ID'
     | 'RAZORPAY_KEY_SECRET'
     | 'RAZORPAY_WEBHOOK_SECRET'
+    | 'MOCK_APIS_ENABLED'
+    | 'AI_TEXT_MODELS'
+    | 'OPENAI_TEXT_MODEL'
   >;
   auth?: Omit<AuthRouterDeps, 'env'>;
   contacts?: ContactsDeps;
@@ -122,5 +126,6 @@ export const createApiRouter = ({
     createContactImportsRouter({ storage: contacts.storage, jobs: contacts.jobs }),
   );
   router.use('/custom-fields', createCustomFieldsRouter({ jobs: contacts.jobs }));
+  router.use('/agents', createAgentsRouter({ env, provider: ai.provider }));
   return router;
 };

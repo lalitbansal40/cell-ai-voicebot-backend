@@ -343,6 +343,492 @@
         },
         "required": ["account", "owner", "usersCount", "usersByStatus", "recentAudit"]
       },
+      "AgentFunction": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "type": {
+                  "type": "string",
+                  "enum": ["string", "number", "integer", "boolean", "enum"]
+                },
+                "description": { "type": "string" },
+                "required": { "type": "boolean" },
+                "enumValues": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["name", "type", "description", "required"]
+            }
+          },
+          "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH"] },
+          "url": { "type": "string" },
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "secret": { "type": "boolean" },
+                "value": {
+                  "type": ["string", "null"],
+                  "description": "Plain headers only; secret ones are never returned"
+                },
+                "valueHint": {
+                  "type": ["string", "null"],
+                  "description": "`••••1234` for secret headers"
+                }
+              },
+              "required": ["name", "secret", "value", "valueHint"]
+            }
+          },
+          "bodyTemplate": { "type": ["string", "null"] },
+          "resultPath": { "type": ["string", "null"] },
+          "responseHint": { "type": ["string", "null"] },
+          "timeoutMs": { "type": "number" }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "parameters",
+          "method",
+          "url",
+          "headers",
+          "bodyTemplate",
+          "resultPath",
+          "responseHint",
+          "timeoutMs"
+        ]
+      },
+      "Agent": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "persona": { "type": "string" },
+          "openingLine": { "type": "string" },
+          "closingLine": { "type": "string" },
+          "isActive": { "type": "boolean" },
+          "templateKey": { "type": ["string", "null"] },
+          "allowedVariables": { "type": "array", "items": { "type": "string" } },
+          "voice": {
+            "type": "string",
+            "enum": [
+              "alloy",
+              "ash",
+              "ballad",
+              "coral",
+              "echo",
+              "sage",
+              "shimmer",
+              "verse",
+              "marin",
+              "cedar"
+            ]
+          },
+          "languageMode": { "type": "string", "enum": ["auto", "fixed"] },
+          "language": { "type": "string", "enum": ["hi", "en", "hinglish"] },
+          "toneRules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "when": {
+                  "type": "string",
+                  "enum": ["angry", "confused", "sad", "in_a_hurry", "abusive", "custom"]
+                },
+                "customWhen": { "type": ["string", "null"] },
+                "respond": { "type": "string" }
+              },
+              "required": ["when", "customWhen", "respond"]
+            }
+          },
+          "callBehaviour": {
+            "type": "object",
+            "properties": {
+              "maxCallDurationSec": { "type": "number" },
+              "silenceTimeoutSec": { "type": "number" },
+              "bargeIn": { "type": "boolean" },
+              "endCallAfterSilenceRetries": { "type": "number" }
+            },
+            "required": [
+              "maxCallDurationSec",
+              "silenceTimeoutSec",
+              "bargeIn",
+              "endCallAfterSilenceRetries"
+            ]
+          },
+          "model": {
+            "type": "object",
+            "properties": {
+              "textModel": { "type": "string" },
+              "temperatureTenths": { "type": "number" },
+              "maxOutputTokens": { "type": "number" }
+            },
+            "required": ["textModel", "temperatureTenths", "maxOutputTokens"]
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "dailySpendCapMicros": { "type": "number" },
+              "monthlySpendCapMicros": { "type": "number" },
+              "onCap": { "type": "string", "enum": ["stop", "fallback"] }
+            },
+            "required": ["dailySpendCapMicros", "monthlySpendCapMicros", "onCap"]
+          },
+          "guardrails": {
+            "type": "object",
+            "properties": {
+              "neverSay": { "type": "array", "items": { "type": "string" } },
+              "disclosureLine": { "type": "string" },
+              "complianceMode": { "type": "string", "enum": ["recovery", "general"] }
+            },
+            "required": ["neverSay", "disclosureLine", "complianceMode"]
+          },
+          "fallback": {
+            "type": "object",
+            "properties": {
+              "aiFailed": { "type": "string" },
+              "walletEmpty": { "type": "string" },
+              "agentOff": { "type": "string" },
+              "capReached": { "type": "string" }
+            },
+            "required": ["aiFailed", "walletEmpty", "agentOff", "capReached"]
+          },
+          "knowledge": {
+            "type": "object",
+            "properties": {
+              "knowledgeBaseIds": { "type": "array", "items": { "type": "string" } },
+              "topK": { "type": "number" },
+              "minScoreHundredths": { "type": "number" }
+            },
+            "required": ["knowledgeBaseIds", "topK", "minScoreHundredths"]
+          },
+          "functions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AgentFunction" }
+          },
+          "builtInTools": {
+            "type": "object",
+            "properties": {
+              "endCall": {
+                "type": "object",
+                "properties": { "enabled": { "type": "boolean" } },
+                "required": ["enabled"]
+              },
+              "transferToHuman": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "phone": { "type": ["string", "null"] },
+                  "message": { "type": ["string", "null"] }
+                },
+                "required": ["enabled", "phone", "message"]
+              },
+              "setDisposition": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "allowed": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "paid",
+                        "promise_to_pay",
+                        "callback_requested",
+                        "wrong_number",
+                        "refused_to_pay",
+                        "dispute",
+                        "not_interested",
+                        "language_barrier",
+                        "other"
+                      ]
+                    }
+                  }
+                },
+                "required": ["enabled", "allowed"]
+              },
+              "scheduleCallback": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "maxDaysAhead": { "type": "number" }
+                },
+                "required": ["enabled", "maxDaysAhead"]
+              },
+              "savePromiseToPay": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "maxDaysAhead": { "type": "number" }
+                },
+                "required": ["enabled", "maxDaysAhead"]
+              },
+              "sendSmsAfterCall": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "templates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": { "key": { "type": "string" }, "text": { "type": "string" } },
+                      "required": ["key", "text"]
+                    }
+                  }
+                },
+                "required": ["enabled", "templates"]
+              }
+            },
+            "required": [
+              "endCall",
+              "transferToHuman",
+              "setDisposition",
+              "scheduleCallback",
+              "savePromiseToPay",
+              "sendSmsAfterCall"
+            ]
+          },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "persona",
+          "openingLine",
+          "closingLine",
+          "isActive",
+          "templateKey",
+          "allowedVariables",
+          "voice",
+          "languageMode",
+          "language",
+          "toneRules",
+          "callBehaviour",
+          "model",
+          "limits",
+          "guardrails",
+          "fallback",
+          "knowledge",
+          "functions",
+          "builtInTools",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AgentRow": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "isActive": { "type": "boolean" },
+          "voice": {
+            "type": "string",
+            "enum": [
+              "alloy",
+              "ash",
+              "ballad",
+              "coral",
+              "echo",
+              "sage",
+              "shimmer",
+              "verse",
+              "marin",
+              "cedar"
+            ]
+          },
+          "languageMode": { "type": "string", "enum": ["auto", "fixed"] },
+          "language": { "type": "string", "enum": ["hi", "en", "hinglish"] },
+          "knowledgeBases": { "type": "number" },
+          "functions": { "type": "number" },
+          "monthSpendMicros": { "type": "number" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "isActive",
+          "voice",
+          "languageMode",
+          "language",
+          "knowledgeBases",
+          "functions",
+          "monthSpendMicros",
+          "updatedAt"
+        ]
+      },
+      "AgentTemplate": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "language": { "type": "string" }
+        },
+        "required": ["key", "title", "summary", "language"]
+      },
+      "AgentCatalog": {
+        "type": "object",
+        "properties": {
+          "provider": { "type": "string", "enum": ["openai", "fake"] },
+          "voices": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "alloy",
+                "ash",
+                "ballad",
+                "coral",
+                "echo",
+                "sage",
+                "shimmer",
+                "verse",
+                "marin",
+                "cedar"
+              ]
+            }
+          },
+          "languages": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["hi", "en", "hinglish"] }
+          },
+          "toneTriggers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["angry", "confused", "sad", "in_a_hurry", "abusive", "custom"]
+            }
+          },
+          "dispositions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "paid",
+                "promise_to_pay",
+                "callback_requested",
+                "wrong_number",
+                "refused_to_pay",
+                "dispute",
+                "not_interested",
+                "language_barrier",
+                "other"
+              ]
+            }
+          },
+          "builtInTools": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "end_call",
+                "transfer_to_human",
+                "set_disposition",
+                "schedule_callback",
+                "save_promise_to_pay",
+                "send_sms_after_call"
+              ]
+            }
+          },
+          "textModels": { "type": "array", "items": { "type": "string" } },
+          "defaultTextModel": { "type": "string" },
+          "variables": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "label": { "type": "string" },
+                "type": {
+                  "type": "string",
+                  "enum": ["text", "number", "currency", "date", "phone", "built_in"]
+                }
+              },
+              "required": ["name", "label", "type"]
+            }
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "functionsPerAgent": { "type": "number" },
+              "kbPerAgent": { "type": "number" },
+              "personaMaxChars": { "type": "number" },
+              "messageMaxChars": { "type": "number" }
+            },
+            "required": ["functionsPerAgent", "kbPerAgent", "personaMaxChars", "messageMaxChars"]
+          }
+        },
+        "required": [
+          "provider",
+          "voices",
+          "languages",
+          "toneTriggers",
+          "dispositions",
+          "builtInTools",
+          "textModels",
+          "defaultTextModel",
+          "variables",
+          "limits"
+        ]
+      },
+      "AgentCompilePreview": {
+        "type": "object",
+        "properties": {
+          "instructions": { "type": "string" },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "name": { "type": "string" }, "description": { "type": "string" } },
+              "required": ["name", "description"]
+            }
+          },
+          "openingLine": { "type": "string" },
+          "closingLine": { "type": "string" },
+          "variables": { "type": "object", "additionalProperties": { "type": "string" } },
+          "warnings": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["instructions", "tools", "openingLine", "closingLine", "variables", "warnings"]
+      },
+      "AgentUsage": {
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "object",
+            "properties": {
+              "day": { "type": "string" },
+              "spentMicros": { "type": "number" },
+              "turns": { "type": "number" }
+            },
+            "required": ["day", "spentMicros", "turns"]
+          },
+          "month": {
+            "type": "object",
+            "properties": {
+              "month": { "type": "string" },
+              "spentMicros": { "type": "number" },
+              "turns": { "type": "number" },
+              "inputTokens": { "type": "number" },
+              "outputTokens": { "type": "number" }
+            },
+            "required": ["month", "spentMicros", "turns", "inputTokens", "outputTokens"]
+          }
+        },
+        "required": ["today", "month"]
+      },
       "ApiKey": {
         "type": "object",
         "properties": {
@@ -2815,6 +3301,888 @@
           },
           "409": {
             "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "tags": ["AI agents"],
+        "summary": "AI agents of the account (agents.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "required": false,
+            "name": "activeOnly",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AgentRow" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["AI agents"],
+        "summary": "Create an agent, blank or from a template (agents.write; not while impersonating)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "description": { "type": ["string", "null"], "maxLength": 300 },
+                  "templateKey": { "type": "string", "maxLength": 40 }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Agent" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/templates": {
+      "get": {
+        "tags": ["AI agents"],
+        "summary": "Ready-made agent templates",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AgentTemplate" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/catalog": {
+      "get": {
+        "tags": ["AI agents"],
+        "summary": "Voices, languages, tone triggers, dispositions, models, variables and the AI provider in use",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AgentCatalog" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}": {
+      "get": {
+        "tags": ["AI agents"],
+        "summary": "One agent (secret header values are never returned)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Agent" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["AI agents"],
+        "summary": "Change an agent (only the fields sent; arrays are replaced)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "description": { "type": ["string", "null"], "maxLength": 300 },
+                  "persona": { "type": "string", "maxLength": 8000 },
+                  "openingLine": { "type": "string", "maxLength": 500 },
+                  "closingLine": { "type": "string", "maxLength": 500 },
+                  "allowedVariables": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,39}$" },
+                    "maxItems": 30
+                  },
+                  "voice": {
+                    "type": "string",
+                    "enum": [
+                      "alloy",
+                      "ash",
+                      "ballad",
+                      "coral",
+                      "echo",
+                      "sage",
+                      "shimmer",
+                      "verse",
+                      "marin",
+                      "cedar"
+                    ]
+                  },
+                  "languageMode": { "type": "string", "enum": ["auto", "fixed"] },
+                  "language": { "type": "string", "enum": ["hi", "en", "hinglish"] },
+                  "toneRules": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "when": {
+                          "type": "string",
+                          "enum": ["angry", "confused", "sad", "in_a_hurry", "abusive", "custom"]
+                        },
+                        "customWhen": { "type": ["string", "null"], "maxLength": 100 },
+                        "respond": { "type": "string", "minLength": 1, "maxLength": 300 }
+                      },
+                      "required": ["when", "respond"],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 10
+                  },
+                  "callBehaviour": {
+                    "type": "object",
+                    "properties": {
+                      "maxCallDurationSec": { "type": "integer", "minimum": 60, "maximum": 1800 },
+                      "silenceTimeoutSec": { "type": "integer", "minimum": 3, "maximum": 30 },
+                      "bargeIn": { "type": "boolean" },
+                      "endCallAfterSilenceRetries": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 3
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "model": {
+                    "type": "object",
+                    "properties": {
+                      "textModel": { "type": "string", "maxLength": 64 },
+                      "temperatureTenths": { "type": "integer", "minimum": 0, "maximum": 12 },
+                      "maxOutputTokens": { "type": "integer", "minimum": 50, "maximum": 1000 }
+                    },
+                    "additionalProperties": false
+                  },
+                  "limits": {
+                    "type": "object",
+                    "properties": {
+                      "dailySpendCapMicros": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100000000000
+                      },
+                      "monthlySpendCapMicros": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100000000000
+                      },
+                      "onCap": { "type": "string", "enum": ["stop", "fallback"] }
+                    },
+                    "additionalProperties": false
+                  },
+                  "guardrails": {
+                    "type": "object",
+                    "properties": {
+                      "neverSay": {
+                        "type": "array",
+                        "items": { "type": "string", "minLength": 1, "maxLength": 100 },
+                        "maxItems": 20
+                      },
+                      "disclosureLine": { "type": "string", "maxLength": 500 },
+                      "complianceMode": { "type": "string", "enum": ["recovery", "general"] }
+                    },
+                    "additionalProperties": false
+                  },
+                  "fallback": {
+                    "type": "object",
+                    "properties": {
+                      "aiFailed": { "type": "string", "minLength": 1, "maxLength": 300 },
+                      "walletEmpty": { "type": "string", "minLength": 1, "maxLength": 300 },
+                      "agentOff": { "type": "string", "minLength": 1, "maxLength": 300 },
+                      "capReached": { "type": "string", "minLength": 1, "maxLength": 300 }
+                    },
+                    "additionalProperties": false
+                  },
+                  "knowledge": {
+                    "type": "object",
+                    "properties": {
+                      "knowledgeBaseIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 3
+                      },
+                      "topK": { "type": "integer", "minimum": 1, "maximum": 8 },
+                      "minScoreHundredths": { "type": "integer", "minimum": 0, "maximum": 100 }
+                    },
+                    "additionalProperties": false
+                  },
+                  "builtInTools": {
+                    "type": "object",
+                    "properties": {
+                      "endCall": {
+                        "type": "object",
+                        "properties": { "enabled": { "type": "boolean" } },
+                        "required": ["enabled"],
+                        "additionalProperties": false
+                      },
+                      "transferToHuman": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean" },
+                          "phone": { "type": ["string", "null"], "pattern": "^\\+[1-9]\\d{6,14}$" },
+                          "message": { "type": ["string", "null"], "maxLength": 500 }
+                        },
+                        "required": ["enabled"],
+                        "additionalProperties": false
+                      },
+                      "setDisposition": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean" },
+                          "allowed": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "paid",
+                                "promise_to_pay",
+                                "callback_requested",
+                                "wrong_number",
+                                "refused_to_pay",
+                                "dispute",
+                                "not_interested",
+                                "language_barrier",
+                                "other"
+                              ]
+                            },
+                            "maxItems": 9
+                          }
+                        },
+                        "required": ["enabled", "allowed"],
+                        "additionalProperties": false
+                      },
+                      "scheduleCallback": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean" },
+                          "maxDaysAhead": { "type": "integer", "minimum": 1, "maximum": 30 }
+                        },
+                        "required": ["enabled", "maxDaysAhead"],
+                        "additionalProperties": false
+                      },
+                      "savePromiseToPay": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean" },
+                          "maxDaysAhead": { "type": "integer", "minimum": 1, "maximum": 60 }
+                        },
+                        "required": ["enabled", "maxDaysAhead"],
+                        "additionalProperties": false
+                      },
+                      "sendSmsAfterCall": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": { "type": "boolean" },
+                          "templates": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,39}$" },
+                                "text": { "type": "string", "minLength": 1, "maxLength": 500 }
+                              },
+                              "required": ["key", "text"],
+                              "additionalProperties": false
+                            },
+                            "maxItems": 10
+                          }
+                        },
+                        "required": ["enabled", "templates"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Agent" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["AI agents"],
+        "summary": "Delete an agent (kept 30 days, then purged)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": { "description": "No content" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/duplicate": {
+      "post": {
+        "tags": ["AI agents"],
+        "summary": "Copy an agent (\"… (copy)\")",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Agent" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/activate": {
+      "post": {
+        "tags": ["AI agents"],
+        "summary": "Turn an agent on",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Agent" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/deactivate": {
+      "post": {
+        "tags": ["AI agents"],
+        "summary": "Turn an agent off",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Agent" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/compile-preview": {
+      "post": {
+        "tags": ["AI agents"],
+        "summary": "What the AI will be told — compiled instructions, tools and warnings (no cost)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "variables": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string", "maxLength": 200 }
+                  },
+                  "channel": { "type": "string", "enum": ["text", "voice"], "default": "text" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AgentCompilePreview" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/usage": {
+      "get": {
+        "tags": ["AI agents"],
+        "summary": "Today's and this month's spend of the agent (account timezone)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AgentUsage" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
