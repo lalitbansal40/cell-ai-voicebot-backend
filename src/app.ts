@@ -4,6 +4,7 @@ import type { Store } from 'express-rate-limit';
 
 import type { Env } from './config/env';
 import { JSON_BODY_LIMIT, UNLIMITED_PATHS, URLENCODED_BODY_LIMIT } from './config/limits';
+import { registerWalletAlerts } from './core/billing/alerts';
 import { LocalStorage, type StorageProvider } from './core/storage';
 import type { ContactJobs } from './modules/contacts/jobs';
 import { createDocsRouter } from './modules/docs/docs.routes';
@@ -53,6 +54,8 @@ export const createApp = ({
   authRateLimit,
   contactJobs,
 }: AppDeps): Express => {
+  // Wallet low-balance / exhausted alerts run after every committed wallet change.
+  registerWalletAlerts();
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', env.TRUST_PROXY);

@@ -34,7 +34,11 @@ describe('billing worker', () => {
       'Unknown billing job "invoice.render"',
     );
     await expect(processBillingJob(ctx)(job('nope'))).rejects.toThrow('Unknown billing job');
-    expect(typeof BILLING_JOB_HANDLERS).toBe('object');
+    expect(Object.keys(BILLING_JOB_HANDLERS).sort()).toEqual([
+      'billing.reap_holds',
+      'billing.reconcile',
+      'notifications.purge',
+    ]);
   });
 
   it('schedules every repeatable job with a UTC cron', () => {

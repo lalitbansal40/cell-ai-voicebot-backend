@@ -1,5 +1,6 @@
 import type { Job, Queue, Worker } from 'bullmq';
 
+import { purgeNotifications } from '../../../modules/notifications/notifications.service';
 import {
   BILLING_SCHEDULES,
   isBillingJobName,
@@ -7,6 +8,8 @@ import {
   type BillingJobName,
   type BillingJobs,
 } from '../../billing/jobs';
+import { reapStaleHolds } from '../../billing/reaper';
+import { reconcileWallets } from '../../billing/reconcile';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -26,7 +29,14 @@ export type BillingJobHandler<N extends BillingJobName = BillingJobName> = (
 export type BillingJobHandlers = { [N in BillingJobName]?: BillingJobHandler<N> };
 
 /** Processors per job name — each Phase 4 task registers its own here. */
-export const BILLING_JOB_HANDLERS: BillingJobHandlers = {};
+export const BILLING_JOB_HANDLERS: BillingJobHandlers = {
+  'billing.reap_holds': () => reapStaleHolds(),
+  'billing.reconcile': async () => {
+    const { checked, mismatches } = await reconcileWallets();
+    return { checked, mismatches: mismatches.length };
+  },
+  'notifications.purge': () => purgeNotifications(),
+};
 
 export const processBillingJob =
   (ctx: BillingJobContext, handlers: BillingJobHandlers = BILLING_JOB_HANDLERS) =>

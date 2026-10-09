@@ -16,6 +16,7 @@ import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
+import { createNotificationsRouter } from './modules/notifications/notifications.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
 import { createSegmentsRouter } from './modules/segments/segments.routes';
@@ -62,6 +63,7 @@ export const createApiRouter = ({
   router.use('/segments', createSegmentsRouter());
   router.use('/wallet', createWalletRouter());
   router.use('/billing', createBillingRouter());
+  router.use('/notifications', createNotificationsRouter());
   router.use(
     '/contact-imports',
     createContactImportsRouter({ storage: contacts.storage, jobs: contacts.jobs }),

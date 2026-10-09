@@ -123,7 +123,14 @@ export const setWalletChangeHook = (hook: WalletChangeHook): void => {
 export const publishWalletChange = async (change: WalletChange): Promise<void> => {
   emitWalletUpdated(change.accountId, change.after);
   walletEvents.emit('updated', change);
-  for (const c of crossings(change.before, change.after)) walletEvents.emit(c, change);
+  const found = crossings(change.before, change.after);
+  for (const c of found) walletEvents.emit(c, change);
+  if (found.includes('low_balance')) {
+    notifyAccount(change.accountId, 'wallet.low_balance', {
+      availableMicros: availableMicros(change.after),
+      thresholdMicros: change.after.lowBalanceThresholdMicros,
+    });
+  }
   if (availableMicros(change.after) <= 0 && availableMicros(change.before) > 0) {
     notifyAccount(change.accountId, 'wallet.exhausted', {
       availableMicros: availableMicros(change.after),

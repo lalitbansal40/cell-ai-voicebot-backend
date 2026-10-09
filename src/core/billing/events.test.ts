@@ -98,8 +98,13 @@ describe('publishWalletChange', () => {
     const change = { accountId: 'a3', before: w(600), after: w(0) };
     await publishWalletChange(change);
     expect(seen).toEqual(['updated', 'low_balance', 'exhausted']);
-    expect(sent.map((s) => s.type)).toEqual(['wallet.updated', 'wallet.exhausted']);
-    expect(sent[1]?.data).toEqual({ availableMicros: 0 });
+    expect(sent.map((s) => s.type)).toEqual([
+      'wallet.updated',
+      'wallet.low_balance',
+      'wallet.exhausted',
+    ]);
+    expect(sent[1]?.data).toEqual({ availableMicros: 0, thresholdMicros: 500 });
+    expect(sent[2]?.data).toEqual({ availableMicros: 0 });
     expect(hook).toHaveBeenCalledWith(change);
   });
 
