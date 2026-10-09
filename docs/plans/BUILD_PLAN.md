@@ -432,6 +432,7 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 | Phase 1                | Ready to start — [PHASE_1_PLAN.md](../phases/PHASE_1_PLAN.md)                                      |                         |
 | Phase 2                | Complete — [PHASE_2_SIGNOFF.md](../phases/PHASE_2_SIGNOFF.md)                                      |                         |
 | Phase 3                | Complete — [PHASE_3_SIGNOFF.md](../phases/PHASE_3_SIGNOFF.md)                                      |                         |
+| Phase 4                | Planned — [PHASE_4_PLAN.md](../phases/PHASE_4_PLAN.md)                                             |                         |
 
 ---
 
@@ -440,3 +441,4 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 - 2026-10-08: Node 24 LTS (Node 20 EOL), MongoDB 8.2 (8.0 fails on Linux kernel ≥ 6.19), Redis 7.4, local ports API 5100 / web 3100 / Mongo 27018 / Redis 6380, React 19 + latest MUI, Mantis template not reused until license confirmed — see [ADR index](../adr/README.md).
 - 2026-10-08: Phase 0 complete — decisions table (§8): MongoDB 8.2, OpenAPI types, WS tickets, Asterisk recommendation, 09:00–19:00 calling window; voice AI and deployment pending inputs.
 - 2026-10-08: Phase 2 complete (auth, accounts, RBAC, app shell, superadmin, Playwright E2E) — [PHASE_2_SIGNOFF.md](../phases/PHASE_2_SIGNOFF.md). Superadmin rates deferred to Phase 4 as planned.
+- 2026-10-09: Phase 3 complete (contacts, lists, custom fields, imports / exports, DND, Playwright E2E) — [PHASE_3_SIGNOFF.md](../phases/PHASE_3_SIGNOFF.md). Phase 4 detailed plan — [PHASE_4_PLAN.md](../phases/PHASE_4_PLAN.md): per-call holds (not per campaign), insert-only ledger (settle = release hold + charge row), fake payment provider until Razorpay test keys.
