@@ -43,6 +43,11 @@ export interface EngineResult {
   wallet: WalletDoc;
   /** `true` when the idempotency key was already used — nothing changed. */
   replay: boolean;
+  /**
+   * Only when run inside the caller's session: the change to publish with
+   * `publishWalletChange` AFTER the caller's transaction commits.
+   */
+  change?: WalletChange | null;
 }
 
 interface TxOutput {
@@ -101,7 +106,8 @@ const run = async (
 
 /** Publishes the change after commit (only when we own the transaction). */
 const finish = async (out: TxOutput, outer?: ClientSession): Promise<EngineResult> => {
-  if (out.change && !outer) await publishWalletChange(out.change);
+  if (outer) return { ...out.result, change: out.change };
+  if (out.change) await publishWalletChange(out.change);
   return out.result;
 };
 
@@ -278,7 +284,10 @@ export interface CreditInput {
   createdBy?: Types.ObjectId | string | null;
 }
 
-/** Adds money (top-up, credit adjustment, refund reversal). */
+/**
+ * Adds money (top-up, credit adjustment, refund reversal). Inside a caller's
+ * session the wallet must already exist (transactions read a snapshot).
+ */
 export const credit = async (
   input: CreditInput,
   { session: outer }: { session?: ClientSession } = {},

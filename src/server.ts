@@ -12,6 +12,7 @@ import {
   type EmailProvider,
 } from './core/email';
 import { createLifecycle, type Lifecycle } from './core/lifecycle';
+import { createPaymentProvider } from './core/payments';
 import { QUEUES } from './core/queues/names';
 import { closeAllQueues, createQueue, DEFAULT_QUEUE_PREFIX } from './core/queues/queue-factory';
 import {
@@ -132,6 +133,9 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     authRateLimitStore: createRedisRateLimitStore(redis, 'rl:auth:'),
     storage,
     contactJobs,
+    billingJobs,
+    payments: createPaymentProvider(env),
+    topupRateLimitStore: createRedisRateLimitStore(redis, 'rl:topup:'),
     readiness: {
       checks: { mongo: () => pingMongo(), redis: () => pingRedis(redis) },
       isShuttingDown: lifecycle.isShuttingDown,

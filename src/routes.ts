@@ -1,6 +1,9 @@
 import { Router } from 'express';
+import type { Store } from 'express-rate-limit';
 
 import type { Env } from './config/env';
+import { unavailableBillingJobs, type BillingJobs } from './core/billing/jobs';
+import { createPaymentProvider, type PaymentProvider } from './core/payments';
 import type { StorageProvider } from './core/storage';
 import { createAccountRouter } from './modules/account/account.routes';
 import { createAdminRouter } from './modules/admin/admin.routes';
@@ -26,6 +29,14 @@ import { createWalletRouter } from './modules/wallet/wallet.routes';
 
 /** Everything under /api/v1. Add each module router here. */
 /** What the contact modules need: file storage + the background job queue (Phase 3). */
+/** What the wallet / billing modules need (Phase 4). */
+export interface BillingDeps {
+  payments?: PaymentProvider;
+  jobs?: BillingJobs;
+  storage?: StorageProvider;
+  topupRateLimitStore?: Store;
+}
+
 export interface ContactsDeps {
   storage?: StorageProvider;
   jobs?: ContactJobs;
@@ -35,10 +46,22 @@ export const createApiRouter = ({
   env,
   auth = {},
   contacts = {},
+  billing = {},
 }: {
-  env: Pick<Env, 'APP_URL' | 'CORS_ORIGINS' | 'NODE_ENV'>;
+  env: Pick<
+    Env,
+    | 'APP_URL'
+    | 'CORS_ORIGINS'
+    | 'NODE_ENV'
+    | 'PAYMENT_PROVIDER'
+    | 'FAKE_PAYMENT_SECRET'
+    | 'RAZORPAY_KEY_ID'
+    | 'RAZORPAY_KEY_SECRET'
+    | 'RAZORPAY_WEBHOOK_SECRET'
+  >;
   auth?: Omit<AuthRouterDeps, 'env'>;
   contacts?: ContactsDeps;
+  billing?: BillingDeps;
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));
@@ -61,7 +84,14 @@ export const createApiRouter = ({
   router.use('/contact-tags', createContactTagsRouter());
   router.use('/contact-lists', createContactListsRouter({ jobs: contacts.jobs }));
   router.use('/segments', createSegmentsRouter());
-  router.use('/wallet', createWalletRouter());
+  router.use(
+    '/wallet',
+    createWalletRouter({
+      payments: billing.payments ?? createPaymentProvider(env),
+      jobs: billing.jobs ?? unavailableBillingJobs,
+      ...(billing.topupRateLimitStore ? { rateLimitStore: billing.topupRateLimitStore } : {}),
+    }),
+  );
   router.use('/billing', createBillingRouter());
   router.use('/notifications', createNotificationsRouter());
   router.use(

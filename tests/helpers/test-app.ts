@@ -9,7 +9,10 @@ export const testEnv = (overrides: NodeJS.ProcessEnv = {}): Env =>
 /** The real app with a silent logger. */
 export const buildTestApp = (
   overrides: NodeJS.ProcessEnv = {},
-  deps: Pick<AppDeps, 'rateLimit' | 'authRateLimit' | 'storage' | 'contactJobs'> = {},
+  deps: Pick<
+    AppDeps,
+    'rateLimit' | 'authRateLimit' | 'storage' | 'contactJobs' | 'payments' | 'billingJobs'
+  > = {},
 ) => {
   const env = testEnv(overrides);
   return createApp({ env, logger: createLogger(env), ...deps });

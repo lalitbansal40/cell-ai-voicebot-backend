@@ -10,6 +10,7 @@ import {
 import { handle } from '../../shared/middlewares/validate';
 
 import { exportLedger, getLedgerEntry, listLedger } from './ledger.service';
+import { createTopupsRouter, type TopupRouterDeps } from './topups.routes';
 import { getUsage } from './usage.service';
 import {
   EstimateBody,
@@ -22,9 +23,10 @@ import {
 import { estimate, getRates, getWallet, updateSettings } from './wallet.service';
 
 /** `/api/v1/wallet` — balance, settings, prices, ledger, usage. */
-export const createWalletRouter = (): Router => {
+export const createWalletRouter = (deps: TopupRouterDeps): Router => {
   const router = Router();
   router.use(authenticate());
+  router.use('/topups', createTopupsRouter(deps));
   router.get(
     '/',
     requirePermission('wallet.read'),

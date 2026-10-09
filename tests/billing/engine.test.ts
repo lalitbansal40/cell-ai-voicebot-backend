@@ -134,6 +134,17 @@ describe('credit', () => {
     );
     expect((await wallet(accountId)).balanceMicros).toBe(RUPEE);
     expect(spy).not.toHaveBeenCalled();
+    const inside = await withTransaction((session) =>
+      credit(
+        { accountId, type: 'topup', amountMicros: RUPEE, ref: ref(), idempotencyKey: 'tx:2' },
+        { session },
+      ),
+    );
+    expect(inside.change).toMatchObject({
+      accountId: accountId.toString(),
+      before: { balanceMicros: RUPEE },
+      after: { balanceMicros: 2 * RUPEE },
+    });
   });
 });
 
