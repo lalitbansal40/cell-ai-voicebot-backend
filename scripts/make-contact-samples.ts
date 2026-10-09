@@ -1,6 +1,7 @@
 /**
  * Writes the Phase 3 sample sheets (fake data) to docs/samples/:
  *   contacts-sample-100.csv / .xlsx — 100 rows with a known mix of problems
+ *                                     (.xlsx: sheet "Borrowers" + a 2-row "Old loans")
  *   dnd-sample.csv                  — 5 do-not-call numbers
  * Run: npm run samples:contacts   (expected totals: docs/samples/README.md)
  */
@@ -84,6 +85,15 @@ const main = async () => {
   writeFileSync(path.join(OUT, 'contacts-sample-100.csv'), csv(rows));
   const xlsx = writeXlsxFile([
     { sheet: 'Borrowers', data: rows.map((r) => r.map((value) => ({ value }))) },
+    // a second, smaller sheet — for trying the sheet picker
+    {
+      sheet: 'Old loans',
+      data: [
+        ['Name', 'Mobile No', 'Loan Amount'],
+        ['Old Borrower 1', '9000400001', '1500'],
+        ['Old Borrower 2', '9000400002', '2500'],
+      ].map((r) => r.map((value) => ({ value }))),
+    },
   ] as never) as unknown as { toBuffer(): Promise<Buffer> };
   writeFileSync(path.join(OUT, 'contacts-sample-100.xlsx'), await xlsx.toBuffer());
   writeFileSync(
