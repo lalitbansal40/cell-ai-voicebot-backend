@@ -63,6 +63,10 @@ export const ERROR_CODES = {
   CAMPAIGN_NOT_RUNNABLE: { status: 409, message: 'This campaign cannot be started.' },
   PROVIDER_UNAVAILABLE: { status: 503, message: 'An external provider is unavailable.' },
   PROVIDER_ERROR: { status: 502, message: 'An external provider returned an error.' },
+  AI_SPEND_CAP_REACHED: { status: 422, message: 'This agent reached its spending limit.' },
+  AGENT_INACTIVE: { status: 409, message: 'This agent is turned off.' },
+  FUNCTION_URL_BLOCKED: { status: 422, message: 'This address is not allowed.' },
+  KNOWLEDGE_LIMIT_REACHED: { status: 422, message: 'The knowledge base limit is reached.' },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

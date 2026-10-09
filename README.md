@@ -309,61 +309,68 @@ Dependabot (`.github/dependabot.yml`) opens weekly grouped update PRs. Repo sett
 
 Copy `.env.example` → `.env` (gitignored). Every variable is validated at startup by [`src/config/env.ts`](src/config/env.ts) — the app refuses to start and lists the offending variable names (never values). Values live only in `.env`, server env and the password manager — never in git. Policy: [docs/conventions/secrets.md](docs/conventions/secrets.md).
 
-| Variable                    | Required          | Phase   | Description                                                                                     |
-| --------------------------- | ----------------- | ------- | ----------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                  | no                | 1       | `development` / `production` / `test`                                                           |
-| `PORT`                      | no                | 1       | API port (default 5100)                                                                         |
-| `APP_URL`                   | yes               | 1       | Public base URL of this API                                                                     |
-| `FRONTEND_URL`              | yes               | 1       | Dashboard URL (links in emails, CORS)                                                           |
-| `CORS_ORIGINS`              | yes               | 1       | Comma-separated allowed origins                                                                 |
-| `LOG_LEVEL`                 | no                | 1       | pino log level                                                                                  |
-| `TRUST_PROXY`               | no                | 1       | `false` / `true` / hop count / `loopback` — set behind nginx (Phase 12)                         |
-| `API_DOCS_ENABLED`          | no                | 1       | Swagger UI at `/api/docs` — default on outside production, off in production                    |
-| `MONGODB_URI`               | yes               | 1       | MongoDB connection string (replica set)                                                         |
-| `REDIS_URL`                 | yes               | 1       | Redis connection string                                                                         |
-| `WORKERS_ENABLED`           | no                | 1       | `true` (default) / `false` — run BullMQ workers in the API process                              |
-| `JWT_ACCESS_SECRET`         | yes · secret      | 2       | Access token signing secret                                                                     |
-| `JWT_REFRESH_SECRET`        | yes · secret      | 2       | Refresh token signing secret                                                                    |
-| `JWT_ACCESS_TTL`            | no                | 2       | Access token lifetime (e.g. `15m`)                                                              |
-| `JWT_REFRESH_TTL`           | no                | 2       | Refresh token lifetime (e.g. `30d`)                                                             |
-| `ENCRYPTION_KEY`            | yes · secret      | 2       | 32-byte base64 key for PII encryption at rest                                                   |
-| `AUTH_COOKIE_DOMAIN`        | no                | 2       | Refresh-cookie domain (e.g. `.example.com`); empty = host-only                                  |
-| `SEED_PASSWORD`             | no (dev only)     | 2       | Password for `npm run db:seed` users; empty = random, printed once                              |
-| `OPENAI_API_KEY`            | yes · secret      | 5/7     | OpenAI API key                                                                                  |
-| `OPENAI_REALTIME_MODEL`     | yes               | 7       | Realtime model name (set after PoC T0.15)                                                       |
-| `STORAGE_DRIVER`            | no                | 7/9     | `local` or `s3`                                                                                 |
-| `STORAGE_LOCAL_PATH`        | no                | 7/9     | Folder for local uploads/recordings                                                             |
-| `S3_BUCKET`                 | if s3             | 7/9     | S3 bucket name                                                                                  |
-| `S3_REGION`                 | if s3             | 7/9     | S3 region                                                                                       |
-| `AWS_ACCESS_KEY_ID`         | if s3 · secret    | 7/9     | AWS access key                                                                                  |
-| `AWS_SECRET_ACCESS_KEY`     | if s3 · secret    | 7/9     | AWS secret key                                                                                  |
-| `EMAIL_DRIVER`              | no                | 1       | `smtp` / `log` — default `smtp` when `SMTP_HOST` is set, else `log`; production requires `smtp` |
-| `SMTP_HOST`                 | yes (production)  | 1       | SMTP server (local: Mailpit `127.0.0.1`)                                                        |
-| `SMTP_PORT`                 | no                | 1       | SMTP port (default 587; local Mailpit 1025)                                                     |
-| `SMTP_SECURE`               | no                | 1       | `true` = implicit TLS; empty = auto (`true` only for port 465)                                  |
-| `SMTP_USER`                 | if auth           | 1       | SMTP username (set together with `SMTP_PASS`)                                                   |
-| `SMTP_PASS`                 | if auth · secret  | 1       | SMTP password                                                                                   |
-| `MAIL_FROM`                 | yes (production)  | 1       | Sender, e.g. `Cell AI Voicebot <no-reply@example.com>` (dev default `no-reply@localhost`)       |
-| `RAZORPAY_KEY_ID`           | yes               | 4       | Razorpay key id                                                                                 |
-| `RAZORPAY_KEY_SECRET`       | yes · secret      | 4       | Razorpay key secret                                                                             |
-| `RAZORPAY_WEBHOOK_SECRET`   | yes · secret      | 4       | Razorpay webhook signing secret                                                                 |
-| `PAYMENT_PROVIDER`          | no                | 4       | `fake` (default outside production) or `razorpay` (required in production)                      |
-| `FAKE_PAYMENT_SECRET`       | no · secret       | 4       | Signing secret of the fake provider (dev / tests); must be unset in production                  |
-| `BILLING_SELLER_NAME`       | prod              | 4       | Seller legal name on GST invoices                                                               |
-| `BILLING_SELLER_ADDRESS`    | prod              | 4       | Seller address on invoices                                                                      |
-| `BILLING_SELLER_GSTIN`      | prod              | 4       | Seller GSTIN (checksum + state validated)                                                       |
-| `BILLING_SELLER_STATE_CODE` | prod              | 4       | Seller GST state code (default `08`) — CGST + SGST vs IGST                                      |
-| `BILLING_SAC_CODE`          | no                | 4       | SAC on invoices (default `998319`)                                                              |
-| `BILLING_INVOICE_PREFIX`    | no                | 4       | Invoice prefix, 1–3 capitals (default `CAV`)                                                    |
-| `BILLING_SIMULATOR_ENABLED` | no                | 4       | Superadmin billing simulator (default on outside production, off in production)                 |
-| `NOTIFYNOW_API_KEY`         | optional · secret | 13      | NotifyNow voice API key (optional fallback provider)                                            |
-| `SIP_HOST`                  | yes (Phase 13)    | 13      | SIP trunk host                                                                                  |
-| `SIP_PORT`                  | no                | 13      | SIP port                                                                                        |
-| `SIP_TRANSPORT`             | no                | 13      | `udp` / `tcp` / `tls`                                                                           |
-| `SIP_USERNAME`              | if auth           | 13      | SIP username                                                                                    |
-| `SIP_PASSWORD`              | if auth · secret  | 13      | SIP password                                                                                    |
-| `SIP_CALLER_ID`             | yes (Phase 13)    | 13      | Outbound caller ID / DID                                                                        |
-| `CLIENT_SSH_KEY_PATH`       | no                | tooling | Path to the client server SSH key for `npm run server:audit` (path only)                        |
+| Variable                           | Required          | Phase   | Description                                                                                              |
+| ---------------------------------- | ----------------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                         | no                | 1       | `development` / `production` / `test`                                                                    |
+| `PORT`                             | no                | 1       | API port (default 5100)                                                                                  |
+| `APP_URL`                          | yes               | 1       | Public base URL of this API                                                                              |
+| `FRONTEND_URL`                     | yes               | 1       | Dashboard URL (links in emails, CORS)                                                                    |
+| `CORS_ORIGINS`                     | yes               | 1       | Comma-separated allowed origins                                                                          |
+| `LOG_LEVEL`                        | no                | 1       | pino log level                                                                                           |
+| `TRUST_PROXY`                      | no                | 1       | `false` / `true` / hop count / `loopback` — set behind nginx (Phase 12)                                  |
+| `API_DOCS_ENABLED`                 | no                | 1       | Swagger UI at `/api/docs` — default on outside production, off in production                             |
+| `MONGODB_URI`                      | yes               | 1       | MongoDB connection string (replica set)                                                                  |
+| `REDIS_URL`                        | yes               | 1       | Redis connection string                                                                                  |
+| `WORKERS_ENABLED`                  | no                | 1       | `true` (default) / `false` — run BullMQ workers in the API process                                       |
+| `JWT_ACCESS_SECRET`                | yes · secret      | 2       | Access token signing secret                                                                              |
+| `JWT_REFRESH_SECRET`               | yes · secret      | 2       | Refresh token signing secret                                                                             |
+| `JWT_ACCESS_TTL`                   | no                | 2       | Access token lifetime (e.g. `15m`)                                                                       |
+| `JWT_REFRESH_TTL`                  | no                | 2       | Refresh token lifetime (e.g. `30d`)                                                                      |
+| `ENCRYPTION_KEY`                   | yes · secret      | 2       | 32-byte base64 key for PII encryption at rest                                                            |
+| `AUTH_COOKIE_DOMAIN`               | no                | 2       | Refresh-cookie domain (e.g. `.example.com`); empty = host-only                                           |
+| `SEED_PASSWORD`                    | no (dev only)     | 2       | Password for `npm run db:seed` users; empty = random, printed once                                       |
+| `OPENAI_API_KEY`                   | yes · secret      | 5/7     | OpenAI API key (required in production; with it `AI_PROVIDER` defaults to `openai`)                      |
+| `OPENAI_REALTIME_MODEL`            | yes               | 7       | Realtime model name (set after PoC T0.15)                                                                |
+| `AI_PROVIDER`                      | no                | 5       | `fake` (deterministic test AI) or `openai`; production requires `openai`                                 |
+| `OPENAI_BASE_URL`                  | no                | 5       | OpenAI API base URL (default `https://api.openai.com/v1`; tests use a local stub)                        |
+| `OPENAI_TEXT_MODEL`                | no                | 5       | Default agent text model (default `gpt-4.1-mini`)                                                        |
+| `OPENAI_EMBEDDING_MODEL`           | no                | 5       | Knowledge-base embedding model (default `text-embedding-3-small`)                                        |
+| `AI_TEXT_MODELS`                   | no                | 5       | Comma list of text models agents may pick (must include `OPENAI_TEXT_MODEL`)                             |
+| `AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS` | no                | 5       | Agent functions / URL sources may reach private hosts (default on outside production, off in production) |
+| `MOCK_APIS_ENABLED`                | no (dev only)     | 5       | Mock client APIs (`/api/v1/mock/*`); default on outside production, must be off in production            |
+| `STORAGE_DRIVER`                   | no                | 7/9     | `local` or `s3`                                                                                          |
+| `STORAGE_LOCAL_PATH`               | no                | 7/9     | Folder for local uploads/recordings                                                                      |
+| `S3_BUCKET`                        | if s3             | 7/9     | S3 bucket name                                                                                           |
+| `S3_REGION`                        | if s3             | 7/9     | S3 region                                                                                                |
+| `AWS_ACCESS_KEY_ID`                | if s3 · secret    | 7/9     | AWS access key                                                                                           |
+| `AWS_SECRET_ACCESS_KEY`            | if s3 · secret    | 7/9     | AWS secret key                                                                                           |
+| `EMAIL_DRIVER`                     | no                | 1       | `smtp` / `log` — default `smtp` when `SMTP_HOST` is set, else `log`; production requires `smtp`          |
+| `SMTP_HOST`                        | yes (production)  | 1       | SMTP server (local: Mailpit `127.0.0.1`)                                                                 |
+| `SMTP_PORT`                        | no                | 1       | SMTP port (default 587; local Mailpit 1025)                                                              |
+| `SMTP_SECURE`                      | no                | 1       | `true` = implicit TLS; empty = auto (`true` only for port 465)                                           |
+| `SMTP_USER`                        | if auth           | 1       | SMTP username (set together with `SMTP_PASS`)                                                            |
+| `SMTP_PASS`                        | if auth · secret  | 1       | SMTP password                                                                                            |
+| `MAIL_FROM`                        | yes (production)  | 1       | Sender, e.g. `Cell AI Voicebot <no-reply@example.com>` (dev default `no-reply@localhost`)                |
+| `RAZORPAY_KEY_ID`                  | yes               | 4       | Razorpay key id                                                                                          |
+| `RAZORPAY_KEY_SECRET`              | yes · secret      | 4       | Razorpay key secret                                                                                      |
+| `RAZORPAY_WEBHOOK_SECRET`          | yes · secret      | 4       | Razorpay webhook signing secret                                                                          |
+| `PAYMENT_PROVIDER`                 | no                | 4       | `fake` (default outside production) or `razorpay` (required in production)                               |
+| `FAKE_PAYMENT_SECRET`              | no · secret       | 4       | Signing secret of the fake provider (dev / tests); must be unset in production                           |
+| `BILLING_SELLER_NAME`              | prod              | 4       | Seller legal name on GST invoices                                                                        |
+| `BILLING_SELLER_ADDRESS`           | prod              | 4       | Seller address on invoices                                                                               |
+| `BILLING_SELLER_GSTIN`             | prod              | 4       | Seller GSTIN (checksum + state validated)                                                                |
+| `BILLING_SELLER_STATE_CODE`        | prod              | 4       | Seller GST state code (default `08`) — CGST + SGST vs IGST                                               |
+| `BILLING_SAC_CODE`                 | no                | 4       | SAC on invoices (default `998319`)                                                                       |
+| `BILLING_INVOICE_PREFIX`           | no                | 4       | Invoice prefix, 1–3 capitals (default `CAV`)                                                             |
+| `BILLING_SIMULATOR_ENABLED`        | no                | 4       | Superadmin billing simulator (default on outside production, off in production)                          |
+| `NOTIFYNOW_API_KEY`                | optional · secret | 13      | NotifyNow voice API key (optional fallback provider)                                                     |
+| `SIP_HOST`                         | yes (Phase 13)    | 13      | SIP trunk host                                                                                           |
+| `SIP_PORT`                         | no                | 13      | SIP port                                                                                                 |
+| `SIP_TRANSPORT`                    | no                | 13      | `udp` / `tcp` / `tls`                                                                                    |
+| `SIP_USERNAME`                     | if auth           | 13      | SIP username                                                                                             |
+| `SIP_PASSWORD`                     | if auth · secret  | 13      | SIP password                                                                                             |
+| `SIP_CALLER_ID`                    | yes (Phase 13)    | 13      | Outbound caller ID / DID                                                                                 |
+| `CLIENT_SSH_KEY_PATH`              | no                | tooling | Path to the client server SSH key for `npm run server:audit` (path only)                                 |
 
 ## Docs
 

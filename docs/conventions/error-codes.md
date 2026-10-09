@@ -41,6 +41,12 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `CAMPAIGN_NOT_RUNNABLE`       | 409  | Campaign cannot start (no contacts, no published flow, no caller number, …)                                                               | 8     |
 | `PROVIDER_UNAVAILABLE`        | 503  | Telephony / external provider unreachable                                                                                                 | 7/13  |
 | `PROVIDER_ERROR`              | 502  | Telephony / external provider returned an error                                                                                           | 7/13  |
+| `AI_SPEND_CAP_REACHED`        | 422  | The agent's daily / monthly spending cap is reached (agent set to stop at the cap)                                                        | 5     |
+| `AGENT_INACTIVE`              | 409  | The AI agent is turned off                                                                                                                | 5     |
+| `FUNCTION_URL_BLOCKED`        | 422  | An agent function / knowledge URL points at a blocked address (private, metadata, wrong scheme or port)                                   | 5     |
+| `KNOWLEDGE_LIMIT_REACHED`     | 422  | Knowledge base limit reached (knowledge bases per account, sources per base or chunks per base)                                           | 5     |
+
+AI provider failures (OpenAI) reuse `PROVIDER_UNAVAILABLE` (timeout, 429 / 5xx after retries, network) and `PROVIDER_ERROR` (rejected request) — Phase 5.
 
 ## Client-only codes (frontend — never sent by the server)
 

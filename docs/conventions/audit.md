@@ -61,10 +61,22 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `wallet.credit_limit_updated`   | user (platform)  | wallet             | `from`, `to`                                  |
 | `billing.profile_updated`       | user             | account            | `fields`                                      |
 | `rate_card.updated`             | user (platform)  | rate_card          | `scope`, `changes`                            |
+| `agent.created`                 | user             | agent              | `name`, `templateKey`                         |
+| `agent.updated`                 | user             | agent              | `fields` (names only)                         |
+| `agent.deleted`                 | user             | agent              | `name`                                        |
+| `agent.duplicated`              | user             | agent              | `sourceAgentId`, `name`                       |
+| `agent.activated`               | user             | agent              | —                                             |
+| `agent.deactivated`             | user             | agent              | —                                             |
+| `kb.created`                    | user             | knowledge_base     | `name`                                        |
+| `kb.updated`                    | user             | knowledge_base     | `fields`                                      |
+| `kb.deleted`                    | user             | knowledge_base     | `name`, `unlinkedAgents`                      |
+| `kb.source_changed`             | user             | knowledge_base     | `change`, `kind`, `title`                     |
 
 Contact actions never carry phone numbers, names or variable values in `meta` — counts, ids, keys and list / segment names only (Phase 3).
 
 Wallet actions (Phase 4) carry amounts in micros and field **names**; billing profile values (GSTIN, address) are never put in `meta`. `wallet.adjusted` is written on the target account **and** on the platform account.
+
+AI actions (Phase 5) carry field **names** only — never persona / line text, function header values (secrets) or file content. Function changes appear as `functions.<name>.<field>`.
 
 Login failures for e-mails that don't exist are not audited (there is no account) — they only count towards the per-email lockout.
 

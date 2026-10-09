@@ -441,41 +441,64 @@ Provider webhook deliveries: `provider`, `eventId` (unique per provider), `type`
 
 #### AiAgent (`aiAgents`) — Phase 5
 
-| Field                             | Type                                     | R   | Notes                                                                                                          |
-| --------------------------------- | ---------------------------------------- | --- | -------------------------------------------------------------------------------------------------------------- |
-| name                              | string                                   | ✓   |                                                                                                                |
-| provider                          | `openai_realtime`                        | ✓   | ADR 0021                                                                                                       |
-| model, voice                      | string                                   | ✓   |                                                                                                                |
-| languageMode                      | `auto \| hi \| en \| hinglish`           | ✓   |                                                                                                                |
-| systemPrompt                      | string                                   | ✓   |                                                                                                                |
-| openingLine, closingLine          | string                                   |     | Support `{{variables}}`                                                                                        |
-| toneRules                         | string                                   |     |                                                                                                                |
-| temperature                       | number                                   | ✓   |                                                                                                                |
-| maxCallSeconds, silenceTimeoutSec | number                                   | ✓   |                                                                                                                |
-| bargeIn                           | boolean                                  | ✓   |                                                                                                                |
-| functions                         | AgentFunction[] (embedded)               | ✓   | `{ name, description, parametersSchema, http: { method, url, headers, bodyTemplate, resultPath, timeoutMs } }` |
-| builtInTools                      | string[]                                 | ✓   | `end_call`, `transfer_to_human`, `set_disposition`, `schedule_callback`, …                                     |
-| knowledgeSourceIds                | ObjectId[]                               | ✓   |                                                                                                                |
-| limits                            | `{ dailyMicros, monthlyMicros }`         | ✓   |                                                                                                                |
-| fallbackMessages                  | `{ aiFailed, walletEmpty, unavailable }` | ✓   |                                                                                                                |
-| status                            | `active \| inactive`                     | ✓   |                                                                                                                |
-| deletedAt                         | Date \| null                             |     |                                                                                                                |
+| Field                             | Type                                                                                                                             | R   | Notes                                                                                               |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --- | --------------------------------------------------------------------------------------------------- |
+| name, description                 | string (≤ 80 / ≤ 300)                                                                                                            | ✓   | Name unique per account, case-insensitive (collation index, deleted agents excluded)                |
+| persona, openingLine, closingLine | string (≤ 8,000 / ≤ 500 / ≤ 500)                                                                                                 |     | Support `{{variables}}` from `allowedVariables` + `{{company}}`                                     |
+| isActive, templateKey             | boolean, string \| null                                                                                                          | ✓   |                                                                                                     |
+| allowedVariables                  | string[]                                                                                                                         | ✓   | Contact data the model may see (`name`, `phone_last4`, custom field keys); default `['name']`       |
+| voice                             | OpenAI Realtime voice                                                                                                            | ✓   | Used in Phase 7                                                                                     |
+| languageMode, language            | `auto \| fixed`, `hi \| en \| hinglish`                                                                                          | ✓   |                                                                                                     |
+| toneRules                         | `{ when, customWhen?, respond }[]` (≤ 10)                                                                                        |     |                                                                                                     |
+| callBehaviour                     | `{ maxCallDurationSec, silenceTimeoutSec, bargeIn, endCallAfterSilenceRetries }`                                                 | ✓   | Phase 7                                                                                             |
+| model                             | `{ textModel, temperatureTenths (0–12), maxOutputTokens }`                                                                       | ✓   | `textModel` from `AI_TEXT_MODELS`                                                                   |
+| limits                            | `{ dailySpendCapMicros, monthlySpendCapMicros, onCap: stop \| fallback }`                                                        | ✓   | 0 = no cap                                                                                          |
+| guardrails                        | `{ neverSay[], disclosureLine, complianceMode: recovery \| general }`                                                            | ✓   |                                                                                                     |
+| fallback                          | `{ aiFailed, walletEmpty, agentOff, capReached }`                                                                                | ✓   |                                                                                                     |
+| knowledge                         | `{ knowledgeBaseIds (≤ 3), topK, minScoreHundredths }`                                                                           | ✓   |                                                                                                     |
+| functions                         | embedded `{ name, description, parameters[], method, url, headers[], bodyTemplate, resultPath, responseHint, timeoutMs }` (≤ 10) |     | Secret headers: `sealed` (AES-256-GCM, `ENCRYPTION_KEY`) + `valueHint` (`••••1234`); never returned |
+| builtInTools                      | `{ endCall, transferToHuman, setDisposition, scheduleCallback, savePromiseToPay, sendSmsAfterCall }`                             | ✓   | Simulated in the playground (Phase 5)                                                               |
+| createdBy, updatedBy, deletedAt   | ObjectId, ObjectId, Date \| null                                                                                                 |     | Soft delete; hard-deleted after 30 days (`agents.purge_deleted`)                                    |
 
-Indexes: `{ accountId: 1, deletedAt: 1, name: 1 }`. Secrets in function headers → encrypted (Phase 5 decision).
+Indexes: `{ accountId, name }` unique (partial `deletedAt: null`, collation strength 2), `{ accountId, isActive }`, `{ accountId, updatedAt: -1 }`.
+
+#### KnowledgeBase (`knowledgeBases`) — Phase 5
+
+`{ name (unique per account, case-insensitive), description, version, sourcesCount, chunksCount, embeddingModel, status: ok | stale, createdBy }` — `version` bumps on every source change (vector caches key on it). ≤ 10 per account.
 
 #### KnowledgeSource (`knowledgeSources`) — Phase 5
 
-| Field         | Type                                       | R   | Notes                                          |
-| ------------- | ------------------------------------------ | --- | ---------------------------------------------- |
-| agentId       | ObjectId → aiAgents                        | ✓   |                                                |
-| type          | `file \| url`                              | ✓   |                                                |
-| name          | string                                     | ✓   |                                                |
-| fileKey / url | string                                     | ✓   |                                                |
-| status        | `pending \| processing \| ready \| failed` | ✓   |                                                |
-| chunkCount    | number                                     | ✓   |                                                |
-| vectorRef     | string                                     |     | Depends on vector store choice (open question) |
+| Field                   | Type                                                              | R   | Notes                                           |
+| ----------------------- | ----------------------------------------------------------------- | --- | ----------------------------------------------- |
+| kbId                    | ObjectId → knowledgeBases                                         | ✓   |                                                 |
+| kind, fileType          | `file \| url`, `pdf \| docx \| txt \| md \| null`                 | ✓   |                                                 |
+| title, url              | string                                                            | ✓   |                                                 |
+| fileKey                 | string \| null                                                    |     | Private storage key (hidden)                    |
+| bytes, chars, chunks    | number                                                            | ✓   |                                                 |
+| status, progress, error | `queued \| processing \| ready \| failed \| stale`, 0–100, string | ✓   | Live via WS `kb.source.updated`                 |
+| version, embeddingModel | number, string                                                    | ✓   | Chunks of the current version are the live ones |
 
-Indexes: `{ accountId: 1, agentId: 1 }`.
+Indexes: `{ accountId, kbId, createdAt: -1 }`. ≤ 25 per knowledge base.
+
+#### KnowledgeChunk (`knowledgeChunks`) — Phase 5
+
+`{ kbId, sourceId, sourceVersion, order, title, text (≤ 4,000), embedding number[] (unit length, hidden), dims, model }` — indexes `{ kbId, sourceId, sourceVersion, order }`, `{ accountId, kbId }`. ≤ 2,000 per knowledge base. Searched in process (cosine = dot product), ADR 0033.
+
+#### AgentPlaygroundSession (`agentPlaygroundSessions`) — Phase 5 — TTL 30 days
+
+`{ agentId, userId, contactId?, variables (allowed values only), testPhone (select: false — functions only, never to the model, never returned), turns[] (role, text, toolCalls (redacted), knowledge refs, tokens, costMicros, billing, guardrail, fallback, clientTurnId), outcome { disposition, promiseToPay, callback, transferRequested, endRequested, smsTemplate }, status: active | ended, expiresAt }` — indexes `{ accountId, agentId, createdAt: -1 }`, TTL `expiresAt`.
+
+#### AgentToolCall (`agentToolCalls`) — Phase 5 — TTL 90 days
+
+`{ agentId, sessionId?, source: playground | test | call, tool, kind: custom | built_in, argsRedacted, status: ok | error, httpStatus?, durationMs, resultBytes, resultPreview (≤ 500, redacted), errorCode?, expiresAt }` — never headers or full responses.
+
+#### AgentUsage (`agentUsage`) — Phase 5
+
+`{ agentId, day (YYYY-MM-DD, account timezone), month, spentMicros, turns, inputTokens, outputTokens }` — unique `{ agentId, day }`; atomic `$inc`; drives per-agent caps.
+
+#### MockPaymentRecord (`mockPaymentRecords`) — Phase 5 — dev only
+
+`{ phoneE164, loanId?, status: paid | unpaid | partial, amountMicros, paidOn? }` — answers of the mock client payment API (`/api/v1/mock/payment-status`), not tenant data; the route is never mounted in production.
 
 #### Flow (`flows`) — Phase 6
 

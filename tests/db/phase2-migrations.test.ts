@@ -56,8 +56,9 @@ describe('phase 2 migrations', () => {
     });
     await expect(MIGRATIONS[1]?.down(db())).rejects.toThrow('Platform account still has users');
     await UserModel.deleteOne({ _id: admin._id });
-    // down 0005 (Phase 4, empty ledger), 0004 and 0003 are role / wallet only, then 0002
-    // removes the platform account
+    // down 0006 (Phase 5, no agents), 0005 (Phase 4, empty ledger), 0004 and 0003 are
+    // AI / role / wallet only, then 0002 removes the platform account
+    await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);

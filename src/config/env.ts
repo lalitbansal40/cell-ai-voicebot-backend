@@ -57,6 +57,23 @@ const RawEnvSchema = z.object({
 
   OPENAI_API_KEY: optionalString,
   OPENAI_REALTIME_MODEL: optionalString,
+  /** `fake` (deterministic, dev / tests / E2E) or `openai`; default openai when a key is set. */
+  AI_PROVIDER: z.enum(['fake', 'openai']).optional(),
+  OPENAI_BASE_URL: z.url().default('https://api.openai.com/v1'),
+  OPENAI_TEXT_MODEL: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9.-]{1,63}$/, { message: 'must be a model id like gpt-4.1-mini' })
+    .default('gpt-4.1-mini'),
+  OPENAI_EMBEDDING_MODEL: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9.-]{1,63}$/, { message: 'must be a model id' })
+    .default('text-embedding-3-small'),
+  /** Comma list of text models agents may choose (must include OPENAI_TEXT_MODEL). */
+  AI_TEXT_MODELS: optionalString,
+  AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS: z
+    .enum(['true', 'false'], { message: 'must be true or false' })
+    .optional(),
+  MOCK_APIS_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
 
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./uploads'),
@@ -135,6 +152,10 @@ export type Env = Readonly<
     | 'BILLING_SELLER_ADDRESS'
     | 'BILLING_SELLER_STATE_CODE'
     | 'BILLING_SIMULATOR_ENABLED'
+    | 'AI_PROVIDER'
+    | 'AI_TEXT_MODELS'
+    | 'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS'
+    | 'MOCK_APIS_ENABLED'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -154,6 +175,10 @@ export type Env = Readonly<
     BILLING_SELLER_ADDRESS: string;
     BILLING_SELLER_STATE_CODE: string;
     BILLING_SIMULATOR_ENABLED: boolean;
+    AI_PROVIDER: 'fake' | 'openai';
+    AI_TEXT_MODELS: readonly string[];
+    AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS: boolean;
+    MOCK_APIS_ENABLED: boolean;
   }
 >;
 
@@ -321,6 +346,32 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     }
   }
 
+  const aiProvider = raw.AI_PROVIDER ?? (raw.OPENAI_API_KEY || production ? 'openai' : 'fake');
+  const textModels = (raw.AI_TEXT_MODELS ?? raw.OPENAI_TEXT_MODEL)
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
+  check(
+    'AI_TEXT_MODELS',
+    'must list model ids and include OPENAI_TEXT_MODEL',
+    textModels.includes(raw.OPENAI_TEXT_MODEL) &&
+      textModels.every((m) => /^[a-z0-9][a-z0-9.-]{1,63}$/.test(m)),
+  );
+  if (aiProvider === 'openai') {
+    check('OPENAI_API_KEY', 'required when AI_PROVIDER=openai', Boolean(raw.OPENAI_API_KEY));
+  }
+  const allowPrivateHosts =
+    raw.AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS !== undefined
+      ? raw.AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS === 'true'
+      : !production;
+  const mockApis =
+    raw.MOCK_APIS_ENABLED !== undefined ? raw.MOCK_APIS_ENABLED === 'true' : !production;
+  if (production) {
+    check('AI_PROVIDER', 'must be openai in production', aiProvider === 'openai');
+    check('AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS', 'must be false in production', !allowPrivateHosts);
+    check('MOCK_APIS_ENABLED', 'must be false in production', !mockApis);
+  }
+
   if (issues.length) throw new EnvValidationError(issues);
 
   const defaultLogLevel: Record<NodeEnv, LogLevel> = {
@@ -356,6 +407,10 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       raw.BILLING_SIMULATOR_ENABLED !== undefined
         ? raw.BILLING_SIMULATOR_ENABLED === 'true'
         : !production,
+    AI_PROVIDER: aiProvider,
+    AI_TEXT_MODELS: Object.freeze(textModels),
+    AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS: allowPrivateHosts,
+    MOCK_APIS_ENABLED: mockApis,
   });
 };
 

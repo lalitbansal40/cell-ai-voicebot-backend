@@ -274,7 +274,17 @@
               "wallet.settings_updated",
               "wallet.credit_limit_updated",
               "billing.profile_updated",
-              "rate_card.updated"
+              "rate_card.updated",
+              "agent.created",
+              "agent.updated",
+              "agent.deleted",
+              "agent.duplicated",
+              "agent.activated",
+              "agent.deactivated",
+              "kb.created",
+              "kb.updated",
+              "kb.deleted",
+              "kb.source_changed"
             ]
           },
           "actor": {
@@ -1031,6 +1041,8 @@
           "ttsPer1kCharsMicros": { "type": "number" },
           "commissionBps": { "type": "number" },
           "billUnansweredAttempts": { "type": "boolean" },
+          "aiTextPer1kTokensMicros": { "type": "number" },
+          "embeddingPer1kTokensMicros": { "type": "number" },
           "source": { "type": "string", "enum": ["account", "default"] },
           "effectiveFrom": { "type": "string" }
         },
@@ -1041,6 +1053,8 @@
           "ttsPer1kCharsMicros",
           "commissionBps",
           "billUnansweredAttempts",
+          "aiTextPer1kTokensMicros",
+          "embeddingPer1kTokensMicros",
           "source",
           "effectiveFrom"
         ]
@@ -1098,7 +1112,12 @@
               "billableSeconds": { "type": "number" },
               "pulseSeconds": { "type": "number" },
               "aiSeconds": { "type": "number" },
-              "ttsChars": { "type": "number" }
+              "ttsChars": { "type": "number" },
+              "inputTokens": { "type": "number" },
+              "outputTokens": { "type": "number" },
+              "embeddingTokens": { "type": "number" },
+              "model": { "type": "string" },
+              "kind": { "type": "string", "enum": ["playground", "kb_ingest", "call"] }
             }
           },
           "ref": {
@@ -7071,6 +7090,16 @@
                   "ttsPer1kCharsMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
                   "commissionBps": { "type": "integer", "minimum": 0, "maximum": 10000 },
                   "billUnansweredAttempts": { "type": "boolean" },
+                  "aiTextPer1kTokensMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "embeddingPer1kTokensMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
                   "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
                 },
                 "required": [
@@ -7255,6 +7284,16 @@
                   "ttsPer1kCharsMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
                   "commissionBps": { "type": "integer", "minimum": 0, "maximum": 10000 },
                   "billUnansweredAttempts": { "type": "boolean" },
+                  "aiTextPer1kTokensMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "embeddingPer1kTokensMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
                   "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
                 },
                 "required": [

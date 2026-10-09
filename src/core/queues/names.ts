@@ -5,6 +5,7 @@ export const QUEUES = {
   maintenance: 'maintenance',
   contacts: 'contacts',
   billing: 'billing',
+  ai: 'ai',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

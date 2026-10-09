@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { BILLING_LIMITS } from '../../config/limits';
 import {
+  DEFAULT_RATE_CARD,
   PULSE_SECONDS,
   RateCardModel,
   type RateCardDoc,
@@ -32,12 +33,20 @@ export const RateCardValuesSchema = z.strictObject({
   ttsPer1kCharsMicros: rate,
   commissionBps: z.number().int().min(0).max(10_000),
   billUnansweredAttempts: z.boolean(),
+  /** Phase 5 — optional in requests: missing → carried over from the card in force. */
+  aiTextPer1kTokensMicros: rate.optional(),
+  embeddingPer1kTokensMicros: rate.optional(),
 });
+
+/** What a request may send (AI prices optional) — completed by `completeValues`. */
+export type RateCardInputValues = z.infer<typeof RateCardValuesSchema>;
 
 const VALUE_KEYS = Object.keys(RateCardValuesSchema.shape) as (keyof RateCardValues)[];
 
-const pickValues = (doc: RateCardValues): RateCardValues =>
-  Object.fromEntries(VALUE_KEYS.map((k) => [k, doc[k]])) as unknown as RateCardValues;
+const pickValues = (doc: Partial<RateCardValues>): RateCardValues =>
+  Object.fromEntries(
+    VALUE_KEYS.map((k) => [k, doc[k] ?? DEFAULT_RATE_CARD[k]]),
+  ) as unknown as RateCardValues;
 
 const toEffective = (doc: RateCardDoc, source: 'account' | 'default'): EffectiveRateCard => ({
   ...pickValues(doc),
@@ -95,7 +104,7 @@ export const rateCardById = async (id: Types.ObjectId | string): Promise<RateCar
   return pickValues(doc);
 };
 
-const parseValues = (values: unknown): RateCardValues => {
+const parseValues = (values: unknown): RateCardInputValues => {
   const parsed = RateCardValuesSchema.safeParse(values);
   if (!parsed.success) {
     throw new ValidationError(
@@ -103,6 +112,28 @@ const parseValues = (values: unknown): RateCardValues => {
     );
   }
   return parsed.data;
+};
+
+/** Fills prices a request left out (AI prices) from the card in force for that scope. */
+const completeValues = async (
+  accountId: Types.ObjectId | null,
+  input: RateCardInputValues,
+): Promise<RateCardValues> => {
+  if (
+    input.aiTextPer1kTokensMicros !== undefined &&
+    input.embeddingPer1kTokensMicros !== undefined
+  ) {
+    return input as RateCardValues;
+  }
+  const current = accountId
+    ? await effectiveRateCard(accountId, { at: new Date() })
+    : pickValues((await latest(null, new Date())) ?? DEFAULT_RATE_CARD);
+  return {
+    ...input,
+    aiTextPer1kTokensMicros: input.aiTextPer1kTokensMicros ?? current.aiTextPer1kTokensMicros,
+    embeddingPer1kTokensMicros:
+      input.embeddingPer1kTokensMicros ?? current.embeddingPer1kTokensMicros,
+  };
 };
 
 /** Inserts a new version (history is never edited). `accountId: null` = platform default. */
@@ -121,7 +152,7 @@ export const createRateCardVersion = async ({
 }): Promise<RateCardDoc> => {
   const doc = await RateCardModel.create({
     accountId,
-    ...parseValues(values),
+    ...(await completeValues(accountId, parseValues(values))),
     inheritsDefault: false,
     effectiveFrom,
     createdBy,

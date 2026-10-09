@@ -99,6 +99,8 @@ export const getRates = async (req: Request) => {
     ttsPer1kCharsMicros: card.ttsPer1kCharsMicros,
     commissionBps: card.commissionBps,
     billUnansweredAttempts: card.billUnansweredAttempts,
+    aiTextPer1kTokensMicros: card.aiTextPer1kTokensMicros,
+    embeddingPer1kTokensMicros: card.embeddingPer1kTokensMicros,
     source: card.source,
     effectiveFrom: card.effectiveFrom.toISOString(),
   };

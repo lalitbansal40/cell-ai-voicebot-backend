@@ -40,6 +40,7 @@ const NOT_TENANT_SCOPED: Record<string, string> = {
   'invoice-counter.model.ts': 'platform-wide GST series per financial year',
   'payment-event.model.ts': 'provider webhooks; accountId nullable until matched',
   'rate-card.model.ts': 'accountId null = platform default card',
+  'mock-payment-record.model.ts': 'dev-only mock data; its route is never mounted in production',
 };
 
 describe('tenant scoping (models)', () => {

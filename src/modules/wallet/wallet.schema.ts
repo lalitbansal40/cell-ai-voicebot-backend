@@ -4,6 +4,7 @@ import {
   LEDGER_REF_TYPES,
   LEDGER_STATUSES,
   LEDGER_TYPES,
+  LEDGER_USAGE_KINDS,
 } from '../../db/models/ledger-entry.model';
 import { PULSE_SECONDS } from '../../db/models/rate-card.model';
 import { CursorPageMetaSchema } from '../../shared/openapi/common.schemas';
@@ -70,6 +71,8 @@ export const RateCardViewSchema = registry.register(
     ttsPer1kCharsMicros: z.number(),
     commissionBps: z.number(),
     billUnansweredAttempts: z.boolean(),
+    aiTextPer1kTokensMicros: z.number(),
+    embeddingPer1kTokensMicros: z.number(),
     source: z.enum(['account', 'default']),
     effectiveFrom: z.string(),
   }),
@@ -154,6 +157,11 @@ export const LedgerEntrySchema = registry.register(
         pulseSeconds: z.number().optional(),
         aiSeconds: z.number().optional(),
         ttsChars: z.number().optional(),
+        inputTokens: z.number().optional(),
+        outputTokens: z.number().optional(),
+        embeddingTokens: z.number().optional(),
+        model: z.string().optional(),
+        kind: z.enum(LEDGER_USAGE_KINDS).optional(),
       })
       .nullable(),
     ref: z.object({ type: z.enum(LEDGER_REF_TYPES), id: z.string() }),

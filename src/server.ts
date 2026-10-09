@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 
 import { createApp } from './app';
 import { getEnv, type Env } from './config/env';
+import { queueAiJobs } from './core/ai/jobs';
 import { queueBillingJobs } from './core/billing/jobs';
 import {
   createEmailProvider,
@@ -22,6 +23,7 @@ import {
   pingRedis,
   redactRedisUrl,
 } from './core/queues/redis';
+import { startAiWorker } from './core/queues/workers/ai.worker';
 import { startBillingWorker } from './core/queues/workers/billing.worker';
 import { startContactsWorker } from './core/queues/workers/contacts.worker';
 import { startEmailWorker } from './core/queues/workers/email.worker';
@@ -125,6 +127,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   const storage = createStorage(env, logger);
   const contactJobs = queueContactJobs(createQueue(QUEUES.contacts, queueDeps));
   const billingJobs = queueBillingJobs(createQueue(QUEUES.billing, queueDeps));
+  const aiJobs = queueAiJobs(createQueue(QUEUES.ai, queueDeps));
 
   const app = createApp({
     env,
@@ -159,6 +162,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     await startMaintenanceWorker({ ...queueDeps, storage });
     startContactsWorker({ ...queueDeps, storage, jobs: contactJobs });
     await startBillingWorker({ ...queueDeps, storage, jobs: billingJobs });
+    await startAiWorker({ ...queueDeps, storage, jobs: aiJobs });
     logger.info('workers: started');
   }
 

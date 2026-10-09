@@ -15,6 +15,10 @@ export interface RateCardValues {
   commissionBps: number;
   /** Charge the pulse-rounded duration of unanswered attempts too (default no). */
   billUnansweredAttempts: boolean;
+  /** AI text (playground, later calls' text turns) per 1,000 tokens in + out (Phase 5). */
+  aiTextPer1kTokensMicros: number;
+  /** Knowledge-base embeddings per 1,000 tokens (Phase 5). */
+  embeddingPer1kTokensMicros: number;
 }
 
 export interface RateCardDoc extends RateCardValues {
@@ -38,6 +42,8 @@ export const DEFAULT_RATE_CARD: RateCardValues = {
   ttsPer1kCharsMicros: 2_500_000,
   commissionBps: 0,
   billUnansweredAttempts: false,
+  aiTextPer1kTokensMicros: 200_000,
+  embeddingPer1kTokensMicros: 10_000,
 };
 
 const rate = {
@@ -57,6 +63,8 @@ const schema = new Schema<RateCardDoc>({
   ttsPer1kCharsMicros: rate,
   commissionBps: { type: Number, required: true, min: 0, max: 10_000 },
   billUnansweredAttempts: { type: Boolean, default: false },
+  aiTextPer1kTokensMicros: { ...rate, default: DEFAULT_RATE_CARD.aiTextPer1kTokensMicros },
+  embeddingPer1kTokensMicros: { ...rate, default: DEFAULT_RATE_CARD.embeddingPer1kTokensMicros },
   inheritsDefault: { type: Boolean, default: false },
   effectiveFrom: { type: Date, required: true },
   createdBy: { type: Schema.Types.ObjectId, default: null },

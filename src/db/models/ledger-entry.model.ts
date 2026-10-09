@@ -44,7 +44,16 @@ export interface LedgerBreakdown {
   pulseSeconds?: number;
   aiSeconds?: number;
   ttsChars?: number;
+  /** Phase 5 AI usage (playground turns, knowledge ingest, later call text turns). */
+  inputTokens?: number;
+  outputTokens?: number;
+  embeddingTokens?: number;
+  model?: string;
+  kind?: LedgerUsageKind;
 }
+
+export const LEDGER_USAGE_KINDS = ['playground', 'kb_ingest', 'call'] as const;
+export type LedgerUsageKind = (typeof LEDGER_USAGE_KINDS)[number];
 
 export interface LedgerEntryDoc {
   _id: Types.ObjectId;
@@ -103,6 +112,11 @@ const schema = new Schema<LedgerEntryDoc>({
         pulseSeconds: Number,
         aiSeconds: Number,
         ttsChars: Number,
+        inputTokens: { type: Number, min: 0, validate: Number.isSafeInteger },
+        outputTokens: { type: Number, min: 0, validate: Number.isSafeInteger },
+        embeddingTokens: { type: Number, min: 0, validate: Number.isSafeInteger },
+        model: { type: String, maxlength: 64 },
+        kind: { type: String, enum: LEDGER_USAGE_KINDS },
       },
       { _id: false },
     ),

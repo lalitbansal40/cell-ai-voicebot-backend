@@ -27,6 +27,7 @@ const validProduction = {
   BILLING_SELLER_ADDRESS: '1 Example Road, Jaipur, Rajasthan 302001',
   BILLING_SELLER_STATE_CODE: '08',
   BILLING_SELLER_GSTIN: makeGstin('08'),
+  OPENAI_API_KEY: 'test-openai-key-not-real',
 };
 
 const issuesOf = (source: NodeJS.ProcessEnv) => {
@@ -149,6 +150,7 @@ describe('loadEnv — production rules', () => {
         'BILLING_SELLER_NAME',
         'BILLING_SELLER_ADDRESS',
         'BILLING_SELLER_GSTIN',
+        'OPENAI_API_KEY',
       ].sort(),
     );
   });
@@ -334,5 +336,65 @@ describe('loadEnv — payments & billing', () => {
     expect(issuesOf({ BILLING_INVOICE_PREFIX: 'cavx' }).issues[0]?.variable).toBe(
       'BILLING_INVOICE_PREFIX',
     );
+  });
+});
+
+describe('loadEnv — AI (Phase 5)', () => {
+  it('uses the fake provider, mock APIs and private hosts outside production without a key', () => {
+    const env = loadEnv({});
+    expect(env.AI_PROVIDER).toBe('fake');
+    expect(env.OPENAI_BASE_URL).toBe('https://api.openai.com/v1');
+    expect(env.OPENAI_TEXT_MODEL).toBe('gpt-4.1-mini');
+    expect(env.OPENAI_EMBEDDING_MODEL).toBe('text-embedding-3-small');
+    expect(env.AI_TEXT_MODELS).toEqual(['gpt-4.1-mini']);
+    expect(env.AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS).toBe(true);
+    expect(env.MOCK_APIS_ENABLED).toBe(true);
+  });
+
+  it('defaults to openai when a key is set, and needs the key for openai', () => {
+    expect(loadEnv({ OPENAI_API_KEY: 'k' }).AI_PROVIDER).toBe('openai');
+    expect(loadEnv({ OPENAI_API_KEY: 'k', AI_PROVIDER: 'fake' }).AI_PROVIDER).toBe('fake');
+    expect(issuesOf({ AI_PROVIDER: 'openai' }).issues).toContainEqual({
+      variable: 'OPENAI_API_KEY',
+      reason: 'required when AI_PROVIDER=openai',
+    });
+  });
+
+  it('validates the model list', () => {
+    expect(loadEnv({ AI_TEXT_MODELS: 'gpt-4.1-mini, gpt-4.1' }).AI_TEXT_MODELS).toEqual([
+      'gpt-4.1-mini',
+      'gpt-4.1',
+    ]);
+    expect(issuesOf({ AI_TEXT_MODELS: 'gpt-4.1' }).issues.map((i) => i.variable)).toContain(
+      'AI_TEXT_MODELS',
+    );
+    expect(
+      issuesOf({ AI_TEXT_MODELS: 'gpt-4.1-mini,Bad Model' }).issues.map((i) => i.variable),
+    ).toContain('AI_TEXT_MODELS');
+    expect(issuesOf({ OPENAI_TEXT_MODEL: 'Bad Model' }).issues.map((i) => i.variable)).toContain(
+      'OPENAI_TEXT_MODEL',
+    );
+  });
+
+  it('turns mock APIs and private hosts off in production and refuses them', () => {
+    const env = loadEnv(validProduction);
+    expect(env.AI_PROVIDER).toBe('openai');
+    expect(env.AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS).toBe(false);
+    expect(env.MOCK_APIS_ENABLED).toBe(false);
+    const issues = issuesOf({
+      ...validProduction,
+      AI_PROVIDER: 'fake',
+      AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS: 'true',
+      MOCK_APIS_ENABLED: 'true',
+    }).issues.map((i) => i.variable);
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        'AI_PROVIDER',
+        'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS',
+        'MOCK_APIS_ENABLED',
+      ]),
+    );
+    const { OPENAI_API_KEY: _key, ...noKey } = validProduction;
+    expect(issuesOf(noKey).issues.map((i) => i.variable)).toContain('OPENAI_API_KEY');
   });
 });

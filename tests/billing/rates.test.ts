@@ -139,6 +139,65 @@ describe('effective rate card', () => {
   });
 });
 
+describe('AI prices (Phase 5)', () => {
+  const {
+    aiTextPer1kTokensMicros: _t,
+    embeddingPer1kTokensMicros: _e,
+    ...callOnly
+  } = DEFAULT_RATE_CARD;
+
+  it('carries AI prices over from the card in force when a request leaves them out', async () => {
+    const accountId = new Types.ObjectId();
+    await createRateCardVersion({
+      accountId,
+      values: {
+        ...DEFAULT_RATE_CARD,
+        aiTextPer1kTokensMicros: 500_000,
+        embeddingPer1kTokensMicros: 20_000,
+      },
+      createdBy: admin,
+    });
+    const next = await createRateCardVersion({
+      accountId,
+      values: { ...callOnly, callPerMinuteMicros: 2_000_000 },
+      createdBy: admin,
+    });
+    expect(next).toMatchObject({
+      callPerMinuteMicros: 2_000_000,
+      aiTextPer1kTokensMicros: 500_000,
+      embeddingPer1kTokensMicros: 20_000,
+    });
+    // the default card version without AI prices keeps the previous default's
+    const def = await createRateCardVersion({
+      accountId: null,
+      values: callOnly,
+      createdBy: admin,
+    });
+    expect(def.aiTextPer1kTokensMicros).toBe(DEFAULT_RATE_CARD.aiTextPer1kTokensMicros);
+    // only one of the two → the other carries over
+    const half = await createRateCardVersion({
+      accountId,
+      values: { ...callOnly, aiTextPer1kTokensMicros: 1 },
+      createdBy: admin,
+    });
+    expect(half).toMatchObject({ aiTextPer1kTokensMicros: 1, embeddingPer1kTokensMicros: 20_000 });
+    const effective = await effectiveRateCard(accountId, { at: new Date() });
+    expect(effective.aiTextPer1kTokensMicros).toBe(1);
+  });
+
+  it('reads old rows without AI prices as the defaults', async () => {
+    const accountId = new Types.ObjectId();
+    await RateCardModel.collection.insertOne({
+      accountId,
+      ...callOnly,
+      inheritsDefault: false,
+      effectiveFrom: new Date(0),
+    });
+    const card = await effectiveRateCard(accountId, { at: new Date() });
+    expect(card.aiTextPer1kTokensMicros).toBe(DEFAULT_RATE_CARD.aiTextPer1kTokensMicros);
+  });
+});
+
 describe('without a platform default', () => {
   it('fails loudly', async () => {
     await RateCardModel.collection.deleteMany({ accountId: null });

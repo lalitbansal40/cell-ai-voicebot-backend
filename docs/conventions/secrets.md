@@ -37,6 +37,12 @@
 - `FAKE_PAYMENT_SECRET` is a dev / test-only signing secret of the fake provider; production refuses to start when it is set.
 - Never log signatures, webhook bodies, the Basic-auth header or card / UPI data (we never receive card data — Razorpay Checkout collects it).
 
+## AI secrets (Phase 5)
+
+- `OPENAI_API_KEY` is a secret (required in production; dev / tests use the fake provider without it). Never logged; `/admin/ai/config` only says whether it is set.
+- `ENCRYPTION_KEY` now also **seals agent function secret headers** (AES-256-GCM, key derived per purpose). Rotating it needs a re-seal step (planned script) — until then rotation makes stored function secrets unreadable; re-enter them after a rotation.
+- Function header values marked secret are write-only in the API (`valueHint` `••••1234` only) and never appear in logs, audit meta, tool-call logs or playground traces.
+
 ## Client SSH key
 
 - Store in the password manager and locally in `~/.ssh/` with `chmod 400`.

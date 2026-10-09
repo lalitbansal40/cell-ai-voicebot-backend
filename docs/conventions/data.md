@@ -32,12 +32,12 @@ Contact.find({ listIds: listId });
 
 ## 4. Deletion
 
-| Policy                                                                             | Collections                                                                                                                                 |
-| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Soft delete** (`deletedAt: Date \| null`; default queries add `deletedAt: null`) | `contacts`, `contactLists`, `aiAgents`, `flows`, `campaigns`, `phoneNumbers`, `users`                                                       |
-| **Never delete / immutable** (corrections are new rows)                            | `ledgerEntries`, `auditLogs`, `topupOrders` (kept forever), `invoices` (8 years)                                                            |
-| **Retention purge** (deleted by a scheduled job after the retention period)        | `calls`, `transcriptTurns`, `callEvents`, recordings                                                                                        |
-| **TTL index** (auto-expire)                                                        | `refreshTokens`, `idempotencyKeys`, `webhookDeliveries` (30 days), `paymentEvents` and `notifications` (90 days) — WS tickets live in Redis |
+| Policy                                                                             | Collections                                                                                                                                                                                        |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Soft delete** (`deletedAt: Date \| null`; default queries add `deletedAt: null`) | `contacts`, `contactLists`, `aiAgents`, `flows`, `campaigns`, `phoneNumbers`, `users`                                                                                                              |
+| **Never delete / immutable** (corrections are new rows)                            | `ledgerEntries`, `auditLogs`, `topupOrders` (kept forever), `invoices` (8 years)                                                                                                                   |
+| **Retention purge** (deleted by a scheduled job after the retention period)        | `calls`, `transcriptTurns`, `callEvents`, recordings, soft-deleted `aiAgents` (30 days)                                                                                                            |
+| **TTL index** (auto-expire)                                                        | `refreshTokens`, `idempotencyKeys`, `webhookDeliveries` (30 days), `agentPlaygroundSessions` (30 days), `paymentEvents`, `notifications` and `agentToolCalls` (90 days) — WS tickets live in Redis |
 
 ## 5. Immutability
 

@@ -50,6 +50,16 @@ export const AUDIT_ACTIONS = [
   'wallet.credit_limit_updated',
   'billing.profile_updated',
   'rate_card.updated',
+  'agent.created',
+  'agent.updated',
+  'agent.deleted',
+  'agent.duplicated',
+  'agent.activated',
+  'agent.deactivated',
+  'kb.created',
+  'kb.updated',
+  'kb.deleted',
+  'kb.source_changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
