@@ -2,6 +2,8 @@ import { Router } from 'express';
 import type { Store } from 'express-rate-limit';
 
 import type { Env } from './config/env';
+import type { AiProvider } from './core/ai';
+import type { AiJobs } from './core/ai/jobs';
 import { unavailableBillingJobs, type BillingJobs } from './core/billing/jobs';
 import { createPaymentProvider, type PaymentProvider } from './core/payments';
 import type { StorageProvider } from './core/storage';
@@ -39,6 +41,14 @@ export interface BillingDeps {
   topupRateLimitStore?: Store;
 }
 
+/** What the AI agent / knowledge modules need (Phase 5). */
+export interface AiDeps {
+  provider: AiProvider;
+  jobs?: AiJobs;
+  storage?: StorageProvider;
+  rateLimitStores?: { playground?: Store; knowledge?: Store; functionTest?: Store };
+}
+
 export interface ContactsDeps {
   storage?: StorageProvider;
   jobs?: ContactJobs;
@@ -49,6 +59,7 @@ export const createApiRouter = ({
   auth = {},
   contacts = {},
   billing = {},
+  ai: _ai,
 }: {
   env: Pick<
     Env,
@@ -65,6 +76,7 @@ export const createApiRouter = ({
   auth?: Omit<AuthRouterDeps, 'env'>;
   contacts?: ContactsDeps;
   billing?: BillingDeps;
+  ai?: AiDeps;
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));

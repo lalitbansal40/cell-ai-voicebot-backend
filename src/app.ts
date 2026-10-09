@@ -9,6 +9,8 @@ import {
   UNLIMITED_PATHS,
   URLENCODED_BODY_LIMIT,
 } from './config/limits';
+import { createAiProvider, type AiProvider } from './core/ai';
+import type { AiJobs } from './core/ai/jobs';
 import { registerWalletAlerts } from './core/billing/alerts';
 import type { BillingJobs } from './core/billing/jobs';
 import { createPaymentProvider, type PaymentProvider } from './core/payments';
@@ -50,6 +52,12 @@ export interface AppDeps {
   billingJobs?: BillingJobs;
   /** Top-up orders limiter store (`rl:topup:`); MemoryStore when omitted. */
   topupRateLimitStore?: Store;
+  /** AI provider (OpenAI or fake) — built from env (`AI_PROVIDER`) when omitted. Phase 5. */
+  aiProvider?: AiProvider;
+  /** Enqueues AI jobs (knowledge ingest) — Phase 5. */
+  aiJobs?: AiJobs;
+  /** Phase 5 limiter stores: playground (`rl:playground:`), knowledge sources (`rl:kbsrc:`), function tests (`rl:fntest:`). */
+  aiRateLimitStores?: { playground?: Store; knowledge?: Store; functionTest?: Store };
 }
 
 /**
@@ -69,6 +77,9 @@ export const createApp = ({
   payments = createPaymentProvider(env),
   billingJobs,
   topupRateLimitStore,
+  aiProvider = createAiProvider(env),
+  aiJobs,
+  aiRateLimitStores = {},
 }: AppDeps): Express => {
   // Wallet low-balance / exhausted alerts run after every committed wallet change.
   registerWalletAlerts();
@@ -104,6 +115,7 @@ export const createApp = ({
       auth: { rateLimitStore: authRateLimitStore, rateLimit: authRateLimit },
       contacts: { storage, jobs: contactJobs },
       billing: { storage, payments, jobs: billingJobs, topupRateLimitStore },
+      ai: { provider: aiProvider, jobs: aiJobs, storage, rateLimitStores: aiRateLimitStores },
     }),
   );
 

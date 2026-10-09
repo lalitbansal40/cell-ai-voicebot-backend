@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 
 import { createApp } from './app';
 import { getEnv, type Env } from './config/env';
+import { createAiProvider } from './core/ai';
 import { queueAiJobs } from './core/ai/jobs';
 import { queueBillingJobs } from './core/billing/jobs';
 import {
@@ -128,6 +129,8 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   const contactJobs = queueContactJobs(createQueue(QUEUES.contacts, queueDeps));
   const billingJobs = queueBillingJobs(createQueue(QUEUES.billing, queueDeps));
   const aiJobs = queueAiJobs(createQueue(QUEUES.ai, queueDeps));
+  const aiProvider = createAiProvider(env);
+  logger.info({ provider: aiProvider.name }, 'ai: provider ready');
 
   const app = createApp({
     env,
@@ -139,6 +142,13 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     billingJobs,
     payments: createPaymentProvider(env),
     topupRateLimitStore: createRedisRateLimitStore(redis, 'rl:topup:'),
+    aiProvider,
+    aiJobs,
+    aiRateLimitStores: {
+      playground: createRedisRateLimitStore(redis, 'rl:playground:'),
+      knowledge: createRedisRateLimitStore(redis, 'rl:kbsrc:'),
+      functionTest: createRedisRateLimitStore(redis, 'rl:fntest:'),
+    },
     readiness: {
       checks: { mongo: () => pingMongo(), redis: () => pingRedis(redis) },
       isShuttingDown: lifecycle.isShuttingDown,
@@ -162,7 +172,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     await startMaintenanceWorker({ ...queueDeps, storage });
     startContactsWorker({ ...queueDeps, storage, jobs: contactJobs });
     await startBillingWorker({ ...queueDeps, storage, jobs: billingJobs });
-    await startAiWorker({ ...queueDeps, storage, jobs: aiJobs });
+    await startAiWorker({ ...queueDeps, storage, provider: aiProvider, jobs: aiJobs });
     logger.info('workers: started');
   }
 
