@@ -27,7 +27,7 @@ export interface CreditTopupResult {
 
 /**
  * Marks a top-up order paid and credits the wallet — ONE transaction: order
- * `created|expired → paid`, ledger credit (`topup:<orderId>`), invoice number +
+ * `created|expired|failed → paid`, ledger credit (`topup:<orderId>`), invoice number +
  * invoice row. Shared by checkout verify and the webhook; whichever comes
  * second is a no-op. Side effects (WS, invoice render, audit, bell) after commit.
  */
@@ -54,7 +54,8 @@ export const creditTopup = async ({
   const out = await withTransaction(async (session) => {
     const paidAt = new Date();
     const order = await TopupOrderModel.findOneAndUpdate(
-      { _id: orderId, status: { $in: ['created', 'expired'] } },
+      // `failed` = an earlier attempt failed; a later captured payment on the same order still pays it
+      { _id: orderId, status: { $in: ['created', 'expired', 'failed'] } },
       {
         $set: {
           status: 'paid',

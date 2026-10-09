@@ -1,9 +1,14 @@
 import cookieParser from 'cookie-parser';
-import express, { json, urlencoded, type Express } from 'express';
+import express, { json, raw, urlencoded, type Express } from 'express';
 import type { Store } from 'express-rate-limit';
 
 import type { Env } from './config/env';
-import { JSON_BODY_LIMIT, UNLIMITED_PATHS, URLENCODED_BODY_LIMIT } from './config/limits';
+import {
+  BILLING_LIMITS,
+  JSON_BODY_LIMIT,
+  UNLIMITED_PATHS,
+  URLENCODED_BODY_LIMIT,
+} from './config/limits';
 import { registerWalletAlerts } from './core/billing/alerts';
 import type { BillingJobs } from './core/billing/jobs';
 import { createPaymentProvider, type PaymentProvider } from './core/payments';
@@ -80,6 +85,11 @@ export const createApp = ({
     globalRateLimiter({ ...(rateLimitStore ? { store: rateLimitStore } : {}), ...rateLimit }),
   );
 
+  // Payment webhooks need the exact bytes for the signature: raw body, this path only.
+  app.use(
+    '/api/v1/webhooks/razorpay',
+    raw({ type: 'application/json', limit: BILLING_LIMITS.webhookMaxBytes }),
+  );
   app.use(json({ limit: JSON_BODY_LIMIT }));
   app.use(urlencoded({ extended: false, limit: URLENCODED_BODY_LIMIT }));
   app.use(cookieParser());

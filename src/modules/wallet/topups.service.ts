@@ -6,15 +6,16 @@ import { getEnv } from '../../config/env';
 import { computeTopupTax } from '../../core/billing/gst';
 import type { BillingJobs } from '../../core/billing/jobs';
 import { creditTopup } from '../../core/billing/topup-credit';
-import type { FakePaymentProvider, PaymentProvider, ProviderPayment } from '../../core/payments';
+import type { FakePaymentProvider, PaymentProvider } from '../../core/payments';
 import { TopupOrderModel, type TopupOrderDoc } from '../../db/models/topup-order.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter } from '../../shared/auth/tenant';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
-import { getLogger } from '../../shared/logger';
 import { microsToPaise } from '../../shared/money';
 import type { AuditActorInput } from '../audit/audit.service';
 import { loadBillingProfile } from '../billing/profile.service';
+import { assertPaymentMatches, verificationFailed } from '../payments/payment-match';
+import { handlePaymentWebhook } from '../payments/webhooks.service';
 
 import type {
   CreateTopupBody,
@@ -144,24 +145,6 @@ const ownOrder = async (accountId: Types.ObjectId, id: string): Promise<TopupOrd
 export const getTopup = async (accountId: Types.ObjectId, id: string) =>
   toTopupView(await ownOrder(accountId, id));
 
-const verificationFailed = (order: TopupOrderDoc, reason: string): never => {
-  getLogger().warn(
-    { topupOrderId: order._id.toString(), providerOrderId: order.providerOrderId, reason },
-    'payments: verification failed',
-  );
-  throw new AppError('PAYMENT_VERIFICATION_FAILED');
-};
-
-/** The payment must be captured, for exactly this order's total, in INR. */
-export const assertPaymentMatches = (order: TopupOrderDoc, payment: ProviderPayment): void => {
-  if (payment.status !== 'captured') verificationFailed(order, `status ${payment.status}`);
-  if (payment.orderId !== order.providerOrderId) verificationFailed(order, 'order mismatch');
-  if (payment.currency !== 'INR') verificationFailed(order, 'currency mismatch');
-  if (payment.amountPaise !== microsToPaise(order.totalMicros)) {
-    verificationFailed(order, 'amount mismatch');
-  }
-};
-
 /** Step 2 (browser): checkout signature → payment re-fetched (captured if needed) → credit. */
 export const verifyTopup = async (
   req: Request,
@@ -172,7 +155,7 @@ export const verifyTopup = async (
   const { accountId } = tenantFilter(req);
   const order = await ownOrder(accountId, id);
   if (order.status === 'paid') return toTopupView(order);
-  if (order.status !== 'created' && order.status !== 'expired') {
+  if (!['created', 'expired', 'failed'].includes(order.status)) {
     throw new ConflictError('CONFLICT_INVALID_STATE', 'This top-up can no longer be paid');
   }
   if (
@@ -199,7 +182,10 @@ export const verifyTopup = async (
   return toTopupView(result.order);
 };
 
-/** Test payments: pay (same path as the browser checkout) or fail an order. */
+/**
+ * Test payments: builds the webhook the real gateway would send (signed with
+ * the fake secret) and runs it through the SAME webhook handler.
+ */
 export const fakeComplete = async (
   req: Request,
   id: string,
@@ -212,24 +198,34 @@ export const fakeComplete = async (
   if (order.status !== 'created') {
     throw new ConflictError('CONFLICT_INVALID_STATE', 'Only a new top-up can be completed');
   }
-  const { payment, signature } = fake.completePayment({
+  const { payment } = fake.completePayment({
     orderId: order.providerOrderId ?? '',
     amountPaise: microsToPaise(order.totalMicros),
     outcome: body.outcome,
   });
-  if (body.outcome === 'failed') {
-    const failed = await TopupOrderModel.findOneAndUpdate(
-      { _id: order._id, status: 'created' },
-      {
-        $set: {
-          status: 'failed',
-          failureReason: payment.errorDescription,
-          rawProviderStatus: 'failed',
+  const rawBody = Buffer.from(
+    JSON.stringify({
+      event: body.outcome === 'paid' ? 'payment.captured' : 'payment.failed',
+      payload: {
+        payment: {
+          entity: {
+            id: payment.id,
+            order_id: payment.orderId,
+            status: payment.status,
+            amount: payment.amountPaise,
+            currency: payment.currency,
+            error_description: payment.errorDescription,
+          },
         },
       },
-      { returnDocument: 'after' },
-    ).lean<TopupOrderDoc>();
-    return toTopupView(failed ?? order);
-  }
-  return verifyTopup(req, id, { providerPaymentId: payment.id, signature }, deps);
+    }),
+  );
+  await handlePaymentWebhook({
+    payments: fake,
+    jobs: deps.jobs,
+    rawBody,
+    signature: fake.signWebhook(rawBody),
+    eventId: `evt_fake_${new Types.ObjectId().toString()}`,
+  });
+  return getTopup(accountId, id);
 };

@@ -8,6 +8,7 @@ import {
   type BillingJobName,
   type BillingJobs,
 } from '../../billing/jobs';
+import { expireTopupOrders } from '../../billing/orders';
 import { reapStaleHolds } from '../../billing/reaper';
 import { reconcileWallets } from '../../billing/reconcile';
 import type { StorageProvider } from '../../storage';
@@ -36,6 +37,7 @@ export const BILLING_JOB_HANDLERS: BillingJobHandlers = {
     return { checked, mismatches: mismatches.length };
   },
   'notifications.purge': () => purgeNotifications(),
+  'billing.expire_orders': () => expireTopupOrders(),
 };
 
 export const processBillingJob =

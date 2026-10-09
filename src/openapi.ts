@@ -26,6 +26,7 @@ import './modules/system/system.schema';
 import './modules/wallet/wallet.schema';
 import './modules/billing/billing.schema';
 import './modules/notifications/notifications.schema';
+import './modules/payments/webhooks.schema';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;
 

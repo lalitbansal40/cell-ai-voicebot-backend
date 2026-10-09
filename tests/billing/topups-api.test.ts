@@ -382,7 +382,7 @@ describe('POST /wallet/topups/:id/verify', () => {
     expect((await verify(undefined, undefined, other)).status).toBe(404);
     await TopupOrderModel.updateOne({ _id: order.id }, { $set: { status: 'creating' } });
     expect((await verify()).status).toBe(409);
-    await TopupOrderModel.updateOne({ _id: order.id }, { $set: { status: 'failed' } });
+    await TopupOrderModel.updateOne({ _id: order.id }, { $set: { status: 'refunded' } });
     expect((await verify()).status).toBe(409);
     const u2 = await owner();
     expect(

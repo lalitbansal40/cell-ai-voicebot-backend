@@ -35,6 +35,7 @@ describe('billing worker', () => {
     );
     await expect(processBillingJob(ctx)(job('nope'))).rejects.toThrow('Unknown billing job');
     expect(Object.keys(BILLING_JOB_HANDLERS).sort()).toEqual([
+      'billing.expire_orders',
       'billing.reap_holds',
       'billing.reconcile',
       'notifications.purge',

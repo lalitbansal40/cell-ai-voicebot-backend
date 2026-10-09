@@ -72,7 +72,7 @@ describe('creditTopup', () => {
   });
 
   it('refuses an order that can no longer be paid', async () => {
-    const o = await order('failed');
+    const o = await order('refunded');
     await expect(
       creditTopup({
         orderId: o._id,

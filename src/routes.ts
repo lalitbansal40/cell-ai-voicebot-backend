@@ -20,6 +20,7 @@ import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
+import { createWebhooksRouter } from './modules/payments/webhooks.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
 import { createSegmentsRouter } from './modules/segments/segments.routes';
@@ -94,6 +95,13 @@ export const createApiRouter = ({
   );
   router.use('/billing', createBillingRouter());
   router.use('/notifications', createNotificationsRouter());
+  router.use(
+    '/webhooks',
+    createWebhooksRouter({
+      payments: billing.payments ?? createPaymentProvider(env),
+      jobs: billing.jobs ?? unavailableBillingJobs,
+    }),
+  );
   router.use(
     '/contact-imports',
     createContactImportsRouter({ storage: contacts.storage, jobs: contacts.jobs }),

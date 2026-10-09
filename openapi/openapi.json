@@ -6286,6 +6286,98 @@
           }
         }
       }
+    },
+    "/api/v1/webhooks/razorpay": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Razorpay payment events (public — authenticated by the signature of the raw body)",
+        "security": [],
+        "parameters": [
+          {
+            "schema": { "type": "string", "description": "HMAC-SHA256 of the raw body" },
+            "required": true,
+            "description": "HMAC-SHA256 of the raw body",
+            "name": "X-Razorpay-Signature",
+            "in": "header"
+          },
+          {
+            "schema": { "type": "string", "description": "Used to drop duplicate deliveries" },
+            "required": false,
+            "description": "Used to drop duplicate deliveries",
+            "name": "X-Razorpay-Event-Id",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "event": { "type": "string" },
+                  "payload": { "type": "object", "additionalProperties": {} }
+                },
+                "required": ["event", "payload"],
+                "description": "Razorpay event (max 256 KB)"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "duplicate": { "type": "boolean" },
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "received",
+                            "credited",
+                            "duplicate_credit",
+                            "failed",
+                            "unmatched",
+                            "mismatch",
+                            "refund",
+                            "ignored"
+                          ]
+                        }
+                      },
+                      "required": ["duplicate", "outcome"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "413": {
+            "description": "Body or file too large (PAYLOAD_TOO_LARGE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}
