@@ -30,8 +30,8 @@ const app = buildTestApp(
   },
 );
 const auth = (u: { token: string }) => ({ Authorization: `Bearer ${u.token}` });
-const SECRET = 'sk-live-SUPERSECRET-4321';
-const NEW_SECRET = 'sk-live-ROTATED-8765';
+const SECRET = 'fake-header-SUPERSECRET-4321';
+const NEW_SECRET = 'fake-header-ROTATED-8765';
 
 let t: TestAccount;
 let manager: TestUser;

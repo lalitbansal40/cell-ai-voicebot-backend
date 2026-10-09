@@ -8,6 +8,8 @@ useDefault = true
 description = "Documented placeholders and public data, never real secrets"
 regexes = [
   '''change-me(-32-bytes-base64)?''',
+  # dummy function-header values in tests/ai/functions.test.ts (commit b11725c, renamed later)
+  '''sk-live-(SUPERSECRET-4321|ROTATED-8765)''',
 ]
 # Public list of common passwords (SecLists, MIT) used by the password policy —
 # random-looking entries trigger `generic-api-key`.

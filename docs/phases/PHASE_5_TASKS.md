@@ -4,11 +4,11 @@ Source plan: [PHASE_5_PLAN.md](PHASE_5_PLAN.md) — Batch 1 = T5.1–T5.5, Batch
 
 | Done | Task  | Title                                                                                                       | Repo | Size |
 | ---- | ----- | ----------------------------------------------------------------------------------------------------------- | ---- | ---- |
-| [ ]  | T5.1  | Models, migration 0006, env, limits, error codes, audit / WS catalogue, `ai` queue, secret box, rate fields | BE   | M    |
-| [ ]  | T5.2  | AI provider layer: interface, OpenAI REST client, fake provider, pricing, spend caps                        | BE   | M    |
-| [ ]  | T5.3  | Agents API: CRUD, templates, catalog, activate / duplicate, validation, prompt compiler + preview           | BE   | L    |
-| [ ]  | T5.4  | Custom functions (secret headers, SSRF-safe executor, test) + built-in tools + dev mock API                 | BE   | L    |
-| [ ]  | T5.5  | Knowledge base: uploads / URLs, parsing, chunking, embeddings, ingest job, search                           | BE   | L    |
+| [x]  | T5.1  | Models, migration 0006, env, limits, error codes, audit / WS catalogue, `ai` queue, secret box, rate fields | BE   | M    |
+| [x]  | T5.2  | AI provider layer: interface, OpenAI REST client, fake provider, pricing, spend caps                        | BE   | M    |
+| [x]  | T5.3  | Agents API: CRUD, templates, catalog, activate / duplicate, validation, prompt compiler + preview           | BE   | L    |
+| [x]  | T5.4  | Custom functions (secret headers, SSRF-safe executor, test) + built-in tools + dev mock API                 | BE   | L    |
+| [x]  | T5.5  | Knowledge base: uploads / URLs, parsing, chunking, embeddings, ingest job, search                           | BE   | L    |
 | [ ]  | T5.6  | Turn runtime: retrieval, tool loop, guardrail check, fallbacks, billing, tool-call log                      | BE   | L    |
 | [ ]  | T5.7  | Playground API: sessions, messages, outcomes, purge, rate limit                                             | BE   | M    |
 | [ ]  | T5.8  | Superadmin AI prices, `/admin/ai/config`, AI usage in summary                                               | BE   | S    |

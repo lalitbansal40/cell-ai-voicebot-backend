@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 5 · Batch 1 (T5.1–T5.5)** — 2026-10-09
+  - Models (AI agents, knowledge bases / sources / chunks, playground sessions, tool calls, agent usage, dev mock payments), migration 0006, AI env (`AI_PROVIDER`, OpenAI base URL / models, private-host and mock-API switches with production refusals), `AI_LIMITS`, 4 error codes, 10 audit actions, 2 WS events, `ai` queue + worker, AES-256-GCM secret box, AI prices on rate cards and ledger token breakdowns.
+  - AI providers: OpenAI REST client (retries, `Retry-After`, timeouts, error mapping) and a deterministic fake provider; token pricing; prepaid + per-agent daily / monthly spend caps in the account timezone.
+  - `/agents`: CRUD, search, duplicate, activate / deactivate, 4 Hinglish templates, catalog, variables, compile preview (pure prompt compiler with safety / recovery rules) and usage.
+  - Custom functions: sealed write-only secret headers, SSRF-safe executor (DNS checked first, pinned connect, port allow-list, redirects re-checked, 64 KB / time caps), templating, Test button with redacted tool-call log; built-in tools (simulated); dev-only `/mock/payment-status`. Docs: `docs/conventions/security.md`.
+  - `/knowledge-bases`: files (PDF / DOCX / TXT / MD, magic-byte checked) and web pages, parsing, chunking, batched embeddings, in-memory vector search with LRU cache, ingest job with progress events and embedding charges, reindex, delete cascade, test search. Dependencies: `mammoth`, `html-to-text`, `unpdf` (now runtime).
+  - Tests: 1176 → 1475.
+
 - **Phase 4 · Batch 3 (T4.11–T4.15) — Phase 4 complete** — 2026-10-09
   - `GET /admin/billing/config` (simulator on / off, payment provider) for the superadmin UI.
   - Frontend wallet, Add money, transactions, usage, invoices, billing details, bell, banner and superadmin billing pages; 5 Playwright wallet scenarios (15 total, green twice) — see the frontend CHANGELOG.
