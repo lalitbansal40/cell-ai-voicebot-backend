@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 4 · Batch 1 (T4.1–T4.5)** — 2026-10-09
+  - Models: wallets (one per account, created at signup / migration 0005), insert-only ledger (only `held → released`), rate cards (platform default + history), top-up orders, invoices, invoice counters, payment events, notifications; account billing profile. `shared/money.ts` (micros, bps, paise guard, Indian format, amount in words), GSTIN checksum, GST states.
+  - Env: `PAYMENT_PROVIDER` (fake outside production), seller details, SAC, invoice prefix, simulator flag (+ production rules). Catalogue: 2 error codes, `platform.billing.manage`, `wallet.exhausted`, richer `wallet.updated`, 6 audit actions, `billing` queue.
+  - Billing engine (the only writer of money): credit, hold / extend / settle / release for calls, prepaid AI / TTS charges, adjustments — conditional updates in transactions, idempotency keys, budgets, month spend in the account timezone, effects after commit. Rate cards + pure pricing (pulse, AI per second, TTS per 1k chars, commission bps, estimates).
+  - APIs: `/wallet` (view, settings, rates, estimate, ledger + CSV export, usage), `/billing/profile`, `/billing/states`, `/notifications` (bell).
+  - Alerts (low balance / exhausted: bell + email, once per 24 h), stale-hold reaper, daily reconciliation.
+  - Fixed: a timing-flaky idempotency test.
+  - Tests: 936 → 1089.
+
 - **Phase 3 · Batch 3 (T3.13–T3.18) — Phase 3 complete** — 2026-10-09
   - `PUT /contact-imports/:id/mapping` with only a new `sheet` (empty `columns`) switches the xlsx sheet before mapping.
   - The xlsx sample has a second 2-row sheet ("Old loans") for the sheet picker; CSV / DND samples unchanged.

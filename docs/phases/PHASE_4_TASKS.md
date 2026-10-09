@@ -4,11 +4,11 @@ Source plan: [PHASE_4_PLAN.md](PHASE_4_PLAN.md) — Batch 1 = T4.1–T4.5, Batch
 
 | Done | Task  | Title                                                                                                   | Repo | Size |
 | ---- | ----- | ------------------------------------------------------------------------------------------------------- | ---- | ---- |
-| [ ]  | T4.1  | Models, migration 0005, money helpers, limits, env, error codes, events / audit, `billing` queue        | BE   | M    |
-| [ ]  | T4.2  | Rate cards (effective card, history) + pure pricing                                                     | BE   | M    |
-| [ ]  | T4.3  | Billing engine: atomic credit / hold / extend / settle / release / charge, budgets, idempotency         | BE   | L    |
-| [ ]  | T4.4  | Wallet APIs (wallet, settings, rates, estimate, ledger, export, usage) + billing profile                | BE   | M    |
-| [ ]  | T4.5  | Notifications (bell API) + low-balance / exhausted alerts + stale-hold reaper + reconciliation          | BE   | M    |
+| [x]  | T4.1  | Models, migration 0005, money helpers, limits, env, error codes, events / audit, `billing` queue        | BE   | M    |
+| [x]  | T4.2  | Rate cards (effective card, history) + pure pricing                                                     | BE   | M    |
+| [x]  | T4.3  | Billing engine: atomic credit / hold / extend / settle / release / charge, budgets, idempotency         | BE   | L    |
+| [x]  | T4.4  | Wallet APIs (wallet, settings, rates, estimate, ledger, export, usage) + billing profile                | BE   | M    |
+| [x]  | T4.5  | Notifications (bell API) + low-balance / exhausted alerts + stale-hold reaper + reconciliation          | BE   | M    |
 | [ ]  | T4.6  | Payment provider (razorpay + fake) + top-up orders + checkout verify + credit transaction               | BE   | L    |
 | [ ]  | T4.7  | Razorpay webhook (raw body, signature, idempotent events) + order expiry                                | BE   | M    |
 | [ ]  | T4.8  | GST, invoice numbering (FY), invoice PDF, receipt email, invoices API                                   | BE   | M    |
