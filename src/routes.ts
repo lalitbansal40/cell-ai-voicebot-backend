@@ -85,6 +85,7 @@ export const createApiRouter = ({
     | 'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS'
     | 'ENCRYPTION_KEY'
     | 'OPENAI_EMBEDDING_MODEL'
+    | 'OPENAI_API_KEY'
   >;
   auth?: Omit<AuthRouterDeps, 'env'>;
   contacts?: ContactsDeps;
@@ -97,7 +98,7 @@ export const createApiRouter = ({
   router.use('/team', createTeamRouter());
   router.use('/api-keys', createApiKeysRouter());
   router.use('/audit-logs', createAuditRouter());
-  router.use('/admin', createAdminRouter({ env }));
+  router.use('/admin', createAdminRouter({ env, provider: ai.provider }));
   router.use('/ws', createWsTicketsRouter());
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());

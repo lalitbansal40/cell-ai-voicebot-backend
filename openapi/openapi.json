@@ -221,6 +221,30 @@
           "impersonation"
         ]
       },
+      "AdminAiConfig": {
+        "type": "object",
+        "properties": {
+          "provider": { "type": "string", "enum": ["openai", "fake"] },
+          "textModels": { "type": "array", "items": { "type": "string" } },
+          "defaultTextModel": { "type": "string" },
+          "embeddingModel": { "type": "string" },
+          "mockApisEnabled": { "type": "boolean" },
+          "allowPrivateHosts": { "type": "boolean" },
+          "openaiKeyConfigured": {
+            "type": "boolean",
+            "description": "Whether a key is set — never the key"
+          }
+        },
+        "required": [
+          "provider",
+          "textModels",
+          "defaultTextModel",
+          "embeddingModel",
+          "mockApisEnabled",
+          "allowPrivateHosts",
+          "openaiKeyConfigured"
+        ]
+      },
       "AuditEntry": {
         "type": "object",
         "properties": {
@@ -2285,6 +2309,8 @@
           "ttsPer1kCharsMicros": { "type": "number" },
           "commissionBps": { "type": "number" },
           "billUnansweredAttempts": { "type": "boolean" },
+          "aiTextPer1kTokensMicros": { "type": "number" },
+          "embeddingPer1kTokensMicros": { "type": "number" },
           "inheritsDefault": { "type": "boolean" },
           "effectiveFrom": { "type": "string" },
           "createdBy": { "type": ["string", "null"] },
@@ -2300,6 +2326,8 @@
           "ttsPer1kCharsMicros",
           "commissionBps",
           "billUnansweredAttempts",
+          "aiTextPer1kTokensMicros",
+          "embeddingPer1kTokensMicros",
           "inheritsDefault",
           "effectiveFrom",
           "createdBy",
@@ -2321,6 +2349,8 @@
               "ttsPer1kCharsMicros": { "type": "number" },
               "commissionBps": { "type": "number" },
               "billUnansweredAttempts": { "type": "boolean" },
+              "aiTextPer1kTokensMicros": { "type": "number" },
+              "embeddingPer1kTokensMicros": { "type": "number" },
               "effectiveFrom": { "type": "string" }
             },
             "required": [
@@ -2332,6 +2362,8 @@
               "ttsPer1kCharsMicros",
               "commissionBps",
               "billUnansweredAttempts",
+              "aiTextPer1kTokensMicros",
+              "embeddingPer1kTokensMicros",
               "effectiveFrom"
             ]
           },
@@ -2366,6 +2398,8 @@
               "ttsPer1kCharsMicros": { "type": "number" },
               "commissionBps": { "type": "number" },
               "billUnansweredAttempts": { "type": "boolean" },
+              "aiTextPer1kTokensMicros": { "type": "number" },
+              "embeddingPer1kTokensMicros": { "type": "number" },
               "effectiveFrom": { "type": "string" }
             },
             "required": [
@@ -2377,6 +2411,8 @@
               "ttsPer1kCharsMicros",
               "commissionBps",
               "billUnansweredAttempts",
+              "aiTextPer1kTokensMicros",
+              "embeddingPer1kTokensMicros",
               "effectiveFrom"
             ]
           },
@@ -2450,6 +2486,23 @@
             },
             "required": ["byType", "totalMicros"]
           },
+          "ai": {
+            "type": "object",
+            "properties": {
+              "playgroundTurns": { "type": "number" },
+              "kbIngests": { "type": "number" },
+              "inputTokens": { "type": "number" },
+              "outputTokens": { "type": "number" },
+              "embeddingTokens": { "type": "number" }
+            },
+            "required": [
+              "playgroundTurns",
+              "kbIngests",
+              "inputTokens",
+              "outputTokens",
+              "embeddingTokens"
+            ]
+          },
           "adjustments": {
             "type": "object",
             "properties": {
@@ -2488,6 +2541,7 @@
           "to",
           "topups",
           "usage",
+          "ai",
           "adjustments",
           "topAccounts",
           "wallets",
@@ -3293,6 +3347,42 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/config": {
+      "get": {
+        "tags": ["Admin · AI"],
+        "summary": "AI provider, models and dev switches of this server (superadmin, platform.billing.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AdminAiConfig" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

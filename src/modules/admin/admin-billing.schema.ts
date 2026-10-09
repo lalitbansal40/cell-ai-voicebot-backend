@@ -94,6 +94,8 @@ const RateCardValuesView = {
   ttsPer1kCharsMicros: z.number(),
   commissionBps: z.number(),
   billUnansweredAttempts: z.boolean(),
+  aiTextPer1kTokensMicros: z.number(),
+  embeddingPer1kTokensMicros: z.number(),
 };
 
 export const RateCardVersionSchema = registry.register(
@@ -167,6 +169,13 @@ export const BillingSummarySchema = registry.register(
     usage: z.object({
       byType: z.array(z.object({ type: z.enum(LEDGER_TYPES), amountMicros: z.number() })),
       totalMicros: z.number(),
+    }),
+    ai: z.object({
+      playgroundTurns: z.number(),
+      kbIngests: z.number(),
+      inputTokens: z.number(),
+      outputTokens: z.number(),
+      embeddingTokens: z.number(),
     }),
     adjustments: z.object({ creditMicros: z.number(), debitMicros: z.number() }),
     topAccounts: z.array(

@@ -63,6 +63,8 @@ const VALUE_KEYS = [
   'ttsPer1kCharsMicros',
   'commissionBps',
   'billUnansweredAttempts',
+  'aiTextPer1kTokensMicros',
+  'embeddingPer1kTokensMicros',
 ] as const;
 
 const customerAccount = async (id: string): Promise<AccountDoc> => {
@@ -399,6 +401,26 @@ export const billingSummary = async (req: Request, query: z.infer<typeof Summary
     { $group: { _id: '$type', amountMicros: sumOf('amountMicros') } },
     { $sort: { _id: 1 } },
   ]);
+  const aiKinds = await LedgerEntryModel.aggregate<{
+    _id: string | null;
+    count: number;
+    inputTokens: number;
+    outputTokens: number;
+    embeddingTokens: number;
+  }>([
+    { $match: { ...usageMatch, type: 'ai_charge', 'breakdown.kind': { $exists: true } } },
+    {
+      $group: {
+        _id: '$breakdown.kind',
+        count: { $sum: 1 },
+        inputTokens: sumOf('breakdown.inputTokens'),
+        outputTokens: sumOf('breakdown.outputTokens'),
+        embeddingTokens: sumOf('breakdown.embeddingTokens'),
+      },
+    },
+  ]);
+  const aiSum = (k: 'inputTokens' | 'outputTokens' | 'embeddingTokens') =>
+    aiKinds.reduce((s, row) => s + row[k], 0);
   const adjustments = await LedgerEntryModel.aggregate<{ _id: string; amountMicros: number }>([
     { $match: { type: 'adjustment', status: 'captured', createdAt: inMonth } },
     { $group: { _id: '$direction', amountMicros: sumOf('amountMicros') } },
@@ -458,6 +480,13 @@ export const billingSummary = async (req: Request, query: z.infer<typeof Summary
     usage: {
       byType: byType.map((u) => ({ type: u._id, amountMicros: u.amountMicros })),
       totalMicros: byType.reduce((s, u) => s + u.amountMicros, 0),
+    },
+    ai: {
+      playgroundTurns: aiKinds.find((r) => r._id === 'playground')?.count ?? 0,
+      kbIngests: aiKinds.find((r) => r._id === 'kb_ingest')?.count ?? 0,
+      inputTokens: aiSum('inputTokens'),
+      outputTokens: aiSum('outputTokens'),
+      embeddingTokens: aiSum('embeddingTokens'),
     },
     adjustments: {
       creditMicros: adjustments.find((a) => a._id === 'credit')?.amountMicros ?? 0,

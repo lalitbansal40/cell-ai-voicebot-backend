@@ -1,11 +1,13 @@
 import { Router } from 'express';
 
 import type { Env } from '../../config/env';
+import type { AiProvider } from '../../core/ai/types';
 import { noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { requirePlatformAdmin } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
+import { createAdminAiRouter } from './admin-ai.routes';
 import { createAdminBillingRouter } from './admin-billing.routes';
 import { AccountIdParams, ListAccountsQuery, SuspendBody } from './admin.schema';
 import {
@@ -20,8 +22,11 @@ import {
 /** `/api/v1/admin` — platform superadmin only. */
 export const createAdminRouter = ({
   env,
+  provider,
 }: {
-  env: Pick<Env, 'BILLING_SIMULATOR_ENABLED' | 'PAYMENT_PROVIDER'>;
+  env: Pick<Env, 'BILLING_SIMULATOR_ENABLED' | 'PAYMENT_PROVIDER'> &
+    Parameters<typeof createAdminAiRouter>[0]['env'];
+  provider: Pick<AiProvider, 'name'>;
 }): Router => {
   const router = Router();
   router.use(authenticate());
@@ -69,5 +74,6 @@ export const createAdminRouter = ({
     }),
   );
   router.use(createAdminBillingRouter({ env }));
+  router.use(createAdminAiRouter({ env, provider }));
   return router;
 };

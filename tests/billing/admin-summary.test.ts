@@ -187,6 +187,7 @@ describe('platform billing summary', () => {
       month: '2025-03',
       from: '2025-02-28T18:30:00.000Z',
       to: '2025-03-31T18:30:00.000Z',
+      ai: { playgroundTurns: 0, kbIngests: 0, inputTokens: 0, outputTokens: 0, embeddingTokens: 0 },
       topups: {
         count: 2,
         baseMicros: 1500 * RUPEE,
