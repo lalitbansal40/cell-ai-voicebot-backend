@@ -354,6 +354,36 @@ describe('export', () => {
     }
   });
 
+  it("never shows, links or exports another account's data", async () => {
+    // account `t` (outside this describe) has its own export, contact, list and segment
+    const theirs = await request(app)
+      .post('/api/v1/contact-exports')
+      .set(auth(owner))
+      .send({ scope: 'filter', filter: {} });
+    expect(theirs.status).toBe(202);
+    const theirId = theirs.body.data.id as string;
+    await releaseJobLock('export', t.account._id.toString(), theirId);
+    const contact = await add('+919000799001');
+    const segment = await SegmentModel.create({
+      accountId: t.account._id,
+      name: 'Theirs',
+      filter: {},
+      createdBy: owner.user._id,
+    });
+
+    expect(
+      (await request(app).get(`/api/v1/contact-exports/${theirId}`).set(auth(eo))).status,
+    ).toBe(404);
+    const mine = await request(app).get('/api/v1/contact-exports?limit=100').set(auth(eo));
+    expect(mine.body.data.map((e: { id: string }) => e.id)).not.toContain(theirId);
+    expect((await exportReq({ scope: 'ids', ids: [contact._id.toString()] })).status).toBe(404);
+    expect((await exportReq({ scope: 'list', listId: list.toString() })).status).toBe(404);
+    expect((await exportReq({ scope: 'segment', segmentId: segment._id.toString() })).status).toBe(
+      404,
+    );
+    await ExportJobModel.deleteOne({ _id: theirId });
+  });
+
   it('validates scopes / columns, limits size, guards locks, permissions and impersonation', async () => {
     for (const body of [
       { scope: 'ids' },
