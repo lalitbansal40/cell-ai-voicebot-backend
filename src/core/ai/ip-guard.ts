@@ -1,5 +1,7 @@
 import { BlockList, isIP } from 'node:net';
 
+import type { Env } from '../../config/env';
+
 /** Where an outgoing request may go (custom functions, knowledge URL sources). */
 export interface GuardPolicy {
   /** `https` only (production). */
@@ -88,4 +90,21 @@ export const urlBlockReason = (url: URL, policy: GuardPolicy): BlockReason | nul
     return policy.allowPrivate ? null : 'private';
   }
   return null;
+};
+
+/**
+ * Policy from env (PHASE_5_PLAN §1c): https only and no private hosts in
+ * production; outside production the backend port is allowed for the mock API.
+ */
+export const outgoingPolicy = (
+  env: Pick<Env, 'NODE_ENV' | 'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS' | 'APP_URL'>,
+  extraPorts: readonly number[] = [],
+): GuardPolicy => {
+  const production = env.NODE_ENV === 'production';
+  const appPort = Number(new URL(env.APP_URL || 'http://localhost').port) || null;
+  return {
+    httpsOnly: production,
+    allowPrivate: env.AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS,
+    extraPorts: production ? [] : [5100, 3100, ...(appPort ? [appPort] : []), ...extraPorts],
+  };
 };

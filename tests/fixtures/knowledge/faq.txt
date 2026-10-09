@@ -1,0 +1,11 @@
+# Payment methods
+Aap EMI UPI, NEFT, debit card ya branch par cash se jama kar sakte hain. UPI ID hai acme@upi.
+You can pay the EMI by UPI, NEFT, debit card or cash at any branch.
+
+# Late fee
+Due date ke baad har din ₹50 late fee lagti hai, maximum ₹500 tak.
+A late fee of ₹50 per day applies after the due date, up to ₹500.
+
+# Contact hours
+Hamari team Monday se Saturday, subah 9 se shaam 7 baje tak available hai.
+Our support team is available Monday to Saturday, 9 am to 7 pm.

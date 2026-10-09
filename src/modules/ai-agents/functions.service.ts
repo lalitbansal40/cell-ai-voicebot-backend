@@ -11,7 +11,7 @@ import {
   type HttpToolOptions,
   type TemplateContext,
 } from '../../core/ai/http-tool';
-import { urlBlockReason, type GuardPolicy } from '../../core/ai/ip-guard';
+import { outgoingPolicy, urlBlockReason, type GuardPolicy } from '../../core/ai/ip-guard';
 import { redactArgs, redactPreview } from '../../core/ai/redact';
 import { seal, secretHint } from '../../core/ai/secret-box';
 import { argumentsValidator } from '../../core/ai/tools';
@@ -48,18 +48,8 @@ export interface FunctionsDeps {
 }
 
 /** Outgoing-request policy from env (PHASE_5_PLAN §1c). */
-export const functionPolicy = (deps: FunctionsDeps): GuardPolicy => {
-  const production = deps.env.NODE_ENV === 'production';
-  const appPort = Number(new URL(deps.env.APP_URL || 'http://localhost').port) || null;
-  return {
-    httpsOnly: production,
-    allowPrivate: deps.env.AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS,
-    // the dev mock API runs on the backend port
-    extraPorts: production
-      ? []
-      : [5100, 3100, ...(appPort ? [appPort] : []), ...(deps.http?.extraPorts ?? [])],
-  };
-};
+export const functionPolicy = (deps: FunctionsDeps): GuardPolicy =>
+  outgoingPolicy(deps.env, deps.http?.extraPorts);
 
 const RESERVED_HEADERS = new Set([
   'host',

@@ -40,6 +40,7 @@
     "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
     "superadmin:create": "tsx --env-file-if-exists=.env scripts/superadmin-create.ts",
     "samples:contacts": "tsx scripts/make-contact-samples.ts",
+    "fixtures:knowledge": "tsx scripts/make-knowledge-fixtures.ts",
     "bench:contacts": "tsx --env-file-if-exists=.env scripts/bench-contacts.ts",
     "bench:wallet": "tsx --env-file-if-exists=.env scripts/bench-wallet.ts"
   },
@@ -50,6 +51,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/html-to-text": "9.0.4",
     "@types/multer": "^2.3.0",
     "@types/node": "^24.19.1",
     "@types/pdfkit": "0.17.6",
@@ -72,7 +74,6 @@
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.1",
-    "unpdf": "1.8.1",
     "vitest": "^5.0.3",
     "write-excel-file": "^4.1.1"
   },
@@ -112,10 +113,12 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
+    "html-to-text": "10.0.1",
     "iconv-lite": "^0.7.3",
     "ioredis": "^6.0.0",
     "jose": "^6.2.12",
     "libphonenumber-js": "^1.13.15",
+    "mammoth": "1.13.0",
     "mongoose": "^9.11.1",
     "multer": "^2.4.0",
     "nodemailer": "^10.0.16",
@@ -125,6 +128,7 @@
     "rate-limit-redis": "^6.0.1",
     "read-excel-file": "^9.3.12",
     "swagger-ui-dist": "^5.33.1",
+    "unpdf": "1.8.1",
     "ws": "^8.22.0",
     "zod": "^4.6.5"
   }

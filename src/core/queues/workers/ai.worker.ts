@@ -4,6 +4,7 @@ import {
   purgeDeletedAgents,
   purgePlaygroundSessions,
 } from '../../../modules/ai-agents/maintenance';
+import { ingestSource, reindexKnowledgeBase } from '../../../modules/knowledge/ingest.job';
 import {
   AI_SCHEDULES,
   isAiJobName,
@@ -33,6 +34,14 @@ export type AiJobHandlers = { [N in AiJobName]?: AiJobHandler<N> };
 
 /** Processors per job name — each Phase 5 task registers its own here. */
 export const AI_JOB_HANDLERS: AiJobHandlers = {
+  'kb.ingest': (data, ctx, job) =>
+    ingestSource(data, {
+      provider: ctx.provider,
+      storage: ctx.storage,
+      jobs: ctx.jobs,
+      attempt: { made: job.attemptsMade, max: job.opts.attempts ?? 1 },
+    }),
+  'kb.reindex': (data, ctx) => reindexKnowledgeBase(data, ctx),
   'playground.purge': () => purgePlaygroundSessions(),
   'agents.purge_deleted': () => purgeDeletedAgents(),
 };

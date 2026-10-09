@@ -3,7 +3,7 @@ import type { Store } from 'express-rate-limit';
 
 import type { Env } from './config/env';
 import { createFakeProvider, type AiProvider } from './core/ai';
-import type { AiJobs } from './core/ai/jobs';
+import { unavailableAiJobs, type AiJobs } from './core/ai/jobs';
 import { secretBoxKey } from './core/ai/secret-box';
 import { unavailableBillingJobs, type BillingJobs } from './core/billing/jobs';
 import { createPaymentProvider, type PaymentProvider } from './core/payments';
@@ -25,6 +25,7 @@ import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
+import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes';
 import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
 import { createWebhooksRouter } from './modules/payments/webhooks.routes';
@@ -83,6 +84,7 @@ export const createApiRouter = ({
     | 'OPENAI_TEXT_MODEL'
     | 'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS'
     | 'ENCRYPTION_KEY'
+    | 'OPENAI_EMBEDDING_MODEL'
   >;
   auth?: Omit<AuthRouterDeps, 'env'>;
   contacts?: ContactsDeps;
@@ -143,6 +145,17 @@ export const createApiRouter = ({
       ...(ai.rateLimitStores?.functionTest
         ? { functionTestStore: ai.rateLimitStores.functionTest }
         : {}),
+    }),
+  );
+  router.use(
+    '/knowledge-bases',
+    createKnowledgeRouter({
+      env,
+      provider: ai.provider,
+      jobs: ai.jobs ?? unavailableAiJobs,
+      ...(ai.storage ? { storage: ai.storage } : {}),
+      ...(ai.http?.extraPorts ? { extraPorts: ai.http.extraPorts } : {}),
+      ...(ai.rateLimitStores?.knowledge ? { sourcesStore: ai.rateLimitStores.knowledge } : {}),
     }),
   );
   if (env.MOCK_APIS_ENABLED) router.use('/mock', createMockApisRouter());

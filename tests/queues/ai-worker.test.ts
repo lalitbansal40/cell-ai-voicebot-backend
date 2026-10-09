@@ -46,8 +46,27 @@ describe('ai worker', () => {
     await expect(processAiJob(ctx)(job('nope'))).rejects.toThrow('Unknown AI job');
     expect(Object.keys(AI_JOB_HANDLERS).sort()).toEqual([
       'agents.purge_deleted',
+      'kb.ingest',
+      'kb.reindex',
       'playground.purge',
     ]);
+  });
+
+  it('routes knowledge jobs (stale ingest skipped, reindex re-queues)', async () => {
+    const accountId = new Types.ObjectId().toString();
+    const kbId = new Types.ObjectId().toString();
+    const ingest = job('kb.ingest', {
+      accountId,
+      kbId,
+      sourceId: new Types.ObjectId().toString(),
+      version: 1,
+    });
+    ingest.opts = { attempts: 3 };
+    (ingest as { attemptsMade: number }).attemptsMade = 0;
+    await expect(processAiJob(ctx)(ingest)).resolves.toEqual({ status: 'skipped' });
+    await expect(processAiJob(ctx)(job('kb.reindex', { accountId, kbId }))).resolves.toEqual({
+      queued: 0,
+    });
   });
 
   it('runs the registered purge handlers', async () => {

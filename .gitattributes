@@ -15,3 +15,5 @@ docs/samples/*.csv binary
 
 # Fonts (invoice PDF)
 *.ttf binary
+# test fixtures are byte-exact (CRLF, Windows-1252, binary)
+tests/fixtures/** -text

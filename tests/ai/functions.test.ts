@@ -22,7 +22,9 @@ const app = buildTestApp(
     aiHttp: {
       extraPorts,
       resolve: (host) =>
-        host === 'api.public.test' ? Promise.resolve(['1.2.3.4']) : Promise.resolve(['10.0.0.9']),
+        host === 'api.public.test'
+          ? Promise.resolve(['1.2.3.4'])
+          : Promise.reject(new Error('ENOTFOUND')), // never a real address
       dial: (ip) => (ip === '1.2.3.4' ? '127.0.0.1' : ip),
     },
   },

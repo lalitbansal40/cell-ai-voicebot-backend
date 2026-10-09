@@ -200,6 +200,7 @@ const send = (
   hop: Hop,
   address: string,
   signal: AbortSignal,
+  maxBytes: number,
 ): Promise<{ res: IncomingMessage; body: Buffer }> =>
   new Promise((resolve, reject) => {
     const https = hop.url.protocol === 'https:';
@@ -227,7 +228,7 @@ const send = (
       let size = 0;
       res.on('data', (chunk: Buffer) => {
         size += chunk.length;
-        if (size > AI_LIMITS.functionResponseMaxBytes) {
+        if (size > maxBytes) {
           res.destroy();
           req.destroy();
           reject(new ToolFailure('too_large', res.statusCode ?? null));
@@ -297,6 +298,96 @@ export const prepareRequest = (
  * Never throws for request problems — they come back as `{ ok: false, error }`
  * so the model (or the Test button) can react.
  */
+/**
+ * Sends a request through the guard: every hop's address is checked and
+ * pinned, at most 2 redirects (re-checked; headers dropped off-origin), body
+ * capped at `maxBytes`. Throws `ToolFailure`.
+ */
+const fetchGuarded = async (
+  first: Hop,
+  options: HttpToolOptions,
+  signal: AbortSignal,
+  maxBytes: number,
+): Promise<{ res: IncomingMessage; body: Buffer; url: URL }> => {
+  let hop = first;
+  for (let redirects = 0; ; redirects += 1) {
+    const address = await pinAddress(hop.url, options);
+    const { res, body } = await send(hop, address, signal, maxBytes);
+    const status = res.statusCode ?? 0;
+    const location = res.headers.location;
+    if (!REDIRECTS.has(status) || !location) return { res, body, url: hop.url };
+    if (redirects >= MAX_REDIRECTS) throw new ToolFailure('too_many_redirects', status);
+    const next = new URL(location, hop.url);
+    const sameOrigin = next.origin === hop.url.origin;
+    const keepBody = status === 307 || status === 308;
+    hop = {
+      url: next,
+      method: keepBody ? hop.method : 'GET',
+      // credentials never follow a redirect to another origin
+      headers: sameOrigin ? hop.headers : {},
+      body: keepBody ? hop.body : null,
+    };
+  }
+};
+
+export interface PageFetch {
+  ok: boolean;
+  error?: ToolErrorCode | 'unsupported_type';
+  httpStatus: number | null;
+  contentType: string;
+  body: Buffer;
+}
+
+/**
+ * GETs one public page (knowledge URL sources): same SSRF guard as functions,
+ * `text/html` / `text/plain` only, body ≤ `maxBytes`. Never throws.
+ */
+export const fetchPage = async (
+  url: string,
+  options: HttpToolOptions,
+  { maxBytes, timeoutMs }: { maxBytes: number; timeoutMs: number },
+): Promise<PageFetch> => {
+  const signal = AbortSignal.timeout(timeoutMs);
+  const empty = Buffer.alloc(0);
+  try {
+    const { res, body } = await fetchGuarded(
+      {
+        url: new URL(url),
+        method: 'GET',
+        headers: { accept: 'text/html, text/plain;q=0.9' },
+        body: null,
+      },
+      options,
+      signal,
+      maxBytes,
+    );
+    const status = res.statusCode ?? 0;
+    const contentType = String(res.headers['content-type'] ?? '').toLowerCase();
+    if (status < 200 || status > 299) {
+      return { ok: false, error: `http_${status}`, httpStatus: status, contentType, body: empty };
+    }
+    if (!/^text\/(html|plain)\b/.test(contentType)) {
+      return { ok: false, error: 'unsupported_type', httpStatus: status, contentType, body: empty };
+    }
+    return { ok: true, httpStatus: status, contentType, body };
+  } catch (err) {
+    const code: ToolErrorCode = signal.aborted
+      ? 'timeout'
+      : err instanceof ToolFailure
+        ? err.code
+        : err instanceof TypeError
+          ? 'invalid_request'
+          : 'network';
+    return {
+      ok: false,
+      error: code,
+      httpStatus: err instanceof ToolFailure ? err.httpStatus : null,
+      contentType: '',
+      body: empty,
+    };
+  }
+};
+
 export const executeFunction = async (
   fn: Pick<
     AgentFunction,
@@ -323,55 +414,41 @@ export const executeFunction = async (
   try {
     const prepared = prepareRequest(fn, ctx, secretKey);
     prepared.warnings.forEach((w) => warnings.add(w));
-    let hop = prepared.hop;
-    for (let redirects = 0; ; redirects += 1) {
-      const address = await pinAddress(hop.url, options);
-      const { res, body } = await send(hop, address, signal);
-      const status = res.statusCode ?? 0;
-      const location = res.headers.location;
-      if (REDIRECTS.has(status) && location) {
-        if (redirects >= MAX_REDIRECTS) return fail('too_many_redirects', status);
-        const next = new URL(location, hop.url);
-        const sameOrigin = next.origin === hop.url.origin;
-        const keepBody = status === 307 || status === 308;
-        hop = {
-          url: next,
-          method: keepBody ? hop.method : 'GET',
-          // credentials never follow a redirect to another origin
-          headers: sameOrigin ? hop.headers : {},
-          body: keepBody ? hop.body : null,
-        };
-        continue;
+    const { res, body } = await fetchGuarded(
+      prepared.hop,
+      options,
+      signal,
+      AI_LIMITS.functionResponseMaxBytes,
+    );
+    const status = res.statusCode ?? 0;
+    if (status < 200 || status > 299) return fail(`http_${status}`, status);
+    const type = String(res.headers['content-type'] ?? '').toLowerCase();
+    const text = body.toString('utf8');
+    let parsed: unknown = text;
+    if (type.includes('json')) {
+      try {
+        parsed = text ? JSON.parse(text) : null;
+      } catch {
+        return fail('invalid_json', status);
       }
-      if (status < 200 || status > 299) return fail(`http_${status}`, status);
-      const type = String(res.headers['content-type'] ?? '').toLowerCase();
-      const text = body.toString('utf8');
-      let parsed: unknown = text;
-      if (type.includes('json')) {
-        try {
-          parsed = text ? JSON.parse(text) : null;
-        } catch {
-          return fail('invalid_json', status);
-        }
-      }
-      let result = parsed;
-      if (fn.resultPath) {
-        result = pickPath(parsed, fn.resultPath);
-        if (result === undefined) {
-          warnings.add('result_path_not_found');
-          result = null;
-        }
-      }
-      return {
-        ok: true,
-        httpStatus: status,
-        durationMs: now() - started,
-        result,
-        resultText: resultToText(result),
-        bytes: body.length,
-        warnings: [...warnings].sort(),
-      };
     }
+    let result = parsed;
+    if (fn.resultPath) {
+      result = pickPath(parsed, fn.resultPath);
+      if (result === undefined) {
+        warnings.add('result_path_not_found');
+        result = null;
+      }
+    }
+    return {
+      ok: true,
+      httpStatus: status,
+      durationMs: now() - started,
+      result,
+      resultText: resultToText(result),
+      bytes: body.length,
+      warnings: [...warnings].sort(),
+    };
   } catch (err) {
     if (err instanceof ToolFailure)
       return fail(signal.aborted ? 'timeout' : err.code, err.httpStatus);

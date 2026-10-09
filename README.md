@@ -107,7 +107,7 @@ curl -s localhost:5100/api/v1/system/info
 - **Bulk** (`POST /contacts/bulk`): tags, lists, delete, add to DND — ≤ 1,000 ids at once or a filter (≤ 100,000) in the background. A contact past 20 tags / 50 lists is skipped, never truncated.
 - **Export** (`/api/v1/contact-exports`, `contacts.export`, never while impersonating): CSV with BOM, injection-safe cells, link valid 15 min, file deleted after 24 h. Opening in Excel: use _Data → From Text/CSV_ so phones stay as text.
 - **Retention**: deleted contacts are erased after 30 days; uploaded sheets and error reports after 30 days; exports after 24 h (`maintenance` queue).
-- Dev helpers: `npm run samples:contacts` (sample sheets), `npm run bench:contacts [rows]` (50,000-row import + query timings; throw-away account). Last run: validate 0.6 s, import 4.6 s, list queries p95 ≤ 93 ms.
+- Dev helpers: `npm run samples:contacts` (sample sheets), `npm run fixtures:knowledge` (knowledge test files in `tests/fixtures/knowledge/` — PDF, DOCX, Hindi, Windows-1252, scanned, prompt-injection; deterministic), `npm run bench:contacts [rows]` (50,000-row import + query timings; throw-away account). Last run: validate 0.6 s, import 4.6 s, list queries p95 ≤ 93 ms.
 
 ## Wallet & billing (Phase 4)
 
@@ -252,6 +252,8 @@ npm 11 blocks dependency install scripts unless approved. Approvals live in `pac
 - `msgpackr-extract: false` — BullMQ's optional native msgpack add-on ships a prebuilt binary (`@msgpackr-extract/*`); the `node-gyp rebuild` script is not needed (msgpackr falls back to JS otherwise).
 - `@scarf/scarf: false` — pulled in by `swagger-ui-dist`; its postinstall only sends install analytics.
 - No install scripts for `jose` (pure JS) or `@node-rs/argon2` (prebuilt N-API binaries per platform).
+
+No install scripts for the Phase 5 knowledge parsers `mammoth`, `html-to-text` and `unpdf` (pure JS / bundled pdf.js; `unpdf` moved from dev to runtime dependencies). `npm audit` reports a moderate `sprintf-js` advisory through `mammoth` → `argparse`: `argparse` is only used by mammoth's command-line tool (`bin/mammoth`), never by the library calls we make (`convertToHtml`); CI audits at `high`.
 
 No install scripts needed for `nodemailer` / `smtp-server` (pure JS). `smtp-server` has no bundled types and `@types/smtp-server` would pull in `@types/nodemailer` (clashes with nodemailer 10's own types), so tests use a minimal local declaration (`tests/@types/smtp-server.d.ts`).
 
