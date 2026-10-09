@@ -15,6 +15,14 @@ import { startTestMongo } from '../helpers/mongo';
 
 const ACCOUNT = new Types.ObjectId().toString();
 const OTHER_ACCOUNT = new Types.ObjectId().toString();
+let openSlowGate: () => void = () => undefined;
+const slowGate = new Promise<void>((r) => {
+  openSlowGate = r;
+});
+let slowStarted: () => void = () => undefined;
+const slowRunning = new Promise<void>((r) => {
+  slowStarted = r;
+});
 const calls: Record<string, number> = {};
 const hit = (name: string) => (calls[name] = (calls[name] ?? 0) + 1);
 
@@ -32,7 +40,9 @@ const buildApp = () => {
     created(res, { n: hit('orders'), body: req.body as unknown }),
   );
   router.post('/required/slow', async (_req, res) => {
-    await new Promise((r) => setTimeout(r, 300));
+    slowStarted();
+    // Held open by the test until the duplicate request was answered (no timing race).
+    await slowGate;
     created(res, { n: hit('slow') });
   });
   router.post('/required/flaky', (_req, res) => {
@@ -103,10 +113,12 @@ describe('idempotency middleware', () => {
   });
 
   it('returns 409 IDEMPOTENCY_IN_PROGRESS while the first request is running', async () => {
-    const [a, b] = await Promise.all([
-      post('/required/slow', 'slow-1'),
-      new Promise((r) => setTimeout(r, 80)).then(() => post('/required/slow', 'slow-1')),
-    ]);
+    // supertest only sends on `.then` — start the first request now
+    const first = post('/required/slow', 'slow-1').then((r) => r);
+    await slowRunning;
+    const b = await post('/required/slow', 'slow-1');
+    openSlowGate();
+    const a = await first;
     expect(a.status).toBe(201);
     expect(b.status).toBe(409);
     expect(b.body.error.code).toBe('IDEMPOTENCY_IN_PROGRESS');
