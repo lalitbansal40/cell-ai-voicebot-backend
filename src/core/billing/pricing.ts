@@ -125,19 +125,14 @@ export const estimateCampaign = (
 };
 
 /**
- * Splits a charge into the wallet's monthly spend counters: commission is
- * allocated pro rata (floor) to call / AI / TTS, the remainder goes to call.
+ * Splits a charge into the wallet's monthly spend counters (and the usage
+ * chart — same rule): AI and TTS as billed, everything else (telephony +
+ * commission) is call spend.
  */
 export const spendShares = (
   b: Pick<ChargeBreakdown, 'telephonyMicros' | 'aiMicros' | 'ttsMicros' | 'commissionMicros'>,
-): { callMicros: number; aiMicros: number; ttsMicros: number } => {
-  const subtotal = b.telephonyMicros + b.aiMicros + b.ttsMicros;
-  if (subtotal === 0) return { callMicros: b.commissionMicros, aiMicros: 0, ttsMicros: 0 };
-  const aiCommission = Math.floor((b.commissionMicros * b.aiMicros) / subtotal);
-  const ttsCommission = Math.floor((b.commissionMicros * b.ttsMicros) / subtotal);
-  return {
-    callMicros: b.telephonyMicros + (b.commissionMicros - aiCommission - ttsCommission),
-    aiMicros: b.aiMicros + aiCommission,
-    ttsMicros: b.ttsMicros + ttsCommission,
-  };
-};
+): { callMicros: number; aiMicros: number; ttsMicros: number } => ({
+  callMicros: b.telephonyMicros + b.commissionMicros,
+  aiMicros: b.aiMicros,
+  ttsMicros: b.ttsMicros,
+});

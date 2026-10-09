@@ -27,3 +27,35 @@ export const getOrCreateWallet = async (accountId: Types.ObjectId): Promise<Wall
   if (!created) throw new Error('wallet upsert returned nothing');
   return created;
 };
+
+export interface WalletSettingsInput {
+  lowBalanceThresholdMicros?: number;
+  budgets?: { monthlyCallMicros?: number; monthlyAiMicros?: number };
+}
+
+/**
+ * Threshold / budgets (not money — no ledger row). A new threshold re-arms
+ * the low-balance alert.
+ */
+export const updateWalletSettings = async (
+  accountId: Types.ObjectId,
+  input: WalletSettingsInput,
+): Promise<{ before: WalletDoc; after: WalletDoc }> => {
+  const before = await getOrCreateWallet(accountId);
+  const set: Record<string, unknown> = {};
+  if (input.lowBalanceThresholdMicros !== undefined) {
+    set.lowBalanceThresholdMicros = input.lowBalanceThresholdMicros;
+    set['alerts.lowBalanceNotifiedAt'] = null;
+  }
+  if (input.budgets?.monthlyCallMicros !== undefined)
+    set['budgets.monthlyCallMicros'] = input.budgets.monthlyCallMicros;
+  if (input.budgets?.monthlyAiMicros !== undefined)
+    set['budgets.monthlyAiMicros'] = input.budgets.monthlyAiMicros;
+  const after = await WalletModel.findOneAndUpdate(
+    { accountId },
+    { $set: set, $inc: { version: 1 } },
+    { returnDocument: 'after' },
+  ).lean<WalletDoc>();
+  if (!after) throw new Error('wallet disappeared');
+  return { before, after };
+};

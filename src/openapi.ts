@@ -23,6 +23,8 @@ import './modules/rbac/rbac.schema';
 import './modules/realtime-tickets/tickets.schema';
 import './modules/team/team.schema';
 import './modules/system/system.schema';
+import './modules/wallet/wallet.schema';
+import './modules/billing/billing.schema';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;
 

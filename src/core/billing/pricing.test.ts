@@ -115,15 +115,9 @@ describe('estimates', () => {
 });
 
 describe('spendShares', () => {
-  it('allocates commission pro rata, remainder to call', () => {
+  it('counts commission as call spend', () => {
     expect(
       spendShares({ telephonyMicros: 2, aiMicros: 6, ttsMicros: 3, commissionMicros: 10 }),
-    ).toEqual({ callMicros: 2 + (10 - 5 - 2), aiMicros: 6 + 5, ttsMicros: 3 + 2 });
-    expect(
-      spendShares({ telephonyMicros: 0, aiMicros: 0, ttsMicros: 0, commissionMicros: 0 }),
-    ).toEqual({ callMicros: 0, aiMicros: 0, ttsMicros: 0 });
-    expect(
-      spendShares({ telephonyMicros: 0, aiMicros: 0, ttsMicros: 0, commissionMicros: 4 }),
-    ).toEqual({ callMicros: 4, aiMicros: 0, ttsMicros: 0 });
+    ).toEqual({ callMicros: 12, aiMicros: 6, ttsMicros: 3 });
   });
 });

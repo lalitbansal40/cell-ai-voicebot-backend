@@ -14,6 +14,7 @@ import {
   roundDiv,
   roundToPaise,
   rupeesToMicros,
+  toDecimalString,
 } from './money';
 
 describe('money helpers', () => {
@@ -88,6 +89,8 @@ describe('money helpers', () => {
     expect(formatRupees(-2_000_000)).toBe('-2.00');
     expect(formatRupees(-1)).toBe('0.00');
     expect(formatInr(1_000_000_000)).toBe('₹1,000.00');
+    expect(toDecimalString(125_000_500_000)).toBe('125000.50');
+    expect(toDecimalString(-2_000_000)).toBe('-2.00');
     expect(formatInr(-2_000_000)).toBe('-₹2.00');
   });
 

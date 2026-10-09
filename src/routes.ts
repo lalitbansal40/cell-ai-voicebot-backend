@@ -7,6 +7,7 @@ import { createAdminRouter } from './modules/admin/admin.routes';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
+import { createBillingRouter } from './modules/billing/billing.routes';
 import { createContactExportsRouter } from './modules/contact-exports/contact-exports.routes';
 import { createContactImportsRouter } from './modules/contact-imports/contact-imports.routes';
 import { createContactListsRouter } from './modules/contact-lists/contact-lists.routes';
@@ -20,6 +21,7 @@ import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes
 import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
+import { createWalletRouter } from './modules/wallet/wallet.routes';
 
 /** Everything under /api/v1. Add each module router here. */
 /** What the contact modules need: file storage + the background job queue (Phase 3). */
@@ -58,6 +60,8 @@ export const createApiRouter = ({
   router.use('/contact-tags', createContactTagsRouter());
   router.use('/contact-lists', createContactListsRouter({ jobs: contacts.jobs }));
   router.use('/segments', createSegmentsRouter());
+  router.use('/wallet', createWalletRouter());
+  router.use('/billing', createBillingRouter());
   router.use(
     '/contact-imports',
     createContactImportsRouter({ storage: contacts.storage, jobs: contacts.jobs }),

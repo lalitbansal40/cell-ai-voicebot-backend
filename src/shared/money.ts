@@ -81,6 +81,9 @@ export const formatRupees = (micros: number): string => {
   return `${sign}${groupIndian(whole)}.${String(paise % 100).padStart(2, '0')}`;
 };
 
+/** Micros → `"125000.50"` (CSV / machine-readable, rounded to paise, no grouping). */
+export const toDecimalString = (micros: number): string => formatRupees(micros).replace(/,/g, '');
+
 /** Micros → `"₹1,25,000.50"` (emails, PDFs). */
 export const formatInr = (micros: number): string => {
   const text = formatRupees(micros);

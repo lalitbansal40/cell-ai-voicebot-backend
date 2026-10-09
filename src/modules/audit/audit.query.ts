@@ -5,27 +5,9 @@ import type { z } from 'zod';
 import { AuditLogModel, type AuditLogDoc } from '../../db/models/audit-log.model';
 import { UserModel } from '../../db/models/user.model';
 import { tenantFilter } from '../../shared/auth/tenant';
-import { ValidationError } from '../../shared/errors/app-error';
+import { decodeCursor, encodeCursor } from '../../shared/http/cursor';
 
 import type { ListAuditQuery } from './audit.schema';
-
-interface Cursor {
-  at: string;
-  id: string;
-}
-
-const encodeCursor = (c: Cursor) => Buffer.from(JSON.stringify(c)).toString('base64url');
-const decodeCursor = (raw: string): Cursor => {
-  try {
-    const c = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as Partial<Cursor>;
-    if (typeof c.at !== 'string' || typeof c.id !== 'string' || !/^[a-f0-9]{24}$/.test(c.id))
-      throw new Error();
-    if (Number.isNaN(Date.parse(c.at))) throw new Error();
-    return { at: c.at, id: c.id };
-  } catch {
-    throw new ValidationError([{ path: 'query.cursor', message: 'Invalid cursor' }]);
-  }
-};
 
 /** Newest first; cursor = `{ at, id }` of the last item. */
 export const listAudit = async (req: Request, query: z.infer<typeof ListAuditQuery>) => {
