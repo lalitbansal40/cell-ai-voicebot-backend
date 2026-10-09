@@ -1232,6 +1232,90 @@
         "properties": { "code": { "type": "string" }, "name": { "type": "string" } },
         "required": ["code", "name"]
       },
+      "Invoice": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "number": { "type": "string", "example": "CAV/26-27/000001" },
+          "fy": { "type": "string" },
+          "status": { "type": "string", "enum": ["rendering", "ready", "failed"] },
+          "seller": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "address": { "type": "string" },
+              "gstin": { "type": ["string", "null"] },
+              "stateCode": { "type": "string" }
+            },
+            "required": ["name", "address", "gstin", "stateCode"]
+          },
+          "buyer": {
+            "type": "object",
+            "properties": {
+              "legalName": { "type": "string" },
+              "email": { "type": "string" },
+              "addressLine1": { "type": "string" },
+              "addressLine2": { "type": ["string", "null"] },
+              "city": { "type": "string" },
+              "stateCode": { "type": "string", "example": "08" },
+              "pin": { "type": "string" },
+              "gstin": { "type": ["string", "null"] }
+            },
+            "required": [
+              "legalName",
+              "email",
+              "addressLine1",
+              "addressLine2",
+              "city",
+              "stateCode",
+              "pin",
+              "gstin"
+            ]
+          },
+          "placeOfSupply": {
+            "type": "object",
+            "properties": { "stateCode": { "type": "string" }, "stateName": { "type": "string" } },
+            "required": ["stateCode", "stateName"]
+          },
+          "sacCode": { "type": "string" },
+          "amounts": {
+            "type": "object",
+            "properties": {
+              "baseMicros": { "type": "number" },
+              "cgstMicros": { "type": "number" },
+              "sgstMicros": { "type": "number" },
+              "igstMicros": { "type": "number" },
+              "taxMicros": { "type": "number" },
+              "totalMicros": { "type": "number" }
+            },
+            "required": [
+              "baseMicros",
+              "cgstMicros",
+              "sgstMicros",
+              "igstMicros",
+              "taxMicros",
+              "totalMicros"
+            ]
+          },
+          "paymentId": { "type": "string" },
+          "topupOrderId": { "type": "string" },
+          "issuedAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "number",
+          "fy",
+          "status",
+          "seller",
+          "buyer",
+          "placeOfSupply",
+          "sacCode",
+          "amounts",
+          "paymentId",
+          "topupOrderId",
+          "issuedAt"
+        ]
+      },
       "Notification": {
         "type": "object",
         "properties": {
@@ -6122,6 +6206,155 @@
                   "required": ["success", "data"]
                 }
               }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices": {
+      "get": {
+        "tags": ["Billing"],
+        "summary": "GST invoices of the account, newest first (wallet.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Invoice" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}": {
+      "get": {
+        "tags": ["Billing"],
+        "summary": "One invoice",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Invoice" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{id}/download": {
+      "get": {
+        "tags": ["Billing"],
+        "summary": "Signed link to the invoice PDF (15 min); 409 while the PDF is being made",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "url": { "type": "string" },
+                        "expiresInSec": { "type": "number" }
+                      },
+                      "required": ["url", "expiresInSec"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           }
         }

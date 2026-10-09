@@ -1,6 +1,7 @@
 import type { Job, Queue, Worker } from 'bullmq';
 
 import { purgeNotifications } from '../../../modules/notifications/notifications.service';
+import { renderInvoice } from '../../billing/invoice-render';
 import {
   BILLING_SCHEDULES,
   isBillingJobName,
@@ -38,6 +39,7 @@ export const BILLING_JOB_HANDLERS: BillingJobHandlers = {
   },
   'notifications.purge': () => purgeNotifications(),
   'billing.expire_orders': () => expireTopupOrders(),
+  'invoice.render': (data, ctx, job) => renderInvoice(data, ctx, job),
 };
 
 export const processBillingJob =

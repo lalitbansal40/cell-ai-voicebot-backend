@@ -11,6 +11,7 @@ import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
 import { createBillingRouter } from './modules/billing/billing.routes';
+import { createInvoicesRouter } from './modules/billing/invoices.routes';
 import { createContactExportsRouter } from './modules/contact-exports/contact-exports.routes';
 import { createContactImportsRouter } from './modules/contact-imports/contact-imports.routes';
 import { createContactListsRouter } from './modules/contact-lists/contact-lists.routes';
@@ -94,6 +95,7 @@ export const createApiRouter = ({
     }),
   );
   router.use('/billing', createBillingRouter());
+  router.use('/invoices', createInvoicesRouter({ storage: billing.storage }));
   router.use('/notifications', createNotificationsRouter());
   router.use(
     '/webhooks',

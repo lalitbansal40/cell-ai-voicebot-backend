@@ -25,6 +25,7 @@ import './modules/team/team.schema';
 import './modules/system/system.schema';
 import './modules/wallet/wallet.schema';
 import './modules/billing/billing.schema';
+import './modules/billing/invoices.schema';
 import './modules/notifications/notifications.schema';
 import './modules/payments/webhooks.schema';
 

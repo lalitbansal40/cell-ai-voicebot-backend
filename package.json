@@ -1,7 +1,7 @@
 {
   "name": "cell-ai-voicebot-backend",
   "version": "0.0.1",
-  "description": "Cell AI Voicebot \u2014 multi-tenant AI voice calling platform API",
+  "description": "Cell AI Voicebot — multi-tenant AI voice calling platform API",
   "private": true,
   "license": "UNLICENSED",
   "type": "commonjs",
@@ -51,6 +51,7 @@
     "@types/express": "^5.0.6",
     "@types/multer": "^2.3.0",
     "@types/node": "^24.19.1",
+    "@types/pdfkit": "0.17.6",
     "@types/supertest": "^7.2.1",
     "@types/ws": "^8.18.2",
     "@vitest/coverage-v8": "^5.0.3",
@@ -70,6 +71,7 @@
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.1",
+    "unpdf": "1.8.1",
     "vitest": "^5.0.3",
     "write-excel-file": "^4.1.1"
   },
@@ -116,6 +118,7 @@
     "mongoose": "^9.11.1",
     "multer": "^2.4.0",
     "nodemailer": "^10.0.16",
+    "pdfkit": "0.20.2",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "rate-limit-redis": "^6.0.1",

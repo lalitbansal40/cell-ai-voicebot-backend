@@ -38,6 +38,7 @@ describe('billing worker', () => {
       'billing.expire_orders',
       'billing.reap_holds',
       'billing.reconcile',
+      'invoice.render',
       'notifications.purge',
     ]);
   });
