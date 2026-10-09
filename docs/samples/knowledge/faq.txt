@@ -1,0 +1,15 @@
+# Payment methods
+Aap apni EMI UPI, NEFT, debit card ya kisi bhi branch par cash se jama kar sakte hain. Hamari UPI ID demofinance@upi hai.
+You can pay your EMI by UPI, NEFT, debit card or cash at any branch. Our UPI ID is demofinance@upi.
+
+# Late fee
+Due date ke baad har din ₹50 late fee lagti hai, maximum ₹500 tak.
+A late fee of ₹50 per day applies after the due date, up to ₹500 per EMI.
+
+# Contact hours
+Hamari support team Monday se Saturday, subah 9 baje se shaam 7 baje tak available hai.
+Our support team is available Monday to Saturday, 9 am to 7 pm. Call 1800-000-0000 (toll free).
+
+# Payment receipt
+Payment ke 24 ghante ke andar SMS par receipt aa jaati hai.
+A receipt is sent by SMS within 24 hours of the payment.

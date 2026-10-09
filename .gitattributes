@@ -12,6 +12,7 @@
 # Sample sheets stay byte-exact (BOM + CRLF, like Excel exports)
 docs/samples/*.csv binary
 *.xlsx binary
+*.docx binary
 
 # Fonts (invoice PDF)
 *.ttf binary

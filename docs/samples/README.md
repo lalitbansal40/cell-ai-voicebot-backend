@@ -26,3 +26,7 @@ Preconditions in the account (the tests set these up): a **required** currency f
 Without a required `loan_amount` field the 3 "missing amount" rows are valid (created 90, invalid 5).
 
 `dnd-sample.csv` against the same account: created 2, unchanged 2 (already listed), invalid 1.
+
+## Knowledge documents
+
+`docs/samples/knowledge/` — FAQ (TXT), payment policy (PDF) and loan terms (DOCX) for the AI knowledge base; see [its README](knowledge/README.md).

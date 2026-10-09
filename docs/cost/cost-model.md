@@ -94,3 +94,14 @@ _Recording storage adds ₹0.0034/min (3 months, S3 Mumbai). Billable minutes us
 3. **TTS cost per minute** — PoC `tts-check`.
 4. **Recording retention period** — client legal (T0.18 compliance notes).
 5. **GST treatment** — CA.
+
+## 6. AI text & knowledge pricing (Phase 5)
+
+The playground (and later chat-style AI usage) is billed per token, separately from the per-minute realtime voice price above:
+
+| Item                            | Default selling price                                          | Where it is set                              | Charged when                                                                                                                                     |
+| ------------------------------- | -------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AI text (input + output tokens) | ₹0.20 per 1,000 tokens (`aiTextPer1kTokensMicros = 200_000`)   | Superadmin rate card (default / per account) | Once per playground turn, incl. the tokens of tool rounds and a guardrail retry; the query embedding of the turn is added at the embedding price |
+| Embeddings                      | ₹0.01 per 1,000 tokens (`embeddingPer1kTokensMicros = 10_000`) | Superadmin rate card                         | Once per knowledge source ingest (`kbingest:<sourceId>:<version>`)                                                                               |
+
+`cost = ceil(tokens × ratePer1k / 1000)` micros (never rounded down). A typical playground turn with the default persona is ~1,500 input + ~60 output tokens ≈ **₹0.31**; ingesting a 10-page PDF (~6,000 tokens) ≈ **₹0.06**. Our cost at OpenAI list prices for `gpt-4.1-mini` / `text-embedding-3-small` is well below these defaults — confirm the margin once the live run (docs/setup/openai.md) records real token counts.

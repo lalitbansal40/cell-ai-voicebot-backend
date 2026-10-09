@@ -174,6 +174,7 @@ GET /api/v1/calls?limit=50&cursor=eyJjcmVhdGVkQXQiOi…
 - 4xx responses are stored and replayed; 5xx responses are not stored (the record is deleted, so the client can retry).
 - Mounted per route from Phase 4 / 8 (trigger call, start campaign, top-up) with `idempotency({ scope: accountScope })` — `accountScope` (`src/shared/auth/tenant.ts`) returns the authenticated `accountId` (Phase 2).
 - Mounted today (Phase 4): `POST /wallet/topups` (scope = the caller's account) and `POST /admin/accounts/:id/wallet/adjustments` (scope = the superadmin's platform account; the target account is part of the hashed path, so one key never replays against another account). Phase 8 adds trigger call / start campaign.
+- **AI playground turns** (Phase 5) don't use the header: `POST /agents/:id/playground/sessions/:sid/messages { text, clientTurnId }` carries a client-generated UUID per message. Repeating it returns the stored reply (`replay: true`) with no second model call and no second charge; the ledger key is `aiturn:<sessionId>:<clientTurnId>`. Knowledge ingest charges use `kbingest:<sourceId>:<version>`.
 - Separate from the HTTP key, every billing-engine operation has its own **unique ledger idempotency key** (`topup:<orderId>`, `settle:<holdId>`, `adjust:<accountId>:<key>`, …), so a retried job or webhook can never move money twice even after the 24 h HTTP record expired ([ADR 0032](../adr/0032-wallet-billing-payments.md)).
 
 ## 11. File uploads
@@ -181,15 +182,19 @@ GET /api/v1/calls?limit=50&cursor=eyJjcmVhdGVkQXQiOi…
 - `multipart/form-data`, file field name **`file`** (extra fields as normal form fields).
 - Both the MIME type **and** the file extension are checked.
 
-| Upload                  | Allowed                 | Max size |
-| ----------------------- | ----------------------- | -------- |
-| Contacts import         | `.csv`, `.xlsx`         | 10 MB    |
-| Audio prompt            | `.mp3`, `.wav`          | 10 MB    |
-| Knowledge-base document | `.pdf`, `.docx`, `.txt` | 20 MB    |
+| Upload                  | Allowed                        | Max size                    |
+| ----------------------- | ------------------------------ | --------------------------- |
+| Contacts import         | `.csv`, `.xlsx`                | 10 MB                       |
+| Audio prompt            | `.mp3`, `.wav`                 | 10 MB                       |
+| Knowledge-base document | `.pdf`, `.docx`, `.txt`, `.md` | 10 MB each, 1–5 per request |
 
 Too large → `413 PAYLOAD_TOO_LARGE`; wrong type → `415 UNSUPPORTED_MEDIA_TYPE`.
 
 The file's **magic bytes** must match too (an `.xlsx` is a ZIP: `PK\x03\x04`; a CSV must not be a ZIP or contain NUL bytes), so a renamed file is rejected with 415.
+
+**Knowledge documents** (Phase 5, [ADR 0033](../adr/0033-ai-agents-knowledge-tools.md)): `POST /knowledge-bases/:id/sources/files`, multipart field **`files`** (repeat it, 1–5 files). PDF must start with `%PDF-`; DOCX must be a ZIP containing `word/document.xml`; TXT / MD must not be a ZIP or contain NUL bytes (UTF-8 with or without BOM, else Windows-1252). More than 5 files → 422; ≤ 25 sources per base and ≤ 10 bases per account → `422 KNOWLEDGE_LIMIT_REACHED`; 20 adds / hour / account. Files are processed in the background (`202`, progress over WS `kb.source.updated`).
+
+**Write-only secrets** (Phase 5): agent function headers marked `secret` are never returned — responses show `{ secret: true, value: null, valueHint: '••••1234' }`. To keep a stored secret on `PATCH`, send the header with `value: null`; a new string replaces it.
 
 **Contact imports** (Phase 3, [ADR 0031](../adr/0031-contact-import-pipeline.md)):
 

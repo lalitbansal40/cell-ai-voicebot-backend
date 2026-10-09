@@ -2,16 +2,20 @@
  * DEV ONLY — demo data: account "Demo Finance" with one user per role, demo
  * contacts (fields, list, segment, DND — scripts/seed-contacts.ts), demo
  * billing (profile, ₹1,000 credit, simulated calls, a fake top-up + invoice —
- * scripts/seed-billing.ts) and a platform superadmin. Needs Mongo + Redis (the
+ * scripts/seed-billing.ts), demo AI agents + knowledge base + mock payment
+ * records (scripts/seed-ai.ts) and a platform superadmin. Needs Mongo + Redis (the
  * invoice PDF is rendered by the billing worker of a running dev server).
  * Idempotent; existing users are left as they are.
  * Password: SEED_PASSWORD, else a random one printed once. Refuses in production.
  */
 import { getEnv } from '../src/config/env';
+import { createAiProvider } from '../src/core/ai';
+import { unavailableAiJobs } from '../src/core/ai/jobs';
 import { queueBillingJobs } from '../src/core/billing/jobs';
 import { QUEUES } from '../src/core/queues/names';
 import { closeAllQueues, createQueue } from '../src/core/queues/queue-factory';
 import { closeAllRedis } from '../src/core/queues/redis';
+import { createStorage } from '../src/core/storage';
 import { AccountModel } from '../src/db/models/account.model';
 import { UserModel } from '../src/db/models/user.model';
 import { connectMongo, disconnectMongo } from '../src/db/mongo';
@@ -20,6 +24,7 @@ import { getPlatformAccount, upsertActiveUser } from '../src/modules/auth/user-s
 import type { SystemRoleKey } from '../src/modules/rbac/system-roles';
 import { getLogger } from '../src/shared/logger';
 
+import { SEED_KB_NAME, seedAi } from './seed-ai';
 import { seedBilling } from './seed-billing';
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
 
@@ -71,6 +76,17 @@ const main = async (): Promise<void> => {
     });
     console.info(
       `Billing: profile ${billing.profile ? 'set' : 'kept'}, opening credit ${billing.openingCredit ? 'added' : 'already there'}, ${billing.calls} new simulated calls, top-up ${billing.topup ? `paid (invoice ${billing.invoiceNumber ?? '?'})` : 'already paid'}`,
+    );
+
+    const ai = await seedAi(account._id, {
+      env,
+      ownerId: owner?._id ?? account._id,
+      storage: createStorage(env, logger),
+      provider: createAiProvider(env),
+      jobs: unavailableAiJobs,
+    });
+    console.info(
+      `AI: ${ai.agents} new agents ("Recovery Bot (Hinglish)", "Payment Reminder"), knowledge base "${SEED_KB_NAME}" ${ai.ready}/3 sources ready (${ai.sources} new), ${ai.mockPayments} new mock payment records`,
     );
 
     console.info(

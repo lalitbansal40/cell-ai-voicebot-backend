@@ -41,8 +41,10 @@
     "superadmin:create": "tsx --env-file-if-exists=.env scripts/superadmin-create.ts",
     "samples:contacts": "tsx scripts/make-contact-samples.ts",
     "fixtures:knowledge": "tsx scripts/make-knowledge-fixtures.ts",
+    "samples:knowledge": "tsx scripts/make-knowledge-samples.ts",
     "bench:contacts": "tsx --env-file-if-exists=.env scripts/bench-contacts.ts",
-    "bench:wallet": "tsx --env-file-if-exists=.env scripts/bench-wallet.ts"
+    "bench:wallet": "tsx --env-file-if-exists=.env scripts/bench-wallet.ts",
+    "bench:retrieval": "tsx --env-file-if-exists=.env scripts/bench-retrieval.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
