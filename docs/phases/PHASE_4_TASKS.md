@@ -14,10 +14,10 @@ Source plan: [PHASE_4_PLAN.md](PHASE_4_PLAN.md) — Batch 1 = T4.1–T4.5, Batch
 | [x]  | T4.8  | GST, invoice numbering (FY), invoice PDF, receipt email, invoices API                                   | BE   | M    |
 | [x]  | T4.9  | Superadmin: rate cards, account wallet / ledger, adjustments, credit limit, simulator, platform summary | BE   | M    |
 | [x]  | T4.10 | Seed, OpenAPI, ADR 0032, Razorpay setup guide, bench, backend docs                                      | BE   | M    |
-| [ ]  | T4.11 | FE foundation: clients, money input, routes, WS, notifications bell, wallet banner                      | FE   | M    |
-| [ ]  | T4.12 | Wallet overview + settings + Add money flow + dashboard card                                            | FE   | L    |
-| [ ]  | T4.13 | Transactions, Usage chart, Invoices, Settings → Billing details                                         | FE   | M    |
-| [ ]  | T4.14 | Superadmin UI: Rates, Wallet (adjust, simulator), `/admin/billing`                                      | FE   | M    |
-| [ ]  | T4.15 | Playwright E2E, gap + security audit, docs, Phase 4 sign-off                                            | both | M    |
+| [x]  | T4.11 | FE foundation: clients, money input, routes, WS, notifications bell, wallet banner                      | FE   | M    |
+| [x]  | T4.12 | Wallet overview + settings + Add money flow + dashboard card                                            | FE   | L    |
+| [x]  | T4.13 | Transactions, Usage chart, Invoices, Settings → Billing details                                         | FE   | M    |
+| [x]  | T4.14 | Superadmin UI: Rates, Wallet (adjust, simulator), `/admin/billing`                                      | FE   | M    |
+| [x]  | T4.15 | Playwright E2E, gap + security audit, docs, Phase 4 sign-off                                            | both | M    |
 
-**Done when:** Test top-up se balance badhe, dummy call charge ledger mein sahi dikhe, hold / release sahi chale (Playwright E2E green).
+**Done when:** Test top-up se balance badhe, dummy call charge ledger mein sahi dikhe, hold / release sahi chale (Playwright E2E green). ✅ `e2e/wallet-topup.spec.ts` + `e2e/wallet-charges.spec.ts` (frontend) — [sign-off](PHASE_4_SIGNOFF.md).

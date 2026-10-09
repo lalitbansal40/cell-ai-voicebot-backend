@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 4 · Batch 3 (T4.11–T4.15) — Phase 4 complete** — 2026-10-09
+  - `GET /admin/billing/config` (simulator on / off, payment provider) for the superadmin UI.
+  - Frontend wallet, Add money, transactions, usage, invoices, billing details, bell, banner and superadmin billing pages; 5 Playwright wallet scenarios (15 total, green twice) — see the frontend CHANGELOG.
+  - Sign-off: [PHASE_4_SIGNOFF.md](docs/phases/PHASE_4_SIGNOFF.md) (gap audit, numbers, deviations, TODOs by phase, pending inputs).
+  - Backend tests: 1176 (the config endpoint is covered inside the admin billing suite).
+
 - **Phase 4 · Batch 2 (T4.6–T4.10)** — 2026-10-09
   - Payments: `PaymentProvider` interface, Razorpay REST client (timing-safe signatures, 10 s timeout) and a fake provider for dev / tests / E2E (refused in production).
   - Top-ups: `POST /wallet/topups` (Idempotency-Key, ₹100 – ₹5,00,000, 10 / hour, billing profile required, GST on top) → checkout → `verify` or `fake-complete`; list / detail; one transaction marks the order paid, credits the wallet and allocates the invoice number. Orders expire after 24 h.

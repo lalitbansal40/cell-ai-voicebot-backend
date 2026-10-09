@@ -73,8 +73,8 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 | 0   | Setup & Architecture Decisions        | 🟢 Abhi           | ✔       | ✔     |
 | 1   | Backend Foundation                    | ✅ Done           | ✔       | –     |
 | 2   | Auth, Accounts, RBAC + App Shell      | ✅ Done           | ✔       | ✔     |
-| 3   | Contacts, Lists & Custom Fields       | 🟢 Abhi           | ✔       | ✔     |
-| 4   | Wallet & Billing                      | 🟢 Abhi           | ✔       | ✔     |
+| 3   | Contacts, Lists & Custom Fields       | ✅ Done           | ✔       | ✔     |
+| 4   | Wallet & Billing                      | ✅ Done           | ✔       | ✔     |
 | 5   | AI Agents & Knowledge Base            | 🟢 Abhi           | ✔       | ✔     |
 | 6   | Call Flow Engine & Builder            | 🟢 Abhi           | ✔       | ✔     |
 | 7   | Voice Runtime + Web Call Tester       | 🟢 Abhi           | ✔       | ✔     |
@@ -162,7 +162,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ---
 
-### Phase 4 — Wallet & Billing 🟢
+### Phase 4 — Wallet & Billing ✅
 
 - `Wallet` + `WalletLedger` (AutoChatix pattern), micro-units
 - Ledger types: `CALL_MINUTES`, `AI_USAGE`, `TTS/STT`, `RECORDING_STORAGE` (optional), `TOPUP`, `ADJUSTMENT`, `SUBSCRIPTION`
@@ -174,7 +174,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 - Low balance alert (email + in-app), superadmin manual credit/adjustment
 - UI: balance, on-hold, ledger table (filters), usage breakdown chart, add money, invoices
 
-**Done when:** Test top-up se balance badhe, dummy call charge ledger mein sahi dikhe, hold/release sahi chale.
+**Done when:** Test top-up se balance badhe, dummy call charge ledger mein sahi dikhe, hold/release sahi chale. ✅ Playwright `e2e/wallet-topup.spec.ts` + `e2e/wallet-charges.spec.ts` (frontend) — [sign-off](../phases/PHASE_4_SIGNOFF.md). Hold per call (not per campaign) — ADR 0032.
 
 ---
 
@@ -432,7 +432,7 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 | Phase 1                | Ready to start — [PHASE_1_PLAN.md](../phases/PHASE_1_PLAN.md)                                      |                         |
 | Phase 2                | Complete — [PHASE_2_SIGNOFF.md](../phases/PHASE_2_SIGNOFF.md)                                      |                         |
 | Phase 3                | Complete — [PHASE_3_SIGNOFF.md](../phases/PHASE_3_SIGNOFF.md)                                      |                         |
-| Phase 4                | Planned — [PHASE_4_PLAN.md](../phases/PHASE_4_PLAN.md)                                             |                         |
+| Phase 4                | Complete — [PHASE_4_SIGNOFF.md](../phases/PHASE_4_SIGNOFF.md)                                      |                         |
 
 ---
 
@@ -442,3 +442,4 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 - 2026-10-08: Phase 0 complete — decisions table (§8): MongoDB 8.2, OpenAPI types, WS tickets, Asterisk recommendation, 09:00–19:00 calling window; voice AI and deployment pending inputs.
 - 2026-10-08: Phase 2 complete (auth, accounts, RBAC, app shell, superadmin, Playwright E2E) — [PHASE_2_SIGNOFF.md](../phases/PHASE_2_SIGNOFF.md). Superadmin rates deferred to Phase 4 as planned.
 - 2026-10-09: Phase 3 complete (contacts, lists, custom fields, imports / exports, DND, Playwright E2E) — [PHASE_3_SIGNOFF.md](../phases/PHASE_3_SIGNOFF.md). Phase 4 detailed plan — [PHASE_4_PLAN.md](../phases/PHASE_4_PLAN.md): per-call holds (not per campaign), insert-only ledger (settle = release hold + charge row), fake payment provider until Razorpay test keys.
+- 2026-10-09: Phase 4 complete (wallet, billing engine, Razorpay + test payments, GST invoices, alerts, superadmin billing, Playwright E2E) — [PHASE_4_SIGNOFF.md](../phases/PHASE_4_SIGNOFF.md). Razorpay test mode pending keys. Next: Phase 5 (AI agents & knowledge base).

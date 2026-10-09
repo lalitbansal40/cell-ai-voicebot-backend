@@ -4,7 +4,7 @@ Multi-tenant AI voice calling platform API (Node.js + Express + TypeScript + Mon
 
 ## Status
 
-**Phase 2 — Auth, Accounts, RBAC + App Shell: complete** ([sign-off](docs/phases/PHASE_2_SIGNOFF.md)); Phase 1 [sign-off](docs/phases/PHASE_1_SIGNOFF.md). Next: Phase 3 (contacts). Tasks: [docs/phases/PHASE_2_TASKS.md](docs/phases/PHASE_2_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
+**Phase 4 — Wallet & Billing: complete** ([sign-off](docs/phases/PHASE_4_SIGNOFF.md)); Phase 3 [sign-off](docs/phases/PHASE_3_SIGNOFF.md), Phase 2 [sign-off](docs/phases/PHASE_2_SIGNOFF.md), Phase 1 [sign-off](docs/phases/PHASE_1_SIGNOFF.md). Next: Phase 5 (AI agents & knowledge base). Tasks: [docs/phases/PHASE_4_TASKS.md](docs/phases/PHASE_4_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Prerequisites
 
