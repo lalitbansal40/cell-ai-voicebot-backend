@@ -30,4 +30,4 @@ Dashboard users need secure sessions; storing long-lived JWTs in localStorage (A
 - CSRF: refresh / logout require an `Origin` from `CORS_ORIGINS` (missing Origin allowed only outside production).
 - Passwords: argon2id (`@node-rs/argon2`, m=19 MiB, t=2, p=1, rehash on login); policy 10–128 chars, not email / name, not one of 1,000 common passwords.
 - Enumeration: signup, resend and forgot-password always answer 202 after ≥ 300 ms; unknown-email logins run a dummy argon2 verify; "disabled" is only revealed with the right password.
-- Brute force: auth routes 30 / 15 min per IP + route (own Redis store `rl:auth:`, IPv6 grouped by /56), 5 failed logins / 15 min per email, OTP 5 tries / 60 s resend / 5 per hour.
+- Brute force: auth routes 30 / 15 min per IP + route — `/auth/refresh` 600, since it runs on every page load and needs the httpOnly cookie (Phase 3 fix) — (own Redis store `rl:auth:`, IPv6 grouped by /56), 5 failed logins / 15 min per email, OTP 5 tries / 60 s resend / 5 per hour.

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { ipKeyGenerator, type Store } from 'express-rate-limit';
 
 import type { Env } from '../../config/env';
-import { AUTH_RATE_LIMIT } from '../../config/limits';
+import { AUTH_RATE_LIMIT, AUTH_REFRESH_RATE_LIMIT } from '../../config/limits';
 import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { originCheck } from '../../shared/middlewares/origin-check';
@@ -52,6 +52,7 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
   const router = Router();
   const limiter = createRateLimiter({
     ...AUTH_RATE_LIMIT,
+    limit: (req) => (req.path === '/refresh' ? AUTH_REFRESH_RATE_LIMIT : AUTH_RATE_LIMIT.limit),
     // ipKeyGenerator groups IPv6 addresses by /56 so a client can't rotate addresses.
     keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? '')}:${req.path}`,
     ...(deps.rateLimitStore ? { store: deps.rateLimitStore } : {}),

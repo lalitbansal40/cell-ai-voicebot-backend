@@ -7,7 +7,8 @@ import { RateLimitedError } from '../errors/app-error';
 
 export interface RateLimiterOptions {
   windowMs: number;
-  limit: number;
+  /** A number, or one per request (e.g. a higher limit for one route). */
+  limit: number | ((req: Request) => number);
   /** Defaults to the client IP (honours `trust proxy`). */
   keyGenerator?: (req: Request) => string;
   /** Counter store. MemoryStore by default; the server passes a Redis store (shared across instances). */

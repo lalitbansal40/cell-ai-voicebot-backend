@@ -84,7 +84,7 @@ curl -s localhost:5100/api/v1/system/info
   ```
   Signup / reset emails land in **Mailpit** (<http://localhost:8025>) when `SMTP_HOST=127.0.0.1`, `SMTP_PORT=1025`.
 - **Access token:** `Authorization: Bearer <jwt>` (15 min). Roles: owner, admin, manager, agent, viewer — permissions in `src/modules/rbac/permissions.ts` (`GET /api/v1/rbac/permissions`).
-- **Limits:** auth routes 30 / 15 min per IP and route; 5 failed logins / 15 min per email → 429 with `Retry-After`; email codes 10 min, 5 tries, resend every 60 s (max 5 / hour).
+- **Limits:** auth routes 30 / 15 min per IP and route (`/auth/refresh` 600 — it runs on every page load); 5 failed logins / 15 min per email → 429 with `Retry-After`; email codes 10 min, 5 tries, resend every 60 s (max 5 / hour).
 - Passwords: argon2id, 10–128 characters, not your email / name, not a common password. Secrets (passwords, codes, tokens, cookies) never appear in logs or email subjects.
 
 ## Team, API keys, audit, superadmin (Phase 2)

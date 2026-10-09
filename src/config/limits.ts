@@ -21,6 +21,13 @@ export const SIGNED_URL_TTL_SEC = 900;
  */
 export const AUTH_RATE_LIMIT = { windowMs: 15 * 60_000, limit: 30 } as const;
 
+/**
+ * `/auth/refresh` runs on every page load and tab (and every ~14 min), and is
+ * authenticated by an unguessable httpOnly cookie — so it gets far more room
+ * than the brute-forceable routes. Same window, per IP.
+ */
+export const AUTH_REFRESH_RATE_LIMIT = 600;
+
 /** Contacts, imports and exports (PHASE_3_PLAN §1e). */
 export const CONTACT_LIMITS = {
   importMaxBytes: 10 * 1024 * 1024,
