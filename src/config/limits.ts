@@ -2,8 +2,13 @@
 export const JSON_BODY_LIMIT = '1mb';
 export const URLENCODED_BODY_LIMIT = '100kb';
 
-/** Global per-IP limit for every API request. */
-export const GLOBAL_RATE_LIMIT = { windowMs: 60_000, limit: 300 } as const;
+/**
+ * Global per-IP limit for every API request — a flood guard, not a quota.
+ * 1,200 / min (20 / s): a team behind one office NAT loads ~10 requests per
+ * page (contacts, fields, lists, tags, refresh, WS ticket…); 300 / min locked
+ * out ~20 people working together (found by the Phase 3 E2E suite).
+ */
+export const GLOBAL_RATE_LIMIT = { windowMs: 60_000, limit: 1200 } as const;
 
 /** Preset for sensitive routes (login, password reset, OTP) — mounted in Phase 2. */
 export const STRICT_RATE_LIMIT = { windowMs: 15 * 60_000, limit: 10 } as const;
