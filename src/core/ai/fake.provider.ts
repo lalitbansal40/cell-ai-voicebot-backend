@@ -95,7 +95,12 @@ const firstKnowledge = (messages: ChatMessage[]): string | null => {
     if (at < 0) continue;
     const body = m.content.slice(m.content.indexOf('\n', at) + 1);
     const end = body.indexOf(KNOWLEDGE_CLOSE);
-    const text = end >= 0 ? body.slice(0, end) : body;
+    const raw = end >= 0 ? body.slice(0, end) : body;
+    // chunk text starts with its heading line (`# Late fee`) — answer from the body
+    const text = raw
+      .split('\n')
+      .filter((line) => !/^#{1,6}\s/.test(line.trim()))
+      .join('\n');
     if (text.trim()) return firstSentence(text);
   }
   return null;
