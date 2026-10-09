@@ -6,6 +6,8 @@ export interface ErrorDetail {
   message: string;
   /** On duplicates (`CONFLICT_DUPLICATE`): id of the record that already exists. */
   existingId?: string;
+  /** On `WALLET_INSUFFICIENT_BALANCE`: what the wallet can still spend (micros). */
+  availableMicros?: number;
 }
 
 /**
