@@ -56,6 +56,7 @@ export const createApiRouter = ({
     | 'CORS_ORIGINS'
     | 'NODE_ENV'
     | 'PAYMENT_PROVIDER'
+    | 'BILLING_SIMULATOR_ENABLED'
     | 'FAKE_PAYMENT_SECRET'
     | 'RAZORPAY_KEY_ID'
     | 'RAZORPAY_KEY_SECRET'
@@ -71,7 +72,7 @@ export const createApiRouter = ({
   router.use('/team', createTeamRouter());
   router.use('/api-keys', createApiKeysRouter());
   router.use('/audit-logs', createAuditRouter());
-  router.use('/admin', createAdminRouter());
+  router.use('/admin', createAdminRouter({ env }));
   router.use('/ws', createWsTicketsRouter());
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());

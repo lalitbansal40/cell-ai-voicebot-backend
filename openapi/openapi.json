@@ -1316,6 +1316,359 @@
           "issuedAt"
         ]
       },
+      "TopupOrder": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "provider": { "type": "string", "enum": ["razorpay", "fake"] },
+          "providerOrderId": { "type": ["string", "null"] },
+          "status": {
+            "type": "string",
+            "enum": ["creating", "created", "paid", "failed", "expired", "refunded"]
+          },
+          "baseMicros": { "type": "number" },
+          "cgstMicros": { "type": "number" },
+          "sgstMicros": { "type": "number" },
+          "igstMicros": { "type": "number" },
+          "taxMicros": { "type": "number" },
+          "totalMicros": { "type": "number" },
+          "currency": { "type": "string", "enum": ["INR"] },
+          "failureReason": { "type": ["string", "null"] },
+          "paidAt": { "type": ["string", "null"] },
+          "invoiceId": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "provider",
+          "providerOrderId",
+          "status",
+          "baseMicros",
+          "cgstMicros",
+          "sgstMicros",
+          "igstMicros",
+          "taxMicros",
+          "totalMicros",
+          "currency",
+          "failureReason",
+          "paidAt",
+          "invoiceId",
+          "createdAt"
+        ]
+      },
+      "TopupCheckout": {
+        "type": "object",
+        "properties": {
+          "topupOrder": { "$ref": "#/components/schemas/TopupOrder" },
+          "checkout": {
+            "type": "object",
+            "properties": {
+              "provider": { "type": "string", "enum": ["razorpay", "fake"] },
+              "keyId": {
+                "type": ["string", "null"],
+                "description": "Razorpay key id (public); null for test payments"
+              },
+              "providerOrderId": { "type": "string" },
+              "amountPaise": { "type": "number" },
+              "currency": { "type": "string", "enum": ["INR"] },
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "prefill": {
+                "type": "object",
+                "properties": { "name": { "type": "string" }, "email": { "type": "string" } },
+                "required": ["name", "email"]
+              }
+            },
+            "required": [
+              "provider",
+              "keyId",
+              "providerOrderId",
+              "amountPaise",
+              "currency",
+              "name",
+              "description",
+              "prefill"
+            ]
+          }
+        },
+        "required": ["topupOrder", "checkout"]
+      },
+      "RateCardVersion": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "accountId": { "type": ["string", "null"] },
+          "callPerMinuteMicros": { "type": "number" },
+          "pulseSeconds": { "type": "number" },
+          "aiPerMinuteMicros": { "type": "number" },
+          "ttsPer1kCharsMicros": { "type": "number" },
+          "commissionBps": { "type": "number" },
+          "billUnansweredAttempts": { "type": "boolean" },
+          "inheritsDefault": { "type": "boolean" },
+          "effectiveFrom": { "type": "string" },
+          "createdBy": { "type": ["string", "null"] },
+          "note": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "accountId",
+          "callPerMinuteMicros",
+          "pulseSeconds",
+          "aiPerMinuteMicros",
+          "ttsPer1kCharsMicros",
+          "commissionBps",
+          "billUnansweredAttempts",
+          "inheritsDefault",
+          "effectiveFrom",
+          "createdBy",
+          "note",
+          "createdAt"
+        ]
+      },
+      "AccountRateCards": {
+        "type": "object",
+        "properties": {
+          "effective": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "source": { "type": "string", "enum": ["account", "default"] },
+              "callPerMinuteMicros": { "type": "number" },
+              "pulseSeconds": { "type": "number" },
+              "aiPerMinuteMicros": { "type": "number" },
+              "ttsPer1kCharsMicros": { "type": "number" },
+              "commissionBps": { "type": "number" },
+              "billUnansweredAttempts": { "type": "boolean" },
+              "effectiveFrom": { "type": "string" }
+            },
+            "required": [
+              "id",
+              "source",
+              "callPerMinuteMicros",
+              "pulseSeconds",
+              "aiPerMinuteMicros",
+              "ttsPer1kCharsMicros",
+              "commissionBps",
+              "billUnansweredAttempts",
+              "effectiveFrom"
+            ]
+          },
+          "history": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/RateCardVersion" }
+          }
+        },
+        "required": ["effective", "history"]
+      },
+      "WalletAdjustment": {
+        "type": "object",
+        "properties": {
+          "entry": { "$ref": "#/components/schemas/LedgerEntry" },
+          "wallet": { "$ref": "#/components/schemas/Wallet" }
+        },
+        "required": ["entry", "wallet"]
+      },
+      "SimulatedHold": {
+        "type": "object",
+        "properties": {
+          "holdId": { "type": "string" },
+          "heldMicros": { "type": "number" },
+          "rateCard": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "source": { "type": "string", "enum": ["account", "default"] },
+              "callPerMinuteMicros": { "type": "number" },
+              "pulseSeconds": { "type": "number" },
+              "aiPerMinuteMicros": { "type": "number" },
+              "ttsPer1kCharsMicros": { "type": "number" },
+              "commissionBps": { "type": "number" },
+              "billUnansweredAttempts": { "type": "boolean" },
+              "effectiveFrom": { "type": "string" }
+            },
+            "required": [
+              "id",
+              "source",
+              "callPerMinuteMicros",
+              "pulseSeconds",
+              "aiPerMinuteMicros",
+              "ttsPer1kCharsMicros",
+              "commissionBps",
+              "billUnansweredAttempts",
+              "effectiveFrom"
+            ]
+          },
+          "wallet": { "$ref": "#/components/schemas/Wallet" }
+        },
+        "required": ["holdId", "heldMicros", "rateCard", "wallet"]
+      },
+      "SimulatedCallResult": {
+        "type": "object",
+        "properties": {
+          "outcome": { "type": "string", "enum": ["charged", "released"] },
+          "entries": { "type": "array", "items": { "$ref": "#/components/schemas/LedgerEntry" } },
+          "wallet": { "$ref": "#/components/schemas/Wallet" }
+        },
+        "required": ["outcome", "entries", "wallet"]
+      },
+      "BillingSummary": {
+        "type": "object",
+        "properties": {
+          "month": { "type": "string" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "topups": {
+            "type": "object",
+            "properties": {
+              "count": { "type": "number" },
+              "baseMicros": { "type": "number" },
+              "cgstMicros": { "type": "number" },
+              "sgstMicros": { "type": "number" },
+              "igstMicros": { "type": "number" },
+              "taxMicros": { "type": "number" },
+              "totalMicros": { "type": "number" }
+            },
+            "required": [
+              "count",
+              "baseMicros",
+              "cgstMicros",
+              "sgstMicros",
+              "igstMicros",
+              "taxMicros",
+              "totalMicros"
+            ]
+          },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "byType": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "topup",
+                        "call_charge",
+                        "ai_charge",
+                        "tts_charge",
+                        "adjustment",
+                        "refund",
+                        "subscription",
+                        "recording_charge"
+                      ]
+                    },
+                    "amountMicros": { "type": "number" }
+                  },
+                  "required": ["type", "amountMicros"]
+                }
+              },
+              "totalMicros": { "type": "number" }
+            },
+            "required": ["byType", "totalMicros"]
+          },
+          "adjustments": {
+            "type": "object",
+            "properties": {
+              "creditMicros": { "type": "number" },
+              "debitMicros": { "type": "number" }
+            },
+            "required": ["creditMicros", "debitMicros"]
+          },
+          "topAccounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "accountId": { "type": "string" },
+                "name": { "type": "string" },
+                "spendMicros": { "type": "number" }
+              },
+              "required": ["accountId", "name", "spendMicros"]
+            }
+          },
+          "wallets": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "number" },
+              "low": { "type": "number" },
+              "exhausted": { "type": "number" }
+            },
+            "required": ["total", "low", "exhausted"]
+          },
+          "openReconcileMismatches": { "type": "number" },
+          "paymentEventsNeedingAttention": { "type": "number" }
+        },
+        "required": [
+          "month",
+          "from",
+          "to",
+          "topups",
+          "usage",
+          "adjustments",
+          "topAccounts",
+          "wallets",
+          "openReconcileMismatches",
+          "paymentEventsNeedingAttention"
+        ]
+      },
+      "AdminPayment": {
+        "allOf": [
+          { "$ref": "#/components/schemas/TopupOrder" },
+          {
+            "type": "object",
+            "properties": {
+              "accountId": { "type": "string" },
+              "accountName": { "type": ["string", "null"] },
+              "providerPaymentId": { "type": ["string", "null"] }
+            },
+            "required": ["accountId", "accountName", "providerPaymentId"]
+          }
+        ]
+      },
+      "PaymentEvent": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "provider": { "type": "string", "enum": ["razorpay", "fake"] },
+          "eventId": { "type": "string" },
+          "type": { "type": "string" },
+          "accountId": { "type": ["string", "null"] },
+          "topupOrderId": { "type": ["string", "null"] },
+          "providerOrderId": { "type": ["string", "null"] },
+          "providerPaymentId": { "type": ["string", "null"] },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "received",
+              "credited",
+              "duplicate_credit",
+              "failed",
+              "unmatched",
+              "mismatch",
+              "refund",
+              "ignored"
+            ]
+          },
+          "receivedAt": { "type": "string" },
+          "processedAt": { "type": ["string", "null"] }
+        },
+        "required": [
+          "id",
+          "provider",
+          "eventId",
+          "type",
+          "accountId",
+          "topupOrderId",
+          "providerOrderId",
+          "providerPaymentId",
+          "outcome",
+          "receivedAt",
+          "processedAt"
+        ]
+      },
       "Notification": {
         "type": "object",
         "properties": {
@@ -6353,6 +6706,1343 @@
           },
           "409": {
             "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallet/topups": {
+      "post": {
+        "tags": ["Wallet"],
+        "summary": "Start a wallet recharge — creates a payment order (wallet.topup; Idempotency-Key)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "Required (api.md §10)"
+            },
+            "required": true,
+            "description": "Required (api.md §10)",
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amountMicros": {
+                    "type": "integer",
+                    "minimum": 100000000,
+                    "maximum": 500000000000,
+                    "description": "Wallet credit (before GST), whole rupees in micros",
+                    "example": 1000000000
+                  }
+                },
+                "required": ["amountMicros"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/TopupCheckout" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Wallet"],
+        "summary": "Recharge history (wallet.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/TopupOrder" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallet/topups/{id}": {
+      "get": {
+        "tags": ["Wallet"],
+        "summary": "One recharge (poll it after checkout)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/TopupOrder" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallet/topups/{id}/verify": {
+      "post": {
+        "tags": ["Wallet"],
+        "summary": "Confirm a checkout payment (signature + payment re-fetched from the gateway)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "providerPaymentId": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "signature": { "type": "string", "minLength": 1, "maxLength": 200 }
+                },
+                "required": ["providerPaymentId", "signature"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/TopupOrder" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallet/topups/{id}/fake-complete": {
+      "post": {
+        "tags": ["Wallet"],
+        "summary": "Test payments only (PAYMENT_PROVIDER=fake): pay or fail an order",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "outcome": { "type": "string", "enum": ["paid", "failed"] } },
+                "required": ["outcome"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/TopupOrder" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/rate-cards/default": {
+      "get": {
+        "tags": ["Superadmin billing"],
+        "summary": "Platform default rate card in force (platform.billing.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/RateCardVersion" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Superadmin billing"],
+        "summary": "New default rate card version (history kept; every account on the default sees it)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "callPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "pulseSeconds": {
+                    "anyOf": [
+                      { "type": "number", "enum": [15] },
+                      { "type": "number", "enum": [30] },
+                      { "type": "number", "enum": [60] }
+                    ]
+                  },
+                  "aiPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "ttsPer1kCharsMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "commissionBps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+                  "billUnansweredAttempts": { "type": "boolean" },
+                  "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
+                },
+                "required": [
+                  "callPerMinuteMicros",
+                  "pulseSeconds",
+                  "aiPerMinuteMicros",
+                  "ttsPer1kCharsMicros",
+                  "commissionBps",
+                  "billUnansweredAttempts"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/RateCardVersion" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/rate-cards/default/history": {
+      "get": {
+        "tags": ["Superadmin billing"],
+        "summary": "Default rate card versions, newest first",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/RateCardVersion" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/rate-cards": {
+      "get": {
+        "tags": ["Superadmin billing"],
+        "summary": "Prices in force for an account + its override history",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AccountRateCards" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Superadmin billing"],
+        "summary": "New account override",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "callPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "pulseSeconds": {
+                    "anyOf": [
+                      { "type": "number", "enum": [15] },
+                      { "type": "number", "enum": [30] },
+                      { "type": "number", "enum": [60] }
+                    ]
+                  },
+                  "aiPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "ttsPer1kCharsMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "commissionBps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+                  "billUnansweredAttempts": { "type": "boolean" },
+                  "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
+                },
+                "required": [
+                  "callPerMinuteMicros",
+                  "pulseSeconds",
+                  "aiPerMinuteMicros",
+                  "ttsPer1kCharsMicros",
+                  "commissionBps",
+                  "billUnansweredAttempts"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AccountRateCards" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Superadmin billing"],
+        "summary": "Back to the platform default (history kept)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AccountRateCards" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/wallet": {
+      "get": {
+        "tags": ["Superadmin billing"],
+        "summary": "An account’s wallet",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Wallet" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Superadmin billing"],
+        "summary": "Credit limit (≤ ₹1 lakh)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "creditLimitMicros": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000,
+                    "description": "Integer micros (₹1 = 1,000,000)"
+                  }
+                },
+                "required": ["creditLimitMicros"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Wallet" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/ledger": {
+      "get": {
+        "tags": ["Superadmin billing"],
+        "summary": "An account’s ledger, newest first (keyset cursor)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "description": "Comma-separated types" },
+            "required": false,
+            "description": "Comma-separated types",
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["held", "captured", "released"] },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["call", "campaign", "topup", "manual", "simulator", "usage", "seed"]
+            },
+            "required": false,
+            "name": "refType",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "date-time" },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "date-time" },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/LedgerEntry" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/CursorPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/wallet/adjustments": {
+      "post": {
+        "tags": ["Superadmin billing"],
+        "summary": "Manual credit / debit with a reason (Idempotency-Key required; audited on both accounts)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "direction": { "type": "string", "enum": ["credit", "debit"] },
+                  "amountMicros": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000000000,
+                    "description": "Integer micros, whole paise, ≤ ₹10 lakh"
+                  },
+                  "reason": { "type": "string", "minLength": 5, "maxLength": 300 },
+                  "allowNegative": { "type": "boolean" }
+                },
+                "required": ["direction", "amountMicros", "reason"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WalletAdjustment" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/billing/simulated-calls": {
+      "post": {
+        "tags": ["Superadmin billing"],
+        "summary": "Start a simulated call: a real hold (404 unless BILLING_SIMULATOR_ENABLED)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "estimateMinutes": { "type": "integer", "minimum": 1, "maximum": 60 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/SimulatedHold" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/billing/simulated-calls/{holdId}/end": {
+      "post": {
+        "tags": ["Superadmin billing"],
+        "summary": "End a simulated call: settle (answered / billable) or release the hold",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "holdId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "answered": { "type": "boolean" },
+                  "durationSec": { "type": "integer", "minimum": 0, "maximum": 14400 },
+                  "aiSeconds": { "type": "integer", "minimum": 0, "maximum": 14400 },
+                  "ttsChars": { "type": "integer", "minimum": 0, "maximum": 1000000 }
+                },
+                "required": ["answered", "durationSec"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/SimulatedCallResult" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/billing/summary": {
+      "get": {
+        "tags": ["Superadmin billing"],
+        "summary": "Platform month totals (IST): top-ups + GST, usage, top accounts, wallet health",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "description": "IST month, default: the current one"
+            },
+            "required": false,
+            "description": "IST month, default: the current one",
+            "name": "month",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/BillingSummary" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/payments": {
+      "get": {
+        "tags": ["Superadmin billing"],
+        "summary": "Top-up orders of every account",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["creating", "created", "paid", "failed", "expired", "refunded"]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "Only this account (id)"
+            },
+            "required": false,
+            "description": "Only this account (id)",
+            "name": "account",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "IST date (inclusive)"
+            },
+            "required": false,
+            "description": "IST date (inclusive)",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "IST date (inclusive)"
+            },
+            "required": false,
+            "description": "IST date (inclusive)",
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AdminPayment" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/payment-events": {
+      "get": {
+        "tags": ["Superadmin billing"],
+        "summary": "Payment webhook deliveries (kept 90 days)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "received",
+                "credited",
+                "duplicate_credit",
+                "failed",
+                "unmatched",
+                "mismatch",
+                "refund",
+                "ignored"
+              ]
+            },
+            "required": false,
+            "name": "outcome",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/PaymentEvent" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

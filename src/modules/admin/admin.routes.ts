@@ -1,10 +1,12 @@
 import { Router } from 'express';
 
+import type { Env } from '../../config/env';
 import { noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { requirePlatformAdmin } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
+import { createAdminBillingRouter } from './admin-billing.routes';
 import { AccountIdParams, ListAccountsQuery, SuspendBody } from './admin.schema';
 import {
   accountDetail,
@@ -16,7 +18,11 @@ import {
 } from './admin.service';
 
 /** `/api/v1/admin` — platform superadmin only. */
-export const createAdminRouter = (): Router => {
+export const createAdminRouter = ({
+  env,
+}: {
+  env: Pick<Env, 'BILLING_SIMULATOR_ENABLED'>;
+}): Router => {
   const router = Router();
   router.use(authenticate());
 
@@ -62,5 +68,6 @@ export const createAdminRouter = (): Router => {
       ok(res, await impersonate(req, params.id));
     }),
   );
+  router.use(createAdminBillingRouter({ env }));
   return router;
 };

@@ -59,3 +59,21 @@ export const updateWalletSettings = async (
   if (!after) throw new Error('wallet disappeared');
   return { before, after };
 };
+
+/**
+ * Superadmin credit limit (not money — no ledger row). Returns both versions
+ * so the caller can audit and publish the change.
+ */
+export const setCreditLimit = async (
+  accountId: Types.ObjectId,
+  creditLimitMicros: number,
+): Promise<{ before: WalletDoc; after: WalletDoc }> => {
+  const before = await getOrCreateWallet(accountId);
+  const after = await WalletModel.findOneAndUpdate(
+    { accountId },
+    { $set: { creditLimitMicros }, $inc: { version: 1 } },
+    { returnDocument: 'after' },
+  ).lean<WalletDoc>();
+  if (!after) throw new Error('wallet disappeared');
+  return { before, after };
+};
