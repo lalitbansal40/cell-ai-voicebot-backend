@@ -16,11 +16,11 @@ Source plan: [PHASE_3_PLAN.md](PHASE_3_PLAN.md) — Batch 1 = T3.1–T3.6, Batch
 | [x]  | T3.10 | Bulk actions + export + background cleanup                                                | BE   | M    |
 | [x]  | T3.11 | Retention purge jobs                                                                      | BE   | S    |
 | [x]  | T3.12 | Seed, sample sheets, OpenAPI, performance check, backend docs                             | BE   | M    |
-| [ ]  | T3.13 | Frontend foundation (gen:api, clients, format utils, nav, routes, shell)                  | FE   | M    |
-| [ ]  | T3.14 | Contacts table, filters, column picker, bulk, create / edit                               | FE   | L    |
-| [ ]  | T3.15 | Contact detail page                                                                       | FE   | M    |
-| [ ]  | T3.16 | Import wizard + activity page                                                             | FE   | L    |
-| [ ]  | T3.17 | Lists, Segments builder, Do-not-call, Fields tabs + export                                | FE   | L    |
-| [ ]  | T3.18 | Playwright E2E, gap + security audit, docs, Phase 3 sign-off                              | both | M    |
+| [x]  | T3.13 | Frontend foundation (gen:api, clients, format utils, nav, routes, shell)                  | FE   | M    |
+| [x]  | T3.14 | Contacts table, filters, column picker, bulk, create / edit                               | FE   | L    |
+| [x]  | T3.15 | Contact detail page                                                                       | FE   | M    |
+| [x]  | T3.16 | Import wizard + activity page                                                             | FE   | L    |
+| [x]  | T3.17 | Lists, Segments builder, Do-not-call, Fields tabs + export                                | FE   | L    |
+| [x]  | T3.18 | Playwright E2E, gap + security audit, docs, Phase 3 sign-off                              | both | M    |
 
-**Done when:** 100 customers ki sheet import ho, har contact ke variables dikhen, galat rows ki report mile (Playwright E2E green).
+**Done when:** 100 customers ki sheet import ho, har contact ke variables dikhen, galat rows ki report mile (Playwright E2E green). ✅ `e2e/contacts-import.spec.ts` (frontend) — [sign-off](PHASE_3_SIGNOFF.md).

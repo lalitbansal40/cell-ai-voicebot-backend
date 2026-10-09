@@ -200,7 +200,7 @@ Phase 3 ke end tak client apne customers ki **sheet upload** karke contacts bana
 
 ### T3.1 — Models, indexes, migration, limits, catalogue
 
-- [ ] Models in `src/db/models/` (base plugin: tenant `accountId`, timestamps, soft delete where noted):
+- [x] Models in `src/db/models/` (base plugin: tenant `accountId`, timestamps, soft delete where noted):
   - `contact.model.ts` — `phoneE164`, `name?`, `email?`, `externalId?`, `variables` (Map, mixed string / number), `tags[]`, `listIds[]`, `dnd` (default false), `optedOutAt?`, `consent? { source, at }`, `source { type, importJobId? }`, `searchText`, `lastCalledAt?` (null), `callCount` (0), `deletedAt`.
   - `contact-list.model.ts` — `name`, `description?`, `source { type, fileName? }`, `deletedAt`.
   - `custom-field.model.ts` (`customFieldDefinitions`) — `key`, `label`, `type`, `required`, `defaultValue?`, `order`.
@@ -208,152 +208,152 @@ Phase 3 ke end tak client apne customers ki **sheet upload** karke contacts bana
   - `dnd-entry.model.ts` — `phoneE164`, `reason?`, `source`, `addedBy?`.
   - `import-job.model.ts` — `kind: contacts \| dnd`, `fileName`, `fileKey`, `fileType: csv \| xlsx`, `sheet?`, `sheets[]`, `columns [{ index, header, samples[] }]`, `rowCount`, `mapping`, `options`, `status`, `progress { processed, total }`, `totals { rows, created, updated, unchanged, invalid, duplicates, dnd }`, `problemRows[]` (≤ 100: `{ row, reasons[] }` — **no cell values**), `errorReportKey?`, `listId?`, `warnings[]`, `errorMessage?`, `createdBy`, `startedAt`, `completedAt`, `canceledAt`.
   - `export-job.model.ts` — `filterKind`, `filter`, `columns`, `status`, `progress`, `rowCount`, `fileKey?`, `createdBy`, `completedAt`, `expiresAt`.
-- [ ] Indexes (exactly as data-model.md after update): contacts `{ accountId, phoneE164 }` unique partial `deletedAt: null`; `{ accountId, externalId }` unique partial (string + not deleted); `{ accountId, deletedAt, createdAt: -1 }`; `{ accountId, listIds }`; `{ accountId, tags }`; `{ accountId, dnd }`; `{ accountId, name }` with collation en/2. Lists `{ accountId, name }` unique partial live. Fields `{ accountId, key }` unique. Segments `{ accountId, name }` unique. DND `{ accountId, phoneE164 }` unique. Import / export jobs `{ accountId, createdAt: -1 }`.
-- [ ] Permission `dnd.manage` in the catalogue (group "Contacts") → owner / admin; migration **`0004-dnd-manage-permission`** calls `syncSystemRoles()` (`down` removes it); frontend test `ROLE_PERMISSIONS` updated in T3.13.
-- [ ] `CONTACT_LIMITS` in `src/config/limits.ts` (§1e).
-- [ ] Error code `IMPORT_FILE_INVALID` in `error-codes.ts` + error-codes.md (test-synced).
-- [ ] `QUEUES.contacts` + worker registration skeleton (`src/core/queues/workers/contacts.worker.ts`) behind `WORKERS_ENABLED`.
-- [ ] WS event types (`export.progress`, `contacts.bulk_completed`, `contacts.changed`) + websocket.md §5; audit actions (§1f) in `AUDIT_ACTIONS` + audit.md.
-- [ ] Tests: model validation + hidden fields, every unique index (incl. partial / revive), migration up / down, catalogue sync tests still green, tenant-scope test covers the new models.
+- [x] Indexes (exactly as data-model.md after update): contacts `{ accountId, phoneE164 }` unique partial `deletedAt: null`; `{ accountId, externalId }` unique partial (string + not deleted); `{ accountId, deletedAt, createdAt: -1 }`; `{ accountId, listIds }`; `{ accountId, tags }`; `{ accountId, dnd }`; `{ accountId, name }` with collation en/2. Lists `{ accountId, name }` unique partial live. Fields `{ accountId, key }` unique. Segments `{ accountId, name }` unique. DND `{ accountId, phoneE164 }` unique. Import / export jobs `{ accountId, createdAt: -1 }`.
+- [x] Permission `dnd.manage` in the catalogue (group "Contacts") → owner / admin; migration **`0004-dnd-manage-permission`** calls `syncSystemRoles()` (`down` removes it); frontend test `ROLE_PERMISSIONS` updated in T3.13.
+- [x] `CONTACT_LIMITS` in `src/config/limits.ts` (§1e).
+- [x] Error code `IMPORT_FILE_INVALID` in `error-codes.ts` + error-codes.md (test-synced).
+- [x] `QUEUES.contacts` + worker registration skeleton (`src/core/queues/workers/contacts.worker.ts`) behind `WORKERS_ENABLED`.
+- [x] WS event types (`export.progress`, `contacts.bulk_completed`, `contacts.changed`) + websocket.md §5; audit actions (§1f) in `AUDIT_ACTIONS` + audit.md.
+- [x] Tests: model validation + hidden fields, every unique index (incl. partial / revive), migration up / down, catalogue sync tests still green, tenant-scope test covers the new models.
 
 ### T3.2 — Normalisation library (`src/modules/contacts/normalize/`)
 
-- [ ] `phone.ts` — `normalizePhone(raw, defaultCountry) → { ok, e164 } | { ok: false, reason }` (all §1a cases incl. `phone_lost_digits`, apostrophe, 12-digit `91…`, extension text rejected).
-- [ ] `values.ts` — `parseFieldValue(type, raw, { dateFormat })` for text / number / currency (micros) / date (`YYYY-MM-DD`, Excel serial, `Date`) / phone; `formatFieldValue(type, stored)` for export / templates.
-- [ ] `tags.ts`, `email.ts`, `search-text.ts` (build `searchText`).
-- [ ] `applyDefaultsAndRequired(fields, variables)`.
-- [ ] Tests: table-driven, ≥ 120 cases (Hindi names, Indian grouping, `₹`, `Rs.`, negative numbers, 29/02 leap year, 31/04 invalid, `MM/DD` option, Excel serial 45000, scientific phone, `+1` US number with IN default, landline `+911123456789`, empty / whitespace). Coverage 100 % for this folder.
+- [x] `phone.ts` — `normalizePhone(raw, defaultCountry) → { ok, e164 } | { ok: false, reason }` (all §1a cases incl. `phone_lost_digits`, apostrophe, 12-digit `91…`, extension text rejected).
+- [x] `values.ts` — `parseFieldValue(type, raw, { dateFormat })` for text / number / currency (micros) / date (`YYYY-MM-DD`, Excel serial, `Date`) / phone; `formatFieldValue(type, stored)` for export / templates.
+- [x] `tags.ts`, `email.ts`, `search-text.ts` (build `searchText`).
+- [x] `applyDefaultsAndRequired(fields, variables)`.
+- [x] Tests: table-driven, ≥ 120 cases (Hindi names, Indian grouping, `₹`, `Rs.`, negative numbers, 29/02 leap year, 31/04 invalid, `MM/DD` option, Excel serial 45000, scientific phone, `+1` US number with IN default, landline `+911123456789`, empty / whitespace). Coverage 100 % for this folder.
 
 ### T3.3 — Custom fields API (`/api/v1/custom-fields`)
 
-- [ ] `GET` (ordered, with `usageCount` on request `?withUsage=true`), `POST`, `PATCH /:id` (label / required / defaultValue / order; type only when unused), `DELETE /:id` (→ job `field.delete_values`, returns 202), `PUT /order` (reorder).
-- [ ] Rules §1b (key regex, reserved, max 50, defaultValue typed, type-change guard).
-- [ ] Audit `custom_field.*`. OpenAPI registered.
-- [ ] Tests: CRUD, permissions (agent / viewer 403), limits, reserved keys, type change with / without data, delete cascade job, tenant isolation (other account's field → 404), suspended → 403 on writes.
+- [x] `GET` (ordered, with `usageCount` on request `?withUsage=true`), `POST`, `PATCH /:id` (label / required / defaultValue / order; type only when unused), `DELETE /:id` (→ job `field.delete_values`, returns 202), `PUT /order` (reorder).
+- [x] Rules §1b (key regex, reserved, max 50, defaultValue typed, type-change guard).
+- [x] Audit `custom_field.*`. OpenAPI registered.
+- [x] Tests: CRUD, permissions (agent / viewer 403), limits, reserved keys, type change with / without data, delete cascade job, tenant isolation (other account's field → 404), suspended → 403 on writes.
 
 ### T3.4 — Contacts API (`/api/v1/contacts`)
 
-- [ ] `GET /contacts` (offset pagination, `q`, filters `listId`, `tag` (comma = any), `tagsAll`, `dnd`, `optedOut`, `segmentId`, `createdFrom/To`, `sort` allowlist; unknown params → 422), `POST /contacts/search` (filter body, same response), `GET /contacts/:id` (with list names), `POST /contacts`, `PATCH /contacts/:id` (`variables` partial merge; `null` clears a non-required value), `DELETE /contacts/:id` (soft), `GET /contact-tags` (distinct tags with counts).
-- [ ] `compileContactFilter(filter, fields)` → Mongo query (pure, typed per field type, always `accountId` + `deletedAt: null`); zod schema for the filter shared by contacts / segments / bulk / export.
-- [ ] Create: normalise → DND lookup sets `dnd` → revive soft-deleted phone → `409 CONFLICT_DUPLICATE { existingId }` for a live duplicate (phone or externalId).
-- [ ] Response shape `Contact` (variables as stored; `listIds` + `lists [{ id, name }]` on detail).
-- [ ] Tests: CRUD, every filter + operator, search by any phone format / Hindi name, sort incl. collation, pagination meta, revive path, duplicate 409 details, unknown variable key 422, required / default, permissions per role, tenant isolation (list / get / patch / delete other account → 404), suspended → 403, impersonation allowed + audited where relevant.
+- [x] `GET /contacts` (offset pagination, `q`, filters `listId`, `tag` (comma = any), `tagsAll`, `dnd`, `optedOut`, `segmentId`, `createdFrom/To`, `sort` allowlist; unknown params → 422), `POST /contacts/search` (filter body, same response), `GET /contacts/:id` (with list names), `POST /contacts`, `PATCH /contacts/:id` (`variables` partial merge; `null` clears a non-required value), `DELETE /contacts/:id` (soft), `GET /contact-tags` (distinct tags with counts).
+- [x] `compileContactFilter(filter, fields)` → Mongo query (pure, typed per field type, always `accountId` + `deletedAt: null`); zod schema for the filter shared by contacts / segments / bulk / export.
+- [x] Create: normalise → DND lookup sets `dnd` → revive soft-deleted phone → `409 CONFLICT_DUPLICATE { existingId }` for a live duplicate (phone or externalId).
+- [x] Response shape `Contact` (variables as stored; `listIds` + `lists [{ id, name }]` on detail).
+- [x] Tests: CRUD, every filter + operator, search by any phone format / Hindi name, sort incl. collation, pagination meta, revive path, duplicate 409 details, unknown variable key 422, required / default, permissions per role, tenant isolation (list / get / patch / delete other account → 404), suspended → 403, impersonation allowed + audited where relevant.
 
 ### T3.5 — Lists + segments
 
-- [ ] `/api/v1/contact-lists`: `GET` (pagination, `q`, computed `contactCount`), `POST`, `PATCH /:id` (name / description), `DELETE /:id` (soft + job `list.delete_members`, audit). Max 500, name unique (409).
-- [ ] `/api/v1/segments`: `GET` (with optional `?withCounts=true`), `POST`, `PATCH`, `DELETE` (audit), `POST /segments/preview { filter }` → `{ count, sample: Contact[5] }`. Max 100, ≤ 20 conditions, keys must exist (422).
-- [ ] Tests: counts after add / remove / delete contact, list delete keeps contacts, segment operators per type (`within_next_days`, `overdue_by_days` with fake timers in account TZ), invalid condition / op for type → 422, isolation.
+- [x] `/api/v1/contact-lists`: `GET` (pagination, `q`, computed `contactCount`), `POST`, `PATCH /:id` (name / description), `DELETE /:id` (soft + job `list.delete_members`, audit). Max 500, name unique (409).
+- [x] `/api/v1/segments`: `GET` (with optional `?withCounts=true`), `POST`, `PATCH`, `DELETE` (audit), `POST /segments/preview { filter }` → `{ count, sample: Contact[5] }`. Max 100, ≤ 20 conditions, keys must exist (422).
+- [x] Tests: counts after add / remove / delete contact, list delete keeps contacts, segment operators per type (`within_next_days`, `overdue_by_days` with fake timers in account TZ), invalid condition / op for type → 422, isolation.
 
 ### T3.6 — DND, opt-out, consent
 
-- [ ] `/api/v1/dnd-entries`: `GET` (pagination, `q` phone search), `POST { phone, reason? }` (normalise; idempotent → existing entry returned), `DELETE /:id` (`dnd.manage`, audit `dnd.removed`), contacts `dnd` mirror updated in the same transaction.
-- [ ] `POST /contacts/:id/opt-out` (`contacts.write`) → `optedOutAt` + DND entry; `DELETE /contacts/:id/opt-out` (`dnd.manage`) → clears both. Audit `contact.opted_out`.
-- [ ] Consent via create / patch (`consent: { source, at }`, `at` ≤ now).
-- [ ] Tests: mirror both directions, re-create contact for a DND phone → `dnd: true`, manager can add but not remove (403), opt-out survives re-import (checked again in T3.9), isolation.
+- [x] `/api/v1/dnd-entries`: `GET` (pagination, `q` phone search), `POST { phone, reason? }` (normalise; idempotent → existing entry returned), `DELETE /:id` (`dnd.manage`, audit `dnd.removed`), contacts `dnd` mirror updated in the same transaction.
+- [x] `POST /contacts/:id/opt-out` (`contacts.write`) → `optedOutAt` + DND entry; `DELETE /contacts/:id/opt-out` (`dnd.manage`) → clears both. Audit `contact.opted_out`.
+- [x] Consent via create / patch (`consent: { source, at }`, `at` ≤ now).
+- [x] Tests: mirror both directions, re-create contact for a DND phone → `dnd: true`, manager can add but not remove (403), opt-out survives re-import (checked again in T3.9), isolation.
 
 ### T3.7 — Upload, parsing, mapping (`/api/v1/contact-imports`)
 
-- [ ] `POST /contact-imports` (multipart `file`, `kind=contacts|dnd`, `contacts.import`) → checks (ext, MIME, magic bytes, size → 413 / 415), store file, parse header + first 20 rows + count rows (streaming) → `ImportJob` `uploaded` with `columns`, `sheets`, `rowCount`, `suggestedMapping`, `warnings` (encoding fallback, ragged rows). Errors → `IMPORT_FILE_INVALID` with reason.
-- [ ] Parsers in `src/modules/contact-imports/parsers/`: `csv.ts` (BOM, delimiter sniff, windows-1252 fallback, quotes / multiline), `xlsx.ts` (sheets, dates, numbers, zip-bomb guard), common `RowSource` async iterator (re-used by validate / run / DND).
-- [ ] `PUT /contact-imports/:id/mapping { sheet?, mapping, options }` → validates targets (phone once, existing fields, new-field key rules / limit, list exists or new name free) → `mapped`.
-- [ ] `GET /contact-imports` (history, pagination), `GET /:id`, `POST /:id/cancel`, `GET /contact-imports/template.csv`, `GET /:id/error-report` (→ signed URL).
-- [ ] ADR **0031 — Contact import pipeline** (libraries, job states, batching, no single transaction, limits, encoding).
-- [ ] Tests (fixtures in `tests/fixtures/imports/`: UTF-8 BOM, windows-1252, semicolon, tab, quoted multiline, Hindi, ragged, empty, header-only, 50,001 rows (generated), xlsx with dates / numbers / scientific phones / 2 sheets, fake `.xlsx` with CSV bytes, zip bomb, `.xls`): every outcome, suggested mapping (Hinglish headers), mapping validation errors, isolation, permission (`contacts.import`), suspended 403.
+- [x] `POST /contact-imports` (multipart `file`, `kind=contacts|dnd`, `contacts.import`) → checks (ext, MIME, magic bytes, size → 413 / 415), store file, parse header + first 20 rows + count rows (streaming) → `ImportJob` `uploaded` with `columns`, `sheets`, `rowCount`, `suggestedMapping`, `warnings` (encoding fallback, ragged rows). Errors → `IMPORT_FILE_INVALID` with reason.
+- [x] Parsers in `src/modules/contact-imports/parsers/`: `csv.ts` (BOM, delimiter sniff, windows-1252 fallback, quotes / multiline), `xlsx.ts` (sheets, dates, numbers, zip-bomb guard), common `RowSource` async iterator (re-used by validate / run / DND).
+- [x] `PUT /contact-imports/:id/mapping { sheet?, mapping, options }` → validates targets (phone once, existing fields, new-field key rules / limit, list exists or new name free) → `mapped`.
+- [x] `GET /contact-imports` (history, pagination), `GET /:id`, `POST /:id/cancel`, `GET /contact-imports/template.csv`, `GET /:id/error-report` (→ signed URL).
+- [x] ADR **0031 — Contact import pipeline** (libraries, job states, batching, no single transaction, limits, encoding).
+- [x] Tests (fixtures in `tests/fixtures/imports/`: UTF-8 BOM, windows-1252, semicolon, tab, quoted multiline, Hindi, ragged, empty, header-only, 50,001 rows (generated), xlsx with dates / numbers / scientific phones / 2 sheets, fake `.xlsx` with CSV bytes, zip bomb, `.xls`): every outcome, suggested mapping (Hinglish headers), mapping validation errors, isolation, permission (`contacts.import`), suspended 403.
 
 ### T3.8 — Validate (dry run) + error report
 
-- [ ] `POST /contact-imports/:id/validate` → lock → job `import.validate`: stream rows → normalise per mapping → duplicates in file (Map phone → first row) → existing contacts (batched `$in` lookups, 500) → DND lookup → totals + `problemRows` (≤ 100) + error CSV (`row, <original columns…>, reasons`, CSV-injection safe) → `validated`; WS progress.
-- [ ] Re-validate after mapping change; validate on a running job → 409.
-- [ ] Tests: the 100-row sample (`docs/samples/contacts-sample-100.csv`: 85 valid, 5 invalid phones, 3 missing required, 3 duplicates in file, 2 existing, 2 DND) → exact totals; error CSV content; no DB writes; progress events.
+- [x] `POST /contact-imports/:id/validate` → lock → job `import.validate`: stream rows → normalise per mapping → duplicates in file (Map phone → first row) → existing contacts (batched `$in` lookups, 500) → DND lookup → totals + `problemRows` (≤ 100) + error CSV (`row, <original columns…>, reasons`, CSV-injection safe) → `validated`; WS progress.
+- [x] Re-validate after mapping change; validate on a running job → 409.
+- [x] Tests: the 100-row sample (`docs/samples/contacts-sample-100.csv`: 85 valid, 5 invalid phones, 3 missing required, 3 duplicates in file, 2 existing, 2 DND) → exact totals; error CSV content; no DB writes; progress events.
 
 ### T3.9 — Import run + DND upload
 
-- [ ] `POST /contact-imports/:id/start` (state `validated`, lock) → create new fields + list (one transaction) → job `import.run`: batches of 500 → `bulkWrite` upserts (created / updated / unchanged per §1c, revive soft-deleted, `source`, `consent`, DND flag) → checkpoint → WS progress → `completed` + totals + audit `contacts.import_completed` + `contacts.changed`.
-- [ ] Resume after a crashed / retried job from `progress.processed`; cancel mid-run; account suspended mid-run → `failed`; second concurrent import → 409; E11000 retry.
-- [ ] `kind=dnd` imports: mapping = phone (+ optional reason column) → upsert `dndEntries` + contacts mirror; totals.
-- [ ] Tests: sample import end-to-end (counts, variables typed, list membership, tags, consent), `updateExisting` on / off, empty cells don't clear, opted-out contact stays DND after re-import, resume (kill after batch 2), cancel, lock, suspended, 5,000-row import < 15 s in CI, isolation.
+- [x] `POST /contact-imports/:id/start` (state `validated`, lock) → create new fields + list (one transaction) → job `import.run`: batches of 500 → `bulkWrite` upserts (created / updated / unchanged per §1c, revive soft-deleted, `source`, `consent`, DND flag) → checkpoint → WS progress → `completed` + totals + audit `contacts.import_completed` + `contacts.changed`.
+- [x] Resume after a crashed / retried job from `progress.processed`; cancel mid-run; account suspended mid-run → `failed`; second concurrent import → 409; E11000 retry.
+- [x] `kind=dnd` imports: mapping = phone (+ optional reason column) → upsert `dndEntries` + contacts mirror; totals.
+- [x] Tests: sample import end-to-end (counts, variables typed, list membership, tags, consent), `updateExisting` on / off, empty cells don't clear, opted-out contact stays DND after re-import, resume (kill after batch 2), cancel, lock, suspended, 5,000-row import < 15 s in CI, isolation.
 
 ### T3.10 — Bulk actions, export, background cleanup
 
-- [ ] `POST /contacts/bulk` (§1d) — ids sync (≤ 1,000, all must belong to the account, else 404 for the request) / filter job; audit `contacts.bulk_updated` / `contacts.deleted`.
-- [ ] `POST /contact-exports`, `GET /contact-exports` (history), `GET /contact-exports/:id` (status + signed URL when ready). Job `export.run`: cursor over the compiled filter (batch 1,000), `csv-stringify`, BOM, injection-safe, formatted values, header from columns (default: name, phone, email, external_id, tags, lists, dnd, opted_out, <fields>, created_at). Blocked while impersonating.
-- [ ] Jobs `field.delete_values`, `list.delete_members` (batched updates, idempotent).
-- [ ] Phone columns are **exempt** from the injection prefix: the value is always our validated E.164 (`+` and digits only, so it can't carry a formula). Excel may still display a long number, so the README tells users to import the CSV as Text.
-- [ ] Tests: each bulk action (ids + filter), limits, export content (BOM, injection cases `=1+1`, `@SUM(…)`, `-2+3`, tab / CR prefixes, phone column unchanged), 100k cap, signed URL expiry, impersonation 403, permissions, isolation.
+- [x] `POST /contacts/bulk` (§1d) — ids sync (≤ 1,000, all must belong to the account, else 404 for the request) / filter job; audit `contacts.bulk_updated` / `contacts.deleted`.
+- [x] `POST /contact-exports`, `GET /contact-exports` (history), `GET /contact-exports/:id` (status + signed URL when ready). Job `export.run`: cursor over the compiled filter (batch 1,000), `csv-stringify`, BOM, injection-safe, formatted values, header from columns (default: name, phone, email, external_id, tags, lists, dnd, opted_out, <fields>, created_at). Blocked while impersonating.
+- [x] Jobs `field.delete_values`, `list.delete_members` (batched updates, idempotent).
+- [x] Phone columns are **exempt** from the injection prefix: the value is always our validated E.164 (`+` and digits only, so it can't carry a formula). Excel may still display a long number, so the README tells users to import the CSV as Text.
+- [x] Tests: each bulk action (ids + filter), limits, export content (BOM, injection cases `=1+1`, `@SUM(…)`, `-2+3`, tab / CR prefixes, phone column unchanged), 100k cap, signed URL expiry, impersonation 403, permissions, isolation.
 
 ### T3.11 — Retention purge jobs
 
-- [ ] Daily repeatable jobs on `maintenance`: hard-delete contacts `deletedAt` < now − 30 d (batched); delete import files + error reports 30 d after finish (keep job doc, clear keys); delete export files after 24 h (status `expired`).
-- [ ] Tests with fake timers / dates: only expired items removed, storage deletes called, idempotent, isolation not relevant (system job) but per-account counts logged without PII.
+- [x] Daily repeatable jobs on `maintenance`: hard-delete contacts `deletedAt` < now − 30 d (batched); delete import files + error reports 30 d after finish (keep job doc, clear keys); delete export files after 24 h (status `expired`).
+- [x] Tests with fake timers / dates: only expired items removed, storage deletes called, idempotent, isolation not relevant (system job) but per-account counts logged without PII.
 
 ### T3.12 — Seed, samples, OpenAPI, performance, backend docs
 
-- [ ] `db:seed`: Demo Finance gets fields `loan_id` (text), `loan_amount` (currency), `emi_amount` (currency), `due_date` (date), `days_past_due` (number), `branch` (text); list "Demo borrowers" with 25 fake contacts (fake names, `+91 9xxxxxxxxx` from a reserved fake range); 2 DND entries; 1 segment "Overdue > 30 days".
-- [ ] `docs/samples/contacts-sample-100.csv` + `contacts-sample-100.xlsx` (fake data, documented expected totals) + `dnd-sample.csv`.
-- [ ] `gen:openapi`; every route has request / response schemas + errors (`openapi:check` green).
-- [ ] Performance script `scripts/bench-contacts.ts` (dev only): 50,000-row import time, `GET /contacts` p95 with 50k contacts + search + segment filter → numbers recorded in the sign-off (targets: import ≤ 120 s locally, list p95 ≤ 300 ms).
-- [ ] Docs: data-model.md (§2.2 updated: variables types, `externalId`, `source`, `searchText`, Segment, ImportJob / ExportJob, dropped `contactCount`), api.md §11 (xlsx rules, row / column limits), data.md §9 (PII files), compliance-notes mapping row update, ADR 0018 implementation notes, README "Contacts & imports" section, CHANGELOG.
-- [ ] `[P3-B2-DONE]` checkpoint after this task.
+- [x] `db:seed`: Demo Finance gets fields `loan_id` (text), `loan_amount` (currency), `emi_amount` (currency), `due_date` (date), `days_past_due` (number), `branch` (text); list "Demo borrowers" with 25 fake contacts (fake names, `+91 9xxxxxxxxx` from a reserved fake range); 2 DND entries; 1 segment "Overdue > 30 days".
+- [x] `docs/samples/contacts-sample-100.csv` + `contacts-sample-100.xlsx` (fake data, documented expected totals) + `dnd-sample.csv`.
+- [x] `gen:openapi`; every route has request / response schemas + errors (`openapi:check` green).
+- [x] Performance script `scripts/bench-contacts.ts` (dev only): 50,000-row import time, `GET /contacts` p95 with 50k contacts + search + segment filter → numbers recorded in the sign-off (targets: import ≤ 120 s locally, list p95 ≤ 300 ms).
+- [x] Docs: data-model.md (§2.2 updated: variables types, `externalId`, `source`, `searchText`, Segment, ImportJob / ExportJob, dropped `contactCount`), api.md §11 (xlsx rules, row / column limits), data.md §9 (PII files), compliance-notes mapping row update, ADR 0018 implementation notes, README "Contacts & imports" section, CHANGELOG.
+- [x] `[P3-B2-DONE]` checkpoint after this task.
 
 ### T3.13 — Frontend foundation
 
-- [ ] Backend `gen:openapi` → frontend `gen:api`; API clients `src/services/api/{contacts,contact-lists,segments,dnd,custom-fields,contact-imports,contact-exports}.ts`; type aliases.
-- [ ] `src/utils/format.ts` (§1g) + tests; `libphonenumber-js/min` helper `src/utils/phone.ts`.
-- [ ] `LIVE_PHASE = 3`; routes (§1g) under `RequirePermission perm="contacts.read"`; `ContactsPage` shell with URL tabs; `features/contacts/keys.ts`; test helper `ROLE_PERMISSIONS` + `dnd.manage`.
-- [ ] WS event types + `useWsEvent` wiring helper (`useContactsLiveUpdates`).
-- [ ] Tests: nav shows Contacts for agent / viewer (read) and hides for nobody else, tabs routing, format utils.
+- [x] Backend `gen:openapi` → frontend `gen:api`; API clients `src/services/api/{contacts,contact-lists,segments,dnd,custom-fields,contact-imports,contact-exports}.ts`; type aliases.
+- [x] `src/utils/format.ts` (§1g) + tests; `libphonenumber-js/min` helper `src/utils/phone.ts`.
+- [x] `LIVE_PHASE = 3`; routes (§1g) under `RequirePermission perm="contacts.read"`; `ContactsPage` shell with URL tabs; `features/contacts/keys.ts`; test helper `ROLE_PERMISSIONS` + `dnd.manage`.
+- [x] WS event types + `useWsEvent` wiring helper (`useContactsLiveUpdates`).
+- [x] Tests: nav shows Contacts for agent / viewer (read) and hides for nobody else, tabs routing, format utils.
 
 ### T3.14 — Contacts table + create / edit
 
-- [ ] `ContactsTab`: DataTable with search, filters (list, tag autocomplete from `/contact-tags`, DND, opted-out, segment), sort headers, column picker (fields), row selection + "select all N matching", bulk bar (add / remove tag, add / remove list, add to DND, delete with confirm, export selected), empty state with "Import contacts" CTA.
-- [ ] `ContactFormDialog` (create / edit): base fields + dynamic field inputs + tags + lists + consent; server field errors (`variables.loan_amount` paths) mapped; duplicate 409 → "Open existing contact" link.
-- [ ] Tests: filters → query params, column picker persistence (and `localStorage` throwing), bulk by ids vs by filter, dialog validation per type, permission hiding (agent: no create / bulk), impersonation hides export.
+- [x] `ContactsTab`: DataTable with search, filters (list, tag autocomplete from `/contact-tags`, DND, opted-out, segment), sort headers, column picker (fields), row selection + "select all N matching", bulk bar (add / remove tag, add / remove list, add to DND, delete with confirm, export selected), empty state with "Import contacts" CTA.
+- [x] `ContactFormDialog` (create / edit): base fields + dynamic field inputs + tags + lists + consent; server field errors (`variables.loan_amount` paths) mapped; duplicate 409 → "Open existing contact" link.
+- [x] Tests: filters → query params, column picker persistence (and `localStorage` throwing), bulk by ids vs by filter, dialog validation per type, permission hiding (agent: no create / bulk), impersonation hides export.
 
 ### T3.15 — Contact detail
 
-- [ ] `/contacts/c/:id`: sections per §1g, inline tag / list editing, opt-out / undo (permission-aware), add to DND, delete (confirm → back to list), 404 page for missing / other account, Call history placeholder card.
-- [ ] Tests: formatted variables per type, empty values, badges, actions + permissions, 404.
+- [x] `/contacts/c/:id`: sections per §1g, inline tag / list editing, opt-out / undo (permission-aware), add to DND, delete (confirm → back to list), 404 page for missing / other account, Call history placeholder card.
+- [x] Tests: formatted variables per type, empty values, badges, actions + permissions, 404.
 
 ### T3.16 — Import wizard + activity
 
-- [ ] Wizard (§1g) incl. resume by URL, cancel, mapping UI rules (phone required, unique targets, new-field inline form with key slug + type), date-format select, sheet select, options, validate report (totals cards, problem rows, error CSV link), import progress + summary; DND upload variant (kind `dnd`, 2 steps).
-- [ ] `/contacts/activity`: imports + exports history (status chips, totals, download links, cancel).
-- [ ] Tests: each step, invalid file type / size client-side, server `IMPORT_FILE_INVALID` message, mapping validation, WS progress + polling fallback, resume at each state, cancel.
+- [x] Wizard (§1g) incl. resume by URL, cancel, mapping UI rules (phone required, unique targets, new-field inline form with key slug + type), date-format select, sheet select, options, validate report (totals cards, problem rows, error CSV link), import progress + summary; DND upload variant (kind `dnd`, 2 steps).
+- [x] `/contacts/activity`: imports + exports history (status chips, totals, download links, cancel).
+- [x] Tests: each step, invalid file type / size client-side, server `IMPORT_FILE_INVALID` message, mapping validation, WS progress + polling fallback, resume at each state, cancel.
 
 ### T3.17 — Lists, Segments, Do-not-call, Fields tabs + export
 
-- [ ] Lists tab (table with counts, create / rename / delete with confirm, click → contacts filtered).
-- [ ] Segments tab + **SegmentBuilder** (condition rows: field → operators by type → value input; tags any / all; lists; DND / opted-out toggles; live count preview debounced; save / edit / delete).
-- [ ] Do-not-call tab (search, add single, upload file → wizard kind dnd, remove only with `dnd.manage`).
-- [ ] Fields tab (table key / label / type / required / default / usage; create / edit dialog with key slug + immutable key; reorder; delete confirm with usage count).
-- [ ] `ExportDialog` (scope: selected / filter / list / segment; columns; progress; download).
-- [ ] Tests: builder operators per type, preview count, DND remove hidden for manager, field type change disabled when used, export flow.
+- [x] Lists tab (table with counts, create / rename / delete with confirm, click → contacts filtered).
+- [x] Segments tab + **SegmentBuilder** (condition rows: field → operators by type → value input; tags any / all; lists; DND / opted-out toggles; live count preview debounced; save / edit / delete).
+- [x] Do-not-call tab (search, add single, upload file → wizard kind dnd, remove only with `dnd.manage`).
+- [x] Fields tab (table key / label / type / required / default / usage; create / edit dialog with key slug + immutable key; reorder; delete confirm with usage count).
+- [x] `ExportDialog` (scope: selected / filter / list / segment; columns; progress; download).
+- [x] Tests: builder operators per type, preview count, DND remove hidden for manager, field type change disabled when used, export flow.
 
 ### T3.18 — E2E, gap audit, docs, sign-off
 
-- [ ] Playwright scenarios (existing `e2e/` setup):
+- [x] Playwright scenarios (existing `e2e/` setup):
   1. **"Done when"**: owner creates fields via import "new field" → uploads `contacts-sample-100.csv` → maps (suggested mapping accepted, date column DD/MM) → validate → report shows 5 invalid + 3 missing + 3 duplicates (+ error CSV downloads) → import → 85 created / 2 updated → list shows 87 → contact detail shows typed variables (₹, date).
   2. XLSX import of the same data (sheet select).
   3. Segment "days_past_due > 30" count + bulk tag + export CSV (content checked: BOM, injection-safe).
   4. DND: add → contact badge; manager can't remove; owner removes; opt-out survives re-import.
   5. Agent (read-only): sees contacts + detail, no import / create / bulk / export.
-- [ ] Gap audit table (requirement → test), security checklist (PII not in logs during E2E with `E2E_BACKEND_LOGS=1`, files only via signed URLs, isolation tests per endpoint, CSV injection, zip bomb, upload type checks, rate limits, gitleaks), coverage gates re-measured (never lower).
-- [ ] Docs: both READMEs, CHANGELOGs, PHASE_3_TASKS, BUILD_PLAN status, this plan ticked, **PHASE_3_SIGNOFF.md**; `[P3-B3-DONE]` (full verify both repos, E2E twice, fresh clones, gitleaks, `infra:down`).
+- [x] Gap audit table (requirement → test), security checklist (PII not in logs during E2E with `E2E_BACKEND_LOGS=1`, files only via signed URLs, isolation tests per endpoint, CSV injection, zip bomb, upload type checks, rate limits, gitleaks), coverage gates re-measured (never lower).
+- [x] Docs: both READMEs, CHANGELOGs, PHASE_3_TASKS, BUILD_PLAN status, this plan ticked, **PHASE_3_SIGNOFF.md**; `[P3-B3-DONE]` (full verify both repos, E2E twice, fresh clones, gitleaks, `infra:down`).
 
 ---
 
 ## 4. Deliverables checklist
 
-- [ ] Contact, list, custom field, segment, DND, import / export job models + indexes + migration 0004
-- [ ] Normalisation library (phone, typed values, tags) with exhaustive tests
-- [ ] Custom fields, contacts, lists, segments, DND / opt-out / consent APIs
-- [ ] CSV + XLSX upload, mapping, validate report + error CSV, batched resumable import, DND upload
-- [ ] Bulk actions, CSV export, background cleanup + retention purge jobs
-- [ ] Seed + sample sheets + OpenAPI + performance numbers
-- [ ] Frontend: Contacts (table, filters, bulk, detail), import wizard, lists, segments builder, DND, fields, export, activity
-- [ ] Playwright E2E for the "Done when" scenario
-- [ ] Docs (data-model, api, data, websocket, audit, error codes, ADR 0031, ADR 0018 notes), CHANGELOGs, sign-off
+- [x] Contact, list, custom field, segment, DND, import / export job models + indexes + migration 0004
+- [x] Normalisation library (phone, typed values, tags) with exhaustive tests
+- [x] Custom fields, contacts, lists, segments, DND / opt-out / consent APIs
+- [x] CSV + XLSX upload, mapping, validate report + error CSV, batched resumable import, DND upload
+- [x] Bulk actions, CSV export, background cleanup + retention purge jobs
+- [x] Seed + sample sheets + OpenAPI + performance numbers
+- [x] Frontend: Contacts (table, filters, bulk, detail), import wizard, lists, segments builder, DND, fields, export, activity
+- [x] Playwright E2E for the "Done when" scenario
+- [x] Docs (data-model, api, data, websocket, audit, error codes, ADR 0031, ADR 0018 notes), CHANGELOGs, sign-off
 
 ## 5. Risks
 
@@ -409,3 +409,4 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T3.1–T3.6
 - 2026-10-09: Run prompt [PHASE_3_PROMPT.md](../prompts/PHASE_3_PROMPT.md) added (one file, 3 batches). Precisions there: storage passed to API routers / workers by dependency injection; module layout; filter schema shape; import / export job API; Redis locks; maintenance job names + crons; `read-excel-file` CJS check (fallback `exceljs`).
 - 2026-10-09: Batch 1 (T3.1–T3.6) done. Precisions / deviations: `ContactJobs` interface (API enqueues through it, tests record jobs) + `CONTACT_JOB_HANDLERS` registry in the worker; storage + jobs passed to routers via `createApiRouter({ contacts })`; `WS_EVENT_TYPES` runtime list + docs-sync test (new); `ErrorDetail.existingId` on duplicates; `accepted()` (202) envelope helper; deleting a field / list answers **202** and cleans up in a job; currency **filter** values are rupees (stored micros); a saved segment with a deleted field reports `invalidConditions` and matches nothing; `DELETE /dnd-entries/:id` keeps a contact's opt-out (only `DELETE /contacts/:id/opt-out` clears it); `POST /dnd-entries` for an already-listed number answers 200 with the existing entry. Bugs found and fixed: Devanagari vowel signs rejected in tags (`\p{M}` added); search by a national number with a leading `0` (`098761…`) found nothing (leading zeros stripped).
 - 2026-10-09: Batch 2 (T3.7–T3.12) done. Precisions / deviations: test fixtures are generated in code (`tests/helpers/import-files.ts`: CSV / XLSX builders, crafted zip bomb) instead of committed binaries — only the documented sample sheets are committed (`docs/samples`, byte-exact via `.gitattributes`); `write-excel-file` added as a dev dependency (XLSX in tests / samples); `read-excel-file` worked from CommonJS, `exceljs` not needed; external ids that belong to another contact or repeat in the file are reported (`external_id_taken`, `duplicate_external_id:<row>`) instead of failing the batch; bulk `add_tags` / `add_to_list` skip contacts that would pass 20 tags / 50 lists (never truncate) and counts are real changes; exports with more than 100,000 rows are refused at creation (409) as well as in the job; default list names avoid collisions (`… (2)`) and use the account timezone; `{ new: true }` replaced by `returnDocument: 'after'` (Mongoose 9 deprecation). Benchmark (50,000 rows): validate 0.6 s, import 4.6 s, list queries p95 ≤ 93 ms. Bugs found and fixed: Mongoose `minimize` dropped an empty export selection; Mongoose 9 rejects update pipelines without `updatePipeline: true`; timestamps made every matched contact count as modified; after a mid-import crash the last written batch was counted as "updated" (now "created"); a flaky Phase 2 test (API-key `lastUsedAt` race).
+- 2026-10-09: Batch 3 (T3.13–T3.18) done — **Phase 3 complete**, see [PHASE_3_SIGNOFF.md](PHASE_3_SIGNOFF.md). Precisions / deviations: the advanced filter on the Contacts tab is kept in the URL (`?f=<json>`) and can be saved as a segment; the xlsx sample got a second 2-row sheet ("Old loans") so the E2E suite can switch sheets; the "Done when" E2E expects **87 created** (85 new + the 2 DND numbers, imported and flagged) — the "85 created" in T3.18 above predates the sample README; the Contacts empty state has no own import button (the page header always shows "Import contacts"); E2E frontend port configurable (`E2E_FRONTEND_PORT`). Bugs found and fixed: the segment preview re-rendered every 400 ms forever (debounced object identity); new fields from an import were missing on contact pages until a reload (field / list / DND caches now refreshed when the import starts and ends, also when polling); an import reviving a deleted contact wiped its opt-out and call history; `/auth/refresh` shared the 30 / 15 min auth limit (signed people out after 30 page loads per IP) → 600; the global limit of 300 requests / min per IP locked out an office NAT (the E2E suite hit exactly 300) → 1,200; export jobs lacked a cross-account isolation test.

@@ -148,7 +148,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ---
 
-### Phase 3 — Contacts, Lists & Custom Fields 🟢
+### Phase 3 — Contacts, Lists & Custom Fields ✅
 
 - Contact model: naam, phone (E.164, India default), email, tags, **custom variables** (flexible key-value)
 - Custom field definitions: type (text / number / date / currency / phone), required, default
@@ -158,7 +158,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 - Contacts UI: table, search, filter, bulk actions (tag, delete, add to list), contact detail (variables + call history)
 - Export contacts
 
-**Done when:** 100 customers ki sheet import ho, har contact ke variables dikhen, galat rows ki report mile.
+**Done when:** 100 customers ki sheet import ho, har contact ke variables dikhen, galat rows ki report mile. ✅ Playwright `e2e/contacts-import.spec.ts` (frontend) — [sign-off](../phases/PHASE_3_SIGNOFF.md).
 
 ---
 
@@ -431,7 +431,7 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 | Deployment             | Docker Compose on the client EC2 (isolated) — pending server audit                                 | ADR 0025                |
 | Phase 1                | Ready to start — [PHASE_1_PLAN.md](../phases/PHASE_1_PLAN.md)                                      |                         |
 | Phase 2                | Complete — [PHASE_2_SIGNOFF.md](../phases/PHASE_2_SIGNOFF.md)                                      |                         |
-| Phase 3                | Planned — [PHASE_3_PLAN.md](../phases/PHASE_3_PLAN.md)                                             |                         |
+| Phase 3                | Complete — [PHASE_3_SIGNOFF.md](../phases/PHASE_3_SIGNOFF.md)                                      |                         |
 
 ---
 

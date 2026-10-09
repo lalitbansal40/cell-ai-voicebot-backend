@@ -266,7 +266,7 @@ The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-
 - **Full-server e2e:** `tests/e2e/server.e2e.test.ts` boots `startServer({ port: 0, … })` with real Mongo (memory) + Redis + workers + realtime + email, then checks the graceful shutdown order.
 - **Email:** `tests/email/` — in-process SMTP server (`smtp-server`), no Mailpit needed.
 - **Docs sync:** `tests/config/env-docs.test.ts` fails when a variable in `env.ts` is missing from `.env.example` or the env table below; `error-codes.test.ts` keeps `ERROR_CODES` = `error-codes.md`.
-- **Coverage gate:** `npm run test:coverage` enforces thresholds in `vitest.config.mts` (statements 95 · branches 80 · functions 90 · lines 95 — Phase 2 sign-off values rounded down). CI runs it.
+- **Coverage gate:** `npm run test:coverage` enforces thresholds in `vitest.config.mts` (statements 95 · branches 85 · functions 95 · lines 95 — Phase 3 sign-off values rounded down). CI runs it.
 - **Browser E2E:** Playwright lives in the frontend repo (`e2e/`, `npm run e2e`) and starts this backend with an isolated `cav_e2e` database and Redis db 5 — see the frontend README.
 
 ## Code quality

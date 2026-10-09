@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 3 · Batch 3 (T3.13–T3.18) — Phase 3 complete** — 2026-10-09
+  - `PUT /contact-imports/:id/mapping` with only a new `sheet` (empty `columns`) switches the xlsx sheet before mapping.
+  - The xlsx sample has a second 2-row sheet ("Old loans") for the sheet picker; CSV / DND samples unchanged.
+  - Playwright E2E (frontend repo) covers the sample import "Done when", XLSX, segments + bulk + export, DND roles and agent read-only.
+  - Tests for cross-account isolation of export jobs / scopes.
+  - Fixed: an import that revives a deleted contact kept wiping its opt-out date and call history; `/auth/refresh` now has its own limit (600 / 15 min per IP — it runs on every page load) instead of the 30 of the brute-forceable auth routes; the global per-IP limit is 1,200 / min (300 locked out an office behind one NAT).
+  - Tests: 934 → 936. Phase 3 [sign-off](docs/phases/PHASE_3_SIGNOFF.md).
+
 - **Phase 3 · Batch 2 (T3.7–T3.12)** — 2026-10-09
   - Contact imports: upload `.csv` / `.xlsx` (type + magic bytes, 10 MB, 50,000 rows, 100 columns, zip-bomb guard, Windows-1252 fallback, delimiter detection, sheet choice), suggested mapping (Hinglish headers, type guess), dry-run validation with problem rows + injection-safe error CSV, batched import (resume after crash, cancel, one per account, E11000 retry, stops on suspension), DND uploads, CSV template. ADR 0031.
   - Bulk actions (≤ 1,000 ids or a filter in the background) and CSV exports (scopes, columns, BOM, injection-safe, 24 h, blocked while impersonating).
