@@ -422,7 +422,7 @@ describe('templates, catalog, preview and usage', () => {
       .set(auth(viewer))
       .send({ contactId: contact._id.toString(), channel: 'voice' });
     expect(res.status, JSON.stringify(res.body)).toBe(200);
-    expect(res.body.data.variables).toEqual({ name: 'Ravi', loan_amount: '₹12,500' });
+    expect(res.body.data.variables).toEqual({ name: 'Ravi', loan_amount: '₹12,500.00' });
     expect(res.body.data.instructions).toContain('Acme Finance');
     expect(res.body.data.instructions).toContain('This is a phone call');
     expect(res.body.data.openingLine).toBe(

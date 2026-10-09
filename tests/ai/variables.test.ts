@@ -65,7 +65,7 @@ describe('agent variables', () => {
       name: 'Asha',
       phone_last4: '1234',
       loan_amount: '₹1,250.50',
-      due_date: '5 Oct 2026',
+      due_date: '05 Oct 2026',
       emi_count: '12,345',
       branch: 'Pune',
       alt_phone: '+919800000000',

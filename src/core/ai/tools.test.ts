@@ -13,6 +13,7 @@ import {
   BUILT_IN_ARGS,
   builtInToolDefinition,
   enabledBuiltIns,
+  executeBuiltIn,
   functionToolDefinition,
   parametersSchema,
 } from './tools';
@@ -155,5 +156,76 @@ describe('built-in tools', () => {
     expect(BUILT_IN_ARGS.send_sms_after_call.safeParse({ templateKey: 'pay_link' }).success).toBe(
       true,
     );
+  });
+});
+
+describe('executeBuiltIn (simulated)', () => {
+  const ctx = (builtInTools = allOn()) => ({
+    agent: { builtInTools },
+    mode: 'simulated' as const,
+    now: new Date('2026-10-08T19:00:00Z'), // 9 Oct in India
+    timezone: 'Asia/Kolkata',
+  });
+
+  it('records outcomes for every built-in', () => {
+    expect(executeBuiltIn('end_call', {}, ctx())).toEqual({
+      result: { ok: true, simulated: true, ended: true },
+      outcome: { endRequested: true },
+    });
+    expect(executeBuiltIn('transfer_to_human', { reason: 'asked' }, ctx()).outcome).toEqual({
+      transferRequested: true,
+    });
+    expect(executeBuiltIn('set_disposition', { disposition: 'paid' }, ctx()).outcome).toEqual({
+      disposition: 'paid',
+    });
+    expect(
+      executeBuiltIn('schedule_callback', { date: '2026-10-16', time: '18:30' }, ctx()).outcome,
+    ).toEqual({
+      callback: { date: '2026-10-16', time: '18:30' },
+    });
+    expect(
+      executeBuiltIn(
+        'save_promise_to_pay',
+        { date: '2026-10-09', amountRupees: '₹1,250.50' },
+        ctx(),
+      ).outcome,
+    ).toEqual({ promiseToPay: { date: '2026-10-09', amountMicros: 1_250_500_000 } });
+    expect(executeBuiltIn('save_promise_to_pay', { date: '2026-10-24' }, ctx()).outcome).toEqual({
+      promiseToPay: { date: '2026-10-24', amountMicros: null },
+    });
+    expect(
+      executeBuiltIn('send_sms_after_call', { templateKey: 'pay_link' }, ctx()).outcome,
+    ).toEqual({
+      smsTemplate: 'pay_link',
+    });
+  });
+
+  it.each([
+    ['schedule_callback', { date: '2026-10-08' }, 'date_out_of_range'], // yesterday in IST
+    ['schedule_callback', { date: '2026-10-17' }, 'date_out_of_range'], // > 7 days
+    ['schedule_callback', { date: '2026-02-30' }, 'date_out_of_range'],
+    ['save_promise_to_pay', { date: '2026-10-25' }, 'date_out_of_range'], // > 15 days
+    ['save_promise_to_pay', { date: '2026-10-10', amountRupees: 'twelve' }, 'invalid_amount'],
+    ['set_disposition', { disposition: 'wrong_number' }, 'disposition_not_allowed'],
+    ['send_sms_after_call', { templateKey: 'other' }, 'unknown_template'],
+    ['transfer_to_human', {}, 'invalid_arguments'],
+    ['end_call', { reason: 'x', extra: 1 }, 'invalid_arguments'],
+  ] as const)('%s %j → %s', (name, args, error) => {
+    const out = executeBuiltIn(name, args, ctx());
+    expect(out.result).toMatchObject({ ok: false, error });
+    expect(out.outcome).toEqual({});
+  });
+
+  it('refuses disabled tools and live mode', () => {
+    const tools = allOn();
+    tools.endCall.enabled = false;
+    expect(executeBuiltIn('end_call', {}, ctx(tools)).result).toEqual({
+      ok: false,
+      error: 'tool_disabled',
+    });
+    expect(executeBuiltIn('transfer_to_human', null, ctx()).result).toMatchObject({
+      error: 'invalid_arguments',
+    });
+    expect(() => executeBuiltIn('end_call', {}, { ...ctx(), mode: 'live' })).toThrow(/Phase 7/);
   });
 });

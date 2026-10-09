@@ -20,7 +20,7 @@ import { createDocsRouter } from './modules/docs/docs.routes';
 import { createFilesRouter } from './modules/files/files.routes';
 import type { ReadinessDeps } from './modules/health/health.controller';
 import { createHealthRouter } from './modules/health/health.routes';
-import { createApiRouter } from './routes';
+import { createApiRouter, type AiDeps } from './routes';
 import type { Logger } from './shared/logger';
 import { corsMiddleware } from './shared/middlewares/cors';
 import { errorHandler } from './shared/middlewares/error-handler';
@@ -58,6 +58,8 @@ export interface AppDeps {
   aiJobs?: AiJobs;
   /** Phase 5 limiter stores: playground (`rl:playground:`), knowledge sources (`rl:kbsrc:`), function tests (`rl:fntest:`). */
   aiRateLimitStores?: { playground?: Store; knowledge?: Store; functionTest?: Store };
+  /** Tests only: fake resolver / dial / extra ports for the custom-function executor. */
+  aiHttp?: AiDeps['http'];
 }
 
 /**
@@ -80,6 +82,7 @@ export const createApp = ({
   aiProvider = createAiProvider(env),
   aiJobs,
   aiRateLimitStores = {},
+  aiHttp,
 }: AppDeps): Express => {
   // Wallet low-balance / exhausted alerts run after every committed wallet change.
   registerWalletAlerts();
@@ -115,7 +118,13 @@ export const createApp = ({
       auth: { rateLimitStore: authRateLimitStore, rateLimit: authRateLimit },
       contacts: { storage, jobs: contactJobs },
       billing: { storage, payments, jobs: billingJobs, topupRateLimitStore },
-      ai: { provider: aiProvider, jobs: aiJobs, storage, rateLimitStores: aiRateLimitStores },
+      ai: {
+        provider: aiProvider,
+        jobs: aiJobs,
+        storage,
+        rateLimitStores: aiRateLimitStores,
+        ...(aiHttp ? { http: aiHttp } : {}),
+      },
     }),
   );
 

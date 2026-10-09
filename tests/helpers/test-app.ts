@@ -20,6 +20,7 @@ export const buildTestApp = (
     | 'aiProvider'
     | 'aiJobs'
     | 'aiRateLimitStores'
+    | 'aiHttp'
   > = {},
 ) => {
   const env = testEnv(overrides);

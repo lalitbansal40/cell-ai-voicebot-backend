@@ -11,3 +11,19 @@ export const PRODUCTION_BILLING_ENV = {
   BILLING_SELLER_GSTIN: makeGstin('08'),
   OPENAI_API_KEY: 'test-openai-key-not-real',
 } as const;
+
+/** A complete production env for building the app in tests (fake values, no network). */
+export const PRODUCTION_APP_ENV = {
+  NODE_ENV: 'production',
+  APP_URL: 'https://api.example.com',
+  FRONTEND_URL: 'https://app.example.com',
+  CORS_ORIGINS: 'https://app.example.com',
+  MONGODB_URI: 'mongodb://db.internal:27017/cav?replicaSet=rs0',
+  REDIS_URL: 'redis://cache.internal:6379',
+  JWT_ACCESS_SECRET: 'test-access-secret-0123456789abcdefXYZ',
+  JWT_REFRESH_SECRET: 'test-refresh-secret-0123456789abcdefXYZ',
+  ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+  SMTP_HOST: 'smtp.example.com',
+  MAIL_FROM: 'Cell AI Voicebot <no-reply@example.com>',
+  ...PRODUCTION_BILLING_ENV,
+} as const;

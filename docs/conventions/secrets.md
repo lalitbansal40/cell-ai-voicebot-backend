@@ -41,7 +41,7 @@
 
 - `OPENAI_API_KEY` is a secret (required in production; dev / tests use the fake provider without it). Never logged; `/admin/ai/config` only says whether it is set.
 - `ENCRYPTION_KEY` now also **seals agent function secret headers** (AES-256-GCM, key derived per purpose). Rotating it needs a re-seal step (planned script) — until then rotation makes stored function secrets unreadable; re-enter them after a rotation.
-- Function header values marked secret are write-only in the API (`valueHint` `••••1234` only) and never appear in logs, audit meta, tool-call logs or playground traces.
+- Function header values marked secret are write-only in the API (`valueHint` `••••1234` only) and never appear in logs, audit meta, tool-call logs or playground traces. Outgoing-request rules (SSRF guard, templating): [security.md](security.md).
 
 ## Client SSH key
 

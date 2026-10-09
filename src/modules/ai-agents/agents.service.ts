@@ -128,6 +128,8 @@ export const toAgentView = (a: AiAgentDoc) => ({
       })),
     },
   },
+  createdBy: a.createdBy?.toString() ?? null,
+  updatedBy: a.updatedBy?.toString() ?? null,
   createdAt: iso(a.createdAt),
   updatedAt: iso(a.updatedAt),
 });

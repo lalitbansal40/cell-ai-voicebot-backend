@@ -5,8 +5,11 @@ import {
   type AgentFunction,
   type AiAgentDoc,
   type BuiltInTool,
+  type Disposition,
   type FunctionParam,
 } from '../../db/models/ai-agent.model';
+import { rupeesToMicros } from '../../shared/money';
+import { addDays, ymdInZone } from '../../shared/time';
 
 import type { ToolDefinition, ToolParametersSchema } from './types';
 
@@ -186,3 +189,105 @@ export const BUILT_IN_ARGS = {
   }),
   send_sms_after_call: z.strictObject({ templateKey: z.string().min(1).max(40) }),
 } as const satisfies Record<BuiltInTool, z.ZodType>;
+
+// ── Built-in execution ────────────────────────────────────────────────────
+
+/** Outcome fields a built-in tool sets (playground session / Phase 6–10 call outcome). */
+export interface BuiltInOutcome {
+  disposition?: Disposition;
+  promiseToPay?: { date: string; amountMicros: number | null };
+  callback?: { date: string; time: string | null };
+  transferRequested?: boolean;
+  endRequested?: boolean;
+  smsTemplate?: string;
+}
+
+export interface BuiltInContext {
+  agent: Pick<AiAgentDoc, 'builtInTools'>;
+  /** `simulated` (playground, Test) records the outcome only; `live` arrives with Phase 7. */
+  mode: 'simulated' | 'live';
+  now: Date;
+  timezone: string;
+}
+
+export interface BuiltInResult {
+  /** What the model sees as the tool result. */
+  result: Record<string, unknown>;
+  outcome: BuiltInOutcome;
+}
+
+const failed = (error: string, details?: unknown): BuiltInResult => ({
+  result: { ok: false, error, ...(details === undefined ? {} : { details }) },
+  outcome: {},
+});
+
+const dateInWindow = (date: string, ctx: BuiltInContext, maxDaysAhead: number): boolean => {
+  const today = ymdInZone(ctx.now, ctx.timezone);
+  const real = new Date(`${date}T00:00:00Z`);
+  const exists = !Number.isNaN(real.getTime()) && real.toISOString().slice(0, 10) === date;
+  return exists && date >= today && date <= addDays(today, maxDaysAhead);
+};
+
+/**
+ * Runs a built-in tool. Arguments are validated first (bad → `{ ok: false }`
+ * for the model to fix); disabled tools are refused.
+ */
+export const executeBuiltIn = (
+  name: BuiltInTool,
+  rawArgs: unknown,
+  ctx: BuiltInContext,
+): BuiltInResult => {
+  if (ctx.mode === 'live') throw new Error('Live built-in tools are wired in Phase 7');
+  if (!enabledBuiltIns(ctx.agent).includes(name)) return failed('tool_disabled');
+  const parsed = BUILT_IN_ARGS[name].safeParse(rawArgs ?? {});
+  if (!parsed.success) {
+    return failed(
+      'invalid_arguments',
+      parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+    );
+  }
+  const b = ctx.agent.builtInTools;
+  const simulated = { ok: true, simulated: true };
+  switch (name) {
+    case 'end_call':
+      return { result: { ...simulated, ended: true }, outcome: { endRequested: true } };
+    case 'transfer_to_human':
+      return {
+        result: { ...simulated, transferred: true, message: b.transferToHuman.message ?? null },
+        outcome: { transferRequested: true },
+      };
+    case 'set_disposition': {
+      const { disposition } = BUILT_IN_ARGS.set_disposition.parse(parsed.data);
+      if (!b.setDisposition.allowed.includes(disposition)) return failed('disposition_not_allowed');
+      return { result: { ...simulated, disposition }, outcome: { disposition } };
+    }
+    case 'schedule_callback': {
+      const { date, time } = BUILT_IN_ARGS.schedule_callback.parse(parsed.data);
+      if (!dateInWindow(date, ctx, b.scheduleCallback.maxDaysAhead))
+        return failed('date_out_of_range');
+      const callback = { date, time: time ?? null };
+      return { result: { ...simulated, callback }, outcome: { callback } };
+    }
+    case 'save_promise_to_pay': {
+      const { date, amountRupees } = BUILT_IN_ARGS.save_promise_to_pay.parse(parsed.data);
+      if (!dateInWindow(date, ctx, b.savePromiseToPay.maxDaysAhead))
+        return failed('date_out_of_range');
+      const amountMicros = amountRupees ? rupeesToMicros(amountRupees) : null;
+      if (amountRupees && amountMicros === null) return failed('invalid_amount');
+      return {
+        result: { ...simulated, promiseToPay: { date, amountRupees: amountRupees ?? null } },
+        outcome: { promiseToPay: { date, amountMicros } },
+      };
+    }
+    case 'send_sms_after_call': {
+      const { templateKey } = BUILT_IN_ARGS.send_sms_after_call.parse(parsed.data);
+      if (!b.sendSmsAfterCall.templates.some((t) => t.key === templateKey)) {
+        return failed('unknown_template');
+      }
+      return {
+        result: { ...simulated, smsTemplate: templateKey },
+        outcome: { smsTemplate: templateKey },
+      };
+    }
+  }
+};

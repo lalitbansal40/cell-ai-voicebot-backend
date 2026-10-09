@@ -4,12 +4,14 @@ import type { Store } from 'express-rate-limit';
 import type { Env } from './config/env';
 import { createFakeProvider, type AiProvider } from './core/ai';
 import type { AiJobs } from './core/ai/jobs';
+import { secretBoxKey } from './core/ai/secret-box';
 import { unavailableBillingJobs, type BillingJobs } from './core/billing/jobs';
 import { createPaymentProvider, type PaymentProvider } from './core/payments';
 import type { StorageProvider } from './core/storage';
 import { createAccountRouter } from './modules/account/account.routes';
 import { createAdminRouter } from './modules/admin/admin.routes';
 import { createAgentsRouter } from './modules/ai-agents/agents.routes';
+import type { FunctionsDeps } from './modules/ai-agents/functions.service';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
@@ -23,6 +25,7 @@ import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
+import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
 import { createWebhooksRouter } from './modules/payments/webhooks.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
@@ -48,6 +51,8 @@ export interface AiDeps {
   jobs?: AiJobs;
   storage?: StorageProvider;
   rateLimitStores?: { playground?: Store; knowledge?: Store; functionTest?: Store };
+  /** Test hooks for the custom-function executor (fake resolver / dial / ports). */
+  http?: FunctionsDeps['http'];
 }
 
 export interface ContactsDeps {
@@ -76,6 +81,8 @@ export const createApiRouter = ({
     | 'MOCK_APIS_ENABLED'
     | 'AI_TEXT_MODELS'
     | 'OPENAI_TEXT_MODEL'
+    | 'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS'
+    | 'ENCRYPTION_KEY'
   >;
   auth?: Omit<AuthRouterDeps, 'env'>;
   contacts?: ContactsDeps;
@@ -126,6 +133,18 @@ export const createApiRouter = ({
     createContactImportsRouter({ storage: contacts.storage, jobs: contacts.jobs }),
   );
   router.use('/custom-fields', createCustomFieldsRouter({ jobs: contacts.jobs }));
-  router.use('/agents', createAgentsRouter({ env, provider: ai.provider }));
+  router.use(
+    '/agents',
+    createAgentsRouter({
+      env,
+      provider: ai.provider,
+      secretKey: secretBoxKey(env),
+      ...(ai.http ? { http: ai.http } : {}),
+      ...(ai.rateLimitStores?.functionTest
+        ? { functionTestStore: ai.rateLimitStores.functionTest }
+        : {}),
+    }),
+  );
+  if (env.MOCK_APIS_ENABLED) router.use('/mock', createMockApisRouter());
   return router;
 };

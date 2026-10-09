@@ -10,7 +10,7 @@ export interface StubRequest {
   body: string;
 }
 
-export type StubHandler = (req: StubRequest, res: ServerResponse) => void | Promise<void>;
+export type StubHandler = (req: StubRequest, res: ServerResponse) => unknown;
 
 /**
  * Local HTTP stub on a random port (no network in tests). Queue handlers with

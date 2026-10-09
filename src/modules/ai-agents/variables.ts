@@ -11,7 +11,7 @@ export const BUILT_IN_VARIABLES = ['name', 'phone_last4'] as const;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const readableDate = (ymd: string): string => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
-  return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1] ?? ''} ${m[1] ?? ''}` : ymd;
+  return m ? `${m[3] ?? ''} ${MONTHS[Number(m[2]) - 1] ?? ''} ${m[1] ?? ''}` : ymd;
 };
 
 export interface VariableInfo {
@@ -35,9 +35,7 @@ export const accountVariables = async (accountId: Types.ObjectId): Promise<Varia
 
 const formatValue = (type: VariableInfo['type'], value: unknown): string => {
   if (value === null || value === undefined || value === '') return '';
-  // whole rupees read better without paise ("₹12,500", not "₹12,500.00")
-  if (type === 'currency' && typeof value === 'number')
-    return formatInr(value).replace(/\.00$/, '');
+  if (type === 'currency' && typeof value === 'number') return formatInr(value);
   if (type === 'date' && typeof value === 'string') return readableDate(value);
   if (type === 'number' && typeof value === 'number') return value.toLocaleString('en-IN');
   return typeof value === 'string' || typeof value === 'number' ? String(value) : '';

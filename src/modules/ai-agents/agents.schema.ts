@@ -156,6 +156,76 @@ export const CompilePreviewBody = z.strictObject({
   channel: z.enum(['text', 'voice']).default('text'),
 });
 
+const HEADER_NAME = /^[A-Za-z0-9-]{1,64}$/;
+
+export const FunctionParamBody = z
+  .strictObject({
+    name: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, 'Use a-z, 0-9 and _ (start with a letter)'),
+    type: z.enum(PARAM_TYPES),
+    description: text(300).default(''),
+    required: z.boolean().default(false),
+    enumValues: z.array(z.string().trim().min(1).max(60)).min(1).max(20).optional(),
+  })
+  .refine((p) => p.type !== 'enum' || (p.enumValues?.length ?? 0) > 0, {
+    path: ['enumValues'],
+    message: 'Add at least one value',
+  });
+
+export const FunctionHeaderBody = z.strictObject({
+  name: z.string().regex(HEADER_NAME, 'Letters, digits and - only'),
+  secret: z.boolean().default(false),
+  value: z
+    .string()
+    .max(2000)
+    .nullable()
+    .openapi({ description: 'Secret headers: send `null` to keep the stored value' }),
+});
+
+const functionFields = {
+  name: z
+    .string()
+    .regex(/^[a-z][a-z0-9_]{2,39}$/, '3–40 characters: a-z, 0-9 and _ (start with a letter)'),
+  description: text(500).min(10),
+  parameters: z.array(FunctionParamBody).max(AI_LIMITS.paramsPerFunction),
+  method: z.enum(FUNCTION_METHODS),
+  url: z.string().trim().min(1).max(2000),
+  headers: z.array(FunctionHeaderBody).max(10),
+  bodyTemplate: z.string().max(10_000).nullable(),
+  resultPath: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){0,4}$/, 'Dot path, at most 5 parts')
+    .nullable(),
+  responseHint: text(300).nullable(),
+  timeoutMs: z
+    .number()
+    .int()
+    .min(AI_LIMITS.functionTimeoutMsMin)
+    .max(AI_LIMITS.functionTimeoutMsMax),
+};
+
+export const CreateFunctionBody = z.strictObject({
+  ...functionFields,
+  parameters: functionFields.parameters.default([]),
+  headers: functionFields.headers.default([]),
+  bodyTemplate: functionFields.bodyTemplate.optional(),
+  resultPath: functionFields.resultPath.optional(),
+  responseHint: functionFields.responseHint.optional(),
+  timeoutMs: functionFields.timeoutMs.default(AI_LIMITS.functionTimeoutMsDefault),
+});
+
+export const UpdateFunctionBody = z
+  .strictObject(functionFields)
+  .partial()
+  .refine((b) => Object.keys(b).length > 0, 'Nothing to update');
+
+export const FunctionParams = z.strictObject({ id: ObjectIdSchema, fnId: ObjectIdSchema });
+
+export const TestFunctionBody = z.strictObject({
+  args: z.record(z.string(), z.unknown()).default({}),
+  contactId: ObjectIdSchema.optional(),
+  testPhone: z.string().regex(E164, 'Use the +91… format').optional(),
+});
+
 // ── Responses ─────────────────────────────────────────────────────────────
 
 export const FunctionParamSchema = z.object({
@@ -190,6 +260,25 @@ export const AgentFunctionSchema = registry.register(
     resultPath: z.string().nullable(),
     responseHint: z.string().nullable(),
     timeoutMs: z.number(),
+  }),
+);
+
+export const FunctionTestResultSchema = registry.register(
+  'AgentFunctionTestResult',
+  z.object({
+    ok: z.boolean(),
+    httpStatus: z.number().nullable(),
+    durationMs: z.number(),
+    result: z.string().openapi({ description: 'What the AI would see (≤ 2,000 chars)' }),
+    warnings: z.array(z.string()),
+    error: z.string().nullable().openapi({
+      description:
+        'blocked · timeout · too_large · invalid_json · network · too_many_redirects · invalid_request · secret_unavailable · invalid_arguments · http_<status>',
+    }),
+    details: z
+      .array(z.object({ path: z.string(), message: z.string() }))
+      .optional()
+      .openapi({ description: 'Why the arguments were refused (`invalid_arguments`)' }),
   }),
 );
 
@@ -263,6 +352,8 @@ export const AgentSchema = registry.register(
         templates: z.array(z.object({ key: z.string(), text: z.string() })),
       }),
     }),
+    createdBy: z.string().nullable(),
+    updatedBy: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
   }),
@@ -461,4 +552,43 @@ registry.registerPath({
   security: bearer,
   request: byId,
   responses: { 200: ok(AgentUsageSchema), ...read, 404: errors[404] },
+});
+
+const fnById = { params: FunctionParams };
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/agents/{id}/functions',
+  tags,
+  summary: 'Add a custom API function (secret header values are sealed and write-only)',
+  security: bearer,
+  request: { ...byId, ...json(CreateFunctionBody) },
+  responses: { 201: ok(AgentSchema, 'Created'), ...write },
+});
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/agents/{id}/functions/{fnId}',
+  tags,
+  summary: 'Change a custom function (secret header `value: null` keeps the stored secret)',
+  security: bearer,
+  request: { ...fnById, ...json(UpdateFunctionBody) },
+  responses: { 200: ok(AgentSchema), ...write },
+});
+registry.registerPath({
+  method: 'delete',
+  path: '/api/v1/agents/{id}/functions/{fnId}',
+  tags,
+  summary: 'Remove a custom function',
+  security: bearer,
+  request: fnById,
+  responses: { 200: ok(AgentSchema), ...write },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/agents/{id}/functions/{fnId}/test',
+  tags,
+  summary:
+    'Call the function once through the safe executor (20 / min / user). Request problems come back as `ok: false`',
+  security: bearer,
+  request: { ...fnById, ...json(TestFunctionBody) },
+  responses: { 200: ok(FunctionTestResultSchema), ...write, 429: errors[429] },
 });

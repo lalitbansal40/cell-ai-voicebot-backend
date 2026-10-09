@@ -1,7 +1,10 @@
 import { Router } from 'express';
+import type { Store } from 'express-rate-limit';
 
+import { AI_LIMITS } from '../../config/limits';
 import { created, noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
+import { createRateLimiter } from '../../shared/middlewares/rate-limit';
 import {
   blockWhenImpersonating,
   requirePermission,
@@ -12,8 +15,12 @@ import {
   AgentParams,
   CompilePreviewBody,
   CreateAgentBody,
+  CreateFunctionBody,
+  FunctionParams,
   ListAgentsQuery,
+  TestFunctionBody,
   UpdateAgentBody,
+  UpdateFunctionBody,
 } from './agents.schema';
 import {
   agentCatalog,
@@ -29,13 +36,32 @@ import {
   updateAgent,
   type AgentsDeps,
 } from './agents.service';
+import {
+  createFunction,
+  deleteFunction,
+  testFunction,
+  updateFunction,
+  type FunctionsDeps,
+} from './functions.service';
 
-/** `/api/v1/agents` — AI agents CRUD, templates and the prompt preview. */
-export const createAgentsRouter = (deps: AgentsDeps): Router => {
+export type AgentsRouterDeps = AgentsDeps &
+  FunctionsDeps & {
+    env: AgentsDeps['env'] & FunctionsDeps['env'];
+    functionTestStore?: Store;
+  };
+
+/** `/api/v1/agents` — AI agents CRUD, templates, prompt preview and custom functions. */
+export const createAgentsRouter = (deps: AgentsRouterDeps): Router => {
   const router = Router();
   router.use(authenticate());
   const read = requirePermission('agents.read');
   const write = [requirePermission('agents.write'), blockWhenImpersonating()];
+  const testLimiter = createRateLimiter({
+    windowMs: 60_000,
+    limit: AI_LIMITS.functionTestsPerMinute,
+    keyGenerator: (req) => `fntest:${req.auth?.userId ?? 'anonymous'}`,
+    ...(deps.functionTestStore ? { store: deps.functionTestStore } : {}),
+  });
 
   router.get(
     '/',
@@ -124,6 +150,45 @@ export const createAgentsRouter = (deps: AgentsDeps): Router => {
     ...handle({ params: AgentParams }, async ({ params, req, res }) => {
       ok(res, await agentUsage(req, params.id));
     }),
+  );
+
+  router.post(
+    '/:id/functions',
+    ...write,
+    ...handle(
+      { params: AgentParams, body: CreateFunctionBody },
+      async ({ params, body, req, res }) => {
+        created(res, await createFunction(req, params.id, body, deps));
+      },
+    ),
+  );
+  router.patch(
+    '/:id/functions/:fnId',
+    ...write,
+    ...handle(
+      { params: FunctionParams, body: UpdateFunctionBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await updateFunction(req, params.id, params.fnId, body, deps));
+      },
+    ),
+  );
+  router.delete(
+    '/:id/functions/:fnId',
+    ...write,
+    ...handle({ params: FunctionParams }, async ({ params, req, res }) => {
+      ok(res, await deleteFunction(req, params.id, params.fnId));
+    }),
+  );
+  router.post(
+    '/:id/functions/:fnId/test',
+    ...write,
+    testLimiter,
+    ...handle(
+      { params: FunctionParams, body: TestFunctionBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await testFunction(req, params.id, params.fnId, body, deps));
+      },
+    ),
   );
   return router;
 };
