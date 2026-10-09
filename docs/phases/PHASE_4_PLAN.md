@@ -100,13 +100,13 @@ Phase 4 ke end tak har account ka **prepaid wallet** ho, client **Razorpay se pa
 
 ### 1e. Invoices
 
-| Topic   | Decision                                                                                                                                                                                                                                                                                                         |
-| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| When    | One **tax invoice per paid top-up** (advance received for services — CA to confirm "receipt voucher vs tax invoice"; template is configurable text).                                                                                                                                                             |
-| Number  | Platform-wide, **per Indian financial year** (Apr–Mar, IST), consecutive, ≤ 16 chars: `CAV/26-27/000001` (`BILLING_INVOICE_PREFIX`, default `CAV`). Allocated with an atomic `$inc` on `invoiceCounters { fy }` **inside the credit transaction** (no gaps on success; an aborted txn doesn't consume a number). |
-| Content | Seller (name, address, GSTIN, state) from env, buyer from the billing profile **snapshot**, SAC (`BILLING_SAC_CODE`, default `998319` — CA confirm), description "Prepaid wallet recharge", base, CGST / SGST or IGST, total in figures **and words** (Indian system), payment id, date (IST).                   |
-| PDF     | `pdfkit` + **Noto Sans** (OFL, committed under `assets/fonts/` with its licence) for the ₹ sign and Hindi names; rendered by the `invoice.render` job → storage `accounts/<id>/invoices/<number>.pdf` → `pdfFileKey`; download via **signed URL (15 min)**. Re-render allowed (same data), never renumbered.     |
-| Email   | `payment-receipt` template to the billing email + owner: amount, invoice number, link to `/wallet?tab=invoices` (**no attachment, no amounts of other data**). Queued via the email queue (Phase 1).                                                                                                             |
+| Topic   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| When    | One **tax invoice per paid top-up** (advance received for services — CA to confirm "receipt voucher vs tax invoice"; template is configurable text).                                                                                                                                                                                                                                                                         |
+| Number  | Platform-wide, **per Indian financial year** (Apr–Mar, IST), consecutive, ≤ 16 chars: `CAV/26-27/000001` (`BILLING_INVOICE_PREFIX`, default `CAV`). Allocated with an atomic `$inc` on `invoiceCounters { fy }` **inside the credit transaction** (no gaps on success; an aborted txn doesn't consume a number).                                                                                                             |
+| Content | Seller (name, address, GSTIN, state) from env, buyer from the billing profile **snapshot**, SAC (`BILLING_SAC_CODE`, default `998319` — CA confirm), description "Prepaid wallet recharge", base, CGST / SGST or IGST, total in figures **and words** (Indian system), payment id, date (IST).                                                                                                                               |
+| PDF     | `pdfkit` + **Noto Sans** (OFL, committed under `assets/fonts/` with its licence) for the ₹ sign (Latin text only — pdfkit can't shape Devanagari, so billing details are entered in English letters as on the GST registration); rendered by the `invoice.render` job → storage `accounts/<id>/invoices/<number>.pdf` → `pdfFileKey`; download via **signed URL (15 min)**. Re-render allowed (same data), never renumbered. |
+| Email   | `wallet.receipt` template (key reserved in the email registry) to the billing email + owner: amount, invoice number, link to `/wallet?tab=invoices` (**no attachment, no amounts of other data**). Queued via the email queue (Phase 1).                                                                                                                                                                                     |
 
 ### 1f. Alerts, notifications & safety nets
 
@@ -265,7 +265,7 @@ Phase 4 ke end tak har account ka **prepaid wallet** ho, client **Razorpay se pa
 ### T4.5 — Notifications, alerts & safety jobs
 
 - [ ] Notifications module: create helper (`notifyUsers({ accountId, permission?, userId?, type, title, body, link })`), API §1j, WS `notification.created`, TTL purge; only users with the needed permission see account-wide wallet notices.
-- [ ] Alerts: low-balance / exhausted logic (§1f) with `alerts.*NotifiedAt` (atomic claim so parallel debits send once); emails `low-balance` (recipients: active users with `wallet.topup`), templates escaped, no amounts of other accounts.
+- [ ] Alerts: low-balance / exhausted logic (§1f) with `alerts.*NotifiedAt` (atomic claim so parallel debits send once); emails `wallet.low_balance` (recipients: active users with `wallet.topup`), templates escaped, no amounts of other accounts.
 - [ ] Jobs on `billing`: `billing.reap_holds` (5 min), `billing.reconcile` (daily 02:30 IST), `notifications.purge`; cron registration like `maintenance`.
 - [ ] Tests: crossing once (not on every debit), re-arm after top-up, 24 h cap, threshold 0 = off, recipients by permission, bell API (unread count, read, read-all, other user's notification 404), reaper only old holds + idempotent, reconcile detects an injected mismatch and stays quiet otherwise.
 
@@ -286,8 +286,8 @@ Phase 4 ke end tak har account ka **prepaid wallet** ho, client **Razorpay se pa
 ### T4.8 — GST & invoices
 
 - [ ] `src/core/billing/gst.ts`: `computeTopupTax(baseMicros, sellerState, buyerState)` → `{ cgst, sgst, igst, taxMicros, totalMicros }` (paise rounding per component); GSTIN validator (shared with T4.4).
-- [ ] Invoice numbering in the credit transaction (FY from IST date); `invoice.render` job: PDF via `pdfkit` + Noto Sans (₹, Hindi), A4, seller / buyer / SAC / tax table / amount in words / payment id; storage key; re-render idempotent.
-- [ ] `payment-receipt` email template (text + HTML, escaped).
+- [ ] Invoice numbering in the credit transaction (FY from IST date); `invoice.render` job: PDF via `pdfkit` + Noto Sans (₹, Latin text), A4, seller / buyer / SAC / tax table / amount in words / payment id; storage key; re-render idempotent.
+- [ ] `wallet.receipt` email template (text + HTML, escaped).
 - [ ] `GET /invoices`, `GET /invoices/:id`, `GET /invoices/:id/download` (signed URL; 409 while rendering).
 - [ ] Tests: intra vs inter-state, rounding cases (₹100, ₹999, ₹1,234), FY rollover at 31 Mar 23:59 IST → 1 Apr, 20 parallel credits → 20 consecutive unique numbers, aborted credit consumes no number, PDF starts with `%PDF` and contains the number / GSTIN / words (text extraction), email content, isolation.
 
@@ -372,7 +372,7 @@ Phase 4 ke end tak har account ka **prepaid wallet** ho, client **Razorpay se pa
 | Calls overrun the hold when the balance ends              | Hold extension + graceful end (Phase 7) + settle allows a small overrun; new holds blocked until topped up             |
 | GST / invoice rules wrong                                 | Configurable seller details, SAC, prefix; CA questions listed (§7); numbering per FY tested; credit notes deferred     |
 | No Razorpay test keys yet                                 | Fake provider (same interface) for dev / tests / E2E; manual test-mode checklist when keys arrive                      |
-| PDF fonts (₹, Hindi)                                      | Noto Sans embedded (OFL), text-extraction test                                                                         |
+| PDF fonts (₹) / Devanagari                                | Noto Sans embedded (OFL), billing text Latin-only, test                                                                |
 | Stuck holds (crashed call / process)                      | Reaper every 5 min (2 h age); Phase 7 call-state aware                                                                 |
 | Personal / payment data in logs                           | No card data ever touches us (Checkout); payment ids only; GSTIN / address not logged; E2E log scan                    |
 
@@ -413,3 +413,4 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T4.1–T4.5
 ## Changelog
 
 - 2026-10-09: Plan created after Phase 3 sign-off.
+- 2026-10-09: Run prompt [PHASE_4_PROMPT.md](../prompts/PHASE_4_PROMPT.md) added (one file, 3 batches). Precisions there: module layout + route mounting (raw-body webhook before the JSON parser), deps injection (`billing: { storage, jobs, payments }`), wallet / ledger JSON, idempotency key formats, transaction purity (effects after commit — `withTransaction` re-runs callbacks), exact engine signatures and conditional-update shapes, extensions as child hold rows, Razorpay REST details (orders, payments, capture, both signatures, event-id header), fake provider shares the webhook path, top-up order states incl. `creating`, GST state list + GSTIN mod-36 checksum, billing text Latin-only (pdfkit can't shape Devanagari), FY numbering in IST, invoice PDF layout, email keys `wallet.receipt` / `wallet.low_balance`, notification visibility by stored permission, billing crons (UTC), new env vars + production refinements, 6 audit actions (→ 47), 2 error codes, `wallet.updated` payload adds `availableMicros` + `status`, `wallet.exhausted`; dependencies `pdfkit`, `unpdf` (tests), Noto Sans, `@mui/x-charts` 9.15 (MUI 9 peer OK).
