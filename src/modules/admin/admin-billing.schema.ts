@@ -204,6 +204,14 @@ export const PaymentEventSchema = registry.register(
   }),
 );
 
+export const BillingConfigSchema = registry.register(
+  'AdminBillingConfig',
+  z.object({
+    simulatorEnabled: z.boolean(),
+    paymentProvider: z.enum(PAYMENT_PROVIDERS),
+  }),
+);
+
 const tags = ['Superadmin billing'];
 const json = <T extends z.ZodType>(schema: T) => ({
   body: { content: { 'application/json': { schema } } },
@@ -343,6 +351,14 @@ registry.registerPath({
   security: bearer,
   request: { params: SimulatedHoldParams, ...json(SimulatedEndBody) },
   responses: { 200: ok(SimulatedEndSchema), ...guard, 404: errors[404], 409: errors[409] },
+});
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/billing/config',
+  tags,
+  summary: 'What this server allows: billing simulator on / off, payment provider',
+  security: bearer,
+  responses: { 200: ok(BillingConfigSchema), ...guard },
 });
 registry.registerPath({
   method: 'get',

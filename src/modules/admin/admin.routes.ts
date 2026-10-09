@@ -21,7 +21,7 @@ import {
 export const createAdminRouter = ({
   env,
 }: {
-  env: Pick<Env, 'BILLING_SIMULATOR_ENABLED'>;
+  env: Pick<Env, 'BILLING_SIMULATOR_ENABLED' | 'PAYMENT_PROVIDER'>;
 }): Router => {
   const router = Router();
   router.use(authenticate());

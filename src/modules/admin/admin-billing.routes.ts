@@ -48,7 +48,7 @@ import {
 export const createAdminBillingRouter = ({
   env,
 }: {
-  env: Pick<Env, 'BILLING_SIMULATOR_ENABLED'>;
+  env: Pick<Env, 'BILLING_SIMULATOR_ENABLED' | 'PAYMENT_PROVIDER'>;
 }): Router => {
   const router = Router();
   const manage = requirePermission('platform.billing.manage');
@@ -164,6 +164,12 @@ export const createAdminBillingRouter = ({
     ),
   );
 
+  router.get('/billing/config', manage, (_req, res) => {
+    ok(res, {
+      simulatorEnabled: env.BILLING_SIMULATOR_ENABLED,
+      paymentProvider: env.PAYMENT_PROVIDER,
+    });
+  });
   router.get(
     '/billing/summary',
     manage,

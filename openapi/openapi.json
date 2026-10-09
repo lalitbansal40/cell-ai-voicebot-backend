@@ -1669,6 +1669,14 @@
           "processedAt"
         ]
       },
+      "AdminBillingConfig": {
+        "type": "object",
+        "properties": {
+          "simulatorEnabled": { "type": "boolean" },
+          "paymentProvider": { "type": "string", "enum": ["razorpay", "fake"] }
+        },
+        "required": ["simulatorEnabled", "paymentProvider"]
+      },
       "Notification": {
         "type": "object",
         "properties": {
@@ -7826,6 +7834,42 @@
           },
           "409": {
             "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/billing/config": {
+      "get": {
+        "tags": ["Superadmin billing"],
+        "summary": "What this server allows: billing simulator on / off, payment provider",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AdminBillingConfig" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

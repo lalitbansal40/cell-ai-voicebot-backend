@@ -84,6 +84,7 @@ describe('guard', () => {
       ['get', `/api/v1/admin/accounts/${c.id}/ledger`],
       ['post', `/api/v1/admin/accounts/${c.id}/wallet/adjustments`],
       ['post', `/api/v1/admin/accounts/${c.id}/billing/simulated-calls`],
+      ['get', '/api/v1/admin/billing/config'],
       ['get', '/api/v1/admin/billing/summary'],
       ['get', '/api/v1/admin/payments'],
       ['get', '/api/v1/admin/payment-events'],
@@ -470,8 +471,12 @@ describe('simulator', () => {
     expect((await end(other.id, s.body.data.holdId, { answered: true })).status).toBe(422);
   });
 
-  it('does not exist when the simulator is disabled', async () => {
+  it('does not exist when the simulator is disabled (and the config says so)', async () => {
+    const on = await admin.get('/api/v1/admin/billing/config');
+    expect(on.body.data).toEqual({ simulatorEnabled: true, paymentProvider: 'fake' });
     const off = buildTestApp({ BILLING_SIMULATOR_ENABLED: 'false' });
+    const cfg = await request(off).get('/api/v1/admin/billing/config').set(auth(superadmin.token));
+    expect(cfg.body.data.simulatorEnabled).toBe(false);
     const c = await customer();
     const res = await request(off)
       .post(`/api/v1/admin/accounts/${c.id}/billing/simulated-calls`)
