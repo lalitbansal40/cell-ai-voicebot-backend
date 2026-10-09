@@ -857,6 +857,249 @@
         },
         "required": ["today", "month"]
       },
+      "PlaygroundTurn": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "clientTurnId": { "type": ["string", "null"] },
+          "role": { "type": "string", "enum": ["assistant", "user"] },
+          "text": { "type": "string" },
+          "toolCalls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "kind": { "type": "string", "enum": ["custom", "built_in"] },
+                "args": {
+                  "type": "object",
+                  "additionalProperties": {},
+                  "description": "Personal values masked"
+                },
+                "ok": { "type": "boolean" },
+                "simulated": { "type": "boolean" },
+                "durationMs": { "type": "number" },
+                "resultPreview": { "type": ["string", "null"] },
+                "error": { "type": ["string", "null"] }
+              },
+              "required": [
+                "name",
+                "kind",
+                "args",
+                "ok",
+                "simulated",
+                "durationMs",
+                "resultPreview",
+                "error"
+              ]
+            }
+          },
+          "knowledge": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "snippet": { "type": "string" },
+                "score": { "type": "number" }
+              },
+              "required": ["title", "snippet", "score"]
+            }
+          },
+          "inputTokens": { "type": "number" },
+          "outputTokens": { "type": "number" },
+          "costMicros": { "type": "number" },
+          "billing": { "type": "string", "enum": ["none", "charged", "failed"] },
+          "guardrail": {
+            "type": ["string", "null"],
+            "description": "Rule a blocked reply broke (no text kept)"
+          },
+          "fallback": {
+            "type": ["string", "null"],
+            "enum": ["aiFailed", "walletEmpty", "agentOff", "capReached", null]
+          },
+          "at": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "clientTurnId",
+          "role",
+          "text",
+          "toolCalls",
+          "knowledge",
+          "inputTokens",
+          "outputTokens",
+          "costMicros",
+          "billing",
+          "guardrail",
+          "fallback",
+          "at"
+        ]
+      },
+      "PlaygroundSession": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "agentId": { "type": "string" },
+          "userId": { "type": "string" },
+          "contactId": { "type": ["string", "null"] },
+          "variables": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "What the AI sees (allowed variables only)"
+          },
+          "hasTestPhone": { "type": "boolean" },
+          "turns": { "type": "array", "items": { "$ref": "#/components/schemas/PlaygroundTurn" } },
+          "outcome": {
+            "type": "object",
+            "properties": {
+              "disposition": {
+                "type": ["string", "null"],
+                "enum": [
+                  "paid",
+                  "promise_to_pay",
+                  "callback_requested",
+                  "wrong_number",
+                  "refused_to_pay",
+                  "dispute",
+                  "not_interested",
+                  "language_barrier",
+                  "other",
+                  null
+                ]
+              },
+              "promiseToPay": {
+                "type": ["object", "null"],
+                "properties": {
+                  "date": { "type": "string" },
+                  "amountMicros": { "type": ["number", "null"] }
+                },
+                "required": ["date", "amountMicros"]
+              },
+              "callback": {
+                "type": ["object", "null"],
+                "properties": {
+                  "date": { "type": "string" },
+                  "time": { "type": ["string", "null"] }
+                },
+                "required": ["date", "time"]
+              },
+              "transferRequested": { "type": "boolean" },
+              "endRequested": { "type": "boolean" },
+              "smsTemplate": { "type": ["string", "null"] }
+            },
+            "required": [
+              "disposition",
+              "promiseToPay",
+              "callback",
+              "transferRequested",
+              "endRequested",
+              "smsTemplate"
+            ]
+          },
+          "status": { "type": "string", "enum": ["active", "ended"] },
+          "costMicros": { "type": "number" },
+          "expiresAt": { "type": "string" },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "agentId",
+          "userId",
+          "contactId",
+          "variables",
+          "hasTestPhone",
+          "turns",
+          "outcome",
+          "status",
+          "costMicros",
+          "expiresAt",
+          "createdAt"
+        ]
+      },
+      "PlaygroundSessionRow": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "status": { "type": "string", "enum": ["active", "ended"] },
+          "turns": { "type": "number" },
+          "costMicros": { "type": "number" },
+          "lastText": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "userId",
+          "status",
+          "turns",
+          "costMicros",
+          "lastText",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PlaygroundReply": {
+        "type": "object",
+        "properties": {
+          "userTurn": { "$ref": "#/components/schemas/PlaygroundTurn" },
+          "turn": { "$ref": "#/components/schemas/PlaygroundTurn" },
+          "outcome": {
+            "type": "object",
+            "properties": {
+              "disposition": {
+                "type": ["string", "null"],
+                "enum": [
+                  "paid",
+                  "promise_to_pay",
+                  "callback_requested",
+                  "wrong_number",
+                  "refused_to_pay",
+                  "dispute",
+                  "not_interested",
+                  "language_barrier",
+                  "other",
+                  null
+                ]
+              },
+              "promiseToPay": {
+                "type": ["object", "null"],
+                "properties": {
+                  "date": { "type": "string" },
+                  "amountMicros": { "type": ["number", "null"] }
+                },
+                "required": ["date", "amountMicros"]
+              },
+              "callback": {
+                "type": ["object", "null"],
+                "properties": {
+                  "date": { "type": "string" },
+                  "time": { "type": ["string", "null"] }
+                },
+                "required": ["date", "time"]
+              },
+              "transferRequested": { "type": "boolean" },
+              "endRequested": { "type": "boolean" },
+              "smsTemplate": { "type": ["string", "null"] }
+            },
+            "required": [
+              "disposition",
+              "promiseToPay",
+              "callback",
+              "transferRequested",
+              "endRequested",
+              "smsTemplate"
+            ]
+          },
+          "status": { "type": "string", "enum": ["active", "ended"] },
+          "replay": {
+            "type": "boolean",
+            "description": "`true` when the clientTurnId was already answered"
+          }
+        },
+        "required": ["userTurn", "turn", "outcome", "status", "replay"]
+      },
       "ApiKey": {
         "type": "object",
         "properties": {
@@ -4739,6 +4982,364 @@
           },
           "429": {
             "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/playground/sessions": {
+      "post": {
+        "tags": ["AI agents"],
+        "summary": "Start a test conversation (agents.write; not while impersonating). The opening line is turn 1 (no cost)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "variables": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string", "maxLength": 200 }
+                  },
+                  "testPhone": {
+                    "type": "string",
+                    "pattern": "^\\+[1-9]\\d{6,14}$",
+                    "description": "Used only by functions (`{{contact.phone}}`) — never sent to the AI, never returned"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PlaygroundSession" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["AI agents"],
+        "summary": "Latest 20 test conversations of the agent (`mine=true` for your own)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "required": false,
+            "name": "mine",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/PlaygroundSessionRow" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/playground/sessions/{sid}": {
+      "get": {
+        "tags": ["AI agents"],
+        "summary": "One test conversation with its turns (test phone never returned)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "sid",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PlaygroundSession" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/playground/sessions/{sid}/messages": {
+      "post": {
+        "tags": ["AI agents"],
+        "summary": "Send a message and get the agent's reply (30 / min / user; charged per turn; 422 AI_SPEND_CAP_REACHED when the cap is set to stop)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "sid",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+                  "clientTurnId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Sending the same id again returns the stored reply (no second charge)"
+                  }
+                },
+                "required": ["text", "clientTurnId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PlaygroundReply" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/playground/sessions/{sid}/reset": {
+      "post": {
+        "tags": ["AI agents"],
+        "summary": "End this conversation and start a fresh one with the same contact / values",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "sid",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PlaygroundSession" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

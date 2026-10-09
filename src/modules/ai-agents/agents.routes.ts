@@ -43,11 +43,15 @@ import {
   updateFunction,
   type FunctionsDeps,
 } from './functions.service';
+import { createPlaygroundRouter } from './playground.routes';
+import type { PlaygroundDeps } from './playground.service';
 
 export type AgentsRouterDeps = AgentsDeps &
   FunctionsDeps & {
-    env: AgentsDeps['env'] & FunctionsDeps['env'];
+    env: AgentsDeps['env'] & FunctionsDeps['env'] & PlaygroundDeps['env'];
+    provider: PlaygroundDeps['provider'];
     functionTestStore?: Store;
+    playgroundStore?: Store;
   };
 
 /** `/api/v1/agents` — AI agents CRUD, templates, prompt preview and custom functions. */
@@ -189,6 +193,16 @@ export const createAgentsRouter = (deps: AgentsRouterDeps): Router => {
         ok(res, await testFunction(req, params.id, params.fnId, body, deps));
       },
     ),
+  );
+  router.use(
+    '/:id/playground/sessions',
+    createPlaygroundRouter({
+      env: deps.env,
+      provider: deps.provider,
+      secretKey: deps.secretKey,
+      ...(deps.http ? { http: deps.http } : {}),
+      ...(deps.playgroundStore ? { messagesStore: deps.playgroundStore } : {}),
+    }),
   );
   return router;
 };

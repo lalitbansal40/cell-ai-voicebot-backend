@@ -145,6 +145,7 @@ export const createApiRouter = ({
       ...(ai.rateLimitStores?.functionTest
         ? { functionTestStore: ai.rateLimitStores.functionTest }
         : {}),
+      ...(ai.rateLimitStores?.playground ? { playgroundStore: ai.rateLimitStores.playground } : {}),
     }),
   );
   router.use(
