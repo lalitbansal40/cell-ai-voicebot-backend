@@ -31,8 +31,15 @@ export interface WsEventMap {
   'call.ended': { callId: string; durationSec: number; disposition?: string; costMicros: number };
   'campaign.status': { campaignId: string; status: string };
   'campaign.progress': { campaignId: string; stats: Record<string, number> };
-  'wallet.updated': { balanceMicros: number; holdMicros: number; currency: string };
+  'wallet.updated': {
+    balanceMicros: number;
+    holdMicros: number;
+    availableMicros: number;
+    currency: string;
+    status: 'ok' | 'low' | 'exhausted';
+  };
   'wallet.low_balance': { availableMicros: number; thresholdMicros: number };
+  'wallet.exhausted': { availableMicros: number };
   'import.progress': { importJobId: string; processed: number; total: number; status: string };
   'export.progress': { exportJobId: string; processed: number; total: number; status: string };
   'contacts.bulk_completed': { action: string; count: number };
@@ -62,6 +69,7 @@ export const WS_EVENT_TYPES = [
   'campaign.progress',
   'wallet.updated',
   'wallet.low_balance',
+  'wallet.exhausted',
   'import.progress',
   'export.progress',
   'contacts.bulk_completed',

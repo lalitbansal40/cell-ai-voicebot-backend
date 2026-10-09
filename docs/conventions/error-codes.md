@@ -33,6 +33,8 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `CONTACT_OPTED_OUT`           | 422  | Contact opted out of calls                                                                                                                | 3     |
 | `WALLET_INSUFFICIENT_BALANCE` | 422  | Not enough available balance for this action                                                                                              | 4     |
 | `WALLET_BUDGET_EXCEEDED`      | 422  | Monthly spend budget reached                                                                                                              | 4     |
+| `BILLING_PROFILE_REQUIRED`    | 422  | Billing details (legal name, address, GST state) must be saved before a wallet top-up                                                     | 4     |
+| `PAYMENT_VERIFICATION_FAILED` | 422  | Checkout signature wrong, payment not captured, or amount / currency / order don't match the top-up order                                 | 4     |
 | `AI_UNAVAILABLE`              | 503  | Voice AI provider unavailable                                                                                                             | 5/7   |
 | `FLOW_INVALID`                | 422  | Call flow fails validation (dangling nodes, missing end, …)                                                                               | 6     |
 | `CALL_OUTSIDE_WINDOW`         | 422  | Call blocked: outside the allowed calling window                                                                                          | 7/8   |

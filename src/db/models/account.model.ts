@@ -19,6 +19,34 @@ export interface AccountSettings {
   aiDisclosureEnabled: boolean;
 }
 
+/** GST billing details (PHASE_4_PLAN §1d) — buyer on invoices. Latin text only (PDF). */
+export interface BillingProfile {
+  legalName: string;
+  email: string;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  /** GST state code (`08` = Rajasthan) — place of supply. */
+  stateCode: string;
+  pin: string;
+  gstin: string | null;
+}
+
+const BILLING_PROFILE_FIELDS = {
+  legalName: { type: String, required: true, maxlength: 120 },
+  email: { type: String, required: true, maxlength: 254 },
+  addressLine1: { type: String, required: true, maxlength: 120 },
+  addressLine2: { type: String, default: null, maxlength: 120 },
+  city: { type: String, required: true, maxlength: 60 },
+  stateCode: { type: String, required: true, minlength: 2, maxlength: 2 },
+  pin: { type: String, required: true, minlength: 6, maxlength: 6 },
+  gstin: { type: String, default: null, maxlength: 15 },
+};
+
+export const BILLING_PROFILE_SCHEMA = new Schema<BillingProfile>(BILLING_PROFILE_FIELDS, {
+  _id: false,
+});
+
 export interface AccountDoc {
   _id: Types.ObjectId;
   name: string;
@@ -33,6 +61,7 @@ export interface AccountDoc {
   country: string;
   defaultLanguage: AccountLanguage;
   settings: AccountSettings;
+  billing?: (BillingProfile & { updatedAt: Date }) | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -74,6 +103,13 @@ const schema = new Schema<AccountDoc>({
     },
     recordingEnabled: { type: Boolean, default: true },
     aiDisclosureEnabled: { type: Boolean, default: true },
+  },
+  billing: {
+    type: new Schema<BillingProfile & { updatedAt: Date }>(
+      { ...BILLING_PROFILE_FIELDS, updatedAt: { type: Date, required: true } },
+      { _id: false },
+    ),
+    default: null,
   },
 });
 schema.plugin(basePlugin);

@@ -63,3 +63,40 @@ export const CONTACT_LIMITS = {
   /** Redis lock TTL for one running import / bulk / export per account. */
   jobLockTtlMs: 30 * 60_000,
 } as const;
+
+/** Wallet, billing & payments (PHASE_4_PLAN §1, integers only). */
+export const BILLING_LIMITS = {
+  /** ₹100 – ₹5,00,000 per top-up, whole rupees. */
+  topupMinMicros: 100_000_000,
+  topupMaxMicros: 500_000_000_000,
+  topupPresetsMicros: [500_000_000, 1_000_000_000, 2_000_000_000, 5_000_000_000],
+  /** GST on top-ups: 18 % (CGST 9 + SGST 9, or IGST 18). */
+  gstRateBps: 1800,
+  callHoldMinutes: 3,
+  callHoldExtendMinutes: 2,
+  extendWhenRemainingSeconds: 60,
+  graceSeconds: 30,
+  staleHoldMs: 2 * 60 * 60_000,
+  /** ₹10 lakh per manual adjustment. */
+  maxAdjustmentMicros: 1_000_000_000_000,
+  /** ₹1 lakh. */
+  creditLimitMaxMicros: 100_000_000_000,
+  thresholdMaxMicros: 100_000_000_000,
+  /** ₹1 crore. */
+  budgetMaxMicros: 10_000_000_000_000,
+  /** Rate card values above ₹1,000 / minute are refused. */
+  rateMaxMicros: 1_000_000_000,
+  ledgerExportMaxDays: 366,
+  ledgerExportMaxRows: 200_000,
+  ledgerPageMax: 100,
+  usageMaxDays: 366,
+  topupOrdersPerHour: 10,
+  orderExpiryMs: 24 * 60 * 60_000,
+  stuckCreatingMs: 60 * 60_000,
+  alertCooldownMs: 24 * 60 * 60_000,
+  rateCardCacheMs: 60_000,
+  walletUpdateThrottleMs: 1000,
+  invoiceUrlTtlSec: 900,
+  providerTimeoutMs: 10_000,
+  webhookMaxBytes: 256 * 1024,
+} as const;

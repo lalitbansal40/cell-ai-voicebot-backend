@@ -268,7 +268,13 @@
               "custom_field.updated",
               "custom_field.deleted",
               "contact_list.deleted",
-              "segment.deleted"
+              "segment.deleted",
+              "wallet.topup_paid",
+              "wallet.adjusted",
+              "wallet.settings_updated",
+              "wallet.credit_limit_updated",
+              "billing.profile_updated",
+              "rate_card.updated"
             ]
           },
           "actor": {

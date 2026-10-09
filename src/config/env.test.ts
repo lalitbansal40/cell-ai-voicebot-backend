@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { makeGstin } from '../shared/gstin';
+
 import { EnvValidationError, loadEnv } from './env';
 
 const PROD_SECRET_A = 'test-access-secret-0123456789abcdefXYZ';
@@ -18,6 +20,13 @@ const validProduction = {
   ENCRYPTION_KEY: PROD_KEY,
   SMTP_HOST: 'smtp.example.com',
   MAIL_FROM: 'Cell AI Voicebot <no-reply@example.com>',
+  RAZORPAY_KEY_ID: 'rzp_test_example',
+  RAZORPAY_KEY_SECRET: 'test-razorpay-key-secret',
+  RAZORPAY_WEBHOOK_SECRET: 'test-razorpay-webhook-secret',
+  BILLING_SELLER_NAME: 'Example Voice Pvt Ltd',
+  BILLING_SELLER_ADDRESS: '1 Example Road, Jaipur, Rajasthan 302001',
+  BILLING_SELLER_STATE_CODE: '08',
+  BILLING_SELLER_GSTIN: makeGstin('08'),
 };
 
 const issuesOf = (source: NodeJS.ProcessEnv) => {
@@ -133,6 +142,13 @@ describe('loadEnv — production rules', () => {
         'JWT_REFRESH_SECRET',
         'MONGODB_URI',
         'REDIS_URL',
+        'RAZORPAY_KEY_ID',
+        'RAZORPAY_KEY_SECRET',
+        'RAZORPAY_WEBHOOK_SECRET',
+        'BILLING_SELLER_STATE_CODE',
+        'BILLING_SELLER_NAME',
+        'BILLING_SELLER_ADDRESS',
+        'BILLING_SELLER_GSTIN',
       ].sort(),
     );
   });
@@ -261,5 +277,62 @@ describe('loadEnv — auth extras', () => {
     expect(env.AUTH_COOKIE_DOMAIN).toBeUndefined();
     expect(env.SEED_PASSWORD).toBeUndefined();
     expect(loadEnv({ AUTH_COOKIE_DOMAIN: '.example.com' }).AUTH_COOKIE_DOMAIN).toBe('.example.com');
+  });
+});
+
+describe('loadEnv — payments & billing', () => {
+  it('uses the fake provider and sample seller outside production', () => {
+    const env = loadEnv({});
+    expect(env.PAYMENT_PROVIDER).toBe('fake');
+    expect(env.FAKE_PAYMENT_SECRET).toBe('dev-fake-payment-secret');
+    expect(env.BILLING_SELLER_STATE_CODE).toBe('08');
+    expect(env.BILLING_SELLER_NAME).toMatch(/sample/i);
+    expect(env.BILLING_SAC_CODE).toBe('998319');
+    expect(env.BILLING_INVOICE_PREFIX).toBe('CAV');
+    expect(env.BILLING_SIMULATOR_ENABLED).toBe(true);
+    expect(loadEnv({ BILLING_SIMULATOR_ENABLED: 'false' }).BILLING_SIMULATOR_ENABLED).toBe(false);
+    expect(loadEnv({ FAKE_PAYMENT_SECRET: 'x' }).FAKE_PAYMENT_SECRET).toBe('x');
+  });
+
+  it('defaults to razorpay in production, simulator off, no fake secret', () => {
+    const env = loadEnv(validProduction);
+    expect(env.PAYMENT_PROVIDER).toBe('razorpay');
+    expect(env.FAKE_PAYMENT_SECRET).toBeUndefined();
+    expect(env.BILLING_SIMULATOR_ENABLED).toBe(false);
+  });
+
+  it('refuses the fake provider and its secret in production', () => {
+    const err = issuesOf({
+      ...validProduction,
+      PAYMENT_PROVIDER: 'fake',
+      FAKE_PAYMENT_SECRET: 'x',
+    });
+    expect(err.issues.map((i) => i.variable).sort()).toEqual(
+      ['FAKE_PAYMENT_SECRET', 'PAYMENT_PROVIDER'].sort(),
+    );
+  });
+
+  it('needs the three razorpay keys when razorpay is chosen', () => {
+    const err = issuesOf({ PAYMENT_PROVIDER: 'razorpay' });
+    expect(err.issues.map((i) => i.variable)).toEqual([
+      'RAZORPAY_KEY_ID',
+      'RAZORPAY_KEY_SECRET',
+      'RAZORPAY_WEBHOOK_SECRET',
+    ]);
+  });
+
+  it('validates the seller state, GSTIN, SAC and prefix', () => {
+    expect(issuesOf({ BILLING_SELLER_STATE_CODE: '99' }).issues[0]?.variable).toBe(
+      'BILLING_SELLER_STATE_CODE',
+    );
+    expect(issuesOf({ BILLING_SELLER_GSTIN: makeGstin('27') }).issues[0]?.reason).toMatch(/GSTIN/);
+    expect(
+      loadEnv({ BILLING_SELLER_STATE_CODE: '27', BILLING_SELLER_GSTIN: makeGstin('27') })
+        .BILLING_SELLER_STATE_CODE,
+    ).toBe('27');
+    expect(issuesOf({ BILLING_SAC_CODE: '12' }).issues[0]?.variable).toBe('BILLING_SAC_CODE');
+    expect(issuesOf({ BILLING_INVOICE_PREFIX: 'cavx' }).issues[0]?.variable).toBe(
+      'BILLING_INVOICE_PREFIX',
+    );
   });
 });

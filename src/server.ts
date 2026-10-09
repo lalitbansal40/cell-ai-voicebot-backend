@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 
 import { createApp } from './app';
 import { getEnv, type Env } from './config/env';
+import { queueBillingJobs } from './core/billing/jobs';
 import {
   createEmailProvider,
   createEmailService,
@@ -20,6 +21,7 @@ import {
   pingRedis,
   redactRedisUrl,
 } from './core/queues/redis';
+import { startBillingWorker } from './core/queues/workers/billing.worker';
 import { startContactsWorker } from './core/queues/workers/contacts.worker';
 import { startEmailWorker } from './core/queues/workers/email.worker';
 import { startMaintenanceWorker } from './core/queues/workers/maintenance.worker';
@@ -121,6 +123,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
 
   const storage = createStorage(env, logger);
   const contactJobs = queueContactJobs(createQueue(QUEUES.contacts, queueDeps));
+  const billingJobs = queueBillingJobs(createQueue(QUEUES.billing, queueDeps));
 
   const app = createApp({
     env,
@@ -151,6 +154,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     startEmailWorker({ ...queueDeps, provider: emailProvider });
     await startMaintenanceWorker({ ...queueDeps, storage });
     startContactsWorker({ ...queueDeps, storage, jobs: contactJobs });
+    await startBillingWorker({ ...queueDeps, storage, jobs: billingJobs });
     logger.info('workers: started');
   }
 

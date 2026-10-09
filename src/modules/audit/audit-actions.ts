@@ -44,6 +44,12 @@ export const AUDIT_ACTIONS = [
   'custom_field.deleted',
   'contact_list.deleted',
   'segment.deleted',
+  'wallet.topup_paid',
+  'wallet.adjusted',
+  'wallet.settings_updated',
+  'wallet.credit_limit_updated',
+  'billing.profile_updated',
+  'rate_card.updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

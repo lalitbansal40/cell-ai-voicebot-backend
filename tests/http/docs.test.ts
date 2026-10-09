@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildOpenApiDocument } from '../../src/openapi';
 import { getAppInfo } from '../../src/shared/app-info';
+import { PRODUCTION_BILLING_ENV } from '../helpers/production-env';
 import { buildTestApp } from '../helpers/test-app';
 
 const pkgVersion = (
@@ -26,6 +27,7 @@ const production = {
   ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
   SMTP_HOST: 'smtp.example.com',
   MAIL_FROM: 'Cell AI Voicebot <no-reply@example.com>',
+  ...PRODUCTION_BILLING_ENV,
 };
 
 describe('GET /api/v1/openapi.json', () => {

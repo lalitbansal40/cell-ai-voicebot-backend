@@ -50,6 +50,7 @@ export const PLATFORM_PERMISSIONS = [
   'platform.accounts.read',
   'platform.accounts.manage',
   'platform.impersonate',
+  'platform.billing.manage',
 ] as const;
 
 export type PlatformPermission = (typeof PLATFORM_PERMISSIONS)[number];

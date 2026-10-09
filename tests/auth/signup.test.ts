@@ -6,6 +6,7 @@ import { AuditLogModel } from '../../src/db/models/audit-log.model';
 import { AuthCodeModel } from '../../src/db/models/auth-code.model';
 import { RoleModel } from '../../src/db/models/role.model';
 import { UserModel } from '../../src/db/models/user.model';
+import { WalletModel } from '../../src/db/models/wallet.model';
 import { useTestDb } from '../helpers/db';
 import { lastEmail, useCapturedEmail } from '../helpers/email';
 import { buildTestApp } from '../helpers/test-app';
@@ -61,6 +62,9 @@ describe('POST /api/v1/auth/signup', () => {
     expect(account?.ownerId?.toString()).toBe(user?._id.toString());
     expect(account?.slug).toMatch(/^demo-finance/);
     expect(await RoleModel.countDocuments({ accountId: account?._id })).toBe(5);
+    const wallets = await WalletModel.find({ accountId: account?._id }).lean();
+    expect(wallets).toHaveLength(1);
+    expect(wallets[0]).toMatchObject({ balanceMicros: 0, holdMicros: 0, currency: 'INR' });
     const ownerRole = await RoleModel.findById(user?.roleId).lean();
     expect(ownerRole?.key).toBe('owner');
     expect(codeFor(body.email)).toMatch(/^\d{6}$/);
@@ -154,10 +158,12 @@ describe('POST /api/v1/auth/signup', () => {
 
   it('rolls back the account and roles when creating the owner fails', async () => {
     const body = signupBody({ businessName: 'Rollback Test Ltd' });
+    const walletsBefore = await WalletModel.countDocuments({});
     vi.spyOn(UserModel, 'create').mockRejectedValueOnce(new Error('simulated failure'));
     const res = await request(app).post('/api/v1/auth/signup').send(body);
     expect(res.status).toBe(500);
     expect(await AccountModel.countDocuments({ name: 'Rollback Test Ltd' })).toBe(0);
+    expect(await WalletModel.countDocuments({})).toBe(walletsBefore); // no orphan wallet
     expect(await UserModel.countDocuments({ email: body.email })).toBe(0);
   });
 });

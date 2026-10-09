@@ -49,6 +49,14 @@ export const ERROR_CODES = {
   CONTACT_OPTED_OUT: { status: 422, message: 'This contact has opted out of calls.' },
   WALLET_INSUFFICIENT_BALANCE: { status: 422, message: 'Insufficient wallet balance.' },
   WALLET_BUDGET_EXCEEDED: { status: 422, message: 'Monthly spend budget reached.' },
+  BILLING_PROFILE_REQUIRED: {
+    status: 422,
+    message: 'Add your billing details before adding money.',
+  },
+  PAYMENT_VERIFICATION_FAILED: {
+    status: 422,
+    message: 'The payment could not be verified.',
+  },
   AI_UNAVAILABLE: { status: 503, message: 'The voice AI service is unavailable.' },
   FLOW_INVALID: { status: 422, message: 'The call flow is invalid.' },
   CALL_OUTSIDE_WINDOW: { status: 422, message: 'Calls are not allowed at this time.' },

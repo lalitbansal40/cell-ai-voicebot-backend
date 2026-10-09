@@ -27,3 +27,31 @@ describe('tenant scoping (security)', () => {
     expect(files(MODULES).length).toBeGreaterThan(10);
   });
 });
+
+const MODELS = path.resolve(__dirname, '../../src/db/models');
+
+/**
+ * Collections that are not tenant data (or have a nullable account on purpose).
+ * Everything else must declare a required `accountId` (tenantPlugin or explicit).
+ */
+const NOT_TENANT_SCOPED: Record<string, string> = {
+  'account.model.ts': 'the tenant itself',
+  'auth-code.model.ts': 'per user (OTP / reset codes keyed by userId)',
+  'invoice-counter.model.ts': 'platform-wide GST series per financial year',
+  'payment-event.model.ts': 'provider webhooks; accountId nullable until matched',
+  'rate-card.model.ts': 'accountId null = platform default card',
+};
+
+describe('tenant scoping (models)', () => {
+  it('every tenant collection requires accountId', () => {
+    const missing = readdirSync(MODELS)
+      .filter((f) => f.endsWith('.model.ts') && !(f in NOT_TENANT_SCOPED))
+      .filter((f) => {
+        const text = readFileSync(path.join(MODELS, f), 'utf8');
+        return !/tenantPlugin\)|accountId: \{ type: Schema\.Types\.ObjectId, required: true/.test(
+          text,
+        );
+      });
+    expect(missing).toEqual([]);
+  });
+});

@@ -206,17 +206,18 @@ Indexes: `{ accountId: 1, at: -1 }`, `{ accountId: 1, action: 1, at: -1 }`. **Im
 
 Indexes: `{ accountId: 1, key: 1 }` unique, `{ expiresAt: 1 }` TTL.
 
-#### Notification (`notifications`) — Phase 2+
+#### Notification (`notifications`) — Phase 4
 
-| Field       | Type             | R   | Notes                                         |
-| ----------- | ---------------- | --- | --------------------------------------------- |
-| userId      | ObjectId → users |     | Null = all users of the account               |
-| type        | string           | ✓   | `wallet.low_balance`, `campaign.completed`, … |
-| title, body | string           | ✓   |                                               |
-| link        | string           |     | In-app route                                  |
-| readAt      | Date             |     |                                               |
+| Field       | Type             | R   | Notes                                                                                         |
+| ----------- | ---------------- | --- | --------------------------------------------------------------------------------------------- |
+| userId      | ObjectId → users | ✓   | **One row per recipient** (fan-out at creation, so each user has their own read state)        |
+| type        | string           | ✓   | `wallet.low_balance`, `wallet.exhausted`, `wallet.topup_paid`, `wallet.adjusted`, `billing.*` |
+| title, body | string           | ✓   | ≤ 120 / ≤ 500                                                                                 |
+| link        | string           |     | In-app route                                                                                  |
+| readAt      | Date             |     |                                                                                               |
+| expiresAt   | Date             | ✓   | **TTL** (90 days), hidden                                                                     |
 
-Indexes: `{ accountId: 1, userId: 1, readAt: 1, createdAt: -1 }`. Retention: 90 days.
+Indexes: `{ accountId: 1, userId: 1, readAt: 1, createdAt: -1 }`, `{ expiresAt: 1 }` TTL. Recipients of account-wide notices are resolved server-side by permission (e.g. users with `wallet.read`).
 
 ### 2.2 Contacts
 
@@ -331,73 +332,110 @@ Indexes: `{ accountId, createdAt: -1 }`, `{ status, expiresAt }`.
 
 ### 2.3 Wallet & billing
 
+Money is integer **micros** (₹1 = 1,000,000 — ADR 0016), percentages are **basis points** (1 % = 100 bps). All writes go through `src/core/billing/engine.ts` in one transaction with their ledger rows (ADR 0032).
+
 #### Wallet (`wallets`) — Phase 4
 
-| Field                     | Type                                     | R   | Notes                                |
-| ------------------------- | ---------------------------------------- | --- | ------------------------------------ |
-| currency                  | string                                   | ✓   | `INR`                                |
-| balanceMicros             | number                                   | ✓   | Real money                           |
-| holdMicros                | number                                   | ✓   | Reserved for running campaigns/calls |
-| creditLimitMicros         | number                                   | ✓   | Default 0 — AI never runs on credit  |
-| lowBalanceThresholdMicros | number                                   | ✓   |                                      |
-| budgets                   | `{ monthlyCallMicros, monthlyAiMicros }` | ✓   | 0 = unlimited                        |
+| Field                     | Type                                                    | R   | Notes                                                                    |
+| ------------------------- | ------------------------------------------------------- | --- | ------------------------------------------------------------------------ |
+| accountId                 | ObjectId → accounts                                     | ✓   | **Unique** — one wallet per account (created at signup / migration 0005) |
+| currency                  | `INR`                                                   | ✓   |                                                                          |
+| balanceMicros             | number                                                  | ✓   | Real money; below 0 only after a call overran its hold                   |
+| holdMicros                | number                                                  | ✓   | Reserved for running calls (≥ 0)                                         |
+| creditLimitMicros         | number                                                  | ✓   | Default 0; holds may use it, AI / TTS charges never                      |
+| lowBalanceThresholdMicros | number                                                  | ✓   | Default ₹500; 0 = alerts off                                             |
+| budgets                   | `{ monthlyCallMicros, monthlyAiMicros }`                | ✓   | 0 = unlimited                                                            |
+| spend                     | `{ month: 'YYYY-MM', callMicros, aiMicros, ttsMicros }` | ✓   | Month in the account timezone; reset when a new month starts             |
+| alerts                    | `{ lowBalanceNotifiedAt, exhaustedNotifiedAt }`         | ✓   | Hidden — once-per-24 h alert claims                                      |
+| version                   | number                                                  | ✓   | Hidden — bumped on every change                                          |
 
-Indexes: `{ accountId: 1 }` unique. Changes only inside transactions with a ledger entry.
+Derived in the API: `availableMicros = balance + creditLimit − hold`, `status` `ok | low | exhausted`.
 
-#### LedgerEntry (`ledgerEntries`) — Phase 4 — **immutable**
+#### LedgerEntry (`ledgerEntries`) — Phase 4 — **insert-only**
 
-| Field          | Type                                                                                      | R   | Notes                                             |
-| -------------- | ----------------------------------------------------------------------------------------- | --- | ------------------------------------------------- |
-| type           | `topup \| call_charge \| ai_charge \| tts_charge \| adjustment \| refund \| subscription` | ✓   |                                                   |
-| status         | `held \| captured \| released`                                                            | ✓   | Only allowed mutation: held → captured / released |
-| amountMicros   | number                                                                                    | ✓   | Positive; direction implied by type               |
-| currency       | string                                                                                    | ✓   |                                                   |
-| breakdown      | `{ telephonyMicros, aiMicros, ttsMicros, commissionMicros }`                              |     |                                                   |
-| ref            | `{ type: call \| campaign \| topup \| manual, id }`                                       | ✓   |                                                   |
-| idempotencyKey | string                                                                                    | ✓   | Prevents double charging                          |
-| note           | string                                                                                    |     | Adjustments                                       |
-| createdBy      | ObjectId → users                                                                          |     | Null for system                                   |
+| Field                     | Type                                                                                                                                    | R   | Notes                                                      |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------------------------------------------------------- |
+| type                      | `topup \| call_charge \| ai_charge \| tts_charge \| adjustment \| refund \| subscription \| recording_charge`                           | ✓   |                                                            |
+| direction                 | `credit \| debit`                                                                                                                       | ✓   |                                                            |
+| status                    | `held \| captured \| released`                                                                                                          | ✓   | **Only allowed mutation: `held → released`** (model guard) |
+| amountMicros              | number                                                                                                                                  | ✓   | > 0, never changes                                         |
+| currency                  | `INR`                                                                                                                                   | ✓   |                                                            |
+| balanceAfterMicros        | number                                                                                                                                  |     | Wallet balance right after a captured row                  |
+| breakdown                 | `{ telephonyMicros, aiMicros, ttsMicros, commissionMicros, answered, durationSec, billableSeconds, pulseSeconds, aiSeconds, ttsChars }` |     | Call / usage charges                                       |
+| ref                       | `{ type: call \| campaign \| topup \| manual \| simulator \| usage \| seed, id }`                                                       | ✓   |                                                            |
+| holdId                    | ObjectId → ledgerEntries                                                                                                                |     | Charge → its hold; extension hold → the first hold row     |
+| rateCardId                | ObjectId → rateCards                                                                                                                    |     | Prices used (snapshot reference)                           |
+| idempotencyKey            | string                                                                                                                                  | ✓   | Unique per account, hidden — repeats return the stored row |
+| note                      | string                                                                                                                                  |     | Adjustment reason                                          |
+| createdBy                 | ObjectId → users                                                                                                                        |     | Null for system                                            |
+| releasedAt, releaseReason | Date, string                                                                                                                            |     | Set by the release                                         |
 
-Indexes: `{ accountId: 1, idempotencyKey: 1 }` unique, `{ accountId: 1, createdAt: -1 }`, `{ accountId: 1, ref.type: 1, ref.id: 1 }`. Retention: forever (financial record).
+A call settle = release the hold rows + insert a `captured` charge row (amounts are never edited). Indexes: `{ accountId: 1, idempotencyKey: 1 }` unique, `{ accountId: 1, createdAt: -1, _id: -1 }`, `{ accountId: 1, ref.type: 1, ref.id: 1 }`, `{ status: 1, createdAt: 1 }` (reaper), `{ holdId: 1 }`. Retention: forever (financial record).
 
 #### RateCard (`rateCards`) — Phase 4
 
-| Field                    | Type             | R   | Notes                                                      |
-| ------------------------ | ---------------- | --- | ---------------------------------------------------------- |
-| accountId                | ObjectId \| null |     | **Null = platform default** (exception to the tenant rule) |
-| telephonyPerMinuteMicros | number           | ✓   |                                                            |
-| pulseSeconds             | `15 \| 30 \| 60` | ✓   | Billing rounding                                           |
-| aiPerMinuteMicros        | number           | ✓   |                                                            |
-| ttsPer1kCharsMicros      | number           | ✓   |                                                            |
-| commissionPercent        | number           | ✓   |                                                            |
-| effectiveFrom            | Date             | ✓   | History kept; latest effective wins                        |
+| Field                  | Type             | R   | Notes                                                      |
+| ---------------------- | ---------------- | --- | ---------------------------------------------------------- |
+| accountId              | ObjectId \| null |     | **Null = platform default** (exception to the tenant rule) |
+| callPerMinuteMicros    | number           | ✓   | Selling price per call minute                              |
+| pulseSeconds           | `15 \| 30 \| 60` | ✓   | Billing rounding of answered calls                         |
+| aiPerMinuteMicros      | number           | ✓   | Billed per second of AI use                                |
+| ttsPer1kCharsMicros    | number           | ✓   |                                                            |
+| commissionBps          | number           | ✓   | 0–10,000                                                   |
+| billUnansweredAttempts | boolean          | ✓   | Default false                                              |
+| inheritsDefault        | boolean          | ✓   | Account row meaning "use the platform default again"       |
+| effectiveFrom          | Date             | ✓   | Insert-only history; latest `effectiveFrom ≤ now` wins     |
+| createdBy, note        | ObjectId, string |     |                                                            |
 
-Indexes: `{ accountId: 1, effectiveFrom: -1 }`.
+Indexes: `{ accountId: 1, effectiveFrom: -1 }`. Migration 0005 inserts the platform default.
 
 #### TopupOrder (`topupOrders`) — Phase 4
 
-| Field                              | Type                                    | R   | Notes             |
-| ---------------------------------- | --------------------------------------- | --- | ----------------- |
-| provider                           | `razorpay`                              | ✓   |                   |
-| providerOrderId, providerPaymentId | string                                  | ✓ / | Unique            |
-| baseMicros, taxMicros, totalMicros | number                                  | ✓   | GST on top        |
-| status                             | `created \| paid \| failed \| refunded` | ✓   |                   |
-| ledgerEntryId                      | ObjectId → ledgerEntries                |     | Set when credited |
+| Field                                                                  | Type                                                           | R   | Notes                                          |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------- | --- | ---------------------------------------------- |
+| provider                                                               | `razorpay \| fake`                                             | ✓   | `fake` only outside production                 |
+| providerOrderId, providerPaymentId                                     | string                                                         |     | Unique per provider when set (partial indexes) |
+| baseMicros, cgstMicros, sgstMicros, igstMicros, taxMicros, totalMicros | number                                                         | ✓   | Base credited to the wallet; GST on top        |
+| status                                                                 | `creating \| created \| paid \| failed \| expired \| refunded` | ✓   |                                                |
+| failureReason                                                          | string                                                         |     |                                                |
+| buyer                                                                  | billing profile snapshot                                       | ✓   | Invoice buyer                                  |
+| createdBy                                                              | ObjectId → users                                               | ✓   |                                                |
+| paidAt, ledgerEntryId, invoiceId                                       |                                                                |     | Set when credited                              |
+| rawProviderStatus                                                      | string                                                         |     | Hidden                                         |
 
-Indexes: `{ provider: 1, providerOrderId: 1 }` unique, `{ accountId: 1, createdAt: -1 }`.
+Indexes: `{ provider, providerOrderId }` / `{ provider, providerPaymentId }` unique partial, `{ accountId: 1, createdAt: -1 }`, `{ status: 1, createdAt: 1 }`. Retention: forever.
 
 #### Invoice (`invoices`) — Phase 4
 
-| Field         | Type                                               | R   | Notes                                |
-| ------------- | -------------------------------------------------- | --- | ------------------------------------ |
-| number        | string                                             | ✓   | Sequential, unique (GST requirement) |
-| kind          | `topup \| subscription`                            | ✓   |                                      |
-| ledgerEntryId | ObjectId                                           | ✓   |                                      |
-| amounts       | `{ baseMicros, taxMicros, totalMicros, currency }` | ✓   |                                      |
-| taxBreakdown  | `{ cgst, sgst, igst }` (micros)                    | ✓   |                                      |
-| pdfFileKey    | string                                             |     |                                      |
+| Field         | Type                                                                         | R   | Notes                                        |
+| ------------- | ---------------------------------------------------------------------------- | --- | -------------------------------------------- |
+| number        | string                                                                       | ✓   | `CAV/26-27/000001`, unique, ≤ 16 chars (GST) |
+| fy            | string                                                                       | ✓   | Indian financial year (IST), `26-27`         |
+| topupOrderId  | ObjectId                                                                     | ✓   | Unique                                       |
+| ledgerEntryId | ObjectId                                                                     | ✓   |                                              |
+| seller        | `{ name, address, gstin, stateCode }`                                        | ✓   | Snapshot from env                            |
+| buyer         | billing profile snapshot                                                     | ✓   |                                              |
+| placeOfSupply | `{ stateCode, stateName }`                                                   | ✓   |                                              |
+| sacCode       | string                                                                       | ✓   |                                              |
+| amounts       | `{ baseMicros, cgstMicros, sgstMicros, igstMicros, taxMicros, totalMicros }` | ✓   | CGST + SGST (same state) or IGST             |
+| paymentId     | string                                                                       | ✓   |                                              |
+| issuedAt      | Date                                                                         | ✓   |                                              |
+| status        | `rendering \| ready \| failed`                                               | ✓   | PDF rendered by a job                        |
+| pdfFileKey    | string                                                                       |     | Hidden; download via signed URL              |
 
-Indexes: `{ number: 1 }` unique, `{ accountId: 1, createdAt: -1 }`. Retention: 8 years (tax records — confirm with CA).
+Indexes: `{ number: 1 }` unique, `{ topupOrderId: 1 }` unique, `{ accountId: 1, createdAt: -1 }`. Retention: 8 years (tax records — confirm with CA).
+
+#### InvoiceCounter (`invoiceCounters`) — Phase 4
+
+`{ _id: '<fy>', seq }` — `$inc` inside the credit transaction (consecutive numbers, an aborted transaction consumes none). Platform-wide (one GST series per seller).
+
+#### PaymentEvent (`paymentEvents`) — Phase 4
+
+Provider webhook deliveries: `provider`, `eventId` (unique per provider), `type`, `accountId?`, `topupOrderId?`, `providerOrderId?`, `providerPaymentId?`, `outcome` (`received \| credited \| duplicate_credit \| failed \| unmatched \| mismatch \| refund \| ignored`), `receivedAt`, `processedAt`, `expiresAt` (TTL 90 days).
+
+#### Account billing profile (`accounts.billing`) — Phase 4
+
+`{ legalName, email, addressLine1, addressLine2?, city, stateCode, pin, gstin?, updatedAt }` — Latin text only (the invoice PDF can't shape Devanagari); GSTIN checksum + state validated by the API.
 
 ### 2.4 AI & flows
 

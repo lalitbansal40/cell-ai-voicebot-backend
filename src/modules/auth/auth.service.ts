@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import type { z } from 'zod';
 
 import { getEnv } from '../../config/env';
+import { createWallet } from '../../core/billing/wallets';
 import { getEmail } from '../../core/email';
 import { AccountModel } from '../../db/models/account.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
@@ -88,6 +89,7 @@ export const signup = async (body: z.infer<typeof SignupBody>): Promise<void> =>
     );
     if (!account) throw new Error('account not created');
     const roles = await syncSystemRoles(account._id, session);
+    await createWallet(account._id, session);
     const [user] = await UserModel.create(
       [
         {

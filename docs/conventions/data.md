@@ -32,16 +32,16 @@ Contact.find({ listIds: listId });
 
 ## 4. Deletion
 
-| Policy                                                                             | Collections                                                                                  |
-| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| **Soft delete** (`deletedAt: Date \| null`; default queries add `deletedAt: null`) | `contacts`, `contactLists`, `aiAgents`, `flows`, `campaigns`, `phoneNumbers`, `users`        |
-| **Never delete / immutable** (corrections are new rows)                            | `ledgerEntries`, `auditLogs`                                                                 |
-| **Retention purge** (deleted by a scheduled job after the retention period)        | `calls`, `transcriptTurns`, `callEvents`, recordings                                         |
-| **TTL index** (auto-expire)                                                        | `refreshTokens`, `idempotencyKeys`, `webhookDeliveries` (30 days) — WS tickets live in Redis |
+| Policy                                                                             | Collections                                                                                                                                 |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Soft delete** (`deletedAt: Date \| null`; default queries add `deletedAt: null`) | `contacts`, `contactLists`, `aiAgents`, `flows`, `campaigns`, `phoneNumbers`, `users`                                                       |
+| **Never delete / immutable** (corrections are new rows)                            | `ledgerEntries`, `auditLogs`, `topupOrders` (kept forever), `invoices` (8 years)                                                            |
+| **Retention purge** (deleted by a scheduled job after the retention period)        | `calls`, `transcriptTurns`, `callEvents`, recordings                                                                                        |
+| **TTL index** (auto-expire)                                                        | `refreshTokens`, `idempotencyKeys`, `webhookDeliveries` (30 days), `paymentEvents` and `notifications` (90 days) — WS tickets live in Redis |
 
 ## 5. Immutability
 
-- `ledgerEntries`, **published** `flowVersions` and `callEvents` are insert-only; never `updateOne` them (except the ledger `status` transition held → captured/released, which is the one allowed state change and happens inside a transaction).
+- `ledgerEntries`, **published** `flowVersions` and `callEvents` are insert-only; never `updateOne` them. The one allowed ledger change is `held → released` (a model guard enforces it; a call charge is a **new** `captured` row, never an edited hold), always inside a transaction and only from `src/core/billing/engine.ts`.
 
 ## 6. Types
 

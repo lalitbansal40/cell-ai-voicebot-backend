@@ -55,8 +55,16 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `custom_field.deleted`          | user             | custom_field       | `key`                                         |
 | `contact_list.deleted`          | user             | contact_list       | `name`                                        |
 | `segment.deleted`               | user             | segment            | `name`                                        |
+| `wallet.topup_paid`             | user / system    | topup_order        | `amountMicros`, `invoiceNumber`               |
+| `wallet.adjusted`               | user (platform)  | account            | `direction`, `amountMicros`, `reason`         |
+| `wallet.settings_updated`       | user             | wallet             | `fields`, `from`, `to`                        |
+| `wallet.credit_limit_updated`   | user (platform)  | wallet             | `from`, `to`                                  |
+| `billing.profile_updated`       | user             | account            | `fields`                                      |
+| `rate_card.updated`             | user (platform)  | rate_card          | `scope`, `changes`                            |
 
 Contact actions never carry phone numbers, names or variable values in `meta` — counts, ids, keys and list / segment names only (Phase 3).
+
+Wallet actions (Phase 4) carry amounts in micros and field **names**; billing profile values (GSTIN, address) are never put in `meta`. `wallet.adjusted` is written on the target account **and** on the platform account.
 
 Login failures for e-mails that don't exist are not audited (there is no account) — they only count towards the per-email lockout.
 

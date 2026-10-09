@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { isGstStateCode } from '../shared/gst-states';
+import { isValidGstin } from '../shared/gstin';
+
 /**
  * Environment configuration (ADR 0006, docs/conventions/secrets.md).
  * The ONLY place that reads `process.env`. Invalid or missing variables stop
@@ -74,6 +77,24 @@ const RawEnvSchema = z.object({
   RAZORPAY_KEY_SECRET: optionalString,
   RAZORPAY_WEBHOOK_SECRET: optionalString,
 
+  PAYMENT_PROVIDER: z.enum(['fake', 'razorpay']).optional(),
+  FAKE_PAYMENT_SECRET: optionalString,
+  BILLING_SELLER_NAME: optionalString,
+  BILLING_SELLER_ADDRESS: optionalString,
+  BILLING_SELLER_GSTIN: optionalString,
+  BILLING_SELLER_STATE_CODE: optionalString,
+  BILLING_SAC_CODE: z
+    .string()
+    .regex(/^\d{4,8}$/, { message: 'must be 4–8 digits' })
+    .default('998319'),
+  BILLING_INVOICE_PREFIX: z
+    .string()
+    .regex(/^[A-Z]{1,3}$/, { message: 'must be 1–3 capital letters' })
+    .default('CAV'),
+  BILLING_SIMULATOR_ENABLED: z
+    .enum(['true', 'false'], { message: 'must be true or false' })
+    .optional(),
+
   NOTIFYNOW_API_KEY: optionalString,
   SIP_HOST: optionalString,
   SIP_PORT: z.coerce.number().int().min(1).max(65535).default(5060),
@@ -108,6 +129,12 @@ export type Env = Readonly<
     | 'SMTP_SECURE'
     | 'MAIL_FROM'
     | 'API_DOCS_ENABLED'
+    | 'PAYMENT_PROVIDER'
+    | 'FAKE_PAYMENT_SECRET'
+    | 'BILLING_SELLER_NAME'
+    | 'BILLING_SELLER_ADDRESS'
+    | 'BILLING_SELLER_STATE_CODE'
+    | 'BILLING_SIMULATOR_ENABLED'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -120,6 +147,13 @@ export type Env = Readonly<
     SMTP_SECURE: boolean;
     MAIL_FROM: string;
     API_DOCS_ENABLED: boolean;
+    PAYMENT_PROVIDER: 'fake' | 'razorpay';
+    /** Only for the fake provider (never set in production). */
+    FAKE_PAYMENT_SECRET: string | undefined;
+    BILLING_SELLER_NAME: string;
+    BILLING_SELLER_ADDRESS: string;
+    BILLING_SELLER_STATE_CODE: string;
+    BILLING_SIMULATOR_ENABLED: boolean;
   }
 >;
 
@@ -246,6 +280,47 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     );
   }
 
+  const paymentProvider = raw.PAYMENT_PROVIDER ?? (production ? 'razorpay' : 'fake');
+  if (paymentProvider === 'razorpay') {
+    for (const key of [
+      'RAZORPAY_KEY_ID',
+      'RAZORPAY_KEY_SECRET',
+      'RAZORPAY_WEBHOOK_SECRET',
+    ] as const) {
+      check(key, 'required when PAYMENT_PROVIDER=razorpay', Boolean(raw[key]));
+    }
+  }
+  const sellerState = raw.BILLING_SELLER_STATE_CODE ?? (production ? '' : '08');
+  if (raw.BILLING_SELLER_STATE_CODE !== undefined || production) {
+    check(
+      'BILLING_SELLER_STATE_CODE',
+      'must be a GST state code (e.g. 08)',
+      isGstStateCode(sellerState),
+    );
+  }
+  if (raw.BILLING_SELLER_GSTIN !== undefined) {
+    check(
+      'BILLING_SELLER_GSTIN',
+      'must be a valid GSTIN of BILLING_SELLER_STATE_CODE',
+      isValidGstin(raw.BILLING_SELLER_GSTIN, sellerState),
+    );
+  }
+  if (production) {
+    check('PAYMENT_PROVIDER', 'must be razorpay in production', paymentProvider === 'razorpay');
+    check(
+      'FAKE_PAYMENT_SECRET',
+      'must not be set in production',
+      raw.FAKE_PAYMENT_SECRET === undefined,
+    );
+    for (const key of [
+      'BILLING_SELLER_NAME',
+      'BILLING_SELLER_ADDRESS',
+      'BILLING_SELLER_GSTIN',
+    ] as const) {
+      check(key, 'required in production', Boolean(raw[key]));
+    }
+  }
+
   if (issues.length) throw new EnvValidationError(issues);
 
   const defaultLogLevel: Record<NodeEnv, LogLevel> = {
@@ -268,6 +343,19 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     MAIL_FROM: raw.MAIL_FROM ?? DEV_MAIL_FROM,
     API_DOCS_ENABLED:
       raw.API_DOCS_ENABLED !== undefined ? raw.API_DOCS_ENABLED === 'true' : !production,
+    PAYMENT_PROVIDER: paymentProvider,
+    FAKE_PAYMENT_SECRET:
+      paymentProvider === 'fake'
+        ? (raw.FAKE_PAYMENT_SECRET ?? 'dev-fake-payment-secret')
+        : undefined,
+    BILLING_SELLER_NAME: raw.BILLING_SELLER_NAME ?? 'Cell AI Voicebot (sample seller)',
+    BILLING_SELLER_ADDRESS:
+      raw.BILLING_SELLER_ADDRESS ?? 'Sample address, Jaipur, Rajasthan 302001',
+    BILLING_SELLER_STATE_CODE: sellerState,
+    BILLING_SIMULATOR_ENABLED:
+      raw.BILLING_SIMULATOR_ENABLED !== undefined
+        ? raw.BILLING_SIMULATOR_ENABLED === 'true'
+        : !production,
   });
 };
 

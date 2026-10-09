@@ -31,6 +31,12 @@
   - [ ] Client SSH key (shared as a file over WhatsApp) — ask the client to issue a new key pair for production access
 - After rotation, update the password manager and the server env; never the repo.
 
+## Payment secrets (Phase 4)
+
+- `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` are secrets (test-mode keys locally, live keys only on the production server). `RAZORPAY_KEY_ID` is public (the checkout sends it to the browser).
+- `FAKE_PAYMENT_SECRET` is a dev / test-only signing secret of the fake provider; production refuses to start when it is set.
+- Never log signatures, webhook bodies, the Basic-auth header or card / UPI data (we never receive card data — Razorpay Checkout collects it).
+
 ## Client SSH key
 
 - Store in the password manager and locally in `~/.ssh/` with `chmod 400`.
