@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 4 · Batch 2 (T4.6–T4.10)** — 2026-10-09
+  - Payments: `PaymentProvider` interface, Razorpay REST client (timing-safe signatures, 10 s timeout) and a fake provider for dev / tests / E2E (refused in production).
+  - Top-ups: `POST /wallet/topups` (Idempotency-Key, ₹100 – ₹5,00,000, 10 / hour, billing profile required, GST on top) → checkout → `verify` or `fake-complete`; list / detail; one transaction marks the order paid, credits the wallet and allocates the invoice number. Orders expire after 24 h.
+  - Webhook `POST /webhooks/razorpay`: raw body, HMAC, event-id dedupe, credit / fail / unmatched / mismatch / refund outcomes, superadmin notices; never logs bodies or signatures.
+  - GST invoices: `CAV/<FY>/000001` per Indian financial year (no gaps), CGST + SGST or IGST, PDF via pdfkit with bundled Noto Sans fonts (OFL) in the `invoice.render` job, receipt email after the first render, `/invoices` list / detail / 15-minute signed download.
+  - Superadmin billing: default and per-account rate cards with history and diff audit, account wallet / ledger, credit limit, adjustments (Idempotency-Key, both-side audit, bell), billing simulator, IST month summary, payments and payment events.
+  - Seed: Demo Finance billing profile, ₹1,000 opening credit, simulated calls (held / charged / released), a fake top-up with its invoice — idempotent. `npm run bench:wallet` (1,000 × hold → settle, 20 workers: 0 failures, wallet = Σ ledger).
+  - Docs: ADR 0032, `docs/setup/razorpay.md`, README "Wallet & billing", API idempotency usage, GST notes and CA questions in compliance notes.
+  - Tests: 1089 → 1176.
+
 - **Phase 4 · Batch 1 (T4.1–T4.5)** — 2026-10-09
   - Models: wallets (one per account, created at signup / migration 0005), insert-only ledger (only `held → released`), rate cards (platform default + history), top-up orders, invoices, invoice counters, payment events, notifications; account billing profile. `shared/money.ts` (micros, bps, paise guard, Indian format, amount in words), GSTIN checksum, GST states.
   - Env: `PAYMENT_PROVIDER` (fake outside production), seller details, SAC, invoice prefix, simulator flag (+ production rules). Catalogue: 2 error codes, `platform.billing.manage`, `wallet.exhausted`, richer `wallet.updated`, 6 audit actions, `billing` queue.

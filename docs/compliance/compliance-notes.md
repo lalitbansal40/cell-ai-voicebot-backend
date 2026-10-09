@@ -87,6 +87,30 @@ Confidence: **high** = read on an official source · **medium** = official sourc
 9. Escalation: when must a human agent take over (dispute, hardship, complaint)?
 10. Who signs the DPA, and what breach-notification timeline do you need from us?
 
+## 8. GST on wallet recharges (Phase 4)
+
+What the product does today (ADR 0032) — **to be confirmed with the client's CA before live billing**:
+
+| Topic             | Current behaviour                                                                                                                                               | Confidence    |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Tax point         | GST (18 %) is charged on every **recharge** (advance received for services) and a tax invoice is issued at payment; usage later is not taxed again.             | low — confirm |
+| Split             | Buyer state = seller state → CGST 9 % + SGST 9 %; otherwise IGST 18 %. Place of supply = the state in the buyer's billing profile.                              | medium        |
+| SAC               | `BILLING_SAC_CODE` env, default `998319` (placeholder).                                                                                                         | low — confirm |
+| Invoice number    | `CAV/26-27/000001`: one consecutive series per financial year (Apr–Mar, IST), ≤ 16 characters, no gaps (allocated inside the payment transaction).              | medium        |
+| Invoice content   | Seller name / address / GSTIN / state, buyer name / address / GSTIN (if given) / state, place of supply, SAC, taxable value, tax lines, total, amount in words. | medium        |
+| Retention         | Invoices and top-up orders are never deleted (kept ≥ 8 years); payment webhook records 90 days.                                                                 | medium        |
+| Refunds           | Gateway refunds only alert the superadmin; no automatic wallet debit and **no credit note** yet.                                                                | gap — Phase 9 |
+| E-invoicing (IRN) | Not implemented — needed only once the seller's turnover crosses the e-invoicing threshold.                                                                     | gap — confirm |
+
+**Questions for the CA:**
+
+1. Is GST due on the recharge (advance) or on consumption? Is one invoice per recharge acceptable, or is a monthly usage invoice also needed?
+2. Correct SAC for "AI voice-calling platform usage (prepaid)"?
+3. Wording for B2C buyers without a GSTIN (e.g. "Bill of supply" vs "Tax invoice")?
+4. Credit-note format and timing when a recharge is refunded.
+5. Does the seller need e-invoicing (IRN / QR) now or at a turnover threshold?
+6. Is a remaining wallet balance at account closure refundable, and how is GST on it reversed?
+
 ## Sources
 
 - TRAI Press Release 11/2025 — <https://cms.trai.gov.in/sites/default/files/2025-02/PR_No.11of2025.pdf>

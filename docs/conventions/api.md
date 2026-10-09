@@ -140,6 +140,7 @@ GET /api/v1/calls?limit=50&cursor=eyJjcmVhdGVkQXQiOi…
 | Field names   | camelCase                                                                        | `phoneE164`, `createdAt`                                        |
 | Dates / times | ISO 8601 UTC with `Z`                                                            | `2026-10-08T06:30:00.000Z`                                      |
 | Money         | Integer micro-units + currency ([ADR 0016](../adr/0016-money-representation.md)) | `{ "balanceMicros": 5500000000, "currency": "INR" }` (= ₹5,500) |
+| Percentages   | Integer basis points (`*Bps`, 1 % = 100)                                         | `{ "commissionBps": 1000 }` (= 10 %)                            |
 | Phone numbers | E.164                                                                            | `+919876543210`                                                 |
 | Booleans      | JSON booleans                                                                    | `true` — never `"true"`                                         |
 | Enum values   | **lower_snake_case** strings                                                     | `no_answer`, `promise_to_pay`                                   |
@@ -172,6 +173,8 @@ GET /api/v1/calls?limit=50&cursor=eyJjcmVhdGVkQXQiOi…
 - The result is stored **before** the response is sent, so an immediate retry always sees it. Replays carry **`Idempotent-Replayed: true`**.
 - 4xx responses are stored and replayed; 5xx responses are not stored (the record is deleted, so the client can retry).
 - Mounted per route from Phase 4 / 8 (trigger call, start campaign, top-up) with `idempotency({ scope: accountScope })` — `accountScope` (`src/shared/auth/tenant.ts`) returns the authenticated `accountId` (Phase 2).
+- Mounted today (Phase 4): `POST /wallet/topups` (scope = the caller's account) and `POST /admin/accounts/:id/wallet/adjustments` (scope = the superadmin's platform account; the target account is part of the hashed path, so one key never replays against another account). Phase 8 adds trigger call / start campaign.
+- Separate from the HTTP key, every billing-engine operation has its own **unique ledger idempotency key** (`topup:<orderId>`, `settle:<holdId>`, `adjust:<accountId>:<key>`, …), so a retried job or webhook can never move money twice even after the 24 h HTTP record expired ([ADR 0032](../adr/0032-wallet-billing-payments.md)).
 
 ## 11. File uploads
 

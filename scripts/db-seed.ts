@@ -1,10 +1,17 @@
 /**
  * DEV ONLY — demo data: account "Demo Finance" with one user per role, demo
- * contacts (fields, list, segment, DND — scripts/seed-contacts.ts) and a
- * platform superadmin. Idempotent; existing users are left as they are.
+ * contacts (fields, list, segment, DND — scripts/seed-contacts.ts), demo
+ * billing (profile, ₹1,000 credit, simulated calls, a fake top-up + invoice —
+ * scripts/seed-billing.ts) and a platform superadmin. Needs Mongo + Redis (the
+ * invoice PDF is rendered by the billing worker of a running dev server).
+ * Idempotent; existing users are left as they are.
  * Password: SEED_PASSWORD, else a random one printed once. Refuses in production.
  */
 import { getEnv } from '../src/config/env';
+import { queueBillingJobs } from '../src/core/billing/jobs';
+import { QUEUES } from '../src/core/queues/names';
+import { closeAllQueues, createQueue } from '../src/core/queues/queue-factory';
+import { closeAllRedis } from '../src/core/queues/redis';
 import { AccountModel } from '../src/db/models/account.model';
 import { UserModel } from '../src/db/models/user.model';
 import { connectMongo, disconnectMongo } from '../src/db/mongo';
@@ -13,6 +20,7 @@ import { getPlatformAccount, upsertActiveUser } from '../src/modules/auth/user-s
 import type { SystemRoleKey } from '../src/modules/rbac/system-roles';
 import { getLogger } from '../src/shared/logger';
 
+import { seedBilling } from './seed-billing';
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
 
 const ROLES: SystemRoleKey[] = ['owner', 'admin', 'manager', 'agent', 'viewer'];
@@ -54,6 +62,17 @@ const main = async (): Promise<void> => {
     });
     if (admin.created) created.push('admin@platform.local');
 
+    const logger = getLogger();
+    const jobs = queueBillingJobs(createQueue(QUEUES.billing, { redisUrl: env.REDIS_URL, logger }));
+    const billing = await seedBilling(account._id, {
+      ownerId: owner?._id ?? account._id,
+      adminId: admin.userId,
+      jobs,
+    });
+    console.info(
+      `Billing: profile ${billing.profile ? 'set' : 'kept'}, opening credit ${billing.openingCredit ? 'added' : 'already there'}, ${billing.calls} new simulated calls, top-up ${billing.topup ? `paid (invoice ${billing.invoiceNumber ?? '?'})` : 'already paid'}`,
+    );
+
     console.info(
       'Seed: account "Demo Finance" (demo-finance) + users <role>@demo.local + admin@platform.local',
     );
@@ -68,6 +87,8 @@ const main = async (): Promise<void> => {
       console.info('Nothing new — all seed users already exist.');
     }
   } finally {
+    await closeAllQueues();
+    await closeAllRedis();
     await disconnectMongo();
   }
 };
