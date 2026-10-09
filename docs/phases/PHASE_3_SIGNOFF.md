@@ -109,7 +109,19 @@ Batch checkpoints: `7ddbca2` `[P3-B1-DONE]`, `690157e` `[P3-B2-DONE]`, `[P3-B3-D
 
 ## 6. Verification (P3-B3-DONE)
 
-_Filled at the checkpoint._
+Checked on 2026-10-09 (`npm run infra:up`; dev servers stopped):
+
+| Check                                                                                                                                                                                                                   | Result                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Backend lint, format:check, typecheck, build, `openapi:check`, `test:coverage` (936 tests, gate 95 / 85 / 95 / 95 met), actionlint                                                                                      | ✅                                   |
+| Frontend lint, format:check, typecheck, `test:coverage` (287 tests, gate 95 / 90 / 90 / 95 met), build, actionlint (incl. `e2e.yml`)                                                                                    | ✅                                   |
+| Playwright E2E — 10 scenarios (5 Phase 2 + 5 contacts), **run twice in a row**                                                                                                                                          | ✅ 10 / 10 both runs (~1.2 min each) |
+| Fresh clone of both repos side by side → `npm ci` + all checks **without any `.env`**, `gen:api` → no diff, E2E from the clone (= CI workflow conditions)                                                               | ✅ (E2E 10 / 10)                     |
+| Backend logs during E2E (`E2E_BACKEND_LOGS=1`, 582 lines): no phones, contact names, external ids, search terms, passwords, codes, tokens, cookies, `Bearer`, JWTs, signed-URL signatures; recipients masked (`e***@…`) | ✅                                   |
+| Redis (E2E db): keys carry ids / hashes only — no phones, e-mails or names; bulk-job data note in §7                                                                                                                    | ✅                                   |
+| Files only via signed URLs (error reports, exports, 15 min), CSV injection (error report + export), zip-bomb / type / size checks, rate limits, tenant isolation of every Phase 3 endpoint                              | ✅ covered by the tests in §3        |
+| gitleaks over both full histories + grep for key patterns / tracked `.env`                                                                                                                                              | ✅ no findings                       |
+| `npm run infra:down` at the end                                                                                                                                                                                         | ✅                                   |
 
 ## 7. Remaining TODOs (by phase)
 
