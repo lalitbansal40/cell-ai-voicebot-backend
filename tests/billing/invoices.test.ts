@@ -86,6 +86,7 @@ const invoice = async (
 const pdfText = async (key: string): Promise<string> => {
   const chunks: Buffer[] = [];
   for await (const c of await storage.get(key)) chunks.push(c as Buffer);
+  expect(Buffer.concat(chunks).subarray(0, 5).toString('latin1')).toBe('%PDF-');
   const { text } = await extractText(new Uint8Array(Buffer.concat(chunks)), { mergePages: true });
   return text.replace(/\s+/g, ' ');
 };

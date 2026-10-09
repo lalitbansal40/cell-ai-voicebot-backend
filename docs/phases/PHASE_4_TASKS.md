@@ -9,11 +9,11 @@ Source plan: [PHASE_4_PLAN.md](PHASE_4_PLAN.md) — Batch 1 = T4.1–T4.5, Batch
 | [x]  | T4.3  | Billing engine: atomic credit / hold / extend / settle / release / charge, budgets, idempotency         | BE   | L    |
 | [x]  | T4.4  | Wallet APIs (wallet, settings, rates, estimate, ledger, export, usage) + billing profile                | BE   | M    |
 | [x]  | T4.5  | Notifications (bell API) + low-balance / exhausted alerts + stale-hold reaper + reconciliation          | BE   | M    |
-| [ ]  | T4.6  | Payment provider (razorpay + fake) + top-up orders + checkout verify + credit transaction               | BE   | L    |
-| [ ]  | T4.7  | Razorpay webhook (raw body, signature, idempotent events) + order expiry                                | BE   | M    |
-| [ ]  | T4.8  | GST, invoice numbering (FY), invoice PDF, receipt email, invoices API                                   | BE   | M    |
-| [ ]  | T4.9  | Superadmin: rate cards, account wallet / ledger, adjustments, credit limit, simulator, platform summary | BE   | M    |
-| [ ]  | T4.10 | Seed, OpenAPI, ADR 0032, Razorpay setup guide, bench, backend docs                                      | BE   | M    |
+| [x]  | T4.6  | Payment provider (razorpay + fake) + top-up orders + checkout verify + credit transaction               | BE   | L    |
+| [x]  | T4.7  | Razorpay webhook (raw body, signature, idempotent events) + order expiry                                | BE   | M    |
+| [x]  | T4.8  | GST, invoice numbering (FY), invoice PDF, receipt email, invoices API                                   | BE   | M    |
+| [x]  | T4.9  | Superadmin: rate cards, account wallet / ledger, adjustments, credit limit, simulator, platform summary | BE   | M    |
+| [x]  | T4.10 | Seed, OpenAPI, ADR 0032, Razorpay setup guide, bench, backend docs                                      | BE   | M    |
 | [ ]  | T4.11 | FE foundation: clients, money input, routes, WS, notifications bell, wallet banner                      | FE   | M    |
 | [ ]  | T4.12 | Wallet overview + settings + Add money flow + dashboard card                                            | FE   | L    |
 | [ ]  | T4.13 | Transactions, Usage chart, Invoices, Settings → Billing details                                         | FE   | M    |
