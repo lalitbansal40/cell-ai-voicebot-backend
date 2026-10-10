@@ -75,8 +75,8 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 | 2   | Auth, Accounts, RBAC + App Shell      | ✅ Done           | ✔       | ✔     |
 | 3   | Contacts, Lists & Custom Fields       | ✅ Done           | ✔       | ✔     |
 | 4   | Wallet & Billing                      | ✅ Done           | ✔       | ✔     |
-| 5   | AI Agents & Knowledge Base            | 🟢 Abhi           | ✔       | ✔     |
-| 6   | Call Flow Engine & Builder            | 🟢 Abhi           | ✔       | ✔     |
+| 5   | AI Agents & Knowledge Base            | ✅ Done           | ✔       | ✔     |
+| 6   | Call Flow Engine & Builder            | 🟢 Plan ready     | ✔       | ✔     |
 | 7   | Voice Runtime + Web Call Tester       | 🟢 Abhi           | ✔       | ✔     |
 | 8   | Campaigns & Call Scheduler            | 🟢 Abhi (dry-run) | ✔       | ✔     |
 | 9   | Call Records, Transcripts & Analytics | 🟢 Abhi           | ✔       | ✔     |
@@ -200,6 +200,8 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 ---
 
 ### Phase 6 — Call Flow Engine & Builder 🟢
+
+**Detailed plan:** [PHASE_6_PLAN.md](../phases/PHASE_6_PLAN.md) · tracker [PHASE_6_TASKS.md](../phases/PHASE_6_TASKS.md)
 
 **Engine (backend)** — AutoChatix graph engine jaisa, par **call events** se chalega:
 
@@ -446,3 +448,4 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 - 2026-10-09: Phase 4 complete (wallet, billing engine, Razorpay + test payments, GST invoices, alerts, superadmin billing, Playwright E2E) — [PHASE_4_SIGNOFF.md](../phases/PHASE_4_SIGNOFF.md). Razorpay test mode pending keys. Next: Phase 5 (AI agents & knowledge base).
 - 2026-10-09: Phase 5 detailed plan — [PHASE_5_PLAN.md](../phases/PHASE_5_PLAN.md): `AiProvider` with OpenAI + a deterministic fake provider (OpenAI key pending), account-level knowledge bases with own embeddings + in-process vector search (no OpenAI vector store), secure custom functions (encrypted secret headers, SSRF guard), built-in tools simulated in the playground, per-turn wallet billing.
 - 2026-10-10: Phase 5 complete (AI agents, secure custom functions, knowledge bases, playground billed per turn, superadmin AI, Playwright E2E) — [PHASE_5_SIGNOFF.md](../phases/PHASE_5_SIGNOFF.md). OpenAI live run pending a key. Next: Phase 6 (call flow builder).
+- 2026-10-10: Phase 6 detailed plan — [PHASE_6_PLAN.md](../phases/PHASE_6_PLAN.md): graph with named exit handles (no free-text conditions), embedded draft with revision check + immutable published versions, pure interpreter with injected effects (simulator now, voice in Phase 7), static validator (publish blocked on errors), `ai_agent` exits from Phase 5 outcomes, `api_request` on the Phase 5 secure executor, text simulator billed per AI turn.
