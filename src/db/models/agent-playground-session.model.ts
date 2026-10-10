@@ -79,7 +79,8 @@ const toolCallSchema = new Schema<PlaygroundToolCall>(
     resultPreview: { type: String, default: null },
     error: { type: String, default: null },
   },
-  { _id: false },
+  // keep `args: {}` (minimize would drop empty objects)
+  { _id: false, minimize: false },
 );
 
 const turnSchema = new Schema<PlaygroundTurn>({
@@ -100,30 +101,33 @@ const turnSchema = new Schema<PlaygroundTurn>({
   at: { type: Date, required: true },
 });
 
-const schema = new Schema<AgentPlaygroundSessionDoc>({
-  agentId: { type: Schema.Types.ObjectId, required: true },
-  userId: { type: Schema.Types.ObjectId, required: true },
-  contactId: { type: Schema.Types.ObjectId, default: null },
-  variables: { type: Schema.Types.Mixed, default: {} },
-  testPhone: { type: String, default: null, select: false },
-  turns: { type: [turnSchema], default: [] },
-  outcome: {
-    type: new Schema(
-      {
-        disposition: { type: String, enum: [...DISPOSITIONS, null], default: null },
-        promiseToPay: { type: Schema.Types.Mixed, default: null },
-        callback: { type: Schema.Types.Mixed, default: null },
-        transferRequested: { type: Boolean, default: false },
-        endRequested: { type: Boolean, default: false },
-        smsTemplate: { type: String, default: null },
-      },
-      { _id: false },
-    ),
-    default: () => ({}),
+const schema = new Schema<AgentPlaygroundSessionDoc>(
+  {
+    agentId: { type: Schema.Types.ObjectId, required: true },
+    userId: { type: Schema.Types.ObjectId, required: true },
+    contactId: { type: Schema.Types.ObjectId, default: null },
+    variables: { type: Schema.Types.Mixed, default: {} },
+    testPhone: { type: String, default: null, select: false },
+    turns: { type: [turnSchema], default: [] },
+    outcome: {
+      type: new Schema(
+        {
+          disposition: { type: String, enum: [...DISPOSITIONS, null], default: null },
+          promiseToPay: { type: Schema.Types.Mixed, default: null },
+          callback: { type: Schema.Types.Mixed, default: null },
+          transferRequested: { type: Boolean, default: false },
+          endRequested: { type: Boolean, default: false },
+          smsTemplate: { type: String, default: null },
+        },
+        { _id: false },
+      ),
+      default: () => ({}),
+    },
+    status: { type: String, enum: PLAYGROUND_STATUSES, default: 'active' },
+    expiresAt: { type: Date, required: true },
   },
-  status: { type: String, enum: PLAYGROUND_STATUSES, default: 'active' },
-  expiresAt: { type: Date, required: true },
-});
+  { minimize: false },
+);
 schema.plugin(basePlugin, { hide: ['testPhone'] });
 schema.plugin(tenantPlugin);
 schema.index({ accountId: 1, agentId: 1, createdAt: -1 });

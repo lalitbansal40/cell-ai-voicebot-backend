@@ -50,7 +50,8 @@ const toTurnView = (t: PlaygroundTurn) => ({
   toolCalls: t.toolCalls.map((c) => ({
     name: c.name,
     kind: c.kind,
-    args: c.args,
+    // MongoDB drops empty objects — a tool call without arguments still answers {}
+    args: c.args ?? {},
     ok: c.ok,
     simulated: c.simulated,
     durationMs: c.durationMs,
@@ -82,7 +83,7 @@ export const toSessionView = (s: AgentPlaygroundSessionDoc & { testPhone?: strin
   agentId: s.agentId.toString(),
   userId: s.userId.toString(),
   contactId: s.contactId?.toString() ?? null,
-  variables: s.variables,
+  variables: s.variables ?? {},
   hasTestPhone: Boolean(s.testPhone),
   turns: s.turns.map(toTurnView),
   outcome: toOutcomeView(s.outcome),

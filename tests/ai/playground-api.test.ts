@@ -114,8 +114,14 @@ describe('playground — "Done when"', () => {
     const res = await say(s.id, 'maine pay kar diya');
     expect(res.status, JSON.stringify(res.body)).toBe(200);
     expect(res.body.data.turn.toolCalls).toEqual([
-      expect.objectContaining({ name: 'check_payment_status', kind: 'custom', ok: true }),
+      expect.objectContaining({ name: 'check_payment_status', kind: 'custom', ok: true, args: {} }),
     ]);
+    // stored and read back: empty objects survive (the UI reads Object.keys of them)
+    const stored = await request(app).get(`${sessions()}/${s.id}`).set(auth(viewer));
+    expect(stored.body.data.turns[2].toolCalls[0].args).toEqual({});
+    const blank = await open({}, manager);
+    const blankRead = await request(app).get(`${sessions()}/${blank.id}`).set(auth(viewer));
+    expect(blankRead.body.data.variables).toEqual({ name: '', phone_last4: '' });
     expect(res.body.data.turn.text).toContain(
       'Dhanyavaad! Hamare record mein aapka ₹2500 ka payment',
     );
