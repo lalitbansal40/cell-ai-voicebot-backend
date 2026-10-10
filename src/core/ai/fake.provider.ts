@@ -1,6 +1,9 @@
 import { AI_LIMITS } from '../../config/limits';
+import { matchIntent } from '../engine/intents';
 
 import {
+  INTENT_LINE,
+  INTENT_PROMPT_PREFIX,
   KNOWLEDGE_CLOSE,
   KNOWLEDGE_OPEN,
   PERSONA_HEADING,
@@ -222,6 +225,21 @@ const call = (tool: ToolDefinition, args: Record<string, unknown>): ToolCall => 
   arguments: JSON.stringify(args),
 });
 
+/**
+ * Flow intent classification: the first intent with a keyword in the customer's
+ * words (whole-word match, like the keyword mode), else `none`.
+ */
+export const fakeIntent = (system: string, user: string): string => {
+  const said = user.split('\n').slice(1, -2).join(' ');
+  for (const line of system.split('\n')) {
+    const m = INTENT_LINE.exec(line);
+    if (m?.[1] && matchIntent(said, [{ id: m[1], keywords: (m[3] ?? '').split(', ') }])) {
+      return JSON.stringify({ intent: m[1] });
+    }
+  }
+  return JSON.stringify({ intent: 'none' });
+};
+
 const decide = (request: ChatRequest): { content: string; toolCalls: ToolCall[] } => {
   const { messages } = request;
   const tools = request.tools ?? [];
@@ -230,6 +248,8 @@ const decide = (request: ChatRequest): { content: string; toolCalls: ToolCall[] 
   const lang: Lang = isEnglish(lastUser) ? 'en' : 'hinglish';
   const last = messages.at(-1);
 
+  if (system.startsWith(INTENT_PROMPT_PREFIX))
+    return { content: fakeIntent(system, lastUser), toolCalls: [] };
   if (last?.role === 'tool') return { content: replyFromTools(messages, lang), toolCalls: [] };
 
   const tool = (pick: (t: ToolDefinition) => boolean) => tools.find(pick);

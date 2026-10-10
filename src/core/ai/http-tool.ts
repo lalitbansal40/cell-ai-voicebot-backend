@@ -409,3 +409,68 @@ export const executeFunction = async (
     return fail('network');
   }
 };
+
+/** A fully rendered request (flow API nodes render with their own templates). */
+export interface RawRequest {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body: string | null;
+  timeoutMs: number;
+}
+
+export type RawResponse =
+  | { ok: true; status: number; body: unknown; bytes: number; durationMs: number }
+  | { ok: false; error: ToolErrorCode; status: number | null; durationMs: number };
+
+/**
+ * Sends a rendered request through the same SSRF guard as functions. Any HTTP
+ * status is an answer (`ok: true`); JSON bodies are parsed (bad JSON →
+ * `invalid_json`). Never throws.
+ */
+export const sendGuardedRequest = async (
+  request: RawRequest,
+  options: HttpToolOptions,
+): Promise<RawResponse> => {
+  const now = options.now ?? Date.now;
+  const started = now();
+  const signal = AbortSignal.timeout(request.timeoutMs);
+  const fail = (error: ToolErrorCode, status: number | null = null): RawResponse => ({
+    ok: false,
+    error,
+    status,
+    durationMs: now() - started,
+  });
+  let url: URL;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return fail('invalid_request');
+  }
+  if (Object.values(request.headers).some((v) => /[\r\n\0]/.test(v)))
+    return fail('invalid_request');
+  try {
+    const { res, body } = await fetchGuarded(
+      { url, method: request.method, headers: request.headers, body: request.body },
+      options,
+      signal,
+      AI_LIMITS.functionResponseMaxBytes,
+    );
+    const status = res.statusCode ?? 0;
+    const type = String(res.headers['content-type'] ?? '').toLowerCase();
+    const text = body.toString('utf8');
+    let parsed: unknown = text;
+    if (type.includes('json')) {
+      try {
+        parsed = text ? JSON.parse(text) : null;
+      } catch {
+        return fail('invalid_json', status);
+      }
+    }
+    return { ok: true, status, body: parsed, bytes: body.length, durationMs: now() - started };
+  } catch (err) {
+    if (err instanceof ToolFailure)
+      return fail(signal.aborted ? 'timeout' : err.code, err.httpStatus);
+    return fail(signal.aborted ? 'timeout' : 'network');
+  }
+};

@@ -16,6 +16,8 @@ export interface CompileOptions {
   channel: CompileChannel;
   now: Date;
   timezone: string;
+  /** Flow `ai_agent` node goal (already rendered) — a "Task in this step" block after the persona. */
+  extraInstructions?: string;
 }
 
 export interface CompiledAgent {
@@ -124,6 +126,9 @@ export const compileAgent = (agent: AiAgentDoc, options: CompileOptions): Compil
       `## Language and style\n${languageBlock}\n${styleBlock}`,
       toneLines.length ? `${TONE_HEADING}\n${toneLines.join('\n')}` : '',
       persona ? `${PERSONA_HEADING}\n${persona}` : '',
+      options.extraInstructions?.trim()
+        ? `## Task in this step\n${options.extraInstructions.trim()}`
+        : '',
       agent.guardrails.neverSay.length
         ? `## Never say\nNever say these words or phrases:\n${bullet(agent.guardrails.neverSay)}`
         : '',

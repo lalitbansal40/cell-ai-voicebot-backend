@@ -9,7 +9,7 @@ export const logToolCall = (entry: {
   accountId: Types.ObjectId;
   agentId: Types.ObjectId;
   sessionId?: Types.ObjectId | null;
-  source: 'playground' | 'test' | 'call';
+  source: 'playground' | 'test' | 'call' | 'flow_simulator';
   tool: string;
   kind: 'custom' | 'built_in';
   args: Record<string, unknown>;

@@ -48,7 +48,9 @@ export interface TurnInput {
   secretKey: Buffer;
   http: HttpToolOptions;
   embeddingModel: string;
-  source?: 'playground' | 'call';
+  source?: 'playground' | 'call' | 'flow_simulator';
+  /** Flow `ai_agent` node goal (rendered) — compiled after the persona. */
+  extraInstructions?: string;
 }
 
 export type TurnRecord = Omit<PlaygroundTurn, '_id'>;
@@ -137,6 +139,7 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
     channel: 'text',
     now,
     timezone: input.timezone,
+    ...(input.extraInstructions ? { extraInstructions: input.extraInstructions } : {}),
   });
   const fallback = (kind: keyof AiAgentDoc['fallback']): TurnResult => ({
     turn: base(compiled.fallbacks[kind], { fallback: kind }),

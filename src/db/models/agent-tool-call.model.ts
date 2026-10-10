@@ -15,7 +15,7 @@ export interface AgentToolCallDoc {
   agentId: Types.ObjectId;
   sessionId: Types.ObjectId | null;
   /** `test` for the function Test button. */
-  source: 'playground' | 'test' | 'call';
+  source: 'playground' | 'test' | 'call' | 'flow_simulator';
   tool: string;
   kind: 'custom' | 'built_in';
   /** Arguments with personal values masked. */
@@ -34,7 +34,7 @@ export interface AgentToolCallDoc {
 const schema = new Schema<AgentToolCallDoc>({
   agentId: { type: Schema.Types.ObjectId, required: true },
   sessionId: { type: Schema.Types.ObjectId, default: null },
-  source: { type: String, enum: ['playground', 'test', 'call'], required: true },
+  source: { type: String, enum: ['playground', 'test', 'call', 'flow_simulator'], required: true },
   tool: { type: String, required: true, maxlength: 60 },
   kind: { type: String, enum: ['custom', 'built_in'], required: true },
   argsRedacted: { type: Schema.Types.Mixed, default: {} },

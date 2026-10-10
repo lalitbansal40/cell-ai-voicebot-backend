@@ -160,6 +160,37 @@ describe('compileAgent', () => {
   });
 });
 
+describe('compileAgent — flow step goal', () => {
+  it.each(TEMPLATE_KEYS.map((k) => [k]))(
+    '%s: the goal block follows the persona (snapshot)',
+    (key) => {
+      const agent = templateAgent(key);
+      const plain = compileAgent(agent, options('voice'));
+      const withGoal = compileAgent(agent, {
+        ...options('voice'),
+        extraInstructions: '  Collect a payment date or transfer.  ',
+      });
+      expect(withGoal.instructions).toContain(
+        '## Task in this step\nCollect a payment date or transfer.',
+      );
+      expect(withGoal.instructions.indexOf('## Task in this step')).toBeGreaterThan(
+        withGoal.instructions.indexOf(PERSONA_HEADING),
+      );
+      expect(withGoal.instructions.replace(/\n\n## Task in this step\n[^\n]*/, '')).toBe(
+        plain.instructions,
+      );
+      expect(withGoal.instructions).toMatchSnapshot();
+    },
+  );
+
+  it('a blank goal adds nothing', () => {
+    const agent = templateAgent('payment_reminder');
+    expect(compileAgent(agent, { ...options('text'), extraInstructions: '   ' }).instructions).toBe(
+      compileAgent(agent, options('text')).instructions,
+    );
+  });
+});
+
 describe('variablesIn', () => {
   it('finds names with optional spaces, ignores invalid ones', () => {
     expect(variablesIn('{{a}} {{ b_1 }} {{1x}} {c} {{name}}')).toEqual(['a', 'b_1', 'name']);
