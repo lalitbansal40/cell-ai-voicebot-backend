@@ -21,6 +21,7 @@ export const buildTestApp = (
     | 'aiJobs'
     | 'aiRateLimitStores'
     | 'aiHttp'
+    | 'flowRateLimitStores'
   > = {},
 ) => {
   const env = testEnv(overrides);

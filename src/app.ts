@@ -60,6 +60,8 @@ export interface AppDeps {
   aiRateLimitStores?: { playground?: Store; knowledge?: Store; functionTest?: Store };
   /** Tests only: fake resolver / dial / extra ports for the custom-function executor. */
   aiHttp?: AiDeps['http'];
+  /** Phase 6 limiter stores: simulator inputs (`rl:flowsim:`), audio uploads (`rl:flowaudio:`). */
+  flowRateLimitStores?: { simulator?: Store; audio?: Store };
 }
 
 /**
@@ -83,6 +85,7 @@ export const createApp = ({
   aiJobs,
   aiRateLimitStores = {},
   aiHttp,
+  flowRateLimitStores = {},
 }: AppDeps): Express => {
   // Wallet low-balance / exhausted alerts run after every committed wallet change.
   registerWalletAlerts();
@@ -125,6 +128,7 @@ export const createApp = ({
         rateLimitStores: aiRateLimitStores,
         ...(aiHttp ? { http: aiHttp } : {}),
       },
+      flows: { rateLimitStores: flowRateLimitStores },
     }),
   );
 

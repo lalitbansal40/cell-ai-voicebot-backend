@@ -6,6 +6,7 @@ import {
   purgeExportFiles,
   purgeImportFiles,
 } from '../../../modules/contacts/retention';
+import { purgeDeletedAudio } from '../../../modules/flow-audio/flow-audio.service';
 import { purgeDeletedFlows } from '../../../modules/flows/maintenance';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
@@ -57,7 +58,10 @@ export const processMaintenanceJob =
         result = await purgeExportFiles(needStorage(deps));
         break;
       case FLOWS_PURGE_JOB:
-        result = await purgeDeletedFlows();
+        result = {
+          ...(await purgeDeletedFlows()),
+          ...(deps.storage ? await purgeDeletedAudio(deps.storage) : {}),
+        };
         break;
       default:
         throw new Error(`Unknown maintenance job "${job.name}"`);

@@ -149,6 +149,10 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       knowledge: createRedisRateLimitStore(redis, 'rl:kbsrc:'),
       functionTest: createRedisRateLimitStore(redis, 'rl:fntest:'),
     },
+    flowRateLimitStores: {
+      simulator: createRedisRateLimitStore(redis, 'rl:flowsim:'),
+      audio: createRedisRateLimitStore(redis, 'rl:flowaudio:'),
+    },
     readiness: {
       checks: { mongo: () => pingMongo(), redis: () => pingRedis(redis) },
       isShuttingDown: lifecycle.isShuttingDown,

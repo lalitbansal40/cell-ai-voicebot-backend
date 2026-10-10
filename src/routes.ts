@@ -25,6 +25,7 @@ import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
+import { createFlowAudioRouter } from './modules/flow-audio/flow-audio.routes';
 import { createFlowsRouter } from './modules/flows/flows.routes';
 import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes';
 import { createMockApisRouter } from './modules/mock-apis/mock.routes';
@@ -57,6 +58,11 @@ export interface AiDeps {
   http?: FunctionsDeps['http'];
 }
 
+/** What the call flow modules need (Phase 6). */
+export interface FlowsDeps {
+  rateLimitStores?: { simulator?: Store; audio?: Store };
+}
+
 export interface ContactsDeps {
   storage?: StorageProvider;
   jobs?: ContactJobs;
@@ -68,6 +74,7 @@ export const createApiRouter = ({
   contacts = {},
   billing = {},
   ai = { provider: createFakeProvider() },
+  flows = {},
 }: {
   env: Pick<
     Env,
@@ -92,6 +99,7 @@ export const createApiRouter = ({
   contacts?: ContactsDeps;
   billing?: BillingDeps;
   ai?: AiDeps;
+  flows?: FlowsDeps;
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));
@@ -167,6 +175,13 @@ export const createApiRouter = ({
       env,
       secretKey: secretBoxKey(env),
       ...(ai.http?.extraPorts ? { extraPorts: [...ai.http.extraPorts] } : {}),
+    }),
+  );
+  router.use(
+    '/flow-audio',
+    createFlowAudioRouter({
+      ...(ai.storage ? { storage: ai.storage } : {}),
+      ...(flows.rateLimitStores?.audio ? { uploadStore: flows.rateLimitStores.audio } : {}),
     }),
   );
   if (env.MOCK_APIS_ENABLED) router.use('/mock', createMockApisRouter());

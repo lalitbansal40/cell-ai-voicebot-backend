@@ -167,7 +167,10 @@ describe('maintenance worker', () => {
     await expect(run({ name: EXPORT_FILES_PURGE_JOB } as never)).resolves.toEqual({
       jobs: expect.any(Number) as number,
     });
-    await expect(run({ name: FLOWS_PURGE_JOB } as never)).resolves.toEqual({ purged: 0 });
+    await expect(run({ name: FLOWS_PURGE_JOB } as never)).resolves.toEqual({ purged: 0, audio: 0 });
+    await expect(
+      processMaintenanceJob({ logger })({ name: FLOWS_PURGE_JOB } as never),
+    ).resolves.toEqual({ purged: 0 });
     await expect(
       processMaintenanceJob({ logger })({ name: EXPORT_FILES_PURGE_JOB } as never),
     ).rejects.toThrow('needs file storage');

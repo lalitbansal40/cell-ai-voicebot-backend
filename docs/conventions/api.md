@@ -185,7 +185,7 @@ GET /api/v1/calls?limit=50&cursor=eyJjcmVhdGVkQXQiOi…
 | Upload                  | Allowed                        | Max size                    |
 | ----------------------- | ------------------------------ | --------------------------- |
 | Contacts import         | `.csv`, `.xlsx`                | 10 MB                       |
-| Audio prompt            | `.mp3`, `.wav`                 | 10 MB                       |
+| Audio prompt            | `.mp3`, `.wav`                 | 5 MB, ≤ 120 s               |
 | Knowledge-base document | `.pdf`, `.docx`, `.txt`, `.md` | 10 MB each, 1–5 per request |
 
 Too large → `413 PAYLOAD_TOO_LARGE`; wrong type → `415 UNSUPPORTED_MEDIA_TYPE`.
@@ -193,6 +193,8 @@ Too large → `413 PAYLOAD_TOO_LARGE`; wrong type → `415 UNSUPPORTED_MEDIA_TYP
 The file's **magic bytes** must match too (an `.xlsx` is a ZIP: `PK\x03\x04`; a CSV must not be a ZIP or contain NUL bytes), so a renamed file is rejected with 415.
 
 **Knowledge documents** (Phase 5, [ADR 0033](../adr/0033-ai-agents-knowledge-tools.md)): `POST /knowledge-bases/:id/sources/files`, multipart field **`files`** (repeat it, 1–5 files). PDF must start with `%PDF-`; DOCX must be a ZIP containing `word/document.xml`; TXT / MD must not be a ZIP or contain NUL bytes (UTF-8 with or without BOM, else Windows-1252). More than 5 files → 422; ≤ 25 sources per base and ≤ 10 bases per account → `422 KNOWLEDGE_LIMIT_REACHED`; 20 adds / hour / account. Files are processed in the background (`202`, progress over WS `kb.source.updated`).
+
+**Flow audio** (Phase 6): `POST /flow-audio`, multipart field **`file`** (one file) + optional `name`. The name must end in `.wav` / `.mp3` and the content must be a real WAV (PCM, A-law or μ-law, 8–48 kHz, mono / stereo) or MPEG Layer III file — probed from the bytes (RIFF / frame headers), so a renamed file is 415. Longer than 120 s → 422; ≤ 200 files per account; 20 uploads / hour / account. Playback through `GET /flow-audio/:id/url` (signed, 10 min).
 
 **Write-only secrets** (Phase 5): agent function headers marked `secret` are never returned — responses show `{ secret: true, value: null, valueHint: '••••1234' }`. To keep a stored secret on `PATCH`, send the header with `value: null`; a new string replaces it.
 
