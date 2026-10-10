@@ -40,3 +40,52 @@ registry.registerPath({
     422: errors[422],
   },
 });
+
+export const LoanBalanceQuery = PaymentStatusQuery.pick({ phone: true });
+
+export const HttpStatusParams = z.strictObject({
+  code: z.coerce.number().int().min(200).max(599).openapi({ example: 500 }),
+});
+
+export const MockLoanBalanceSchema = registry.register(
+  'MockLoanBalance',
+  z.object({
+    found: z.literal(true),
+    outstandingRupees: z.number(),
+    dueDate: z.string().openapi({ description: 'YYYY-MM-DD' }),
+  }),
+);
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/mock/loan-balance',
+  tags: ['Mock APIs (dev only)'],
+  summary:
+    'DEV ONLY — mock loan balance (odd last digit → ₹2,500 outstanding, even → 0; due in 5 days IST) for the Inbound support flow template. Not mounted in production.',
+  security: [],
+  request: { query: LoanBalanceQuery },
+  responses: {
+    200: {
+      description: 'Loan balance',
+      content: { 'application/json': { schema: MockLoanBalanceSchema } },
+    },
+    422: errors[422],
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/mock/http-status/{code}',
+  tags: ['Mock APIs (dev only)'],
+  summary:
+    'DEV ONLY — answers with the given status (200–599) and `{ code }`; used to test failure edges of API request nodes. Not mounted in production.',
+  security: [],
+  request: { params: HttpStatusParams },
+  responses: {
+    200: {
+      description: 'The requested status (any 2xx–5xx)',
+      content: { 'application/json': { schema: z.object({ code: z.number() }) } },
+    },
+    422: errors[422],
+  },
+});

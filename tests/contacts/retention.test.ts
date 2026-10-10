@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CONTACTS_PURGE_JOB,
   EXPORT_FILES_PURGE_JOB,
+  FLOWS_PURGE_JOB,
   IMPORT_FILES_PURGE_JOB,
   MAINTENANCE_SCHEDULES,
   processMaintenanceJob,
@@ -151,6 +152,7 @@ describe('maintenance worker', () => {
       ['contacts-purge', '15 3 * * *'],
       ['import-files-purge', '30 3 * * *'],
       ['export-files-purge', '0 * * * *'],
+      ['flows-purge', '45 4 * * *'],
     ]);
     const run = processMaintenanceJob({ logger, storage });
     // the worker uses the real clock: rows made by the tests above (dated from
@@ -165,6 +167,7 @@ describe('maintenance worker', () => {
     await expect(run({ name: EXPORT_FILES_PURGE_JOB } as never)).resolves.toEqual({
       jobs: expect.any(Number) as number,
     });
+    await expect(run({ name: FLOWS_PURGE_JOB } as never)).resolves.toEqual({ purged: 0 });
     await expect(
       processMaintenanceJob({ logger })({ name: EXPORT_FILES_PURGE_JOB } as never),
     ).rejects.toThrow('needs file storage');

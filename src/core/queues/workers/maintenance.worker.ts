@@ -6,6 +6,7 @@ import {
   purgeExportFiles,
   purgeImportFiles,
 } from '../../../modules/contacts/retention';
+import { purgeDeletedFlows } from '../../../modules/flows/maintenance';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -17,6 +18,8 @@ export const AUDIT_PURGE_CRON = '0 3 * * *';
 export const CONTACTS_PURGE_JOB = 'contacts-purge';
 export const IMPORT_FILES_PURGE_JOB = 'import-files-purge';
 export const EXPORT_FILES_PURGE_JOB = 'export-files-purge';
+/** Soft-deleted flows after 30 days (Phase 6). */
+export const FLOWS_PURGE_JOB = 'flows-purge';
 
 /** Repeatable maintenance jobs (UTC crons). */
 export const MAINTENANCE_SCHEDULES = [
@@ -24,6 +27,7 @@ export const MAINTENANCE_SCHEDULES = [
   { name: CONTACTS_PURGE_JOB, pattern: '15 3 * * *' },
   { name: IMPORT_FILES_PURGE_JOB, pattern: '30 3 * * *' },
   { name: EXPORT_FILES_PURGE_JOB, pattern: '0 * * * *' },
+  { name: FLOWS_PURGE_JOB, pattern: '45 4 * * *' },
 ] as const;
 
 export interface MaintenanceDeps extends Pick<QueueFactoryDeps, 'logger'> {
@@ -51,6 +55,9 @@ export const processMaintenanceJob =
         break;
       case EXPORT_FILES_PURGE_JOB:
         result = await purgeExportFiles(needStorage(deps));
+        break;
+      case FLOWS_PURGE_JOB:
+        result = await purgeDeletedFlows();
         break;
       default:
         throw new Error(`Unknown maintenance job "${job.name}"`);

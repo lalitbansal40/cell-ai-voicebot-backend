@@ -3,6 +3,7 @@ import type { Types } from 'mongoose';
 import { AI_LIMITS } from '../../config/limits';
 import { AgentPlaygroundSessionModel } from '../../db/models/agent-playground-session.model';
 import { AiAgentModel } from '../../db/models/ai-agent.model';
+import { isAgentInUse } from '../flows/in-use';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -12,11 +13,8 @@ export const purgePlaygroundSessions = async (now = new Date()): Promise<{ delet
   return { deleted: res.deletedCount };
 };
 
-/**
- * Phase 6 hook: is the agent used by a published flow? Phase 5 has no flows,
- * so nothing blocks the purge yet.
- */
-export const isAgentInUse = (_agentId: string): Promise<boolean> => Promise.resolve(false);
+/** Phase 6: an agent used by a live flow's draft or current published version is kept. */
+export { isAgentInUse } from '../flows/in-use';
 
 /** Hard-deletes agents soft-deleted more than 30 days ago (unless a flow still uses them). */
 export const purgeDeletedAgents = async (now = new Date()): Promise<{ purged: number }> => {

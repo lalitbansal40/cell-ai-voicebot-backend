@@ -306,8 +306,9 @@ describe('validateFlow', () => {
         config: {
           headers: [
             { name: 'X-Phone', value: '{{contact.external_id}}' },
-            { name: 'X-Key', secret: true, value: '{{ghost}}' },
+            { name: 'X-Key', secret: true, value: '{{ghost}}', sealed: 'v1:x' },
           ],
+          method: 'POST',
           bodyTemplate: '{"p":"{{contact.phone}}","n":"{{name}}"}',
         },
       }),
@@ -494,6 +495,33 @@ describe('validateFlow', () => {
       ],
     );
     expect(errorsOf(g).map((i) => i.field)).toEqual(['config.note', 'config.params.1']);
+  });
+
+  it('API headers: reserved / repeated names, missing secrets, line breaks; GET has no body', () => {
+    const issues = errorsOf(
+      withNode('api', {
+        config: {
+          headers: [
+            { name: 'Host', value: 'x' },
+            { name: 'X-Key', secret: true, value: null },
+            { name: 'x-key', value: 'b' },
+            { name: 'X-Line', value: 'a\nb' },
+            { name: 'X-Ok', secret: true, value: null, sealed: 'v1:sealed', valueHint: '••••1234' },
+          ],
+          bodyTemplate: '{"a":1}',
+        },
+      }),
+    );
+    expect(issues.map((i) => [i.field, i.message])).toEqual([
+      ['config.headers.0.name', '"API request": header Host is set automatically.'],
+      ['config.headers.1.value', '"API request": header X-Key needs its secret value.'],
+      ['config.headers.2.name', '"API request": header x-key is listed twice.'],
+      ['config.headers.3.value', '"API request": header X-Line has a line break.'],
+      ['config.bodyTemplate', '"API request": GET requests have no body.'],
+    ]);
+    expect(
+      errorsOf(withNode('api', { config: { method: 'POST', bodyTemplate: '{"a":1}' } })),
+    ).toEqual([]);
   });
 
   it('long SMS / speak texts are warnings', () => {

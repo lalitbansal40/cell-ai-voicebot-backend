@@ -467,6 +467,7 @@ describe('templates, catalog, preview and usage', () => {
     });
     const res = await request(app).get(`${URL}/${a.id}/usage`).set(auth(viewer));
     expect(res.body.data).toEqual({
+      flows: [],
       today: { day, spentMicros: 900, turns: 3 },
       month: {
         month: day.slice(0, 7),

@@ -56,3 +56,16 @@ export const mockPaymentStatus = async (
     loanId,
   };
 };
+
+export interface MockLoanBalance {
+  found: true;
+  outstandingRupees: number;
+  dueDate: string;
+}
+
+/** DEV ONLY loan balance: odd last digit → ₹2,500 outstanding, even → nothing due; due in 5 days (IST). */
+export const mockLoanBalance = (phone: string, now: Date = new Date()): MockLoanBalance => ({
+  found: true,
+  outstandingRupees: Number(phone.at(-1)) % 2 === 0 ? 0 : MOCK_DEFAULT_AMOUNT_MICROS / MONEY_SCALE,
+  dueDate: addDays(ymdInZone(now, ZONE), 5),
+});

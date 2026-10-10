@@ -70,6 +70,14 @@ const nameOf = (node: Pick<FlowNode, 'type' | 'label'>) =>
   `"${node.label?.trim() || TYPE_LABEL.get(node.type) || node.type}"`;
 
 const IN_PHONE = /^\+91[6-9]\d{9}$/;
+/** Set by the executor — never configurable. */
+const RESERVED_HEADERS = new Set([
+  'host',
+  'content-length',
+  'connection',
+  'transfer-encoding',
+  'content-type',
+]);
 const SINGLE_TOKEN = /^\{\{\s*([^}]*?)\s*\}\}$/;
 
 // ── Text fields that hold templates ─────────────────────────────────────────
@@ -510,6 +518,48 @@ export const validateFlow = (graph: FlowGraph, ctx: ValidateContext): Issue[] =>
           code: 'audio_missing',
           field: ref.field,
           message: `${name}: the audio file no longer exists — pick another.`,
+        });
+      }
+    }
+
+    // API headers and body
+    if (node.type === 'api_request') {
+      const seenHeaders = new Set<string>();
+      list(c.headers).forEach((h, i) => {
+        const field = `config.headers.${String(i)}`;
+        const headerName = typeof h.name === 'string' ? h.name.toLowerCase() : '';
+        const problem = RESERVED_HEADERS.has(headerName)
+          ? 'is set automatically'
+          : seenHeaders.has(headerName)
+            ? 'is listed twice'
+            : h.secret === true && typeof h.sealed !== 'string'
+              ? 'needs its secret value'
+              : typeof h.value === 'string' && /[\r\n\0]/.test(h.value)
+                ? 'has a line break'
+                : null;
+        seenHeaders.add(headerName);
+        if (problem) {
+          nodeIssue({
+            severity: 'error',
+            code: 'node_unconfigured',
+            field:
+              problem === 'needs its secret value' || problem === 'has a line break'
+                ? `${field}.value`
+                : `${field}.name`,
+            message: `${name}: header ${String(h.name)} ${problem}.`,
+          });
+        }
+      });
+      if (
+        (c.method ?? 'GET') === 'GET' &&
+        typeof c.bodyTemplate === 'string' &&
+        c.bodyTemplate.trim()
+      ) {
+        nodeIssue({
+          severity: 'error',
+          code: 'node_unconfigured',
+          field: 'config.bodyTemplate',
+          message: `${name}: GET requests have no body.`,
         });
       }
     }

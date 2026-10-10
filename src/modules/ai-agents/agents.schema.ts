@@ -423,6 +423,15 @@ export const CompilePreviewSchema = registry.register(
 export const AgentUsageSchema = registry.register(
   'AgentUsage',
   z.object({
+    flows: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          status: z.enum(['draft', 'published', 'archived']),
+        }),
+      )
+      .openapi({ description: 'Call flows whose draft or published version uses this agent' }),
     today: z.object({ day: z.string(), spentMicros: z.number(), turns: z.number() }),
     month: z.object({
       month: z.string(),
@@ -515,10 +524,11 @@ registry.registerPath({
   method: 'delete',
   path: '/api/v1/agents/{id}',
   tags,
-  summary: 'Delete an agent (kept 30 days, then purged)',
+  summary:
+    'Delete an agent (kept 30 days, then purged) — 409 RESOURCE_IN_USE while a call flow uses it (details list the flows)',
   security: bearer,
   request: byId,
-  responses: { 204: noContentResponse, ...read, 404: errors[404] },
+  responses: { 204: noContentResponse, ...read, 404: errors[404], 409: errors[409] },
 });
 for (const [action, summary] of [
   ['duplicate', 'Copy an agent ("… (copy)")'],

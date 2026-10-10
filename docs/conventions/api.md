@@ -232,6 +232,15 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 - Receivers should reject timestamps older than 5 minutes.
 - Retries with backoff: 1 min, 5 min, 30 min, 2 h, 12 h; the endpoint is disabled after repeated failures and the account is notified.
 
+## 14a. Call flows (Phase 6)
+
+- **Optimistic revision:** every flow has a `revision`. `PUT /flows/:id/draft { revision, graph }`, `POST /flows/:id/publish { revision }` and `POST …/versions/:n/restore { revision }` succeed only with the current one; otherwise **409 `FLOW_REVISION_CONFLICT`** with `details` `revision` (current), `updatedBy` (name) and `updatedAt`. Renames (`PATCH`) don't need or bump it.
+- **Structural vs semantic:** a draft save refuses only a broken graph shape (422 `VALIDATION_FAILED` at `graph.<path>`, 413 over 512 KB). Incomplete or wrong node settings are saved and returned as `issues[]` (`{ severity, code, message, nodeId?, edgeId?, field? }`) — the same list `POST /flows/:id/validate` returns.
+- **Publish:** errors block it with **422 `FLOW_INVALID`** whose `details` are the issues (`path`, `message`, `issue`, `severity`, `nodeId`, `edgeId`); warnings don't. Publishing an unchanged draft is 409 `CONFLICT_INVALID_STATE`. Versions are immutable.
+- **Secrets:** API request headers with `secret: true` are sealed at save; responses show only `valueHint` (`••••1234`). Send `value: null` to keep the stored value. Exports never contain secret values (`secret_removed:<node>.<header>` warning on import).
+- **Export / import:** `GET /flows/:id/export?version=draft|<n>` downloads `{ format: "cell-ai-flow", schemaVersion: 1, name, description, graph, refs: { agents, audios } }` (attachment, no envelope). `POST /flows/import { file, name? }` always creates a new flow; agents / audio are mapped by id (same account) or name, else cleared with `agent_unmapped:<node>` / `audio_unmapped:<node>` warnings. Files with `__proto__` / `constructor` / `prototype` keys are refused.
+- **In use:** deleting an agent used by a flow's draft or published version (or audio, or a flow used by campaigns from Phase 8) is **409 `RESOURCE_IN_USE`**; `details[]` list the users (`message` = name, `id`).
+
 ## 15. Versioning & deprecation
 
 - The contract is served at **`GET /api/v1/openapi.json`** (OpenAPI 3.1, raw document — **not** wrapped in the success envelope) and browsable at **`/api/docs`** (Swagger UI, off in production unless `API_DOCS_ENABLED=true`). [ADR 0029](../adr/0029-shared-api-types-via-openapi.md).

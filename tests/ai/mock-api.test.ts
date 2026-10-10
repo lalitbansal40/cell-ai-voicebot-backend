@@ -80,3 +80,26 @@ describe('mock payment API (dev only)', () => {
     expect(() => loadEnv({ ...PRODUCTION_APP_ENV, MOCK_APIS_ENABLED: 'true' })).toThrow();
   });
 });
+
+describe('mock loan balance and status APIs (dev only, Phase 6)', () => {
+  it('answers the loan balance by the last digit, due in 5 days (IST)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-08T19:00:00Z')); // 9 Oct IST
+    const odd = await request(app)
+      .get('/api/v1/mock/loan-balance')
+      .query({ phone: '+919000000001' });
+    expect(odd.body).toEqual({ found: true, outstandingRupees: 2500, dueDate: '2026-10-14' });
+    const even = await request(app).get('/api/v1/mock/loan-balance?phone=919000000002');
+    expect(even.body.outstandingRupees).toBe(0);
+    expect((await request(app).get('/api/v1/mock/loan-balance?phone=abc')).status).toBe(422);
+  });
+
+  it('answers any status 200–599 for failure-edge tests', async () => {
+    const res = await request(app).get('/api/v1/mock/http-status/500');
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ code: 500 });
+    expect((await request(app).get('/api/v1/mock/http-status/204')).status).toBe(204);
+    expect((await request(app).get('/api/v1/mock/http-status/199')).status).toBe(422);
+    expect((await request(app).get('/api/v1/mock/http-status/abc')).status).toBe(422);
+  });
+});

@@ -25,6 +25,7 @@ import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
+import { createFlowsRouter } from './modules/flows/flows.routes';
 import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes';
 import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
@@ -158,6 +159,14 @@ export const createApiRouter = ({
       ...(ai.storage ? { storage: ai.storage } : {}),
       ...(ai.http?.extraPorts ? { extraPorts: ai.http.extraPorts } : {}),
       ...(ai.rateLimitStores?.knowledge ? { sourcesStore: ai.rateLimitStores.knowledge } : {}),
+    }),
+  );
+  router.use(
+    '/flows',
+    createFlowsRouter({
+      env,
+      secretKey: secretBoxKey(env),
+      ...(ai.http?.extraPorts ? { extraPorts: [...ai.http.extraPorts] } : {}),
     }),
   );
   if (env.MOCK_APIS_ENABLED) router.use('/mock', createMockApisRouter());

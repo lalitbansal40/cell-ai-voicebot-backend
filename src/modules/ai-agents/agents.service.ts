@@ -32,6 +32,7 @@ import {
 } from '../../shared/errors/app-error';
 import { escapeRegex } from '../../shared/utils/regex';
 import { auditRequest } from '../audit/audit.service';
+import { flowsUsingAgent } from '../flows/in-use';
 import { accountTimezone } from '../wallet/wallet.service';
 
 import type {
@@ -377,6 +378,14 @@ export const updateAgent = async (req: Request, id: string, patch: Patch, deps: 
 export const deleteAgent = async (req: Request, id: string): Promise<void> => {
   const { accountId } = tenantFilter(req);
   const agent = await findAgent(accountId, id);
+  const flows = await flowsUsingAgent(agent._id);
+  if (flows.length) {
+    throw new ConflictError(
+      'RESOURCE_IN_USE',
+      `This agent is used by ${String(flows.length)} call flow${flows.length === 1 ? '' : 's'}. Remove it from them first.`,
+      flows.map((f) => ({ path: 'flows', message: f.name, id: f.id })),
+    );
+  }
   await AiAgentModel.updateOne({ _id: agent._id, accountId }, { $set: { deletedAt: new Date() } });
   await auditRequest(req, 'agent.deleted', {
     target: { type: 'agent', id: agent._id.toString() },
@@ -493,7 +502,9 @@ export const agentUsage = async (req: Request, id: string) => {
     ]),
   ]);
   const m = sum[0];
+  const flows = await flowsUsingAgent(agent._id);
   return {
+    flows,
     today: { day, spentMicros: today?.spentMicros ?? 0, turns: today?.turns ?? 0 },
     month: {
       month,
