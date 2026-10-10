@@ -92,7 +92,23 @@ Real bugs found and fixed (each with a regression test): audit meta dropped toke
 
 ## 6. Verification (P5-B3-DONE)
 
-_Filled at the checkpoint._
+Run on 2026-10-10 (each command separately, exit codes read; infra `cav-*` only).
+
+| Check                                                                                                                                         | Backend                                                                                                                      | Frontend                                              |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `lint` / `format:check` / `typecheck` / `build`                                                                                               | ✅ 0 / 0 / 0 / 0                                                                                                             | ✅ 0 / 0 / 0 / 0 (+ `tsc -p tsconfig.e2e.json` ✅)    |
+| `openapi:check` / `gen:api` no diff                                                                                                           | ✅                                                                                                                           | ✅                                                    |
+| `test:coverage`                                                                                                                               | ✅ 1526 tests · 97.1 / 88.24 / 96.61 / 98.13                                                                                 | ✅ 478 tests · 95.64 / 90.21 / 92.71 / 96.45          |
+| actionlint (Docker)                                                                                                                           | ✅ no findings                                                                                                               | ✅ no findings                                        |
+| Playwright (`E2E_FRONTEND_PORT=3150`)                                                                                                         | —                                                                                                                            | ✅ 21 / 21, twice (2nd run with `E2E_BACKEND_LOGS=1`) |
+| Fresh clones side by side, `npm ci`, no `.env`: all checks + tests + E2E once                                                                 | ✅                                                                                                                           | ✅ 21 / 21                                            |
+| gitleaks (history)                                                                                                                            | ✅ no leaks                                                                                                                  | ✅ no leaks                                           |
+| `grep console.log src` / `grep sk- src e2e`                                                                                                   | 0 / 0                                                                                                                        | 0                                                     |
+| Float grep + engine-only money writes                                                                                                         | ✅ (`tests/security/money-writes.test.ts`)                                                                                   | —                                                     |
+| E2E backend log grep (1,518 lines: secret header value, user messages, persona, knowledge text, `Bearer`, `sk-`, demo phones, injection text) | ✅ 0 hits                                                                                                                    | —                                                     |
+| Manual e2e on the dev server (fake provider, batch 2)                                                                                         | ✅ seed, paid / unpaid + promise, KB answer, OTP persona blocked, cap / wallet-empty fallbacks, ledger + summary, clean logs | —                                                     |
+
+Notes: the machine (16 GB shared with other projects' Docker and test runs) ran short of RAM during the checkpoint, so the Vitest suites ran with `--maxWorkers=2` — no timeouts were raised; one long frontend unit test was split in two instead. Infra stopped afterwards with `npm run infra:down` (only `cav-*` containers).
 
 ## 7. Remaining TODOs (by phase)
 
