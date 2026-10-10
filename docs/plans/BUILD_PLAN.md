@@ -178,7 +178,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ---
 
-### Phase 5 — AI Agents & Knowledge Base 🟢
+### Phase 5 — AI Agents & Knowledge Base ✅
 
 - AI Agent config (AutoChatix `AiConfig` jaisa, voice ke liye):
   - System prompt / persona, opening line, closing line
@@ -433,7 +433,7 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 | Phase 2                | Complete — [PHASE_2_SIGNOFF.md](../phases/PHASE_2_SIGNOFF.md)                                      |                         |
 | Phase 3                | Complete — [PHASE_3_SIGNOFF.md](../phases/PHASE_3_SIGNOFF.md)                                      |                         |
 | Phase 4                | Complete — [PHASE_4_SIGNOFF.md](../phases/PHASE_4_SIGNOFF.md)                                      |                         |
-| Phase 5                | Planned — [PHASE_5_PLAN.md](../phases/PHASE_5_PLAN.md)                                             |                         |
+| Phase 5                | Complete — [PHASE_5_SIGNOFF.md](../phases/PHASE_5_SIGNOFF.md)                                      |                         |
 
 ---
 
@@ -445,3 +445,4 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 - 2026-10-09: Phase 3 complete (contacts, lists, custom fields, imports / exports, DND, Playwright E2E) — [PHASE_3_SIGNOFF.md](../phases/PHASE_3_SIGNOFF.md). Phase 4 detailed plan — [PHASE_4_PLAN.md](../phases/PHASE_4_PLAN.md): per-call holds (not per campaign), insert-only ledger (settle = release hold + charge row), fake payment provider until Razorpay test keys.
 - 2026-10-09: Phase 4 complete (wallet, billing engine, Razorpay + test payments, GST invoices, alerts, superadmin billing, Playwright E2E) — [PHASE_4_SIGNOFF.md](../phases/PHASE_4_SIGNOFF.md). Razorpay test mode pending keys. Next: Phase 5 (AI agents & knowledge base).
 - 2026-10-09: Phase 5 detailed plan — [PHASE_5_PLAN.md](../phases/PHASE_5_PLAN.md): `AiProvider` with OpenAI + a deterministic fake provider (OpenAI key pending), account-level knowledge bases with own embeddings + in-process vector search (no OpenAI vector store), secure custom functions (encrypted secret headers, SSRF guard), built-in tools simulated in the playground, per-turn wallet billing.
+- 2026-10-10: Phase 5 complete (AI agents, secure custom functions, knowledge bases, playground billed per turn, superadmin AI, Playwright E2E) — [PHASE_5_SIGNOFF.md](../phases/PHASE_5_SIGNOFF.md). OpenAI live run pending a key. Next: Phase 6 (call flow builder).

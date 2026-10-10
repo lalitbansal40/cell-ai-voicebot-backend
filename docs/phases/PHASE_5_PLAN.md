@@ -226,125 +226,125 @@ Batches: **Batch 1 = T5.1–T5.5** (`[P5-B1-DONE]`), **Batch 2 = T5.6–T5.9** (
 
 ### T5.1 — Models, migration 0006, catalogue
 
-- [ ] Models: `AiAgent` (§1b, tenant plugin, unique `{ accountId, nameLower }` partial on `deletedAt: null`, indexes `{ accountId, isActive }`, `{ accountId, updatedAt }`), `KnowledgeBase`, `KnowledgeSource` (`status: queued|processing|ready|failed|stale`, `kind: file|url`, file key, url, title, chars, chunks, error, `version`), `KnowledgeChunk` (`accountId, kbId, sourceId, order, title, text ≤ 4,000, embedding number[], dims, model`; index `{ kbId, sourceId, order }`), `AgentPlaygroundSession` (TTL 30 d), `AgentToolCall` (TTL 90 d), `AgentUsage` (`{ agentId, day }` unique), `MockPaymentRecord` (dev only, `{ accountId, phone, loanId, status, amountMicros, paidAt }`).
-- [ ] Migration **0006**: rate cards + `aiTextPer1kTokensMicros` / `embeddingPer1kTokensMicros` defaults (new version rows, history kept), collections + indexes; idempotent up, down refuses when agents exist.
-- [ ] `shared/crypto/secret-box.ts`: AES-256-GCM `seal` / `open` with `ENCRYPTION_KEY` (dev fallback key with warning like storage signing), key id prefix for rotation; 100 % covered.
-- [ ] Env: `AI_PROVIDER`, `OPENAI_TEXT_MODEL`, `OPENAI_EMBEDDING_MODEL`, `AI_TEXT_MODELS`, `AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS`, `MOCK_APIS_ENABLED`; production rules (openai + key required, fake refused, private hosts + mock APIs refused). `.env.example` + README table.
-- [ ] `AI_LIMITS` (all numbers of §1); 6 error codes; audit actions; WS events (backend list + docs); `ai` queue + worker skeleton (concurrency 2) + schedules (`playground.purge` daily); permissions unchanged (verify matrix test).
-- [ ] Ledger breakdown fields (§1g) in the model + OpenAPI.
-- [ ] Docs: data-model §2.4 (new collections, indexes, retention), data.md retention rows, secrets.md (OpenAI key, ENCRYPTION_KEY now encrypts function secrets), websocket.md, audit.md, error-codes.md.
-- [ ] Tests: model validation, unique names, TTLs, migration up / down / idempotent, secret-box round trip / tamper / wrong key, env production rules, catalogue sync tests.
+- [x] Models: `AiAgent` (§1b, tenant plugin, unique `{ accountId, nameLower }` partial on `deletedAt: null`, indexes `{ accountId, isActive }`, `{ accountId, updatedAt }`), `KnowledgeBase`, `KnowledgeSource` (`status: queued|processing|ready|failed|stale`, `kind: file|url`, file key, url, title, chars, chunks, error, `version`), `KnowledgeChunk` (`accountId, kbId, sourceId, order, title, text ≤ 4,000, embedding number[], dims, model`; index `{ kbId, sourceId, order }`), `AgentPlaygroundSession` (TTL 30 d), `AgentToolCall` (TTL 90 d), `AgentUsage` (`{ agentId, day }` unique), `MockPaymentRecord` (dev only, `{ accountId, phone, loanId, status, amountMicros, paidAt }`).
+- [x] Migration **0006**: rate cards + `aiTextPer1kTokensMicros` / `embeddingPer1kTokensMicros` defaults (new version rows, history kept), collections + indexes; idempotent up, down refuses when agents exist.
+- [x] `shared/crypto/secret-box.ts`: AES-256-GCM `seal` / `open` with `ENCRYPTION_KEY` (dev fallback key with warning like storage signing), key id prefix for rotation; 100 % covered.
+- [x] Env: `AI_PROVIDER`, `OPENAI_TEXT_MODEL`, `OPENAI_EMBEDDING_MODEL`, `AI_TEXT_MODELS`, `AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS`, `MOCK_APIS_ENABLED`; production rules (openai + key required, fake refused, private hosts + mock APIs refused). `.env.example` + README table.
+- [x] `AI_LIMITS` (all numbers of §1); 6 error codes; audit actions; WS events (backend list + docs); `ai` queue + worker skeleton (concurrency 2) + schedules (`playground.purge` daily); permissions unchanged (verify matrix test).
+- [x] Ledger breakdown fields (§1g) in the model + OpenAPI.
+- [x] Docs: data-model §2.4 (new collections, indexes, retention), data.md retention rows, secrets.md (OpenAI key, ENCRYPTION_KEY now encrypts function secrets), websocket.md, audit.md, error-codes.md.
+- [x] Tests: model validation, unique names, TTLs, migration up / down / idempotent, secret-box round trip / tamper / wrong key, env production rules, catalogue sync tests.
 
 ### T5.2 — AI provider layer
 
-- [ ] `core/ai/types.ts`, `openai.provider.ts` (chat + embeddings REST, timeouts, retries with `Retry-After`, error mapping, no prompt / key logging), `fake.provider.ts` (§1f rules, hash embeddings 1536-d), `index.ts` factory from env.
-- [ ] `core/ai/pricing.ts`: tokens → micros with the effective rate card (`ceil`), pure + tested.
-- [ ] `core/ai/budget.ts`: `assertAgentBudget` (wallet available > 0, agent daily / monthly caps in the **account timezone**, like Phase 4 month spend) + `recordAgentSpend` (atomic `$inc` upsert); charges only via `chargeUsage` (engine-only-writes rule unchanged).
-- [ ] Tests with a local HTTP stub (no network): success, tool calls parsing, 429 + Retry-After retry, 500 retry then fail, timeout, 401 → rejected, malformed JSON; fake provider rule table; cap math across day / month boundaries (account timezone).
+- [x] `core/ai/types.ts`, `openai.provider.ts` (chat + embeddings REST, timeouts, retries with `Retry-After`, error mapping, no prompt / key logging), `fake.provider.ts` (§1f rules, hash embeddings 1536-d), `index.ts` factory from env.
+- [x] `core/ai/pricing.ts`: tokens → micros with the effective rate card (`ceil`), pure + tested.
+- [x] `core/ai/budget.ts`: `assertAgentBudget` (wallet available > 0, agent daily / monthly caps in the **account timezone**, like Phase 4 month spend) + `recordAgentSpend` (atomic `$inc` upsert); charges only via `chargeUsage` (engine-only-writes rule unchanged).
+- [x] Tests with a local HTTP stub (no network): success, tool calls parsing, 429 + Retry-After retry, 500 retry then fail, timeout, 401 → rejected, malformed JSON; fake provider rule table; cap math across day / month boundaries (account timezone).
 
 ### T5.3 — Agents API & prompt compiler
 
-- [ ] `modules/agents/` schema / service / routes per §1j; templates (`agent-templates.ts`), catalog endpoint.
-- [ ] Validation: variables used ⊆ allowed (+ existing custom field keys), unique name, limits, tone rules, voices, models, KB ids belong to the account.
-- [ ] `core/ai/compile.ts` (§1e) — pure; snapshot tests for each template × language mode × channel; warnings for missing values; length budget (instructions ≤ 24k chars, truncates persona with a warning).
-- [ ] Soft delete + 30-day purge (maintenance), duplicate (name "… (copy)"), activate / deactivate, audit (field names only).
-- [ ] Tests: CRUD, permissions (agent / viewer read-only, impersonation + suspended blocked), isolation (other account 404), validation table, template create, compile preview, audit meta has no prompt text.
+- [x] `modules/agents/` schema / service / routes per §1j; templates (`agent-templates.ts`), catalog endpoint.
+- [x] Validation: variables used ⊆ allowed (+ existing custom field keys), unique name, limits, tone rules, voices, models, KB ids belong to the account.
+- [x] `core/ai/compile.ts` (§1e) — pure; snapshot tests for each template × language mode × channel; warnings for missing values; length budget (instructions ≤ 24k chars, truncates persona with a warning).
+- [x] Soft delete + 30-day purge (maintenance), duplicate (name "… (copy)"), activate / deactivate, audit (field names only).
+- [x] Tests: CRUD, permissions (agent / viewer read-only, impersonation + suspended blocked), isolation (other account 404), validation table, template create, compile preview, audit meta has no prompt text.
 
 ### T5.4 — Custom functions & built-in tools
 
-- [ ] Function CRUD inside an agent (§1c), parameter list → JSON Schema + zod, templates rendered on JSON trees, secret headers sealed / masked / write-only.
-- [ ] `core/ai/http-tool.ts`: SSRF-safe executor (DNS pre-resolve + IP block list + pinned connect via `undici` dispatcher / `lookup` override, redirects re-checked, port allow-list, size + time caps, `resultPath` extraction).
-- [ ] Built-in tool definitions (schemas + validation: dates within `maxDaysAhead` in IST, amounts in rupees → micros, dispositions enum).
-- [ ] `POST …/functions/:fnId/test` (rate-limited) and the dev mock API (`/mock/payment-status`, seeded data, disabled in production → 404).
-- [ ] Tests: blocked targets table (127.0.0.1 in prod mode, 10.x, 169.254.169.254 always, `[::1]`, DNS name resolving to private, redirect to private), allowed public host (stub via a resolver override), timeouts, oversize response, bad args never sent, templating escapes, secrets never in responses / logs / audit, mock API off in production env.
+- [x] Function CRUD inside an agent (§1c), parameter list → JSON Schema + zod, templates rendered on JSON trees, secret headers sealed / masked / write-only.
+- [x] `core/ai/http-tool.ts`: SSRF-safe executor (DNS pre-resolve + IP block list + pinned connect via `undici` dispatcher / `lookup` override, redirects re-checked, port allow-list, size + time caps, `resultPath` extraction).
+- [x] Built-in tool definitions (schemas + validation: dates within `maxDaysAhead` in IST, amounts in rupees → micros, dispositions enum).
+- [x] `POST …/functions/:fnId/test` (rate-limited) and the dev mock API (`/mock/payment-status`, seeded data, disabled in production → 404).
+- [x] Tests: blocked targets table (127.0.0.1 in prod mode, 10.x, 169.254.169.254 always, `[::1]`, DNS name resolving to private, redirect to private), allowed public host (stub via a resolver override), timeouts, oversize response, bad args never sent, templating escapes, secrets never in responses / logs / audit, mock API off in production env.
 
 ### T5.5 — Knowledge base
 
-- [ ] KB + source API (§1j), uploads (multer memory → storage, type / size / magic checks), URL sources (SSRF guard shared with T5.4).
-- [ ] Parsers (`unpdf` → dependencies, `mammoth`, `html-to-text`), normaliser, chunker (pure, tested with fixtures: headings, long paragraphs, Hindi Devanagari text, tables-as-text).
-- [ ] `kb.ingest` job: lock, parse → chunk → embed (batches) → replace chunks atomically → charge (§1g) → `ready`; progress events; failures with clear reasons; re-index (all / one); model-change → `stale`.
-- [ ] `core/ai/vector-index.ts`: in-memory cosine with LRU cache + invalidation; `search` API; keyword boost.
-- [ ] Tests: each file type (fixtures incl. a DOCX and a text PDF), scanned / empty PDF → failed, URL fetch (stub server), limits (25 sources, 2,000 chunks, 10 KBs), insufficient wallet → failed, deterministic search ranking with the fake embeddings, delete cascade, isolation.
-- [ ] **`[P5-B1-DONE]`**: full verify, manual check (dev): create agent from template, add function to mock API, upload sample KB, search returns the right chunk, audit + logs clean; gitleaks; docs ticked.
+- [x] KB + source API (§1j), uploads (multer memory → storage, type / size / magic checks), URL sources (SSRF guard shared with T5.4).
+- [x] Parsers (`unpdf` → dependencies, `mammoth`, `html-to-text`), normaliser, chunker (pure, tested with fixtures: headings, long paragraphs, Hindi Devanagari text, tables-as-text).
+- [x] `kb.ingest` job: lock, parse → chunk → embed (batches) → replace chunks atomically → charge (§1g) → `ready`; progress events; failures with clear reasons; re-index (all / one); model-change → `stale`.
+- [x] `core/ai/vector-index.ts`: in-memory cosine with LRU cache + invalidation; `search` API; keyword boost.
+- [x] Tests: each file type (fixtures incl. a DOCX and a text PDF), scanned / empty PDF → failed, URL fetch (stub server), limits (25 sources, 2,000 chunks, 10 KBs), insufficient wallet → failed, deterministic search ranking with the fake embeddings, delete cascade, isolation.
+- [x] **`[P5-B1-DONE]`**: full verify, manual check (dev): create agent from template, add function to mock API, upload sample KB, search returns the right chunk, audit + logs clean; gitleaks; docs ticked.
 
 ### T5.6 — Turn runtime
 
-- [ ] `core/ai/run-turn.ts` (§1f): gates (agent off, wallet, caps), retrieval, history window, provider call, tool loop (≤ 3 rounds, ≤ 10 calls), output guardrail check, outcome capture, billing with turn idempotency key, `AgentToolCall` logs (redacted), structured result.
-- [ ] Built-in tool handlers with a `mode: 'simulated' | 'live'` context (Phase 5 = simulated; Phase 7 passes live hooks).
-- [ ] Tests: happy path with tools, KB answer, bad tool args → model told, tool timeout → model told, guardrail trigger → rephrase then fallback, provider down → `fallback.aiFailed` (no charge), wallet empty → `walletEmpty` (no model call), cap → stop / fallback, retry of the same turn → one charge, history trimming.
+- [x] `core/ai/run-turn.ts` (§1f): gates (agent off, wallet, caps), retrieval, history window, provider call, tool loop (≤ 3 rounds, ≤ 10 calls), output guardrail check, outcome capture, billing with turn idempotency key, `AgentToolCall` logs (redacted), structured result.
+- [x] Built-in tool handlers with a `mode: 'simulated' | 'live'` context (Phase 5 = simulated; Phase 7 passes live hooks).
+- [x] Tests: happy path with tools, KB answer, bad tool args → model told, tool timeout → model told, guardrail trigger → rephrase then fallback, provider down → `fallback.aiFailed` (no charge), wallet empty → `walletEmpty` (no model call), cap → stop / fallback, retry of the same turn → one charge, history trimming.
 
 ### T5.7 — Playground API
 
-- [ ] Sessions + messages + reset (§1j), variables from a contact (only allowed fields, `phone_last4`) or manual (validated against the allowed list), opening line turn, outcomes, `ended` state, 30-day TTL + `playground.purge` job, rate limit 30 / min / user.
-- [ ] Tests: full "Done when" conversation with the fake provider + mock API (paid → confirmation, unpaid → promise flow → `save_promise_to_pay` outcome), contact variables isolation, viewer can read but not post, impersonation blocked, suspended blocked, rate limit, wallet ledger row per turn (`ai_charge`, breakdown tokens), idempotent retry.
+- [x] Sessions + messages + reset (§1j), variables from a contact (only allowed fields, `phone_last4`) or manual (validated against the allowed list), opening line turn, outcomes, `ended` state, 30-day TTL + `playground.purge` job, rate limit 30 / min / user.
+- [x] Tests: full "Done when" conversation with the fake provider + mock API (paid → confirmation, unpaid → promise flow → `save_promise_to_pay` outcome), contact variables isolation, viewer can read but not post, impersonation blocked, suspended blocked, rate limit, wallet ledger row per turn (`ai_charge`, breakdown tokens), idempotent retry.
 
 ### T5.8 — Superadmin AI
 
-- [ ] Admin rate-card APIs accept / return the two new fields (validation, history, audit diff); `/admin/ai/config`; `/admin/billing/summary` already groups `ai_charge` — add AI turns / tokens counts.
-- [ ] Tests: rate change visible to playground pricing immediately (cache invalidation), config endpoint guard.
+- [x] Admin rate-card APIs accept / return the two new fields (validation, history, audit diff); `/admin/ai/config`; `/admin/billing/summary` already groups `ai_charge` — add AI turns / tokens counts.
+- [x] Tests: rate change visible to playground pricing immediately (cache invalidation), config endpoint guard.
 
 ### T5.9 — Seed, OpenAPI, ADR, docs (`[P5-B2-DONE]` after this)
 
-- [ ] `db:seed`: Demo Finance agents from 2 templates (active), a sample KB (`docs/samples/knowledge/` — FAQ TXT + policy PDF + DOCX), mock payment records for the seeded contacts (some paid, some unpaid), idempotent.
-- [ ] `gen:openapi` + `openapi:check`; every route documented with errors.
-- [ ] **ADR 0033** — AI agents, provider layer, knowledge retrieval & tool security (context incl. AutoChatix gaps: plain-text secret headers, unrestricted URLs / SSRF, unvalidated JSON-schema strings, OpenAI-hosted vector store lock-in, no per-turn idempotent billing; decision §1; consequences; Phase 6 / 7 contract).
-- [ ] `docs/setup/openai.md`: key in `.env`, models, `AI_PROVIDER=openai`, live checklist (Hinglish payment conversation, KB question, function call, guardrail prompts, cost per turn recorded) — run when the key exists, else "pending input".
-- [ ] `scripts/bench-retrieval.ts` (`bench:retrieval`): 6,000 chunks → p50 / p95 search time, memory; numbers in the sign-off.
-- [ ] Docs: api.md (playground, secrets write-only), security conventions (SSRF, encryption, prompt-injection framing), compliance notes (DPDP: data sent to OpenAI — allowed variables only, no full phone; OpenAI data-retention settings; AI disclosure line), README "AI agents", `src/README.md` rows, CHANGELOG.
-- [ ] **`[P5-B2-DONE]`**: full verify + manual e2e on the dev server (fake provider): agent create → function test (mock API) → KB upload → playground "maine pay kar diya" (paid + unpaid numbers) → ledger rows → caps → guardrail prompt → logs grep (no prompts, secrets, phones) → gitleaks; OpenAI live run or "pending input".
+- [x] `db:seed`: Demo Finance agents from 2 templates (active), a sample KB (`docs/samples/knowledge/` — FAQ TXT + policy PDF + DOCX), mock payment records for the seeded contacts (some paid, some unpaid), idempotent.
+- [x] `gen:openapi` + `openapi:check`; every route documented with errors.
+- [x] **ADR 0033** — AI agents, provider layer, knowledge retrieval & tool security (context incl. AutoChatix gaps: plain-text secret headers, unrestricted URLs / SSRF, unvalidated JSON-schema strings, OpenAI-hosted vector store lock-in, no per-turn idempotent billing; decision §1; consequences; Phase 6 / 7 contract).
+- [x] `docs/setup/openai.md`: key in `.env`, models, `AI_PROVIDER=openai`, live checklist (Hinglish payment conversation, KB question, function call, guardrail prompts, cost per turn recorded) — run when the key exists, else "pending input".
+- [x] `scripts/bench-retrieval.ts` (`bench:retrieval`): 6,000 chunks → p50 / p95 search time, memory; numbers in the sign-off.
+- [x] Docs: api.md (playground, secrets write-only), security conventions (SSRF, encryption, prompt-injection framing), compliance notes (DPDP: data sent to OpenAI — allowed variables only, no full phone; OpenAI data-retention settings; AI disclosure line), README "AI agents", `src/README.md` rows, CHANGELOG.
+- [x] **`[P5-B2-DONE]`**: full verify + manual e2e on the dev server (fake provider): agent create → function test (mock API) → KB upload → playground "maine pay kar diya" (paid + unpaid numbers) → ledger rows → caps → guardrail prompt → logs grep (no prompts, secrets, phones) → gitleaks; OpenAI live run or "pending input".
 
 ### T5.10 — Frontend foundation
 
-- [ ] `gen:api`; clients `src/services/api/{agents,knowledge,playground,admin-ai}.ts`; keys `features/agents/keys.ts`; type aliases.
-- [ ] `LIVE_PHASE = 5`; routes §1h with `RequirePermission('agents.read')`; WS `kb.source.updated` / `agent.updated` in the event map + hooks.
-- [ ] Shared `VariablePicker`, `SecretField`, `JsonTemplateField` (validation + format), `useUnsavedChangesGuard`.
-- [ ] Tests: menu visibility per role, route guards, clients (adapter), WS-driven KB status update.
+- [x] `gen:api`; clients `src/services/api/{agents,knowledge,playground,admin-ai}.ts`; keys `features/agents/keys.ts`; type aliases.
+- [x] `LIVE_PHASE = 5`; routes §1h with `RequirePermission('agents.read')`; WS `kb.source.updated` / `agent.updated` in the event map + hooks.
+- [x] Shared `VariablePicker`, `SecretField`, `JsonTemplateField` (validation + format), `useUnsavedChangesGuard`.
+- [x] Tests: menu visibility per role, route guards, clients (adapter), WS-driven KB status update.
 
 ### T5.11 — Agents list, templates, editor (Basic / Voice & Language / Limits)
 
-- [ ] List (search, active toggle, duplicate, delete confirm, empty state), template picker, editor shell with tabs in the URL, Save with changed fields only, server field errors, unsaved guard, prompt preview drawer (warnings), usage chip (today / month spend).
-- [ ] Tests: create from template, validation messages (unknown variable, name taken), save PATCH body, guard on navigate away, read-only for viewers / impersonation, preview rendering.
+- [x] List (search, active toggle, duplicate, delete confirm, empty state), template picker, editor shell with tabs in the URL, Save with changed fields only, server field errors, unsaved guard, prompt preview drawer (warnings), usage chip (today / month spend).
+- [x] Tests: create from template, validation messages (unknown variable, name taken), save PATCH body, guard on navigate away, read-only for viewers / impersonation, preview rendering.
 
 ### T5.12 — Functions tab + Knowledge
 
-- [ ] Function editor dialog (parameters builder, method / URL with chips, headers with secret toggle + masked display, body template validation, result path, timeout), test panel, built-in tools section; Knowledge tab (KB picker ≤ 3, retrieval settings); KB list + detail pages (upload multi, URL, live status, retry / re-index / delete, try-a-question).
-- [ ] Tests: param builder → payload, secret masking + keep / replace, blocked URL error shown, test result panel, KB upload flow with WS status, failed source reason, search results.
+- [x] Function editor dialog (parameters builder, method / URL with chips, headers with secret toggle + masked display, body template validation, result path, timeout), test panel, built-in tools section; Knowledge tab (KB picker ≤ 3, retrieval settings); KB list + detail pages (upload multi, URL, live status, retry / re-index / delete, try-a-question).
+- [x] Tests: param builder → payload, secret masking + keep / replace, blocked URL error shown, test result panel, KB upload flow with WS status, failed source reason, search results.
 
 ### T5.13 — Playground UI
 
-- [ ] Variables panel (contact search or manual), chat with optimistic user bubble, tool cards (simulated badge), knowledge refs, cost + tokens per turn, outcome panel, Reset, fallback banners, fake-provider badge, keyboard (Enter to send, Shift+Enter newline), auto-scroll, 375 px layout.
-- [ ] Tests: conversation flow with mocked API, tool card rendering, wallet-empty / cap banners, viewer read-only history, reset.
+- [x] Variables panel (contact search or manual), chat with optimistic user bubble, tool cards (simulated badge), knowledge refs, cost + tokens per turn, outcome panel, Reset, fallback banners, fake-provider badge, keyboard (Enter to send, Shift+Enter newline), auto-scroll, 375 px layout.
+- [x] Tests: conversation flow with mocked API, tool card rendering, wallet-empty / cap banners, viewer read-only history, reset.
 
 ### T5.14 — Superadmin AI UI
 
-- [ ] Rate dialogs + history tables gain the two AI fields; `/admin/billing` AI config card + AI turns in the summary.
-- [ ] Tests: dialog payload, display.
+- [x] Rate dialogs + history tables gain the two AI fields; `/admin/billing` AI config card + AI turns in the summary.
+- [x] Tests: dialog payload, display.
 
 ### T5.15 — E2E, gap audit, docs, sign-off
 
-- [ ] Playwright scenarios (fake AI provider + mock APIs on):
+- [x] Playwright scenarios (fake AI provider + mock APIs on):
   1. **"Done when"**: owner creates an agent from **Loan recovery** → the `check_payment_status` function points at the mock API → Test button shows "paid" for a seeded number → Playground with the paid contact: "maine pay kar diya" → tool card `check_payment_status` → reply confirms payment; with the unpaid contact → reply says not received + asks for a date → "kal tak de dunga" → outcome **Promise to pay** with tomorrow's date.
   2. **Knowledge**: create a KB, upload the sample FAQ TXT + DOCX → both **Ready** live → "Try a question" shows the right chunk → playground question answered from it (knowledge ref shown).
   3. **Functions security**: add a function with a secret header → after save shows `••••last4`; URL `http://169.254.169.254/…` → "This address is not allowed"; bad JSON body template → field error.
   4. **Billing & limits**: playground turn adds an **AI usage** row in Wallet → Transactions with tokens; set daily cap ₹0.01 → next turn shows the cap fallback; wallet at ₹0 → wallet-empty banner, no reply charge.
   5. **Roles**: viewer sees agents read-only (no Save, no playground input), agent role reads, impersonating superadmin can't run the playground; superadmin sets AI text price → playground cost changes.
-- [ ] All 15 existing scenarios stay green; whole suite **twice**.
-- [ ] Gap audit (requirement → test), security checklist (SSRF table, secrets never returned / logged — `E2E_BACKEND_LOGS=1` grep for prompts, header values, phones, OpenAI key; prompt-injection fixture in a KB doc doesn't change behaviour; mock API absent in production env), coverage re-measured (never lower).
-- [ ] Docs: both READMEs, CHANGELOGs, PHASE_5_TASKS, BUILD_PLAN status, this plan ticked, **PHASE_5_SIGNOFF.md**; `[P5-B3-DONE]` (full verify both repos, E2E twice, fresh clones, gitleaks, `infra:down`).
+- [x] All 15 existing scenarios stay green; whole suite **twice**.
+- [x] Gap audit (requirement → test), security checklist (SSRF table, secrets never returned / logged — `E2E_BACKEND_LOGS=1` grep for prompts, header values, phones, OpenAI key; prompt-injection fixture in a KB doc doesn't change behaviour; mock API absent in production env), coverage re-measured (never lower).
+- [x] Docs: both READMEs, CHANGELOGs, PHASE_5_TASKS, BUILD_PLAN status, this plan ticked, **PHASE_5_SIGNOFF.md**; `[P5-B3-DONE]` (full verify both repos, E2E twice, fresh clones, gitleaks, `infra:down`).
 
 ---
 
 ## 4. Deliverables checklist
 
-- [ ] AI agent CRUD with templates, voice / language / tone, call behaviour, model + caps, guardrails, fallbacks, allowed variables.
-- [ ] `AiProvider` with OpenAI (chat + embeddings) and a deterministic fake provider; production refuses fake.
-- [ ] Custom API functions with encrypted secret headers, SSRF guard, validated arguments, test button; built-in tools (simulated in Phase 5); dev mock payment API.
-- [ ] Knowledge bases: files + URLs → chunks → embeddings → search; live ingest status; billing.
-- [ ] Prompt compiler shared with Phase 7; guardrail output check; prompt-injection-safe data framing.
-- [ ] Text playground with tool traces, knowledge refs, outcomes, per-turn wallet charge, caps.
-- [ ] Superadmin AI prices + AI config.
-- [ ] UI: agents list / editor / functions / knowledge / playground; superadmin fields.
-- [ ] Docs: ADR 0033, OpenAI setup guide, data-model, conventions (security, api, data, websocket, audit, errors, secrets), compliance (DPDP + AI disclosure), READMEs, CHANGELOGs, sign-off.
+- [x] AI agent CRUD with templates, voice / language / tone, call behaviour, model + caps, guardrails, fallbacks, allowed variables.
+- [x] `AiProvider` with OpenAI (chat + embeddings) and a deterministic fake provider; production refuses fake.
+- [x] Custom API functions with encrypted secret headers, SSRF guard, validated arguments, test button; built-in tools (simulated in Phase 5); dev mock payment API.
+- [x] Knowledge bases: files + URLs → chunks → embeddings → search; live ingest status; billing.
+- [x] Prompt compiler shared with Phase 7; guardrail output check; prompt-injection-safe data framing.
+- [x] Text playground with tool traces, knowledge refs, outcomes, per-turn wallet charge, caps.
+- [x] Superadmin AI prices + AI config.
+- [x] UI: agents list / editor / functions / knowledge / playground; superadmin fields.
+- [x] Docs: ADR 0033, OpenAI setup guide, data-model, conventions (security, api, data, websocket, audit, errors, secrets), compliance (DPDP + AI disclosure), READMEs, CHANGELOGs, sign-off.
 
 ## 5. Risks
 
@@ -426,3 +426,4 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T5.1–T5.5
   - Retrieval bench (6,000 chunks): warm p50 9.2 ms · p95 10.1 ms · p99 11.5 ms, cold 586 ms, cache 40 MB.
   - A Phase 3 test (`retention.test.ts`, worker dispatch) mixed a fixed clock with the real one and turned red on 2026-10-10 — made clock-independent (separate commit).
   - Verification note: the machine ran out of RAM during the checkpoint (16 GB shared with other projects' Docker / test runs → Mongo hook timeouts); the full suite was green with `--maxWorkers=2` (no timeouts raised).
+- 2026-10-10: **Batch 3 done (T5.10–T5.15) — Phase 5 complete** — [PHASE_5_SIGNOFF.md](PHASE_5_SIGNOFF.md). Frontend agents list / editor / functions / knowledge / playground / superadmin AI; 6 Playwright AI tests (21 in total, green twice; the billing scenario is two tests). Fixed: empty tool arguments / variables dropped by MongoDB crashed the playground (found by Playwright). OpenAI live run still pending a key.

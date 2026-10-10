@@ -13,11 +13,11 @@ Source plan: [PHASE_5_PLAN.md](PHASE_5_PLAN.md) — Batch 1 = T5.1–T5.5, Batch
 | [x]  | T5.7  | Playground API: sessions, messages, outcomes, purge, rate limit                                             | BE   | M    |
 | [x]  | T5.8  | Superadmin AI prices, `/admin/ai/config`, AI usage in summary                                               | BE   | S    |
 | [x]  | T5.9  | Seed, sample KB docs, OpenAPI, ADR 0033, OpenAI setup guide, retrieval bench, docs                          | BE   | M    |
-| [ ]  | T5.10 | FE foundation: clients, routes, `LIVE_PHASE = 5`, WS, shared fields                                         | FE   | M    |
-| [ ]  | T5.11 | Agents list, template picker, editor (Basic / Voice & Language / Limits), prompt preview                    | FE   | L    |
-| [ ]  | T5.12 | Functions tab, Knowledge tab, knowledge base pages                                                          | FE   | L    |
-| [ ]  | T5.13 | Playground UI                                                                                               | FE   | M    |
-| [ ]  | T5.14 | Superadmin AI prices + config card                                                                          | FE   | S    |
-| [ ]  | T5.15 | Playwright E2E, gap + security audit, docs, Phase 5 sign-off                                                | both | M    |
+| [x]  | T5.10 | FE foundation: clients, routes, `LIVE_PHASE = 5`, WS, shared fields                                         | FE   | M    |
+| [x]  | T5.11 | Agents list, template picker, editor (Basic / Voice & Language / Limits), prompt preview                    | FE   | L    |
+| [x]  | T5.12 | Functions tab, Knowledge tab, knowledge base pages                                                          | FE   | L    |
+| [x]  | T5.13 | Playground UI                                                                                               | FE   | M    |
+| [x]  | T5.14 | Superadmin AI prices + config card                                                                          | FE   | S    |
+| [x]  | T5.15 | Playwright E2E, gap + security audit, docs, Phase 5 sign-off                                                | both | M    |
 
 **Done when:** Agent bane, playground mein "maine pay kar diya" bolne pe mock API se check karke sahi jawab de (Playwright E2E green).

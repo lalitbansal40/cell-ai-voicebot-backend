@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 5 · Batch 3 (T5.10–T5.15) — Phase 5 complete** — 2026-10-10
+  - Frontend agents list, template picker, editor, functions, knowledge pages, playground and superadmin AI — see the frontend CHANGELOG.
+  - Playwright: 6 AI tests (21 total, green twice); backend logs of the run free of secrets, messages, persona text and phones.
+  - Fixed: empty tool arguments / variables were dropped by MongoDB and crashed the playground UI.
+  - Sign-off: [PHASE_5_SIGNOFF.md](docs/phases/PHASE_5_SIGNOFF.md) (gap audit, numbers, deviations, TODOs by phase, pending inputs).
+  - Backend tests: 1526.
+
 - **Phase 5 · Batch 2 (T5.6–T5.9)** — 2026-10-09
   - Turn runtime: gates (agent off, wallet empty, spend caps), knowledge retrieval, tool loop with guarded custom functions and simulated built-ins, reply guardrails with one retry, fallbacks, one idempotent charge per turn, per-agent spend counters, redacted tool-call logs.
   - Playground API: sessions from a contact or manual values (+ test phone for functions only), opening line, messages with `clientTurnId` replay, outcomes, reset, 30 / min / user.
