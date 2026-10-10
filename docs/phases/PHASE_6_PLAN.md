@@ -323,48 +323,48 @@ Batches: **Batch 1 = T6.1–T6.5** (`[P6-B1-DONE]`), **Batch 2 = T6.6–T6.9** (
 
 ### T6.1 — Models, migration 0007, catalogue
 
-- [ ] Models (tenant plugin): `Flow` (§1a; unique collation index `{ accountId, name }` partial `deletedAt: null`; `{ accountId, deletedAt, updatedAt: -1 }`, `{ accountId, status }`), `FlowVersion` (`{ flowId, version }` unique, `{ accountId, agentIds }`, `{ accountId, audioIds }`; update hooks throw), `FlowRun` (`{ accountId, flowId, createdAt: -1 }`, TTL 30 d on `expiresAt` for `mode: simulator` only), `FlowNodeStats` (`{ flowId, version, nodeId, day, mode }` unique), `FlowAudio` (`{ accountId, deletedAt }`).
-- [ ] `minimize: false` on schemas holding free objects (`variables`, `config`, `state`) — Phase 5 lesson (empty objects dropped).
-- [ ] Migration **0007**: collections + indexes; idempotent up; down refuses when flows exist.
-- [ ] `FLOW_LIMITS` (every number of §1); error codes `FLOW_REVISION_CONFLICT`, `RESOURCE_IN_USE` (39 → 41); audit actions (+11 → 68); WS events `flow.updated`, `flow.published` (map + `WS_EVENT_TYPES` + websocket.md); ledger breakdown `kind` += `flow_simulator`, `flow_intent`.
-- [ ] Permissions unchanged — matrix test asserts `flows.*` per role (§1m).
-- [ ] Docs: data-model §2.4 (Flow with embedded draft — deviation noted, FlowVersion, FlowRun, FlowNodeStats, FlowAudio, retention), data.md retention rows (simulator runs 30 d, stats kept with the flow), audit.md, error-codes.md, websocket.md.
-- [ ] Tests: model validation, unique names (case-insensitive, deleted ignored), version immutability, TTL index present, migration up / down / idempotent, catalogue sync tests (errors, audit, WS).
+- [x] Models (tenant plugin): `Flow` (§1a; unique collation index `{ accountId, name }` partial `deletedAt: null`; `{ accountId, deletedAt, updatedAt: -1 }`, `{ accountId, status }`), `FlowVersion` (`{ flowId, version }` unique, `{ accountId, agentIds }`, `{ accountId, audioIds }`; update hooks throw), `FlowRun` (`{ accountId, flowId, createdAt: -1 }`, TTL 30 d on `expiresAt` for `mode: simulator` only), `FlowNodeStats` (`{ flowId, version, nodeId, day, mode }` unique), `FlowAudio` (`{ accountId, deletedAt }`).
+- [x] `minimize: false` on schemas holding free objects (`variables`, `config`, `state`) — Phase 5 lesson (empty objects dropped).
+- [x] Migration **0007**: collections + indexes; idempotent up; down refuses when flows exist.
+- [x] `FLOW_LIMITS` (every number of §1); error codes `FLOW_REVISION_CONFLICT`, `RESOURCE_IN_USE` (39 → 41); audit actions (+11 → 68); WS events `flow.updated`, `flow.published` (map + `WS_EVENT_TYPES` + websocket.md); ledger breakdown `kind` += `flow_simulator`, `flow_intent`.
+- [x] Permissions unchanged — matrix test asserts `flows.*` per role (§1m).
+- [x] Docs: data-model §2.4 (Flow with embedded draft — deviation noted, FlowVersion, FlowRun, FlowNodeStats, FlowAudio, retention), data.md retention rows (simulator runs 30 d, stats kept with the flow), audit.md, error-codes.md, websocket.md.
+- [x] Tests: model validation, unique names (case-insensitive, deleted ignored), version immutability, TTL index present, migration up / down / idempotent, catalogue sync tests (errors, audit, WS).
 
 ### T6.2 — Graph schema, node catalogue, templating, conditions
 
-- [ ] `core/flow/schema.ts`: `FlowGraphSchema` (strict zod), per-type `NodeConfigSchemas` (§1d with defaults), `NODE_CATALOG` (type → label, group, exits (static + dynamic rule), waits, limits) — exported to OpenAPI (`/flows/catalog`).
-- [ ] `core/flow/exits.ts`: `exitsOf(node)` (dynamic handles from keys / intents / rules), `requiredExits(node)`.
-- [ ] `core/templating/`: move the Phase 5 renderer (tokens, URL encode, JSON-tree rendering, warnings) behind a resolver interface; Phase 5 `http-tool.ts` uses it with its `args / contact / agent / company` resolver — **no behaviour change** (all Phase 5 tests green).
-- [ ] `core/flow/variables.ts`: catalogue builder (contact built-ins + custom fields + flow vars + system), typed coercion (`text / number / boolean / date`), reading format (₹, dates) shared with Phase 5 `formatValue`.
-- [ ] `core/flow/conditions.ts`: pure evaluator for all operators (typed compare: numbers when both sides numeric, dates `YYYY-MM-DD`, case-insensitive text, `in_list` comma split).
-- [ ] `core/flow/intents.ts`: normaliser (NFKC, lower, punctuation, Devanagari kept) + keyword matcher.
-- [ ] Tests: schema accept / reject table per node type (every limit edge), exits per type, templating (missing var warning, URL encoding, JSON escaping, `contact.*` server-only), coercion table, operator table (incl. `"10" gt "9"` numeric, empty values, dates), Hinglish + Devanagari keyword matching.
+- [x] `core/flow/schema.ts`: `FlowGraphSchema` (strict zod), per-type `NodeConfigSchemas` (§1d with defaults), `NODE_CATALOG` (type → label, group, exits (static + dynamic rule), waits, limits) — exported to OpenAPI (`/flows/catalog`).
+- [x] `core/flow/exits.ts`: `exitsOf(node)` (dynamic handles from keys / intents / rules), `requiredExits(node)`.
+- [x] `core/templating/`: move the Phase 5 renderer (tokens, URL encode, JSON-tree rendering, warnings) behind a resolver interface; Phase 5 `http-tool.ts` uses it with its `args / contact / agent / company` resolver — **no behaviour change** (all Phase 5 tests green).
+- [x] `core/flow/variables.ts`: catalogue builder (contact built-ins + custom fields + flow vars + system), typed coercion (`text / number / boolean / date`), reading format (₹, dates) shared with Phase 5 `formatValue`.
+- [x] `core/flow/conditions.ts`: pure evaluator for all operators (typed compare: numbers when both sides numeric, dates `YYYY-MM-DD`, case-insensitive text, `in_list` comma split).
+- [x] `core/flow/intents.ts`: normaliser (NFKC, lower, punctuation, Devanagari kept) + keyword matcher.
+- [x] Tests: schema accept / reject table per node type (every limit edge), exits per type, templating (missing var warning, URL encoding, JSON escaping, `contact.*` server-only), coercion table, operator table (incl. `"10" gt "9"` numeric, empty values, dates), Hinglish + Devanagari keyword matching.
 
 ### T6.3 — Validator
 
-- [ ] `core/flow/validate.ts` (pure, ctx = account variables, agents { id → active }, audios, URL policy): every §1e rule, deterministic issue order (by node order, then code), human messages ("Press 2 has no next step").
-- [ ] Silent-loop detection (Tarjan SCC over non-waiting nodes), reachability (BFS from start), `no_ending` (reverse BFS from terminals).
-- [ ] URL rule reuses Phase 5 `urlBlockReason` (static checks only; DNS checks happen at run time).
-- [ ] Tests: one failing fixture per code + one clean fixture per template; large graph (150 nodes / 300 edges) validates < 20 ms.
+- [x] `core/flow/validate.ts` (pure, ctx = account variables, agents { id → active }, audios, URL policy): every §1e rule, deterministic issue order (by node order, then code), human messages ("Press 2 has no next step").
+- [x] Silent-loop detection (Tarjan SCC over non-waiting nodes), reachability (BFS from start), `no_ending` (reverse BFS from terminals).
+- [x] URL rule reuses Phase 5 `urlBlockReason` (static checks only; DNS checks happen at run time).
+- [x] Tests: one failing fixture per code + one clean fixture per template; large graph (150 nodes / 300 edges) validates < 20 ms.
 
 ### T6.4 — Flows API
 
-- [ ] `modules/flows/` schema / service / routes per §1n; list with search (name), status filter, pagination (Phase 3 pattern); `stats` (nodes count, agent ids) recomputed on save.
-- [ ] Draft save: strict schema, size limit, revision check with an atomic `findOneAndUpdate({ _id, revision })`, issues returned, `hasUnpublishedChanges` by checksum, WS `flow.updated`.
-- [ ] Publish (`flows.publish`): validate with live context (agents / audio exist), create version in a transaction with the flow update, audit summary (counts), WS `flow.published`. Restore, versions list / get.
-- [ ] Duplicate, archive / unarchive (state rules → `CONFLICT_INVALID_STATE`), delete (`isFlowInUse` stub → `RESOURCE_IN_USE`), 30-day purge job (`flows.purge` in maintenance: versions, runs, stats; audio untouched).
-- [ ] Export: `{ format: 'cell-ai-flow', schemaVersion: 1, exportedAt, name, description, graph, refs: { agents: [{ id, name }], audios: [{ id, name }] } }` — secret header values replaced by `null` (+ `secretRemoved: true`). Import: strict parse, size ≤ 512 KB, new ids kept, refs remapped (same account by id → else by name → else cleared + issue), always **creates a new flow** (name de-duplicated), audit `flow.imported`.
-- [ ] Templates + catalog endpoints; create-from-template with `agentIds` map (§1j); missing optional custom fields → flow variables.
-- [ ] Phase 5 integration: real `isAgentInUse` (§1g), agent DELETE → 409 `RESOURCE_IN_USE` with flows, `GET /agents/:id/usage` adds `flows[]`, purge skip test.
-- [ ] Tests: CRUD, permissions (viewer / agent read-only, manager publish, impersonation + suspended blocked), isolation (other account 404 incl. agent / audio ids in graphs), revision conflict, publish with errors → 422 issues, no-change publish 409, version immutability via API, restore, duplicate, archive rules, export / import round trip (incl. cross-account remap and secret stripping), templates create valid graphs, agent delete blocked while used, audit meta has no texts.
+- [x] `modules/flows/` schema / service / routes per §1n; list with search (name), status filter, pagination (Phase 3 pattern); `stats` (nodes count, agent ids) recomputed on save.
+- [x] Draft save: strict schema, size limit, revision check with an atomic `findOneAndUpdate({ _id, revision })`, issues returned, `hasUnpublishedChanges` by checksum, WS `flow.updated`.
+- [x] Publish (`flows.publish`): validate with live context (agents / audio exist), create version in a transaction with the flow update, audit summary (counts), WS `flow.published`. Restore, versions list / get.
+- [x] Duplicate, archive / unarchive (state rules → `CONFLICT_INVALID_STATE`), delete (`isFlowInUse` stub → `RESOURCE_IN_USE`), 30-day purge job (`flows.purge` in maintenance: versions, runs, stats; audio untouched).
+- [x] Export: `{ format: 'cell-ai-flow', schemaVersion: 1, exportedAt, name, description, graph, refs: { agents: [{ id, name }], audios: [{ id, name }] } }` — secret header values replaced by `null` (+ `secretRemoved: true`). Import: strict parse, size ≤ 512 KB, new ids kept, refs remapped (same account by id → else by name → else cleared + issue), always **creates a new flow** (name de-duplicated), audit `flow.imported`.
+- [x] Templates + catalog endpoints; create-from-template with `agentIds` map (§1j); missing optional custom fields → flow variables.
+- [x] Phase 5 integration: real `isAgentInUse` (§1g), agent DELETE → 409 `RESOURCE_IN_USE` with flows, `GET /agents/:id/usage` adds `flows[]`, purge skip test.
+- [x] Tests: CRUD, permissions (viewer / agent read-only, manager publish, impersonation + suspended blocked), isolation (other account 404 incl. agent / audio ids in graphs), revision conflict, publish with errors → 422 issues, no-change publish 409, version immutability via API, restore, duplicate, archive rules, export / import round trip (incl. cross-account remap and secret stripping), templates create valid graphs, agent delete blocked while used, audit meta has no texts.
 
 ### T6.5 — Audio library
 
-- [ ] `modules/flow-audio/`: multer memory upload (1 file, 5 MB), magic-byte check, `core/flow/audio-probe.ts` (WAV RIFF chunks; MP3 frame headers, Xing / Info VBR frames, ID3 skip) → duration / sample rate / channels; storage key §1h; signed URL; rename; delete guard (drafts + versions); per-account limit 200; rate limit 20 uploads / h.
-- [ ] Fixtures: tiny WAV (8 kHz mono, 16 kHz), MP3 CBR + VBR (generated by a script, committed byte-exact), fake `.mp3` text file, > 120 s header.
-- [ ] Tests: each fixture, oversize 413, wrong type 415, too long 422, isolation, in-use delete 409, signed URL expiry.
-- [ ] **`[P6-B1-DONE]`**: full verify (lint, typecheck, test with coverage gate, openapi:check, format), manual check on dev: create flow from template via API, save with a stale revision → 409, publish → v1, export / import, agent delete blocked; audit + logs clean; gitleaks; docs ticked.
+- [x] `modules/flow-audio/`: multer memory upload (1 file, 5 MB), magic-byte check, `core/flow/audio-probe.ts` (WAV RIFF chunks; MP3 frame headers, Xing / Info VBR frames, ID3 skip) → duration / sample rate / channels; storage key §1h; signed URL; rename; delete guard (drafts + versions); per-account limit 200; rate limit 20 uploads / h.
+- [x] Fixtures: tiny WAV (8 kHz mono, 16 kHz), MP3 CBR + VBR (generated by a script, committed byte-exact), fake `.mp3` text file, > 120 s header.
+- [x] Tests: each fixture, oversize 413, wrong type 415, too long 422, isolation, in-use delete 409, signed URL expiry.
+- [x] **`[P6-B1-DONE]`**: full verify (lint, typecheck, test with coverage gate, openapi:check, format), manual check on dev: create flow from template via API, save with a stale revision → 409, publish → v1, export / import, agent delete blocked; audit + logs clean; gitleaks; docs ticked.
 
 ### T6.6 — Engine interpreter
 
@@ -521,3 +521,12 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T6.1–T6.5
 
 - 2026-10-10: Plan created after Phase 5 sign-off (Phase 5 merged to `main`: backend `4038c8b`, frontend `603ae49`).
 - 2026-10-10: Run prompt [PHASE_6_PROMPT.md](../prompts/PHASE_6_PROMPT.md) added (one file, 3 batches). Precisions there: module layout (`src/core/engine/` placeholder reused, `src/core/templating/` moved out of `http-tool.ts` without behaviour change, `src/modules/flows/`, `src/modules/flow-audio/`), exact `FLOW_LIMITS`, error codes 39 → 41 (`ConflictError` union extended), audit 57 → 68 with meta shapes, canonical JSON (positions in, viewport out), revision rules, variable / system names and value rendering, operator semantics, intent normaliser, AI intent prompt + fake-provider rule, engine input / output types and end reasons, simulator JSON, dev mock additions (`/mock/http-status/:code`, `/mock/loan-balance`), locked Loan recovery texts, import hardening + ref remap, WAV / MP3 probe, `flows-purge` cron, `rl:flowsim:` / `rl:flowaudio:` limiters, frontend graph reducer + JSDOM helper; template graphs authored in T6.4 (T6.9 reviews + seeds); a draft with validation errors cannot be simulated (422); dependencies `@xyflow/react` 12.12.0 + `@dagrejs/dagre` 3.1.1 (frontend only).
+- 2026-10-10: **Batch 1 done (T6.1–T6.5).** Deviations / precisions recorded while building:
+  - Stats counter field is `errorCount` (Mongoose reserves `errors`); the API still answers `errors`.
+  - Draft saves accept incomplete node configs (they are issues); only the graph shape is 422. `FLOW_INVALID` / `RESOURCE_IN_USE` / revision-conflict details use `ErrorDetail` with new optional fields (`issue`, `severity`, `nodeId`, `edgeId`, `id`) — `updatedBy` / `updatedAt` of a revision conflict are details too (no separate `meta`).
+  - Validator issue messages live in `validate.ts` (no separate `messages.ts`); validator fixtures are built in the test file instead of JSON files under `tests/fixtures/flows/`. API-node header rules (reserved / repeated names, line breaks, missing secret value, GET with a body) are `node_unconfigured` issues.
+  - `transfer_to_agent` has no `connected` handle (the run ends there); its exits are `failed`, `no_answer`, `error`.
+  - Template graphs are authored in T6.4 (API + tests need them); Loan recovery uses the locked texts, a placeholder transfer number `+919000000000` and the mock payment API. The demo account has `emi_amount`, not `amount`, so Loan recovery adds `amount` (and `loan_id` where missing) as flow variables — reported in `addedVariables`.
+  - Duplicates are named "… (copy)", "… (copy 2)"; imports / uploads with a taken name get " (2)", " (3)".
+  - Audio uploads also need a `.wav` / `.mp3` name (api.md §11 convention); content is still probed. Deleted audio files are removed by `flows-purge` after 30 days (with storage), together with flows.
+  - Agent DELETE now answers 409 `RESOURCE_IN_USE` while a flow draft or the current published version uses the agent (Phase 5 behaviour change, as planned).

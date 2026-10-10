@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 6 · Batch 1 (T6.1–T6.5)** — 2026-10-10
+  - Models (flows with an embedded draft + revision, immutable flow versions, simulator / call runs with a 30-day TTL, node stats, flow audio), migration 0007, `FLOW_LIMITS`, 2 error codes (`FLOW_REVISION_CONFLICT`, `RESOURCE_IN_USE`), 11 audit actions, 2 WS events (`flow.updated`, `flow.published`), ledger kinds `flow_simulator` / `flow_intent`.
+  - Flow engine core: strict graph schema with 15 node configs, named exits, palette catalogue, canonical checksum + diff summary, variables (contact / flow / system, coercion, display), conditions, Hinglish + Devanagari keyword intents, validator with 23 issue codes (silent loops via SCC). Phase 5 function templating moved to `core/templating` unchanged.
+  - `/flows`: CRUD, revision-checked draft saves with sealed API secrets, validate, publish → immutable versions, restore, duplicate, archive, delete (30-day purge), export without secrets, hardened import with agent / audio remap, 4 templates (Loan recovery, Payment reminder, Feedback survey, Inbound support), catalog, variables.
+  - Agents used by a flow can't be deleted (409 with the flows) or purged; agent usage lists them. Dev mock APIs: `/mock/loan-balance`, `/mock/http-status/:code`.
+  - `/flow-audio`: WAV / MP3 upload with own header probes (5 MB, 120 s, 200 per account, 20 / h), signed playback URL, rename, in-use delete guard, file purge; `npm run fixtures:audio`.
+  - Tests: 1526 → 1780.
+
 - **Phase 5 · Batch 3 (T5.10–T5.15) — Phase 5 complete** — 2026-10-10
   - Frontend agents list, template picker, editor, functions, knowledge pages, playground and superadmin AI — see the frontend CHANGELOG.
   - Playwright: 6 AI tests (21 total, green twice); backend logs of the run free of secrets, messages, persona text and phones.

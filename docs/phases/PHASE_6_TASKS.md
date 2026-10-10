@@ -4,11 +4,11 @@ Source plan: [PHASE_6_PLAN.md](PHASE_6_PLAN.md) — Batch 1 = T6.1–T6.5, Batch
 
 | Done | Task  | Title                                                                                                                                               | Repo | Size |
 | ---- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---- |
-| [ ]  | T6.1  | Models, migration 0007, `FLOW_LIMITS`, error codes, audit / WS catalogue, ledger kinds, data-model docs                                             | BE   | M    |
-| [ ]  | T6.2  | Graph schema + node catalogue, shared templating refactor, variables catalogue, condition evaluator, intent matcher                                 | BE   | L    |
-| [ ]  | T6.3  | Validator (all rules, silent-loop SCC check, URL rules)                                                                                             | BE   | M    |
-| [ ]  | T6.4  | Flows API: CRUD, draft revision, validate, publish / versions / restore, duplicate, archive, delete, import / export, templates, agent in-use guard | BE   | L    |
-| [ ]  | T6.5  | Audio library: upload, WAV / MP3 probe, signed preview, in-use guard                                                                                | BE   | S    |
+| [x]  | T6.1  | Models, migration 0007, `FLOW_LIMITS`, error codes, audit / WS catalogue, ledger kinds, data-model docs                                             | BE   | M    |
+| [x]  | T6.2  | Graph schema + node catalogue, shared templating refactor, variables catalogue, condition evaluator, intent matcher                                 | BE   | L    |
+| [x]  | T6.3  | Validator (all rules, silent-loop SCC check, URL rules)                                                                                             | BE   | M    |
+| [x]  | T6.4  | Flows API: CRUD, draft revision, validate, publish / versions / restore, duplicate, archive, delete, import / export, templates, agent in-use guard | BE   | L    |
+| [x]  | T6.5  | Audio library: upload, WAV / MP3 probe, signed preview, in-use guard                                                                                | BE   | S    |
 | [ ]  | T6.6  | Engine interpreter: state, inputs / outputs, non-AI nodes, gather retries, loop guard, error handler, trace, stats                                  | BE   | L    |
 | [ ]  | T6.7  | Effects: `api_request`, `ai_agent` (exits, `extraInstructions`), AI intent classifier, billing                                                      | BE   | L    |
 | [ ]  | T6.8  | Simulator API: runs, idempotent inputs, snapshots, TTL, rate limit, stats endpoint                                                                  | BE   | M    |
