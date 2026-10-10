@@ -5,6 +5,7 @@ import { isIP } from 'node:net';
 
 import { AI_LIMITS } from '../../config/limits';
 import type { AgentFunction } from '../../db/models/ai-agent.model';
+import { createTemplate, templateTokens, type Json } from '../templating';
 
 import { addressBlockReason, urlBlockReason, type GuardPolicy } from './ip-guard';
 import { open } from './secret-box';
@@ -19,18 +20,6 @@ export interface TemplateContext {
   company: string;
 }
 
-const TOKEN = /\{\{\s*(args\.[a-zA-Z0-9_]+|contact\.[a-zA-Z0-9_]+|agent\.name|company)\s*\}\}/g;
-const ANY_TOKEN = /\{\{\s*([^}]*?)\s*\}\}/g;
-const WHOLE_TOKEN =
-  /^\{\{\s*(args\.[a-zA-Z0-9_]+|contact\.[a-zA-Z0-9_]+|agent\.name|company)\s*\}\}$/;
-
-/** Every `{{token}}` in a text (valid or not), trimmed. */
-export const templateTokens = (text: string): string[] =>
-  [...text.matchAll(ANY_TOKEN)].map((m) => m[1] ?? '');
-
-export const isKnownToken = (token: string): boolean =>
-  new RegExp(`^${TOKEN.source}$`).test(`{{${token}}}`);
-
 const lookupToken = (token: string, ctx: TemplateContext): unknown => {
   if (token === 'company') return ctx.company;
   if (token === 'agent.name') return ctx.agentName;
@@ -39,69 +28,33 @@ const lookupToken = (token: string, ctx: TemplateContext): unknown => {
   return Object.hasOwn(source, key) ? source[key] : undefined;
 };
 
-const asText = (value: unknown): string =>
-  typeof value === 'string'
-    ? value
-    : typeof value === 'number' || typeof value === 'boolean'
-      ? String(value)
-      : '';
+/** Function templates: `{{args.x}}`, `{{contact.x}}`, `{{agent.name}}`, `{{company}}`. */
+const functionTemplate = createTemplate<TemplateContext>({
+  token: 'args\\.[a-zA-Z0-9_]+|contact\\.[a-zA-Z0-9_]+|agent\\.name|company',
+  resolve: lookupToken,
+});
 
-const renderText = (
-  text: string,
-  ctx: TemplateContext,
-  warnings: Set<string>,
-  encode: (s: string) => string = (s) => s,
-): string =>
-  text.replace(TOKEN, (_all, token: string) => {
-    const value = lookupToken(token, ctx);
-    if (value === undefined || value === null || value === '') {
-      warnings.add(`missing:${token}`);
-      return '';
-    }
-    return encode(asText(value));
-  });
+export { templateTokens };
+
+export const isKnownToken = (token: string): boolean => functionTemplate.isKnownToken(token);
 
 /** URL: every token value is URL-encoded (never changes the structure). */
 export const renderUrl = (template: string, ctx: TemplateContext, warnings: Set<string>): string =>
-  renderText(template, ctx, warnings, encodeURIComponent);
+  functionTemplate.renderUrl(template, ctx, warnings);
 
 /** Header value: raw text; CR / LF after rendering is refused (header injection). */
 export const renderHeader = (
   template: string,
   ctx: TemplateContext,
   warnings: Set<string>,
-): string | null => {
-  const value = renderText(template, ctx, warnings);
-  return /[\r\n\0]/.test(value) ? null : value;
-};
-
-type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+): string | null => functionTemplate.renderHeader(template, ctx, warnings);
 
 /**
  * JSON body: rendered on the parsed tree (never string concatenation). A leaf
  * that is exactly one token keeps the value's JSON type (`"{{args.amount}}"` → 500).
  */
-export const renderBody = (template: Json, ctx: TemplateContext, warnings: Set<string>): Json => {
-  if (typeof template === 'string') {
-    const whole = WHOLE_TOKEN.exec(template);
-    if (whole?.[1]) {
-      const value = lookupToken(whole[1], ctx);
-      if (value === undefined || value === null || value === '') {
-        warnings.add(`missing:${whole[1]}`);
-        return '';
-      }
-      return typeof value === 'number' || typeof value === 'boolean' ? value : asText(value);
-    }
-    return renderText(template, ctx, warnings);
-  }
-  if (Array.isArray(template)) return template.map((item) => renderBody(item, ctx, warnings));
-  if (template && typeof template === 'object') {
-    return Object.fromEntries(
-      Object.entries(template).map(([k, v]) => [k, renderBody(v, ctx, warnings)]),
-    );
-  }
-  return template;
-};
+export const renderBody = (template: Json, ctx: TemplateContext, warnings: Set<string>): Json =>
+  functionTemplate.renderJson(template, ctx, warnings);
 
 // ── Result path ───────────────────────────────────────────────────────────
 

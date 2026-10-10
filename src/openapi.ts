@@ -21,6 +21,7 @@ import './modules/contacts/contacts.schema';
 import './modules/dnd/dnd.schema';
 import './modules/segments/segments.schema';
 import './modules/custom-fields/custom-fields.schema';
+import './modules/flows/flows.schema';
 import './modules/health/health.schema';
 import './modules/knowledge/knowledge.schema';
 import './modules/mock-apis/mock.schema';

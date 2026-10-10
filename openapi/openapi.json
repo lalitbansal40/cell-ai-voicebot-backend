@@ -1676,6 +1676,755 @@
         },
         "required": ["count", "sample"]
       },
+      "FlowStartConfig": {
+        "type": "object",
+        "properties": {
+          "triggers": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["campaign", "inbound", "api", "test"] },
+            "minItems": 1,
+            "default": ["campaign", "inbound", "api", "test"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "FlowStartNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["start"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowStartConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowSpeakConfig": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "language": {
+            "type": "string",
+            "enum": ["flow", "hi", "en", "hinglish"],
+            "default": "flow"
+          },
+          "interruptible": { "type": "boolean", "default": true }
+        },
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "FlowSpeakNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["speak"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowSpeakConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowPlayAudioConfig": {
+        "type": "object",
+        "properties": {
+          "audioId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "fallbackText": { "type": ["string", "null"], "maxLength": 500, "default": null }
+        },
+        "required": ["audioId"],
+        "additionalProperties": false
+      },
+      "FlowPlayAudioNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["play_audio"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowPlayAudioConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowGatherDtmfConfig": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string", "enum": ["speak"] },
+                  "text": { "type": "string", "minLength": 1, "maxLength": 1000 }
+                },
+                "required": ["kind", "text"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string", "enum": ["audio"] },
+                  "audioId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "fallbackText": { "type": ["string", "null"], "maxLength": 500, "default": null }
+                },
+                "required": ["kind", "audioId"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "maxRetries": { "type": "integer", "minimum": 0, "maximum": 5, "default": 2 },
+          "invalidText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "default": "Maaf kijiye, yeh option sahi nahi hai."
+          },
+          "noInputText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "default": "Maaf kijiye, mujhe aapka jawab nahi mila."
+          },
+          "mode": { "type": "string", "enum": ["menu", "digits"], "default": "menu" },
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "pattern": "^[a-z0-9]{1,12}$" },
+                "key": { "type": "string", "pattern": "^[0-9*#]$" },
+                "label": { "type": "string", "maxLength": 60, "default": "" }
+              },
+              "required": ["id", "key"],
+              "additionalProperties": false
+            },
+            "maxItems": 12,
+            "default": []
+          },
+          "repeatKey": { "type": ["string", "null"], "pattern": "^[0-9*#]$", "default": null },
+          "minDigits": { "type": "integer", "minimum": 1, "maximum": 20, "default": 1 },
+          "maxDigits": { "type": "integer", "minimum": 1, "maximum": 20, "default": 4 },
+          "finishKey": { "type": "string", "enum": ["#", "none"], "default": "#" },
+          "saveAs": {
+            "type": ["string", "null"],
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "default": null
+          },
+          "timeoutSec": { "type": "integer", "minimum": 3, "maximum": 30, "default": 7 }
+        },
+        "required": ["prompt"],
+        "additionalProperties": false
+      },
+      "FlowGatherDtmfNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["gather_dtmf"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowGatherDtmfConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowGatherSpeechConfig": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string", "enum": ["speak"] },
+                  "text": { "type": "string", "minLength": 1, "maxLength": 1000 }
+                },
+                "required": ["kind", "text"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string", "enum": ["audio"] },
+                  "audioId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "fallbackText": { "type": ["string", "null"], "maxLength": 500, "default": null }
+                },
+                "required": ["kind", "audioId"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "maxRetries": { "type": "integer", "minimum": 0, "maximum": 5, "default": 2 },
+          "invalidText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "default": "Maaf kijiye, yeh option sahi nahi hai."
+          },
+          "noInputText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "default": "Maaf kijiye, mujhe aapka jawab nahi mila."
+          },
+          "saveAs": {
+            "type": ["string", "null"],
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "default": null
+          },
+          "language": {
+            "type": "string",
+            "enum": ["flow", "hi", "en", "hinglish", "auto"],
+            "default": "flow"
+          },
+          "timeoutSec": { "type": "integer", "minimum": 3, "maximum": 30, "default": 8 },
+          "intents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "pattern": "^[a-z0-9]{1,12}$" },
+                "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+                "keywords": {
+                  "type": "array",
+                  "items": { "type": "string", "minLength": 1, "maxLength": 60 },
+                  "minItems": 1,
+                  "maxItems": 20
+                }
+              },
+              "required": ["id", "label", "keywords"],
+              "additionalProperties": false
+            },
+            "maxItems": 10,
+            "default": []
+          },
+          "matchMode": { "type": "string", "enum": ["keywords", "ai"], "default": "keywords" }
+        },
+        "required": ["prompt"],
+        "additionalProperties": false
+      },
+      "FlowGatherSpeechNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["gather_speech"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowGatherSpeechConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowAiAgentConfig": {
+        "type": "object",
+        "properties": {
+          "agentId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "goal": { "type": ["string", "null"], "maxLength": 1000, "default": null },
+          "passVariables": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,39}$" },
+            "maxItems": 10,
+            "default": []
+          },
+          "maxTurns": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 },
+          "speakOpeningLine": { "type": "boolean", "default": true }
+        },
+        "required": ["agentId"],
+        "additionalProperties": false
+      },
+      "FlowAiAgentNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["ai_agent"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowAiAgentConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowApiRequestConfig": {
+        "type": "object",
+        "properties": {
+          "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH"], "default": "GET" },
+          "url": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string", "pattern": "^[A-Za-z0-9-]{1,64}$" },
+                "secret": { "type": "boolean", "default": false },
+                "value": { "type": ["string", "null"], "maxLength": 2000, "default": null },
+                "sealed": { "type": "string" },
+                "valueHint": { "type": "string" }
+              },
+              "required": ["name"],
+              "additionalProperties": false
+            },
+            "maxItems": 10,
+            "default": []
+          },
+          "bodyTemplate": { "type": ["string", "null"], "maxLength": 10000, "default": null },
+          "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 10000, "default": 6000 },
+          "saveResponse": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": { "type": "string", "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+){0,4}$" },
+                "variable": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,39}$" }
+              },
+              "required": ["path", "variable"],
+              "additionalProperties": false
+            },
+            "maxItems": 10,
+            "default": []
+          }
+        },
+        "required": ["url"],
+        "additionalProperties": false
+      },
+      "FlowApiRequestNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["api_request"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowApiRequestConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowConditionRouterConfig": {
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "pattern": "^[a-z0-9]{1,12}$" },
+                "label": { "type": "string", "maxLength": 60, "default": "" },
+                "match": { "type": "string", "enum": ["all", "any"], "default": "all" },
+                "conditions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "variable": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,39}$" },
+                      "operator": {
+                        "type": "string",
+                        "enum": [
+                          "equals",
+                          "not_equals",
+                          "contains",
+                          "not_contains",
+                          "starts_with",
+                          "gt",
+                          "gte",
+                          "lt",
+                          "lte",
+                          "is_empty",
+                          "is_not_empty",
+                          "in_list",
+                          "date_before",
+                          "date_after"
+                        ]
+                      },
+                      "value": { "type": ["string", "null"], "maxLength": 300, "default": null }
+                    },
+                    "required": ["variable", "operator"],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 5
+                }
+              },
+              "required": ["id", "conditions"],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 10
+          }
+        },
+        "required": ["rules"],
+        "additionalProperties": false
+      },
+      "FlowConditionRouterNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["condition_router"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowConditionRouterConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowSetVariableConfig": {
+        "type": "object",
+        "properties": {
+          "assignments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variable": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,39}$" },
+                "op": { "type": "string", "enum": ["set", "increment", "clear"], "default": "set" },
+                "value": { "type": ["string", "null"], "maxLength": 1000, "default": null }
+              },
+              "required": ["variable"],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 10
+          }
+        },
+        "required": ["assignments"],
+        "additionalProperties": false
+      },
+      "FlowSetVariableNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["set_variable"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowSetVariableConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowSetDispositionConfig": {
+        "type": "object",
+        "properties": {
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "paid",
+              "promise_to_pay",
+              "callback_requested",
+              "wrong_number",
+              "refused_to_pay",
+              "dispute",
+              "not_interested",
+              "language_barrier",
+              "other"
+            ]
+          },
+          "note": { "type": ["string", "null"], "maxLength": 200, "default": null }
+        },
+        "required": ["disposition"],
+        "additionalProperties": false
+      },
+      "FlowSetDispositionNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["set_disposition"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowSetDispositionConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowTransferToAgentConfig": {
+        "type": "object",
+        "properties": {
+          "phone": { "type": "string", "minLength": 1, "maxLength": 60 },
+          "announcement": { "type": ["string", "null"], "maxLength": 300, "default": null },
+          "timeoutSec": { "type": "integer", "minimum": 10, "maximum": 60, "default": 30 }
+        },
+        "required": ["phone"],
+        "additionalProperties": false
+      },
+      "FlowTransferToAgentNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["transfer_to_agent"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowTransferToAgentConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowSendSmsConfig": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "dltTemplateId": { "type": ["string", "null"], "maxLength": 30, "default": null }
+        },
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "FlowSendSmsNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["send_sms"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowSendSmsConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowSendWhatsappConfig": {
+        "type": "object",
+        "properties": {
+          "templateName": { "type": "string", "pattern": "^[a-z0-9_]{1,60}$" },
+          "language": { "type": "string", "enum": ["hi", "en"], "default": "hi" },
+          "params": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 300 },
+            "maxItems": 10,
+            "default": []
+          }
+        },
+        "required": ["templateName"],
+        "additionalProperties": false
+      },
+      "FlowSendWhatsappNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["send_whatsapp"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowSendWhatsappConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowWaitConfig": {
+        "type": "object",
+        "properties": {
+          "seconds": { "type": "integer", "minimum": 1, "maximum": 60, "default": 5 }
+        },
+        "additionalProperties": false
+      },
+      "FlowWaitNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["wait"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowWaitConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowHangupConfig": {
+        "type": "object",
+        "properties": {
+          "text": { "type": ["string", "null"], "maxLength": 500, "default": null },
+          "disposition": {
+            "type": ["string", "null"],
+            "enum": [
+              "paid",
+              "promise_to_pay",
+              "callback_requested",
+              "wrong_number",
+              "refused_to_pay",
+              "dispute",
+              "not_interested",
+              "language_barrier",
+              "other",
+              null
+            ],
+            "default": null
+          }
+        },
+        "additionalProperties": false
+      },
+      "FlowHangupNode": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["hangup"] },
+          "label": { "type": "string" },
+          "position": {
+            "type": "object",
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+            "required": ["x", "y"]
+          },
+          "config": { "$ref": "#/components/schemas/FlowHangupConfig" }
+        },
+        "required": ["id", "type", "position", "config"]
+      },
+      "FlowNode": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/FlowStartNode" },
+          { "$ref": "#/components/schemas/FlowSpeakNode" },
+          { "$ref": "#/components/schemas/FlowPlayAudioNode" },
+          { "$ref": "#/components/schemas/FlowGatherDtmfNode" },
+          { "$ref": "#/components/schemas/FlowGatherSpeechNode" },
+          { "$ref": "#/components/schemas/FlowAiAgentNode" },
+          { "$ref": "#/components/schemas/FlowApiRequestNode" },
+          { "$ref": "#/components/schemas/FlowConditionRouterNode" },
+          { "$ref": "#/components/schemas/FlowSetVariableNode" },
+          { "$ref": "#/components/schemas/FlowSetDispositionNode" },
+          { "$ref": "#/components/schemas/FlowTransferToAgentNode" },
+          { "$ref": "#/components/schemas/FlowSendSmsNode" },
+          { "$ref": "#/components/schemas/FlowSendWhatsappNode" },
+          { "$ref": "#/components/schemas/FlowWaitNode" },
+          { "$ref": "#/components/schemas/FlowHangupNode" }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "start": "#/components/schemas/FlowStartNode",
+            "speak": "#/components/schemas/FlowSpeakNode",
+            "play_audio": "#/components/schemas/FlowPlayAudioNode",
+            "gather_dtmf": "#/components/schemas/FlowGatherDtmfNode",
+            "gather_speech": "#/components/schemas/FlowGatherSpeechNode",
+            "ai_agent": "#/components/schemas/FlowAiAgentNode",
+            "api_request": "#/components/schemas/FlowApiRequestNode",
+            "condition_router": "#/components/schemas/FlowConditionRouterNode",
+            "set_variable": "#/components/schemas/FlowSetVariableNode",
+            "set_disposition": "#/components/schemas/FlowSetDispositionNode",
+            "transfer_to_agent": "#/components/schemas/FlowTransferToAgentNode",
+            "send_sms": "#/components/schemas/FlowSendSmsNode",
+            "send_whatsapp": "#/components/schemas/FlowSendWhatsappNode",
+            "wait": "#/components/schemas/FlowWaitNode",
+            "hangup": "#/components/schemas/FlowHangupNode"
+          }
+        }
+      },
+      "FlowEdge": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,40}$" },
+          "source": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,40}$" },
+          "sourceHandle": { "type": "string", "pattern": "^[a-z0-9_]{1,40}$" },
+          "target": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,40}$" }
+        },
+        "required": ["id", "source", "sourceHandle", "target"],
+        "additionalProperties": false
+      },
+      "FlowVariable": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,39}$" },
+          "type": { "type": "string", "enum": ["text", "number", "boolean", "date"] },
+          "label": { "type": "string", "maxLength": 60 },
+          "default": {
+            "anyOf": [
+              { "type": "string", "maxLength": 300 },
+              { "type": "number" },
+              { "type": "boolean" },
+              { "type": "null" }
+            ]
+          }
+        },
+        "required": ["name", "type"],
+        "additionalProperties": false
+      },
+      "FlowSettings": {
+        "type": "object",
+        "properties": {
+          "language": { "type": "string", "enum": ["hi", "en", "hinglish"], "default": "hinglish" },
+          "voice": {
+            "type": "string",
+            "enum": [
+              "alloy",
+              "ash",
+              "ballad",
+              "coral",
+              "echo",
+              "sage",
+              "shimmer",
+              "verse",
+              "marin",
+              "cedar"
+            ],
+            "default": "coral"
+          },
+          "errorMessage": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "default": "Maaf kijiye, abhi kuch takneeki samasya hai. Hum aapko baad mein call karenge."
+          },
+          "onError": { "type": "string", "enum": ["hangup", "transfer"], "default": "hangup" },
+          "errorTransferPhone": { "type": ["string", "null"], "maxLength": 20, "default": null },
+          "maxDurationSec": { "type": "integer", "minimum": 60, "maximum": 3600, "default": 900 }
+        },
+        "additionalProperties": false
+      },
+      "FlowGraph": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": { "type": "number", "enum": [1] },
+          "nodes": { "type": "array", "items": { "$ref": "#/components/schemas/FlowNode" } },
+          "edges": { "type": "array", "items": { "$ref": "#/components/schemas/FlowEdge" } },
+          "variables": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/FlowVariable" }
+          },
+          "settings": { "$ref": "#/components/schemas/FlowSettings" },
+          "viewport": {
+            "type": "object",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "zoom": { "type": "number" }
+            },
+            "required": ["x", "y", "zoom"]
+          }
+        },
+        "required": ["schemaVersion", "nodes", "edges", "variables", "settings"]
+      },
       "Health": {
         "type": "object",
         "properties": {
