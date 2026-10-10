@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 5 · Batch 2 (T5.6–T5.9)** — 2026-10-09
+  - Turn runtime: gates (agent off, wallet empty, spend caps), knowledge retrieval, tool loop with guarded custom functions and simulated built-ins, reply guardrails with one retry, fallbacks, one idempotent charge per turn, per-agent spend counters, redacted tool-call logs.
+  - Playground API: sessions from a contact or manual values (+ test phone for functions only), opening line, messages with `clientTurnId` replay, outcomes, reset, 30 / min / user.
+  - Superadmin: AI prices on rate cards, `/admin/ai/config`, AI counts in the month summary.
+  - Seed (AI agents, "Demo Finance FAQ" knowledge base, mock payments), sample knowledge documents, `bench:retrieval`, ADR 0033, `docs/setup/openai.md`, API / data / security / compliance / cost docs.
+  - Fixed: audit meta dropped token-count keys (AI price diffs); knowledge search was diluted by the previous reply.
+  - Fixed: a Phase 3 retention test depended on the real clock and started failing on 2026-10-10.
+  - Tests: 1475 → 1526.
+
 - **Phase 5 · Batch 1 (T5.1–T5.5)** — 2026-10-09
   - Models (AI agents, knowledge bases / sources / chunks, playground sessions, tool calls, agent usage, dev mock payments), migration 0006, AI env (`AI_PROVIDER`, OpenAI base URL / models, private-host and mock-API switches with production refusals), `AI_LIMITS`, 4 error codes, 10 audit actions, 2 WS events, `ai` queue + worker, AES-256-GCM secret box, AI prices on rate cards and ledger token breakdowns.
   - AI providers: OpenAI REST client (retries, `Retry-After`, timeouts, error mapping) and a deterministic fake provider; token pricing; prepaid + per-agent daily / monthly spend caps in the account timezone.

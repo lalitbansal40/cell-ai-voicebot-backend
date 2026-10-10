@@ -9,10 +9,10 @@ Source plan: [PHASE_5_PLAN.md](PHASE_5_PLAN.md) — Batch 1 = T5.1–T5.5, Batch
 | [x]  | T5.3  | Agents API: CRUD, templates, catalog, activate / duplicate, validation, prompt compiler + preview           | BE   | L    |
 | [x]  | T5.4  | Custom functions (secret headers, SSRF-safe executor, test) + built-in tools + dev mock API                 | BE   | L    |
 | [x]  | T5.5  | Knowledge base: uploads / URLs, parsing, chunking, embeddings, ingest job, search                           | BE   | L    |
-| [ ]  | T5.6  | Turn runtime: retrieval, tool loop, guardrail check, fallbacks, billing, tool-call log                      | BE   | L    |
-| [ ]  | T5.7  | Playground API: sessions, messages, outcomes, purge, rate limit                                             | BE   | M    |
-| [ ]  | T5.8  | Superadmin AI prices, `/admin/ai/config`, AI usage in summary                                               | BE   | S    |
-| [ ]  | T5.9  | Seed, sample KB docs, OpenAPI, ADR 0033, OpenAI setup guide, retrieval bench, docs                          | BE   | M    |
+| [x]  | T5.6  | Turn runtime: retrieval, tool loop, guardrail check, fallbacks, billing, tool-call log                      | BE   | L    |
+| [x]  | T5.7  | Playground API: sessions, messages, outcomes, purge, rate limit                                             | BE   | M    |
+| [x]  | T5.8  | Superadmin AI prices, `/admin/ai/config`, AI usage in summary                                               | BE   | S    |
+| [x]  | T5.9  | Seed, sample KB docs, OpenAPI, ADR 0033, OpenAI setup guide, retrieval bench, docs                          | BE   | M    |
 | [ ]  | T5.10 | FE foundation: clients, routes, `LIVE_PHASE = 5`, WS, shared fields                                         | FE   | M    |
 | [ ]  | T5.11 | Agents list, template picker, editor (Basic / Voice & Language / Limits), prompt preview                    | FE   | L    |
 | [ ]  | T5.12 | Functions tab, Knowledge tab, knowledge base pages                                                          | FE   | L    |

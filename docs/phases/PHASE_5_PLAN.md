@@ -413,3 +413,16 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T5.1–T5.5
   - Chunks keep `order` and `title`, not `charStart` (nothing reads it).
   - Real bugs caught before commit: `Date.parse('2026-02-30')` is accepted by V8 → built-in dates now round-trip check; table tests built URLs before the stub port was known (fixed with a `PORT` placeholder); prettier was rewriting `policy.md` fixture → `tests/fixtures/` ignored by prettier and byte-exact in git.
   - `npm audit`: moderate `sprintf-js` via `mammoth` → `argparse` (CLI only, never called); CI audits at `high`.
+- 2026-10-09: **Batch 2 done (T5.6–T5.9).** Deviations / precisions:
+  - Turn idempotency is the playground message's `clientTurnId` (`aiturn:<sessionId>:<clientTurnId>`), not a turn number; replays return the stored reply with no model call.
+  - History sent to the model holds the text turns only (tool calls are summarised in the replies, not replayed as tool messages); the window is 20 turns / 12,000 estimated tokens with a dropped-turns marker.
+  - Knowledge search uses the user's words; the last assistant turn is added only to messages under 4 words (the batch 2 manual check showed the old "always add it" rule diluting real questions below the agent's minimum score — fixed with a regression test).
+  - A turn's charge also covers its query embedding (embedding price); the knowledge "try a question" search stays free.
+  - A charge refused at the last moment keeps the reply and records `billing: 'failed'`; the next turn is gated by the wallet check. A `stop` cap answers 422 and withdraws the user turn.
+  - `end_call` replaces the reply with the agent's closing line and ends the session.
+  - Real bug fixed during T5.8: the audit sanitizer dropped every key containing "token", so rate-card diffs lost the AI price changes — only real tokens are dropped now.
+  - Demo contacts are 25 (Phase 3 seed), not 100; mock payment records: even = paid, odd = unpaid, every fifth partial.
+  - OpenAI live run: **pending input** — `OPENAI_API_KEY` is empty locally; the checklist is in `docs/setup/openai.md`.
+  - Retrieval bench (6,000 chunks): warm p50 9.2 ms · p95 10.1 ms · p99 11.5 ms, cold 586 ms, cache 40 MB.
+  - A Phase 3 test (`retention.test.ts`, worker dispatch) mixed a fixed clock with the real one and turned red on 2026-10-10 — made clock-independent (separate commit).
+  - Verification note: the machine ran out of RAM during the checkpoint (16 GB shared with other projects' Docker / test runs → Mongo hook timeouts); the full suite was green with `--maxWorkers=2` (no timeouts raised).
