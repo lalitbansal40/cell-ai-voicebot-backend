@@ -45,6 +45,10 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `AGENT_INACTIVE`              | 409  | The AI agent is turned off                                                                                                                | 5     |
 | `FUNCTION_URL_BLOCKED`        | 422  | An agent function / knowledge URL points at a blocked address (private, metadata, wrong scheme or port)                                   | 5     |
 | `KNOWLEDGE_LIMIT_REACHED`     | 422  | Knowledge base limit reached (knowledge bases per account, sources per base or chunks per base)                                           | 5     |
+| `FLOW_REVISION_CONFLICT`      | 409  | The flow draft was saved by someone else since it was loaded — `details` carry the current `revision`, `updatedBy`, `updatedAt`           | 6     |
+| `RESOURCE_IN_USE`             | 409  | The item is used elsewhere (agent / audio used by flows, flow used by campaigns) — `details[]` list the users (`id`, `message` = name)    | 6     |
+
+`FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 
 AI provider failures (OpenAI) reuse `PROVIDER_UNAVAILABLE` (timeout, 429 / 5xx after retries, network) and `PROVIDER_ERROR` (rejected request) — Phase 5.
 

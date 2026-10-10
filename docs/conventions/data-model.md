@@ -69,6 +69,10 @@ erDiagram
     ACCOUNT ||--o{ FLOW : builds
     FLOW ||--o{ FLOW_VERSION : versions
     FLOW_VERSION }o--o{ AI_AGENT : "ai_agent nodes use"
+    FLOW ||--o{ FLOW_RUN : "simulator / call runs"
+    FLOW ||--o{ FLOW_NODE_STATS : "node counters"
+    ACCOUNT ||--o{ FLOW_AUDIO : "audio prompts"
+    FLOW_VERSION }o--o{ FLOW_AUDIO : "play_audio nodes use"
     ACCOUNT ||--o| TELEPHONY_CONFIG : "SIP settings"
     ACCOUNT ||--o{ OUTBOUND_WEBHOOK : subscribes
     OUTBOUND_WEBHOOK ||--o{ WEBHOOK_DELIVERY : delivers
@@ -502,29 +506,49 @@ Indexes: `{ accountId, kbId, createdAt: -1 }`. ≤ 25 per knowledge base.
 
 #### Flow (`flows`) — Phase 6
 
-| Field              | Type                             | R   | Notes            |
-| ------------------ | -------------------------------- | --- | ---------------- |
-| name, description  | string                           | ✓ / |                  |
-| status             | `draft \| published \| archived` | ✓   |                  |
-| draftVersionId     | ObjectId → flowVersions          |     | Editable version |
-| publishedVersionId | ObjectId → flowVersions          |     | Live version     |
-| deletedAt          | Date \| null                     |     |                  |
+| Field                                 | Type                                        | R   | Notes                                                                                         |
+| ------------------------------------- | ------------------------------------------- | --- | --------------------------------------------------------------------------------------------- |
+| name, description                     | string                                      | ✓ / | name 1–80, unique per account (case-insensitive collation, live flows only)                   |
+| status                                | `draft \| published \| archived`            | ✓   |                                                                                               |
+| draft                                 | FlowGraph (`schemaVersion: 1`)              | ✓   | **Embedded editable draft** (nodes, edges, variables, settings, viewport) — `minimize: false` |
+| revision                              | number                                      | ✓   | +1 per draft save / restore; a save with an old revision → 409 `FLOW_REVISION_CONFLICT`       |
+| draftChecksum                         | string                                      |     | sha256 of the canonical draft (viewport excluded)                                             |
+| publishedVersionId / publishedVersion | ObjectId → flowVersions / number            |     | Latest published version                                                                      |
+| hasUnpublishedChanges                 | boolean                                     | ✓   | Draft checksum ≠ latest version checksum                                                      |
+| templateKey                           | string                                      |     | Created from a template                                                                       |
+| stats                                 | `{ nodes, agents[], audios[], triggers[] }` | ✓   | Recomputed on every save — drives "agent / audio in use" checks and list columns              |
+| createdBy, updatedBy                  | ObjectId → users                            |     |                                                                                               |
+| deletedAt                             | Date \| null                                |     | Soft delete; purged after 30 days unless in use                                               |
 
-Indexes: `{ accountId: 1, deletedAt: 1, updatedAt: -1 }`.
+**Deviation (Phase 6):** the draft is embedded on the flow instead of a `draftVersionId` row — one document, one write, optimistic `revision`. Indexes: unique `{ accountId, name }` (partial live, collation), `{ accountId, deletedAt, updatedAt: -1 }`, `{ accountId, status }`, `{ accountId, stats.agents }`, `{ accountId, stats.audios }`.
 
 #### FlowVersion (`flowVersions`) — Phase 6 — **published = immutable**
 
-| Field           | Type             | R   | Notes                            |
-| --------------- | ---------------- | --- | -------------------------------- |
-| flowId          | ObjectId → flows | ✓   |                                  |
-| version         | number           | ✓   | Unique per flow                  |
-| nodes           | Node[]           | ✓   | `{ id, type, position, config }` |
-| edges           | Edge[]           | ✓   | `{ id, from, to, condition? }`   |
-| variablesSchema | object           |     | Variables the flow expects       |
-| createdBy       | ObjectId → users | ✓   |                                  |
-| publishedAt     | Date             |     | Set once                         |
+| Field       | Type             | R   | Notes                                           |
+| ----------- | ---------------- | --- | ----------------------------------------------- |
+| flowId      | ObjectId → flows | ✓   |                                                 |
+| version     | number           | ✓   | 1, 2, … unique per flow                         |
+| graph       | FlowGraph        | ✓   | Snapshot of the draft at publish                |
+| checksum    | string           | ✓   | sha256 of the canonical graph                   |
+| notes       | string           |     | ≤ 200                                           |
+| agentIds    | ObjectId[]       | ✓   | Agents used by `ai_agent` nodes (in-use checks) |
+| audioIds    | ObjectId[]       | ✓   | Audio used by the graph (in-use checks)         |
+| publishedBy | ObjectId → users |     |                                                 |
+| publishedAt | Date             | ✓   |                                                 |
 
-Indexes: `{ flowId: 1, version: 1 }` unique. Size: a flow graph is bounded (hundreds of nodes max) → embedded arrays are fine.
+Model hooks refuse every update / replace; there is no update route. Indexes: `{ flowId, version }` unique, `{ accountId, agentIds }`, `{ accountId, audioIds }`. Size: bounded graph (≤ 150 nodes, ≤ 512 KB).
+
+#### FlowRun (`flowRuns`) — Phase 6
+
+`{ flowId, mode: simulator | call, versionRef: 'draft' | number, graph (draft snapshot, hidden), graphChecksum, contactId?, manualVariables?, testPhone? (select: false, never returned), status: running | waiting | ended, state (engine JSON), transcript[], trace[], inputs[{ inputId, kind, at, seqFrom, seqTo }], costMicros, endReason, createdBy, endedAt, expiresAt }` — indexes `{ accountId, flowId, createdAt: -1 }`, `{ accountId, createdBy, createdAt: -1 }`, TTL `{ expiresAt }` (simulator runs: 30 days). PII: transcript texts, variables, test phone.
+
+#### FlowNodeStats (`flowNodeStats`) — Phase 6
+
+`{ flowId, version (0 = draft), nodeId, day (account timezone), mode, entered, errorCount, totalMs, exits: { handle → n } }` — unique `{ flowId, version, nodeId, day, mode }`; atomic `$inc`; deleted with the flow.
+
+#### FlowAudio (`flowAudio`) — Phase 6
+
+`{ name (unique per account, case-insensitive), fileKey (accounts/<id>/flow-audio/<id>.<ext>, hidden), format: wav | mp3, bytes (≤ 5 MB), durationMs (≤ 120 s), sampleRate, channels, uploadedBy, deletedAt }` — ≤ 200 per account; delete refused while a draft or published version uses it.
 
 ### 2.5 Campaigns & calls
 

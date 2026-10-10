@@ -76,6 +76,8 @@ JWTs are **never** put in a WebSocket URL (URLs end up in proxy/server logs).
 | `team.changed`            | Members or invitations changed — the Team page refetches                                                                                 | `{}`                                                                                                              | account           |
 | `kb.source.updated`       | A knowledge source changed status / progress while it is parsed and embedded (≤ 1 / s per source)                                        | `{ kbId, sourceId, status, progress, error? }`                                                                    | account           |
 | `agent.updated`           | An AI agent was saved / turned on or off — open editors show "changed elsewhere"                                                         | `{ agentId }`                                                                                                     | account           |
+| `flow.updated`            | A call flow draft was saved / restored or renamed — open builders show "updated elsewhere"                                               | `{ flowId, revision, by }`                                                                                        | account           |
+| `flow.published`          | A call flow version was published                                                                                                        | `{ flowId, version }`                                                                                             | account           |
 
 New events must be added to this table in the same PR that emits them.
 

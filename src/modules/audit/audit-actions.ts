@@ -60,6 +60,17 @@ export const AUDIT_ACTIONS = [
   'kb.updated',
   'kb.deleted',
   'kb.source_changed',
+  'flow.created',
+  'flow.updated',
+  'flow.published',
+  'flow.restored',
+  'flow.duplicated',
+  'flow.imported',
+  'flow.exported',
+  'flow.archived',
+  'flow.unarchived',
+  'flow.deleted',
+  'flow_audio.changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -13,6 +13,20 @@ export const ErrorDetailSchema = registry.register(
       .string()
       .optional()
       .openapi({ description: 'On CONFLICT_DUPLICATE: id of the record that already exists' }),
+    id: z
+      .string()
+      .optional()
+      .openapi({ description: 'On RESOURCE_IN_USE: id of the item that uses it (e.g. a flow)' }),
+    issue: z
+      .string()
+      .optional()
+      .openapi({ description: 'On FLOW_INVALID: validation issue code (e.g. exit_required)' }),
+    severity: z
+      .enum(['error', 'warning'])
+      .optional()
+      .openapi({ description: 'On FLOW_INVALID: errors block publishing, warnings do not' }),
+    nodeId: z.string().optional().openapi({ description: 'On FLOW_INVALID: the node' }),
+    edgeId: z.string().optional().openapi({ description: 'On FLOW_INVALID: the edge' }),
   }),
 );
 

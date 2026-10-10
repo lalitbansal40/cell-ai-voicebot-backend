@@ -8,6 +8,15 @@ export interface ErrorDetail {
   existingId?: string;
   /** On `WALLET_INSUFFICIENT_BALANCE`: what the wallet can still spend (micros). */
   availableMicros?: number;
+  /** On `RESOURCE_IN_USE`: id of the item that uses the resource (e.g. a flow). */
+  id?: string;
+  /** On `FLOW_INVALID`: validation issue code (`exit_required`, …). */
+  issue?: string;
+  /** On `FLOW_INVALID`: `error` blocks publishing, `warning` does not. */
+  severity?: 'error' | 'warning';
+  /** On `FLOW_INVALID`: the node / edge the issue is about. */
+  nodeId?: string;
+  edgeId?: string;
 }
 
 /**
@@ -54,7 +63,11 @@ export class NotFoundError extends AppError {
 
 export class ConflictError extends AppError {
   constructor(
-    code: 'CONFLICT_DUPLICATE' | 'CONFLICT_INVALID_STATE' = 'CONFLICT_DUPLICATE',
+    code:
+      | 'CONFLICT_DUPLICATE'
+      | 'CONFLICT_INVALID_STATE'
+      | 'FLOW_REVISION_CONFLICT'
+      | 'RESOURCE_IN_USE' = 'CONFLICT_DUPLICATE',
     message?: string,
     details?: ErrorDetail[],
   ) {

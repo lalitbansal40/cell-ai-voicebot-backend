@@ -67,6 +67,11 @@ export const ERROR_CODES = {
   AGENT_INACTIVE: { status: 409, message: 'This agent is turned off.' },
   FUNCTION_URL_BLOCKED: { status: 422, message: 'This address is not allowed.' },
   KNOWLEDGE_LIMIT_REACHED: { status: 422, message: 'The knowledge base limit is reached.' },
+  FLOW_REVISION_CONFLICT: {
+    status: 409,
+    message: 'This flow was changed by someone else. Reload to continue.',
+  },
+  RESOURCE_IN_USE: { status: 409, message: 'This item is in use.' },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

@@ -30,7 +30,22 @@
           "existingId": {
             "type": "string",
             "description": "On CONFLICT_DUPLICATE: id of the record that already exists"
-          }
+          },
+          "id": {
+            "type": "string",
+            "description": "On RESOURCE_IN_USE: id of the item that uses it (e.g. a flow)"
+          },
+          "issue": {
+            "type": "string",
+            "description": "On FLOW_INVALID: validation issue code (e.g. exit_required)"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning"],
+            "description": "On FLOW_INVALID: errors block publishing, warnings do not"
+          },
+          "nodeId": { "type": "string", "description": "On FLOW_INVALID: the node" },
+          "edgeId": { "type": "string", "description": "On FLOW_INVALID: the edge" }
         },
         "required": ["path", "message"]
       },
@@ -308,7 +323,18 @@
               "kb.created",
               "kb.updated",
               "kb.deleted",
-              "kb.source_changed"
+              "kb.source_changed",
+              "flow.created",
+              "flow.updated",
+              "flow.published",
+              "flow.restored",
+              "flow.duplicated",
+              "flow.imported",
+              "flow.exported",
+              "flow.archived",
+              "flow.unarchived",
+              "flow.deleted",
+              "flow_audio.changed"
             ]
           },
           "actor": {
@@ -2003,7 +2029,10 @@
               "outputTokens": { "type": "number" },
               "embeddingTokens": { "type": "number" },
               "model": { "type": "string" },
-              "kind": { "type": "string", "enum": ["playground", "kb_ingest", "call"] }
+              "kind": {
+                "type": "string",
+                "enum": ["playground", "kb_ingest", "call", "flow_simulator", "flow_intent"]
+              }
             }
           },
           "ref": {

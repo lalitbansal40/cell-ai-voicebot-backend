@@ -52,7 +52,13 @@ export interface LedgerBreakdown {
   kind?: LedgerUsageKind;
 }
 
-export const LEDGER_USAGE_KINDS = ['playground', 'kb_ingest', 'call'] as const;
+export const LEDGER_USAGE_KINDS = [
+  'playground',
+  'kb_ingest',
+  'call',
+  'flow_simulator',
+  'flow_intent',
+] as const;
 export type LedgerUsageKind = (typeof LEDGER_USAGE_KINDS)[number];
 
 export interface LedgerEntryDoc {
