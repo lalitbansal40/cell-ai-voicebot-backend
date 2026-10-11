@@ -1,8 +1,11 @@
 import { Router } from 'express';
+import type { Store } from 'express-rate-limit';
 
+import { FLOW_LIMITS } from '../../config/limits';
 import { flowCatalog } from '../../core/engine/catalog';
 import { created, noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
+import { createRateLimiter } from '../../shared/middlewares/rate-limit';
 import {
   blockWhenImpersonating,
   requirePermission,
@@ -33,13 +36,27 @@ import {
   setArchived,
   updateFlow,
   validateDraft,
-  type FlowsDeps,
 } from './flows.service';
 import { exportFlow, importFlow } from './import-export';
+import {
+  ListSimulationsQuery,
+  RunParams,
+  SimulationInputBody,
+  StartSimulationBody,
+  StatsQuery,
+} from './simulator.schema';
+import {
+  flowStats,
+  getSimulation,
+  listSimulations,
+  sendInput,
+  startSimulation,
+  type SimulatorDeps,
+} from './simulator.service';
 import { listFlowTemplates } from './templates';
 import { getVersion, listVersions, publishFlow, restoreVersion } from './versions.service';
 
-export type FlowsRouterDeps = FlowsDeps;
+export type FlowsRouterDeps = SimulatorDeps & { simulatorStore?: Store };
 
 /** `/api/v1/flows` — call flows: drafts, validation, versions, templates, import / export. */
 export const createFlowsRouter = (deps: FlowsRouterDeps): Router => {
@@ -48,6 +65,12 @@ export const createFlowsRouter = (deps: FlowsRouterDeps): Router => {
   const read = requirePermission('flows.read');
   const write = [requirePermission('flows.write'), blockWhenImpersonating()];
   const publish = [requirePermission('flows.publish'), blockWhenImpersonating()];
+  const simulatorLimiter = createRateLimiter({
+    windowMs: 60_000,
+    limit: FLOW_LIMITS.simulatorInputsPerMinute,
+    keyGenerator: (req) => `flowsim:${req.auth?.userId ?? 'anonymous'}`,
+    ...(deps.simulatorStore ? { store: deps.simulatorStore } : {}),
+  });
 
   router.get(
     '/',
@@ -177,6 +200,52 @@ export const createFlowsRouter = (deps: FlowsRouterDeps): Router => {
     ...handle({ params: FlowParams }, async ({ params, req, res }) => {
       ok(res, await flowVariables(req, params.id));
     }),
+  );
+  router.get(
+    '/:id/stats',
+    read,
+    ...handle({ params: FlowParams, query: StatsQuery }, async ({ params, query, req, res }) => {
+      ok(res, await flowStats(req, params.id, query));
+    }),
+  );
+  router.post(
+    '/:id/simulations',
+    ...write,
+    simulatorLimiter,
+    ...handle(
+      { params: FlowParams, body: StartSimulationBody },
+      async ({ params, body, req, res }) => {
+        created(res, await startSimulation(req, params.id, body, deps));
+      },
+    ),
+  );
+  router.get(
+    '/:id/simulations',
+    read,
+    ...handle(
+      { params: FlowParams, query: ListSimulationsQuery },
+      async ({ params, query, req, res }) => {
+        ok(res, await listSimulations(req, params.id, query));
+      },
+    ),
+  );
+  router.get(
+    '/:id/simulations/:runId',
+    read,
+    ...handle({ params: RunParams }, async ({ params, req, res }) => {
+      ok(res, await getSimulation(req, params.id, params.runId));
+    }),
+  );
+  router.post(
+    '/:id/simulations/:runId/inputs',
+    ...write,
+    simulatorLimiter,
+    ...handle(
+      { params: RunParams, body: SimulationInputBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await sendInput(req, params.id, params.runId, body, deps));
+      },
+    ),
   );
   return router;
 };

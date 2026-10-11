@@ -52,7 +52,7 @@ export interface FlowsDeps {
   /** Secret box key (sealed API request headers). */
   secretKey: Buffer;
   /** Test hook: extra allowed ports for API request nodes. */
-  extraPorts?: number[];
+  extraPorts?: readonly number[];
 }
 
 const iso = (d: Date) => d.toISOString();

@@ -23,6 +23,7 @@ import './modules/segments/segments.schema';
 import './modules/custom-fields/custom-fields.schema';
 import './modules/flow-audio/flow-audio.schema';
 import './modules/flows/flows.schema';
+import './modules/flows/simulator.schema';
 import './modules/health/health.schema';
 import './modules/knowledge/knowledge.schema';
 import './modules/mock-apis/mock.schema';

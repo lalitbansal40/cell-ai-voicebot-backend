@@ -174,7 +174,12 @@ export const createApiRouter = ({
     createFlowsRouter({
       env,
       secretKey: secretBoxKey(env),
-      ...(ai.http?.extraPorts ? { extraPorts: [...ai.http.extraPorts] } : {}),
+      provider: ai.provider,
+      ...(ai.http?.extraPorts ? { extraPorts: ai.http.extraPorts } : {}),
+      ...(ai.http ? { http: { ...ai.http } } : {}),
+      ...(flows.rateLimitStores?.simulator
+        ? { simulatorStore: flows.rateLimitStores.simulator }
+        : {}),
     }),
   );
   router.use(

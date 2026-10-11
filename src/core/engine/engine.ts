@@ -60,6 +60,23 @@ const AI_OUTCOME_EXITS = new Set(
 );
 const IN_PHONE = /^\+91[6-9]\d{9}$/;
 
+/** Display values of a run (contact text + typed flow / system values rendered for reading). */
+export const runValues = (
+  graph: Pick<FlowGraph, 'variables' | 'settings'>,
+  state: Pick<FlowRunState, 'contact' | 'variables'>,
+): Record<string, string> => {
+  const types = new Map<string, ValueType>(graph.variables.map((v) => [v.name, v.type]));
+  const out: Record<string, string> = { ...state.contact };
+  for (const [name, value] of Object.entries(state.variables)) {
+    out[name] = displayValue(
+      types.get(name) ?? SYSTEM_TYPES.get(name) ?? 'text',
+      value,
+      graph.settings.language,
+    );
+  }
+  return out;
+};
+
 const timeIn = (date: Date, timeZone: string) =>
   new Intl.DateTimeFormat('en-GB', {
     timeZone,
@@ -142,12 +159,7 @@ class Run implements NodeRuntime {
   // ── NodeRuntime ───────────────────────────────────────────────────────────
 
   values(): Record<string, string> {
-    const lang = this.settings.language;
-    const out: Record<string, string> = { ...this.state.contact };
-    for (const [name, value] of Object.entries(this.state.variables)) {
-      out[name] = displayValue(this.varType(name), value, lang);
-    }
-    return out;
+    return runValues(this.graph, this.state);
   }
 
   render(text: string, nodeId: string): string {
@@ -402,10 +414,13 @@ export const advance = async (
   effects: FlowEffects,
   ctx: EngineContext,
   contact: Record<string, string> = {},
+  /** `start` only: flow variable values to begin with (simulator manual values). */
+  variables: Record<string, RunValue> = {},
 ): Promise<AdvanceResult & { error?: string }> => {
   let state: FlowRunState;
   if (input.kind === 'start') {
     state = initialState(graph, ctx, input.trigger, contact);
+    Object.assign(state.variables, variables);
   } else {
     if (!previous) throw new RunEndedError();
     state = structuredClone(previous);

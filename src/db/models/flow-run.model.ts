@@ -54,6 +54,8 @@ export interface FlowRunDoc {
   /** Only `{{contact.phone}}` in API templates sees it — never returned. */
   testPhone: string | null;
   status: RunStatus;
+  /** What the run waits for (engine `Waiting`), `null` when running / ended. */
+  waiting: Record<string, unknown> | null;
   /** `FlowRunState` (engine JSON). */
   state: Record<string, unknown>;
   transcript: Record<string, unknown>[];
@@ -99,6 +101,7 @@ const schema = new Schema<FlowRunDoc>(
     manualVariables: { type: Schema.Types.Mixed, default: null },
     testPhone: { type: String, default: null, select: false },
     status: { type: String, enum: RUN_STATUSES, default: 'running' },
+    waiting: { type: Schema.Types.Mixed, default: null },
     state: { type: Schema.Types.Mixed, default: () => ({}) },
     transcript: { type: Schema.Types.Mixed, default: () => [] },
     trace: { type: Schema.Types.Mixed, default: () => [] },
