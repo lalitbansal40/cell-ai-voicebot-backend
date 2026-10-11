@@ -27,6 +27,7 @@ import { getLogger } from '../src/shared/logger';
 import { SEED_KB_NAME, seedAi } from './seed-ai';
 import { seedBilling } from './seed-billing';
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
+import { SEED_FLOW_NAMES, seedFlows } from './seed-flows';
 
 const ROLES: SystemRoleKey[] = ['owner', 'admin', 'manager', 'agent', 'viewer'];
 
@@ -87,6 +88,15 @@ const main = async (): Promise<void> => {
     });
     console.info(
       `AI: ${ai.agents} new agents ("Recovery Bot (Hinglish)", "Payment Reminder"), knowledge base "${SEED_KB_NAME}" ${ai.ready}/3 sources ready (${ai.sources} new), ${ai.mockPayments} new mock payment records`,
+    );
+
+    const flows = await seedFlows(account._id, {
+      env,
+      ownerId: owner?._id ?? account._id,
+      storage: createStorage(env, logger),
+    });
+    console.info(
+      `Flows: ${flows.flows} new ("${SEED_FLOW_NAMES.loan}" published v1, "${SEED_FLOW_NAMES.feedback}" draft), audio "Welcome tone" ${flows.audio ? 'added' : 'kept'}${flows.addedVariables.length ? `, flow variables for missing fields: ${flows.addedVariables.join(', ')}` : ''}`,
     );
 
     console.info(

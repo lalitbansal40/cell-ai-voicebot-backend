@@ -419,11 +419,11 @@ export const getFlow = async (req: Request, id: string, deps: FlowsDeps) =>
   toFlowView(await findFlow(tenantFilter(req).accountId, id), deps);
 
 /** Template graph with the chosen agents and flow variables for missing contact fields. */
-const templateGraph = async (
+export const templateGraph = async (
   accountId: Types.ObjectId,
   key: string,
   agentIds: Record<string, string>,
-  deps: FlowsDeps,
+  deps: { env: Pick<Env, 'APP_URL' | 'MOCK_APIS_ENABLED'> },
 ) => {
   const template = findFlowTemplate(key);
   if (!template) throw new ValidationError([{ path: 'templateKey', message: 'Unknown template' }]);

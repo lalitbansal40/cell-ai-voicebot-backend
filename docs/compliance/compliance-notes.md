@@ -48,6 +48,8 @@ Confidence: **high** = read on an official source · **medium** = official sourc
 
 **Product impact:** DPA template with the client, sub-processor list (OpenAI, AWS, telephony provider), retention jobs + delete-on-request, PII encryption & log masking, breach runbook, audit logs, data export per account.
 
+**Call flows (Phase 6):** the four flow templates open with the AI disclosure ("…ki taraf se ek AI assistant bol rahi hoon"), use polite Hinglish with no threats or shaming, offer a callback / transfer path, and end politely on silence or wrong keys (`callback_requested`). The calling-hours block (08:00–19:00) is enforced by campaigns (Phase 8), not inside a flow. Flow templates are starting points — the client must review the script (open question in PHASE_6_PLAN §7).
+
 ## 4. Call recording
 
 - No single Indian statute found that requires consent for a participant to record a call; **best practice** (and the 2026 RBI draft) is to **inform** the borrower at the start: e.g. _"Yeh call quality aur record ke liye record ki ja rahi hai."_ — confidence **low**; confirm with legal.

@@ -37,3 +37,4 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0031 | [Contact import pipeline](0031-contact-import-pipeline.md)                          | accepted |
 | 0032 | [Wallet, billing engine & payments](0032-wallet-billing-payments.md)                | accepted |
 | 0033 | [AI agents, knowledge retrieval & tool security](0033-ai-agents-knowledge-tools.md) | accepted |
+| 0034 | [Call flow engine, versions and validation](0034-call-flow-engine.md)               | accepted |

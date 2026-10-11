@@ -134,6 +134,16 @@ AI agents that talk in Hinglish / Hindi / English, call the client's APIs safely
 - **Superadmin**: AI prices on rate cards, `/admin/ai/config`, AI counts in the month summary.
 - **Dev**: `npm run db:seed` adds "Recovery Bot (Hinglish)" (active, knowledge linked), "Payment Reminder" (inactive), the "Demo Finance FAQ" knowledge base (3 samples from `docs/samples/knowledge/`) and mock payment answers for the demo contacts; `npm run samples:knowledge`, `npm run fixtures:knowledge`; `npm run bench:retrieval [chunksPerKb] [searches]` (last run: 6,000 chunks, warm p50 9.2 ms · p95 10.1 ms, cold 586 ms, cache 40 MB).
 
+## Call flows (Phase 6)
+
+Visual call flows (IVR menu + AI agent + API checks + actions) with drafts, immutable published versions and a text simulator — [ADR 0034](docs/adr/0034-call-flow-engine.md).
+
+- **Flows** (`/api/v1/flows`, `flows.read` / `flows.write` / `flows.publish`; writes blocked while impersonating): 15 node types (start, speak, play audio, keypad menu / digits, listen + intents, AI agent, API request, condition, set variable, set disposition, transfer, SMS, WhatsApp, wait, hang up), draft saves with a `revision` (409 on a stale save), `validate` (23 issue codes), publish → v1, v2 … (immutable), restore, duplicate, archive, delete (30-day purge), export / import JSON (secrets never exported), 4 templates (Loan recovery, Payment reminder, Feedback survey, Inbound support), catalog, variables.
+- **Engine** (`src/core/engine/`): `advance()` runs a flow from JSON state with one input and returns host actions; loop / visit / duration guards, error exits + a flow error handler, trace, node stats. The simulator uses it now, the Phase 7 voice runtime later.
+- **Simulator** (`/api/v1/flows/:id/simulations`): draft / published / version, a contact or manual values + test phone, inputs (keys, words, silence, transfer result, hang up) idempotent by `clientInputId`, transcript + trace, AI turns billed (`flow_simulator`), node stats (`/flows/:id/stats`).
+- **Audio** (`/api/v1/flow-audio`): WAV / MP3 prompts (5 MB, 120 s), signed playback URLs.
+- **Dev**: `npm run db:seed` adds "Loan recovery" (published v1, AI node → "Recovery Bot (Hinglish)", greeting uses `emi_amount`), "Customer feedback" (draft) and the "Welcome tone" audio; dev mock APIs `/mock/loan-balance`, `/mock/http-status/:code`; `npm run fixtures:audio`; `npm run bench:flow [calls]` (last run: 149 nodes, `advance` p50 77 µs · p95 96 µs · p99 163 µs, validate 2.3 ms).
+
 ## Database (MongoDB)
 
 - Connection: `src/db/mongo.ts` (Mongoose 9, `strictQuery`, `autoIndex` off in production, credentials never logged). Indexes are synced at startup in development/test; in production run `npm run db:sync-indexes` as a deploy step.
