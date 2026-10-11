@@ -369,6 +369,7 @@ export const AgentRowSchema = registry.register(
     voice: z.enum(AGENT_VOICES),
     languageMode: z.enum(LANGUAGE_MODES),
     language: z.enum(AGENT_LANGUAGES),
+    templateKey: z.string().nullable(),
     knowledgeBases: z.number(),
     functions: z.number(),
     monthSpendMicros: z.number(),

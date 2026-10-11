@@ -135,6 +135,7 @@ describe('agents CRUD', () => {
     expect(res.body.data[0]).toMatchObject({
       name: 'Zeta searchable',
       isActive: true,
+      templateKey: null,
       knowledgeBases: 0,
       functions: 0,
       monthSpendMicros: 12_345,

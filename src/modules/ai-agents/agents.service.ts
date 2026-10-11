@@ -252,6 +252,7 @@ export const listAgents = async (req: Request, query: z.infer<typeof ListAgentsQ
       voice: a.voice,
       languageMode: a.languageMode,
       language: a.language,
+      templateKey: a.templateKey ?? null,
       knowledgeBases: a.knowledge.knowledgeBaseIds.length,
       functions: a.functions.length,
       monthSpendMicros: spent.get(a._id.toString()) ?? 0,
