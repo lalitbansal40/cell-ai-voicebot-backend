@@ -368,35 +368,35 @@ Batches: **Batch 1 = T6.1–T6.5** (`[P6-B1-DONE]`), **Batch 2 = T6.6–T6.9** (
 
 ### T6.6 — Engine interpreter
 
-- [ ] `core/flow/engine.ts` (§1f): `advance`, input / output types, node handlers in **one file per node type** under `core/flow/nodes/` (small, no 3,000-line switch — AutoChatix gap), shared gather retry helper.
-- [ ] Nodes: start, speak, play_audio, gather_dtmf (menu + digits + repeat key), gather_speech (save + keyword intents), condition_router, set_variable, set_disposition, transfer_to_agent, send_sms / send_whatsapp (queued), wait, hangup; `ai_agent` / `api_request` through effects (T6.7) with stub effects in tests.
-- [ ] Loop guard (steps / visits / autoSteps), max duration, error routing (node `error` → flow handler → `onError`), engine-error catch, trace builder (redaction mode `call | simulator`), stats recorder interface (Mongo `$inc` implementation + in-memory for tests).
-- [ ] Tests (table-driven, no Mongo): every node × every exit; gather retries (timeout, invalid, repeat key, retries exhausted); digits mode with finish key; intents order; router rules order + else; coercion error → error exit; loop guard (silent loop built bypassing the validator), max duration, customer hangup mid-gather, determinism (same inputs twice → identical outputs), state JSON round trip between every step (Phase 7 contract), seeded random-graph fuzz (no exceptions, always ends or waits).
+- [x] `core/flow/engine.ts` (§1f): `advance`, input / output types, node handlers in **one file per node type** under `core/flow/nodes/` (small, no 3,000-line switch — AutoChatix gap), shared gather retry helper.
+- [x] Nodes: start, speak, play_audio, gather_dtmf (menu + digits + repeat key), gather_speech (save + keyword intents), condition_router, set_variable, set_disposition, transfer_to_agent, send_sms / send_whatsapp (queued), wait, hangup; `ai_agent` / `api_request` through effects (T6.7) with stub effects in tests.
+- [x] Loop guard (steps / visits / autoSteps), max duration, error routing (node `error` → flow handler → `onError`), engine-error catch, trace builder (redaction mode `call | simulator`), stats recorder interface (Mongo `$inc` implementation + in-memory for tests).
+- [x] Tests (table-driven, no Mongo): every node × every exit; gather retries (timeout, invalid, repeat key, retries exhausted); digits mode with finish key; intents order; router rules order + else; coercion error → error exit; loop guard (silent loop built bypassing the validator), max duration, customer hangup mid-gather, determinism (same inputs twice → identical outputs), state JSON round trip between every step (Phase 7 contract), seeded random-graph fuzz (no exceptions, always ends or waits).
 
 ### T6.7 — Effects: API request, AI agent, AI intents, billing
 
-- [ ] `api_request` effect: render with the flow resolver, secrets opened server-side, Phase 5 `executeFunction`-level executor (SSRF guard, pinned DNS, redirects, size / time caps), `saveResponse` paths → typed vars, `last_api_status`, exits success / failure / error; trace has method, host, status, duration — never headers, body or full URL query values.
-- [ ] `ai_agent` effect: `compileAgent` + new `extraInstructions` option (snapshot tests), flow `TurnSession` adapter, `runAgentTurn` with `source: 'flow'`, simulated built-ins, exit mapping (§1g) + outcome → state / system vars, `maxTurns`, no-input counting, opening line.
-- [ ] AI intent classifier (`matchMode: ai`): prompt with data block, JSON parse with schema, fallback to keywords, fake-provider rule, billing (§1k).
-- [ ] Billing: ledger kinds `flow_simulator` / `flow_intent`, idempotency keys per input, wallet-empty / cap → fallback + `error` exit, no charge on provider failure.
-- [ ] Tests: API success → vars saved; non-2xx → failure; timeout / blocked (169.254.169.254) / private host in prod mode → error; secret header never in trace / logs; AI path with the fake provider + mock payment API ("maine pay kar diya" → `paid` exit; "kal tak de dunga" → `promise_to_pay` with tomorrow IST; "insaan se baat" → `transfer`; "bye" → `resolved`); max turns → `no_response`; agent off → error exit; wallet empty → no model call; retry same `clientInputId` → one charge; intent AI + fallback.
+- [x] `api_request` effect: render with the flow resolver, secrets opened server-side, Phase 5 `executeFunction`-level executor (SSRF guard, pinned DNS, redirects, size / time caps), `saveResponse` paths → typed vars, `last_api_status`, exits success / failure / error; trace has method, host, status, duration — never headers, body or full URL query values.
+- [x] `ai_agent` effect: `compileAgent` + new `extraInstructions` option (snapshot tests), flow `TurnSession` adapter, `runAgentTurn` with `source: 'flow'`, simulated built-ins, exit mapping (§1g) + outcome → state / system vars, `maxTurns`, no-input counting, opening line.
+- [x] AI intent classifier (`matchMode: ai`): prompt with data block, JSON parse with schema, fallback to keywords, fake-provider rule, billing (§1k).
+- [x] Billing: ledger kinds `flow_simulator` / `flow_intent`, idempotency keys per input, wallet-empty / cap → fallback + `error` exit, no charge on provider failure.
+- [x] Tests: API success → vars saved; non-2xx → failure; timeout / blocked (169.254.169.254) / private host in prod mode → error; secret header never in trace / logs; AI path with the fake provider + mock payment API ("maine pay kar diya" → `paid` exit; "kal tak de dunga" → `promise_to_pay` with tomorrow IST; "insaan se baat" → `transfer`; "bye" → `resolved`); max turns → `no_response`; agent off → error exit; wallet empty → no model call; retry same `clientInputId` → one charge; intent AI + fallback.
 
 ### T6.8 — Simulator API
 
-- [ ] `modules/flows/simulator.*`: start (version resolution, graph snapshot for draft, variables from contact (Phase 5 `contactVariables` style, formatted) or manual (validated against the catalogue), test phone), inputs (kind vs `waitingFor` check, idempotent `clientInputId` with stored results, ≤ 200 inputs), get / list, transcript builder, cost sum.
-- [ ] Stats endpoint (`/flows/:id/stats`) aggregation by version / mode / range; maintenance cron `flowRuns.cleanup` safety net (TTL index is primary).
-- [ ] Rate limit 60 inputs / min / user; impersonation / suspended refused; runs visible to creator, managers see all.
-- [ ] Tests: **"Done when" scenario at API level** on the Loan recovery template — paid contact press 1 → thanks → ended `paid`; unpaid press 1 → AI path; press 2 → SMS queued + `promise_to_pay`; press 3 → AI "kal tak de dunga" → promise confirm → ended; silence ×3 → `no_input` branch → `callback_requested`; invalid key ×3 → invalid branch; draft edit during a run doesn't affect it; input kind mismatch 422; ended run 409; isolation; viewer read-only.
+- [x] `modules/flows/simulator.*`: start (version resolution, graph snapshot for draft, variables from contact (Phase 5 `contactVariables` style, formatted) or manual (validated against the catalogue), test phone), inputs (kind vs `waitingFor` check, idempotent `clientInputId` with stored results, ≤ 200 inputs), get / list, transcript builder, cost sum.
+- [x] Stats endpoint (`/flows/:id/stats`) aggregation by version / mode / range; maintenance cron `flowRuns.cleanup` safety net (TTL index is primary).
+- [x] Rate limit 60 inputs / min / user; impersonation / suspended refused; runs visible to creator, managers see all.
+- [x] Tests: **"Done when" scenario at API level** on the Loan recovery template — paid contact press 1 → thanks → ended `paid`; unpaid press 1 → AI path; press 2 → SMS queued + `promise_to_pay`; press 3 → AI "kal tak de dunga" → promise confirm → ended; silence ×3 → `no_input` branch → `callback_requested`; invalid key ×3 → invalid branch; draft edit during a run doesn't affect it; input kind mismatch 422; ended run 409; isolation; viewer read-only.
 
 ### T6.9 — Templates, seed, OpenAPI, ADR, docs (`[P6-B2-DONE]` after this)
 
-- [ ] `modules/flows/templates.ts`: 4 templates (§1j) with positions laid out (dagre-like columns), texts reviewed for RBI recovery tone, each passes the validator once an agent is set; mock API URL from `APP_URL` like Phase 5.
-- [ ] `db:seed`: Demo Finance — Loan recovery flow (published v1, linked to the seeded recovery agent) + Feedback survey (draft), one sample audio (WAV, generated), idempotent.
-- [ ] `gen:openapi` + `openapi:check`; every route documented with errors.
-- [ ] **ADR 0034 — Call flow engine**: context (AutoChatix gaps: session state inside contact attributes, free-text edge conditions with silent first-match fallback, 3,600-line node switch, hard-coded reset keywords, `console.log` of edges, fire-and-forget traces, no versioning / immutable publish, no static validation), decision (§1b handles, §1f interpreter + effects, §1e validator, versions, embedded draft + revision), consequences, Phase 7–10 contract. ADR 0014 follow-up (dagre).
-- [ ] `scripts/bench-flow.ts` (`bench:flow`): 150-node graph, 10,000 `advance` calls → p50 / p95; validator on the largest graph.
-- [ ] Docs: api.md (flows, simulator, import / export format), security.md (API node = function rules, secrets stripped from exports), README "Call flows", `src/README.md`, CHANGELOG, compliance note (recovery templates tone, AI disclosure as first speak).
-- [ ] **`[P6-B2-DONE]`**: full verify + manual run on the dev server (fake provider): build Loan recovery from the template → publish → simulate every branch via API → ledger rows for AI turns → stats counts → logs grep (no customer texts / phones / secrets) → gitleaks.
+- [x] `modules/flows/templates.ts`: 4 templates (§1j) with positions laid out (dagre-like columns), texts reviewed for RBI recovery tone, each passes the validator once an agent is set; mock API URL from `APP_URL` like Phase 5.
+- [x] `db:seed`: Demo Finance — Loan recovery flow (published v1, linked to the seeded recovery agent) + Feedback survey (draft), one sample audio (WAV, generated), idempotent.
+- [x] `gen:openapi` + `openapi:check`; every route documented with errors.
+- [x] **ADR 0034 — Call flow engine**: context (AutoChatix gaps: session state inside contact attributes, free-text edge conditions with silent first-match fallback, 3,600-line node switch, hard-coded reset keywords, `console.log` of edges, fire-and-forget traces, no versioning / immutable publish, no static validation), decision (§1b handles, §1f interpreter + effects, §1e validator, versions, embedded draft + revision), consequences, Phase 7–10 contract. ADR 0014 follow-up (dagre).
+- [x] `scripts/bench-flow.ts` (`bench:flow`): 150-node graph, 10,000 `advance` calls → p50 / p95; validator on the largest graph.
+- [x] Docs: api.md (flows, simulator, import / export format), security.md (API node = function rules, secrets stripped from exports), README "Call flows", `src/README.md`, CHANGELOG, compliance note (recovery templates tone, AI disclosure as first speak).
+- [x] **`[P6-B2-DONE]`**: full verify + manual run on the dev server (fake provider): build Loan recovery from the template → publish → simulate every branch via API → ledger rows for AI turns → stats counts → logs grep (no customer texts / phones / secrets) → gitleaks.
 
 ### T6.10 — Frontend foundation
 
@@ -530,3 +530,13 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T6.1–T6.5
   - Duplicates are named "… (copy)", "… (copy 2)"; imports / uploads with a taken name get " (2)", " (3)".
   - Audio uploads also need a `.wav` / `.mp3` name (api.md §11 convention); content is still probed. Deleted audio files are removed by `flows-purge` after 30 days (with storage), together with flows.
   - Agent DELETE now answers 409 `RESOURCE_IN_USE` while a flow draft or the current published version uses the agent (Phase 5 behaviour change, as planned).
+- 2026-10-12: **Batch 2 done (T6.6–T6.9).** Deviations / precisions:
+  - The engine lives in `src/core/engine/` with `runtime.ts` (handler interface) and `gather.ts`; `advance()` also takes the start contact values and optional flow-variable seeds (simulator manual values). `runValues()` gives display values for views.
+  - The AI node waits with `waiting.kind = ai` and listens with an 8 s speech timeout; two silent turns → `no_response`; a promise also sets the disposition `promise_to_pay` when none is set.
+  - Unconnected exits fall back: AI outcome exits → `resolved`; any other exit → the node's `error` edge → the flow error handler.
+  - API nodes use a new `sendGuardedRequest` (same guard as functions; any HTTP status is an answer). A run-time block / timeout / bad JSON → `error` exit.
+  - Phase 5 changes: `compileAgent` `extraInstructions` (new snapshots only), `runAgentTurn` `source: 'flow_simulator'` (ledger kind + tool-call log source) and the fake provider's intent rule.
+  - Simulator runs are visible to every `flows.read` user (`mine=true` filters own) so viewers can open history; `testPhone` only with manual values; `wait` nodes are skipped with a note.
+  - Bench: 149 nodes, 10,000 `advance` calls p50 77 µs · p95 96 µs · p99 163 µs; validate 2.3 ms.
+  - Seed: the demo greeting uses `emi_amount` (the demo account has no `amount` field); `loan_id` becomes a flow variable.
+  - The seeded recovery agent has `transfer_to_human` off (Phase 5 template), so its AI path ends on promise / bye; the API-level test turns transfer on to prove the transfer branch.

@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 6 · Batch 2 (T6.6–T6.9)** — 2026-10-12
+  - Flow engine: `advance()` interpreter (JSON state, host actions, trace), one handler per node type, keypad menus / digits / speech with retries and keyword or AI intents, loop / visit / auto-step guards, max duration, error exits + flow error handler (hang up or transfer), call-mode trace redaction, node stats (`$inc`), seeded fuzz test.
+  - Effects: API nodes through the SSRF guard (`sendGuardedRequest`, flat + server-only templates, sealed secrets), AI agent nodes via `runAgentTurn` (step goal as "Task in this step", `flow_simulator` billing, outcome → exit), AI intent classifier (`flow_intent` billing, fake-provider rule).
+  - Simulator API: start from draft (snapshot) / published / version with a contact or manual values + test phone, idempotent inputs, auto timers, transcript, trace, cost; `/flows/:id/stats`. Every Loan recovery branch proven at API level.
+  - Seed (published Loan recovery, draft feedback flow, welcome audio), ADR 0034, `bench:flow` (p95 96 µs per `advance`, validate 2.3 ms), README / security / compliance / API docs.
+  - Tests: 1780 → 1864.
+
 - **Phase 6 · Batch 1 (T6.1–T6.5)** — 2026-10-10
   - Models (flows with an embedded draft + revision, immutable flow versions, simulator / call runs with a 30-day TTL, node stats, flow audio), migration 0007, `FLOW_LIMITS`, 2 error codes (`FLOW_REVISION_CONFLICT`, `RESOURCE_IN_USE`), 11 audit actions, 2 WS events (`flow.updated`, `flow.published`), ledger kinds `flow_simulator` / `flow_intent`.
   - Flow engine core: strict graph schema with 15 node configs, named exits, palette catalogue, canonical checksum + diff summary, variables (contact / flow / system, coercion, display), conditions, Hinglish + Devanagari keyword intents, validator with 23 issue codes (silent loops via SCC). Phase 5 function templating moved to `core/templating` unchanged.
