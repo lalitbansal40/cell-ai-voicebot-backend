@@ -233,6 +233,8 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ### Phase 7 — Voice Runtime + Web Call Tester 🟢 (product ka core)
 
+**Detailed plan:** [PHASE_7_PLAN.md](../phases/PHASE_7_PLAN.md) · tracker [PHASE_7_TASKS.md](../phases/PHASE_7_TASKS.md)
+
 - **Call Session Manager:** call lifecycle (created → ringing → answered → in-progress → completed / failed / busy / no-answer), state Redis mein, events Mongo mein
 - **TelephonyProvider interface:** `startCall`, `answer`, `hangup`, `playAudio`, `sendDtmf/onDtmf`, `onAudio`, `transfer`
 - **WebCall provider:** browser mic ⇄ WebSocket ⇄ backend — real call jaisa (SIP ke bina poora test)
@@ -451,3 +453,4 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 - 2026-10-10: Phase 5 complete (AI agents, secure custom functions, knowledge bases, playground billed per turn, superadmin AI, Playwright E2E) — [PHASE_5_SIGNOFF.md](../phases/PHASE_5_SIGNOFF.md). OpenAI live run pending a key. Next: Phase 6 (call flow builder).
 - 2026-10-10: Phase 6 detailed plan — [PHASE_6_PLAN.md](../phases/PHASE_6_PLAN.md): graph with named exit handles (no free-text conditions), embedded draft with revision check + immutable published versions, pure interpreter with injected effects (simulator now, voice in Phase 7), static validator (publish blocked on errors), `ai_agent` exits from Phase 5 outcomes, `api_request` on the Phase 5 secure executor, text simulator billed per AI turn.
 - 2026-10-12: Phase 6 complete (flow engine, validator, versions, simulator billed per AI turn, audio library, templates, visual builder with simulator and stats, Playwright E2E) — [PHASE_6_SIGNOFF.md](../phases/PHASE_6_SIGNOFF.md). Client IVR script, payment API, transfer numbers and message templates pending. Next: Phase 7 (voice runtime + web call tester).
+- 2026-10-12: Phase 7 detailed plan — [PHASE_7_PLAN.md](../phases/PHASE_7_PLAN.md): `TelephonyProvider` + WebCall over `/ws/media`, one process owns a call (Redis registry + heartbeat), PCM16 24 kHz web leg / μ-law 8 kHz SIP-ready, OpenAI Realtime + TTS + transcription behind interfaces with deterministic fakes (no key yet), Phase 6 `advance()` driven live by a voice host, barge-in, stereo recordings, hold / extend / settle billing (no telephony minutes for web test calls), Web Call Tester + Calls pages, Playwright with Chromium's fake mic.
