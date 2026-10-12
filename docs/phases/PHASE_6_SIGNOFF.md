@@ -22,9 +22,9 @@
 | T6.12 FE builder canvas                    | ✅     | `e6b8df1` (fe)                        | palette, steps with named handles, problems list, save / conflict, publish, read-only modes, copy / paste, auto-layout, shortcuts                                      |
 | T6.13 FE inspector forms                   | ✅     | `16a03c0` (fe)                        | settings for all 15 step types, flow settings and variables dialogs, audio upload / play, agent / API editors                                                          |
 | T6.14 FE simulator + stats                 | ✅     | `08ae782` (fe)                        | simulator panel, canvas highlight, history, run detail page, stats overlay                                                                                             |
-| T6.15 E2E, audit, docs, sign-off           | ✅     | this commit + fe `13d8e43`            | 11 Playwright flow tests (32 total, green twice), gap + security audit, docs                                                                                           |
+| T6.15 E2E, audit, docs, sign-off           | ✅     | `16f0c98` + fe `13d8e43`, `87ce07b`   | 11 Playwright flow tests (32 total, green twice), gap + security audit, docs                                                                                           |
 
-Batch checkpoints: `a6874c1` `[P6-B1-DONE]`, `c161915` `[P6-B2-DONE]`, `[P6-B3-DONE]` (the commit that fills §6). Run prompt: [PHASE_6_PROMPT.md](../prompts/PHASE_6_PROMPT.md).
+Batch checkpoints: `a6874c1` `[P6-B1-DONE]`, `c161915` `[P6-B2-DONE]`, `[P6-B3-DONE]` (the commit that fills §6). Frontend bug fixes from Playwright: `091e66c`, `aa15c36`, `6016485`, `a6d2f16`, `50f06d6`. Run prompt: [PHASE_6_PROMPT.md](../prompts/PHASE_6_PROMPT.md).
 
 ## 2. Deliverables checklist (PHASE_6_PLAN §4)
 
@@ -91,7 +91,23 @@ Real bugs found and fixed (each with a regression test): `extraPorts` copied bef
 
 ## 6. Verification (P6-B3-DONE)
 
-Filled by the `[P6-B3-DONE]` checkpoint commit.
+Run on 2026-10-12 (each command separately, exit codes read; infra `cav-*` only; port 3100 belongs to another project, so `E2E_FRONTEND_PORT=3150`).
+
+| Check                                                                                                                                                    | Backend                                                          | Frontend                                                                                  |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `lint` / `format:check` / `typecheck` / `build`                                                                                                          | ✅ 0 / 0 / 0 / 0                                                 | ✅ 0 / 0 / 0 / 0 (+ `tsc -p tsconfig.e2e.json` ✅)                                        |
+| `openapi:check` / `gen:api` no diff                                                                                                                      | ✅                                                               | ✅                                                                                        |
+| `test:coverage`                                                                                                                                          | ✅ 1865 tests · 97.27 / 88.93 / 97.26 / 98.23                    | ✅ 614 tests · 95.62 / 90.28 / 93.25 / 96.52                                              |
+| actionlint (Docker)                                                                                                                                      | ✅ no findings                                                   | ✅ no findings                                                                            |
+| Playwright, whole suite                                                                                                                                  | —                                                                | ✅ 32 / 32 twice on the working tree (2nd with `E2E_BACKEND_LOGS=1`), 3rd in fresh clones |
+| Fresh clones side by side, `npm ci`, no `.env`: all checks + tests + E2E once                                                                            | ✅ 1865 tests                                                    | ✅ 614 tests, 32 / 32 E2E                                                                 |
+| gitleaks (history)                                                                                                                                       | ✅ no leaks                                                      | ✅ no leaks                                                                               |
+| `grep console.log src` / `grep sk- src e2e`                                                                                                              | 0 / 1 (a Phase 5 unit-test fixture, `secret-box.test.ts`)        | 0 / 0                                                                                     |
+| Float grep (flows + engine) + engine-only money writes                                                                                                   | ✅ 0 (`tests/security/money-writes.test.ts`)                     | —                                                                                         |
+| E2E backend log grep (2,053 and 2,058 lines: secret header value, `Bearer`, `sk-`, contact phones, customer replies, template / bot texts, payment link) | ✅ 0 hits                                                        | —                                                                                         |
+| Manual run on the dev server (fake provider, batch 2)                                                                                                    | ✅ every Loan recovery branch, AI ledger rows, stats, clean logs | —                                                                                         |
+
+Notes: after the two working-tree runs only two E2E lines changed (a type import and the fake secret value) — the changed spec was re-run and the fresh-clone run covers the final commits. The machine (16 GB shared with other projects) ran Vitest with `--maxWorkers=2`; no timeouts were raised. Infra stopped afterwards with `npm run infra:down` (only `cav-*` containers).
 
 ## 7. Remaining TODOs (by phase)
 
