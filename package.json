@@ -1,7 +1,7 @@
 {
   "name": "cell-ai-voicebot-backend",
   "version": "0.0.1",
-  "description": "Cell AI Voicebot — multi-tenant AI voice calling platform API",
+  "description": "Cell AI Voicebot \u2014 multi-tenant AI voice calling platform API",
   "private": true,
   "license": "UNLICENSED",
   "type": "commonjs",
@@ -46,7 +46,8 @@
     "samples:knowledge": "tsx scripts/make-knowledge-samples.ts",
     "bench:contacts": "tsx --env-file-if-exists=.env scripts/bench-contacts.ts",
     "bench:wallet": "tsx --env-file-if-exists=.env scripts/bench-wallet.ts",
-    "bench:retrieval": "tsx --env-file-if-exists=.env scripts/bench-retrieval.ts"
+    "bench:retrieval": "tsx --env-file-if-exists=.env scripts/bench-retrieval.ts",
+    "dev:call": "tsx --env-file-if-exists=.env scripts/dev-call.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

@@ -4,11 +4,11 @@ Source plan: [PHASE_7_PLAN.md](PHASE_7_PLAN.md) — Batch 1 = T7.1–T7.5, Batch
 
 | Done | Task  | Title                                                                                                                                                       | Repo | Size |
 | ---- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---- |
-| [ ]  | T7.1  | Models (Call, CallEvent, TranscriptTurn, TTS cache), FlowRun `callId`, migration 0008, `CALL_LIMITS`, env, error codes, audit, WS, pricing `telephony` flag | BE   | M    |
-| [ ]  | T7.2  | Audio core: PCM16 / G.711, resampler, framer, pacer, energy VAD, stereo WAV recorder, WAV / MP3 decode + cache                                              | BE   | M    |
-| [ ]  | T7.3  | Voice providers: OpenAI Realtime / TTS / transcription + deterministic fakes, TTS cache                                                                     | BE   | L    |
-| [ ]  | T7.4  | Telephony interface + WebCall provider, `/ws/media` (tickets, protocol, limits), `call:<id>` topic authorisation                                            | BE   | M    |
-| [ ]  | T7.5  | Call session manager: lifecycle, Redis registry, limits, billing hold / extend / settle, recording, persistence, WS, shutdown, reaper, purge                | BE   | L    |
+| [x]  | T7.1  | Models (Call, CallEvent, TranscriptTurn, TTS cache), FlowRun `callId`, migration 0008, `CALL_LIMITS`, env, error codes, audit, WS, pricing `telephony` flag | BE   | M    |
+| [x]  | T7.2  | Audio core: PCM16 / G.711, resampler, framer, pacer, energy VAD, stereo WAV recorder, WAV / MP3 decode + cache                                              | BE   | M    |
+| [x]  | T7.3  | Voice providers: OpenAI Realtime / TTS / transcription + deterministic fakes, TTS cache                                                                     | BE   | L    |
+| [x]  | T7.4  | Telephony interface + WebCall provider, `/ws/media` (tickets, protocol, limits), `call:<id>` topic authorisation                                            | BE   | M    |
+| [x]  | T7.5  | Call session manager: lifecycle, Redis registry, limits, billing hold / extend / settle, recording, persistence, WS, shutdown, reaper, purge                | BE   | L    |
 | [ ]  | T7.6  | Flow voice host: outputs → audio, DTMF / STT / timers, barge-in, engine `ai_session_end` input, call-mode trace + stats                                     | BE   | L    |
 | [ ]  | T7.7  | Live AI voice session: Realtime agent, live tools + built-ins, knowledge tool, barge-in truncate, silence, caps, language, fallbacks, latency               | BE   | L    |
 | [ ]  | T7.8  | Calls API (`/calls/web`, list, detail, transcript, events, recording, hangup, active) + OpenAPI                                                             | BE   | M    |

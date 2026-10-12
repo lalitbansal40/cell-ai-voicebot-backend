@@ -500,3 +500,14 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T7.1–T7.5
 
 - 2026-10-12: Plan created after Phase 6 sign-off (Phase 6 merged to `main`: backend `7a2a1e0`, frontend `87ce07b`).
 - 2026-10-12: Run prompt [PHASE_7_PROMPT.md](../prompts/PHASE_7_PROMPT.md) added (one file, 3 batches). Precisions there: module layout, `/ws/media` upgrade routing next to `/ws/events`, the fake voice AI is a chat-backed session over `runAgentTurn` (new options `channel`, `billing: 'none'`, `builtInMode: 'live'`) — the same class is the "pipeline" option with OpenAI chat + TTS + STT (`VOICE_PIPELINE=chat`), controller / provider split, built-ins live mode effects, engine `ai_session_end` input shape, Call JSON, error codes 41 → 44, audit 68 → 71, WS payloads (`call.dtmf` without the digit), env vars, exact `CALL_LIMITS`, locked fixed lines, fake TTS / STT / VAD numbers, billing precision (`telephony: false`), registry keys, reaper / purge schedules, frontend routes + worklet loading, MP3 decoder candidate `mpg123-decoder` (licence check at T7.2).
+- 2026-10-13: **Batch 1 done (T7.1–T7.5).** Deviations / precisions:
+  - `CallLeg` paces audio itself: `play(pcm)` → `PlaybackResult`, `clearAudio()` (barge-in, returns played ms), `onOutgoing` (recording / latency) instead of a raw `sendAudio`.
+  - The fake voice provider is the chat-backed session (`ChatVoiceSession`: STT → `runAgentTurn` → TTS) — the same class is the `VOICE_PIPELINE=chat` option; `runAgentTurn` gained `channel`, `billing: 'none'` and `builtInMode: 'live'`; built-ins now run in live mode (no `simulated` flag).
+  - No 5 s drop grace: reconnects are not supported, so a closed media socket ends the call at once (`customer_hangup`).
+  - Recording uploads retry inline (3 attempts) at the end of the call instead of a queue job; a recorder that opens after the call ended is removed.
+  - Event / transcript sequence numbers are kept in memory by the owning session and written to `Call.seq` at the end (one process owns a call).
+  - A refused wallet hold deletes the just-created call (no call record); calls nobody connects to are canceled after 75 s (ticket TTL + ready timeout) by the manager, and after 15 min by the reaper.
+  - The per-account limit is check-then-register in Redis (two creates at the very same moment could pass 3 by one) — acceptable for test calls; Phase 8 dialing will use an atomic reservation.
+  - MP3 decoding: `mpg123-decoder` 1.0.3 (MIT, WebAssembly, no install scripts; deps MIT / Apache-2.0), loaded through `require(esm)`.
+  - Real bug found and fixed in T7.3: two simultaneous TTS requests for the same line both synthesised (single-flight registered too late).
+  - Batch 1 manual check: `npm run dev:call` (in-process media server + real WebSocket client on the dev database): completed, 6 s, ₹0.24 (TTS + commission, no telephony), 178 KB stereo recording, 291 frames; the API route arrives in T7.8.
