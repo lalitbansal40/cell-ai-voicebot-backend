@@ -4,7 +4,7 @@ Multi-tenant AI voice calling platform API (Node.js + Express + TypeScript + Mon
 
 ## Status
 
-**Phase 5 — AI Agents & Knowledge Base: complete** ([sign-off](docs/phases/PHASE_5_SIGNOFF.md)); Phase 4 [sign-off](docs/phases/PHASE_4_SIGNOFF.md), Phase 3 [sign-off](docs/phases/PHASE_3_SIGNOFF.md), Phase 2 [sign-off](docs/phases/PHASE_2_SIGNOFF.md), Phase 1 [sign-off](docs/phases/PHASE_1_SIGNOFF.md). Next: Phase 6 (call flow builder). Tasks: [docs/phases/PHASE_5_TASKS.md](docs/phases/PHASE_5_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
+**Phase 6 — Call Flow Engine & Builder: complete** ([sign-off](docs/phases/PHASE_6_SIGNOFF.md)); Phase 5 [sign-off](docs/phases/PHASE_5_SIGNOFF.md), Phase 4 [sign-off](docs/phases/PHASE_4_SIGNOFF.md), Phase 3 [sign-off](docs/phases/PHASE_3_SIGNOFF.md), Phase 2 [sign-off](docs/phases/PHASE_2_SIGNOFF.md), Phase 1 [sign-off](docs/phases/PHASE_1_SIGNOFF.md). Next: Phase 7 (voice runtime + web call tester). Tasks: [docs/phases/PHASE_6_TASKS.md](docs/phases/PHASE_6_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Prerequisites
 
@@ -142,6 +142,7 @@ Visual call flows (IVR menu + AI agent + API checks + actions) with drafts, immu
 - **Engine** (`src/core/engine/`): `advance()` runs a flow from JSON state with one input and returns host actions; loop / visit / duration guards, error exits + a flow error handler, trace, node stats. The simulator uses it now, the Phase 7 voice runtime later.
 - **Simulator** (`/api/v1/flows/:id/simulations`): draft / published / version, a contact or manual values + test phone, inputs (keys, words, silence, transfer result, hang up) idempotent by `clientInputId`, transcript + trace, AI turns billed (`flow_simulator`), node stats (`/flows/:id/stats`).
 - **Audio** (`/api/v1/flow-audio`): WAV / MP3 prompts (5 MB, 120 s), signed playback URLs.
+- **Builder UI** (frontend repo): flows list, template picker, visual builder with step settings, simulator panel, versions and stats — Playwright proves every Loan recovery branch (`e2e/flows-*.spec.ts`).
 - **Dev**: `npm run db:seed` adds "Loan recovery" (published v1, AI node → "Recovery Bot (Hinglish)", greeting uses `emi_amount`), "Customer feedback" (draft) and the "Welcome tone" audio; dev mock APIs `/mock/loan-balance`, `/mock/http-status/:code`; `npm run fixtures:audio`; `npm run bench:flow [calls]` (last run: 149 nodes, `advance` p50 77 µs · p95 96 µs · p99 163 µs, validate 2.3 ms).
 
 ## Database (MongoDB)

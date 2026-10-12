@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { FLOW_LIMITS } from '../../src/config/limits';
 import * as notify from '../../src/core/realtime/notify';
 import { AuditLogModel } from '../../src/db/models/audit-log.model';
+import { FlowAudioModel } from '../../src/db/models/flow-audio.model';
 import { FlowModel } from '../../src/db/models/flow.model';
 import { createTestAccount, tokenFor, type TestAccount, type TestUser } from '../helpers/auth';
 import { useTestDb } from '../helpers/db';
@@ -281,6 +282,39 @@ describe('draft saves', () => {
     const view = await request(app).get(`${FLOWS}/${a.id}`).set(auth(manager));
     expect(view.body.data.agents).toEqual([]);
     expect(JSON.stringify(view.body)).not.toContain('Secret Other Agent');
+  });
+
+  it('reports audio files of other accounts as missing (never their names) and refuses to simulate', async () => {
+    const other = await createTestAccount();
+    const foreign = await FlowAudioModel.create({
+      accountId: other.account._id,
+      name: 'Secret Other Tone',
+      fileKey: 'accounts/other/flow-audio/a.wav',
+      format: 'wav',
+      bytes: 100,
+      durationMs: 1000,
+      sampleRate: 8000,
+      channels: 1,
+    });
+    const a = await newFlow(app, manager, 'Foreign audio');
+    const graph = sampleGraph();
+    graph.nodes = graph.nodes.map((n) =>
+      n.id === 'greet'
+        ? { ...n, type: 'play_audio', config: { audioId: foreign._id.toString() } }
+        : n,
+    );
+    const res = await saveGraph(app, manager, a.id, 1, graph);
+    expect(res.body.data.issues).toContainEqual(
+      expect.objectContaining({ code: 'audio_missing', nodeId: 'greet' }),
+    );
+    const view = await request(app).get(`${FLOWS}/${a.id}`).set(auth(manager));
+    expect(JSON.stringify(view.body)).not.toContain('Secret Other Tone');
+    const sim = await request(app)
+      .post(`${FLOWS}/${a.id}/simulations`)
+      .set(auth(manager))
+      .send({ version: 'draft' });
+    expect(sim.status).toBe(422);
+    expect(sim.body.error.code).toBe('FLOW_INVALID');
   });
 
   it('lists the agents a flow uses and its variables', async () => {

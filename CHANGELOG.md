@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 6 · Batch 3 (T6.10–T6.15) — Phase 6 complete** — 2026-10-12
+  - Frontend flows list, template picker, import / export, versions, visual builder (all 15 step forms, flow settings / variables, problems, undo / redo, copy / paste, auto-layout, conflict handling), simulator panel, run details and stats overlay — see the frontend CHANGELOG.
+  - Agent list rows carry the template key (template picker suggestions).
+  - Gap test: another account's audio id in a graph is `audio_missing`, never named, and can't be simulated.
+  - Playwright: 11 flow tests (32 total, green twice); backend logs of the run free of secret headers, customer texts and phones.
+  - Sign-off: [PHASE_6_SIGNOFF.md](docs/phases/PHASE_6_SIGNOFF.md) (gap audit, numbers, deviations, TODOs by phase, pending inputs).
+  - Tests: 1864 → 1865 (frontend 478 → 614).
+
 - **Phase 6 · Batch 2 (T6.6–T6.9)** — 2026-10-12
   - Flow engine: `advance()` interpreter (JSON state, host actions, trace), one handler per node type, keypad menus / digits / speech with retries and keyword or AI intents, loop / visit / auto-step guards, max duration, error exits + flow error handler (hang up or transfer), call-mode trace redaction, node stats (`$inc`), seeded fuzz test.
   - Effects: API nodes through the SSRF guard (`sendGuardedRequest`, flat + server-only templates, sealed secrets), AI agent nodes via `runAgentTurn` (step goal as "Task in this step", `flow_simulator` billing, outcome → exit), AI intent classifier (`flow_intent` billing, fake-provider rule).

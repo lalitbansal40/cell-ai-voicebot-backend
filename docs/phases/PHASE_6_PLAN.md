@@ -400,68 +400,68 @@ Batches: **Batch 1 = T6.1–T6.5** (`[P6-B1-DONE]`), **Batch 2 = T6.6–T6.9** (
 
 ### T6.10 — Frontend foundation
 
-- [ ] Install `@xyflow/react`, `@dagrejs/dagre` (exact versions, no `--legacy-peer-deps`); `gen:api`; clients `src/services/api/{flows,flow-audio,flow-simulator}.ts`; keys `features/flows/keys.ts`; type aliases for node configs.
-- [ ] `LIVE_PHASE = 6`; routes §1l with `RequirePermission('flows.read')`, lazy builder chunk; WS `flow.updated` / `flow.published` in the event map + hooks.
-- [ ] Move `VariablePicker` to `src/components/` (agents keep working), `useUnsavedChangesGuard` shared.
-- [ ] `features/flows/graph/`: graph reducer (add / move / delete / connect / update config / paste), undo / redo stack (50), id generator, local structural checks, dagre layout helper — pure + unit tested.
-- [ ] Tests: menu visibility per role, route guards, clients, reducer + history, layout helper, bundle check (builder chunk separate).
+- [x] Install `@xyflow/react`, `@dagrejs/dagre` (exact versions, no `--legacy-peer-deps`); `gen:api`; clients `src/services/api/{flows,flow-audio,flow-simulator}.ts`; keys `features/flows/keys.ts`; type aliases for node configs.
+- [x] `LIVE_PHASE = 6`; routes §1l with `RequirePermission('flows.read')`, lazy builder chunk; WS `flow.updated` / `flow.published` in the event map + hooks.
+- [x] Move `VariablePicker` to `src/components/` (agents keep working), `useUnsavedChangesGuard` shared.
+- [x] `features/flows/graph/`: graph reducer (add / move / delete / connect / update config / paste), undo / redo stack (50), id generator, local structural checks, dagre layout helper — pure + unit tested.
+- [x] Tests: menu visibility per role, route guards, clients, reducer + history, layout helper, bundle check (builder chunk separate).
 
 ### T6.11 — Flows list, templates, import / export, versions
 
-- [ ] List page (§1l) with filters, row actions, delete / archive confirms, `RESOURCE_IN_USE` message; template picker dialog (cards + agent pre-select + "create matching agent"); Import (file picker → validation errors listed → open new flow); Export (download JSON, version choice).
-- [ ] Versions page: table (version, notes, by, at, checksum short), read-only canvas view, Restore (confirm, `flows.publish`), export a version.
-- [ ] Phase 5 touches: agent delete dialog lists flows; "Used in N flows" chip.
-- [ ] Tests: list states (loading / error / empty), filters, template create payload, import errors, restore flow, read-only for viewers, agent delete in-use message.
+- [x] List page (§1l) with filters, row actions, delete / archive confirms, `RESOURCE_IN_USE` message; template picker dialog (cards + agent pre-select + "create matching agent"); Import (file picker → validation errors listed → open new flow); Export (download JSON, version choice).
+- [x] Versions page: table (version, notes, by, at, checksum short), read-only canvas view, Restore (confirm, `flows.publish`), export a version.
+- [x] Phase 5 touches: agent delete dialog lists flows; "Used in N flows" chip.
+- [x] Tests: list states (loading / error / empty), filters, template create payload, import errors, restore flow, read-only for viewers, agent delete in-use message.
 
 ### T6.12 — Builder canvas
 
-- [ ] Builder page: top bar, palette (drag + click-to-add), canvas (custom nodes per type with exit handles + summaries + issue badges), edges with labels + delete, MiniMap / Controls / snap, multi-select, keyboard shortcuts (Delete, Ctrl/Cmd+Z / Shift+Z / C / V / S), auto-layout button, fit view.
-- [ ] Save flow: dirty state, unsaved guard, revision conflict dialog (Reload / Save as copy), WS "updated elsewhere" banner, issues panel (server issues after save + local checks) with focus-on-click, Validate button, Publish dialog (notes, blocked with error count).
-- [ ] Read-only mode (viewer / agent role, impersonation, < 900 px, version view).
-- [ ] Tests: add node via click, connect handle rules (one per handle, not into start), delete, undo / redo, copy / paste ids, save payload with revision, 409 dialog, publish blocked by issues, read-only hides palette / save; React Flow mocked where JSDOM can't measure (documented).
+- [x] Builder page: top bar, palette (drag + click-to-add), canvas (custom nodes per type with exit handles + summaries + issue badges), edges with labels + delete, MiniMap / Controls / snap, multi-select, keyboard shortcuts (Delete, Ctrl/Cmd+Z / Shift+Z / C / V / S), auto-layout button, fit view.
+- [x] Save flow: dirty state, unsaved guard, revision conflict dialog (Reload / Save as copy), WS "updated elsewhere" banner, issues panel (server issues after save + local checks) with focus-on-click, Validate button, Publish dialog (notes, blocked with error count).
+- [x] Read-only mode (viewer / agent role, impersonation, < 900 px, version view).
+- [x] Tests: add node via click, connect handle rules (one per handle, not into start), delete, undo / redo, copy / paste ids, save payload with revision, 409 dialog, publish blocked by issues, read-only hides palette / save; React Flow mocked where JSDOM can't measure (documented).
 
 ### T6.13 — Inspector forms
 
-- [ ] One form per node type (§1d) with zod schemas mirroring the backend (types from OpenAPI), live summary on the node, field errors from server issues (`field` paths).
-- [ ] Shared fields: template text with `VariablePicker`, prompt (speak / audio), language select, retries / timeout sliders.
-- [ ] Special editors: DTMF key table (add / remove / reorder, stable ids), intents (keyword chips), router rules (variable / operator / value rows, any / all), set-variable assignments, API request (method, URL with variable chips + `contact.phone` hint, headers with secret toggle masked after save, JSON body field, response → variable rows; no separate Test button — the simulator runs it), agent picker (inactive warning, link), audio picker + upload dialog (progress, duration shown, player), transfer phone (E.164 helper), SMS counter (160 / multi-part), WhatsApp template fields.
-- [ ] Flow settings dialog (language, voice, error message, onError + phone, max duration) and Variables dialog (add / rename / type / default; rename updates references after confirm).
-- [ ] Tests: each form's payload + validation messages, variable insert, DTMF duplicates, router rule builder, secret header keep / replace, audio upload flow, variable rename propagation.
+- [x] One form per node type (§1d) with zod schemas mirroring the backend (types from OpenAPI), live summary on the node, field errors from server issues (`field` paths).
+- [x] Shared fields: template text with `VariablePicker`, prompt (speak / audio), language select, retries / timeout sliders.
+- [x] Special editors: DTMF key table (add / remove / reorder, stable ids), intents (keyword chips), router rules (variable / operator / value rows, any / all), set-variable assignments, API request (method, URL with variable chips + `contact.phone` hint, headers with secret toggle masked after save, JSON body field, response → variable rows; no separate Test button — the simulator runs it), agent picker (inactive warning, link), audio picker + upload dialog (progress, duration shown, player), transfer phone (E.164 helper), SMS counter (160 / multi-part), WhatsApp template fields.
+- [x] Flow settings dialog (language, voice, error message, onError + phone, max duration) and Variables dialog (add / rename / type / default; rename updates references after confirm).
+- [x] Tests: each form's payload + validation messages, variable insert, DTMF duplicates, router rule builder, secret header keep / replace, audio upload flow, variable rename propagation.
 
 ### T6.14 — Simulator panel, run detail, stats overlay
 
-- [ ] Simulator drawer (§1l): start options, transcript rendering per kind (bot / customer / audio card with signed-URL player / AI reply with Phase 5 tool cards + knowledge refs / notes), input area by `waiting` (keypad, text, silence, transfer buttons), variables + outcome panels, trace tab, cost, restart; current node highlight + auto-centre; ended state summary.
-- [ ] Run detail page (deep link) reusing the transcript + trace components; simulator history list.
-- [ ] Stats overlay toggle with range + version select.
-- [ ] Tests: start → DTMF press → next prompt rendering, speech input, silence, AI reply card, wallet-empty / cap banner, ended summary, highlight follows the node, viewer can open history but not start, overlay numbers.
+- [x] Simulator drawer (§1l): start options, transcript rendering per kind (bot / customer / audio card with signed-URL player / AI reply with Phase 5 tool cards + knowledge refs / notes), input area by `waiting` (keypad, text, silence, transfer buttons), variables + outcome panels, trace tab, cost, restart; current node highlight + auto-centre; ended state summary.
+- [x] Run detail page (deep link) reusing the transcript + trace components; simulator history list.
+- [x] Stats overlay toggle with range + version select.
+- [x] Tests: start → DTMF press → next prompt rendering, speech input, silence, AI reply card, wallet-empty / cap banner, ended summary, highlight follows the node, viewer can open history but not start, overlay numbers.
 
 ### T6.15 — E2E, gap audit, docs, sign-off
 
-- [ ] Playwright scenarios (fake AI provider + mock APIs on; `E2E_FRONTEND_PORT=3150` locally):
+- [x] Playwright scenarios (fake AI provider + mock APIs on; `E2E_FRONTEND_PORT=3150` locally):
   1. **"Done when"**: owner creates **Loan recovery** from the template (seeded recovery agent picked) → 0 errors → Publish v1 → simulator (published) with the **paid** contact: press **1** → "payment mil gaya" → ended, disposition Paid; **unpaid** contact: press 1 → "record mein nahi" → AI path; press **2** → SMS queued card + disposition Promise to pay; press **3** → AI: "kal tak de dunga" → promise exit → "{{promise_date}} tak note" with tomorrow's date → ended.
   2. **No input / invalid**: Silence ×3 → callback branch; wrong key ×3 → invalid branch; canvas highlight follows.
   3. **Builder editing**: blank flow → add speak + gather_dtmf + hangup from the palette, connect, variable picker inserts `{{name}}`, issues panel shows the dangling node → fix → Save → reload persists; undo / redo; auto-layout; stale revision (second save via API) → conflict dialog.
   4. **Versions & files**: publish v1 → edit → publish v2 → restore v1 → export JSON → import → new flow opens; duplicate; upload WAV → play_audio card in the simulator.
   5. **Logic & API**: gather_speech intents branch, router on an API response variable, API node with `http://169.254.169.254/` → blocked issue; failure edge on a 500 mock.
   6. **Roles & money**: viewer / agent read-only builder (no palette / save / simulator start); impersonating superadmin can't simulate; AI turn in the simulator adds an **AI usage** wallet row (kind flow simulator); agent used in a flow can't be deleted (dialog lists the flow).
-- [ ] All 21 existing scenarios stay green; whole suite **twice**; fresh clones without `.env`.
-- [ ] Gap audit (requirement → test), security checklist (SSRF table on the API node, secrets never exported / returned / logged — `E2E_BACKEND_LOGS=1` grep for phones, header values, customer texts; import of a hostile JSON (huge, unknown types, prototype keys) refused; tenant isolation of agent / audio ids inside graphs), coverage re-measured (never lower), bundle size check.
-- [ ] Docs: both READMEs, CHANGELOGs, PHASE_6_TASKS, BUILD_PLAN status, this plan ticked, **PHASE_6_SIGNOFF.md**; `[P6-B3-DONE]` (full verify both repos, E2E twice, fresh clones, gitleaks, actionlint, `infra:down`).
+- [x] All 21 existing scenarios stay green; whole suite **twice**; fresh clones without `.env`.
+- [x] Gap audit (requirement → test), security checklist (SSRF table on the API node, secrets never exported / returned / logged — `E2E_BACKEND_LOGS=1` grep for phones, header values, customer texts; import of a hostile JSON (huge, unknown types, prototype keys) refused; tenant isolation of agent / audio ids inside graphs), coverage re-measured (never lower), bundle size check.
+- [x] Docs: both READMEs, CHANGELOGs, PHASE_6_TASKS, BUILD_PLAN status, this plan ticked, **PHASE_6_SIGNOFF.md**; `[P6-B3-DONE]` (full verify both repos, E2E twice, fresh clones, gitleaks, actionlint, `infra:down`).
 
 ---
 
 ## 4. Deliverables checklist
 
-- [ ] Flows with embedded draft (revision-checked saves), immutable published versions, restore, duplicate, archive, delete guard, import / export JSON.
-- [ ] 15 node types with typed configs, named exits, error exits, defaults and limits; shared catalogue for the builder.
-- [ ] Validator with all §1e rules; publish blocked on errors.
-- [ ] Engine interpreter (pure core + injected effects), loop guard, max duration, error handler, trace, node stats — Phase 7-ready state.
-- [ ] `ai_agent` node on Phase 5 agents (exits from outcomes, billing, caps), `api_request` node on the Phase 5 secure executor, AI / keyword intents.
-- [ ] Text simulator API (idempotent inputs, snapshots, transcript, trace, cost).
-- [ ] Audio library (WAV / MP3, duration checks, preview).
-- [ ] 4 templates + seed; `isAgentInUse` live; agent delete guard.
-- [ ] UI: flows list, template picker, builder (palette, nodes, inspector, validation, auto-layout, undo / redo, copy / paste, conflict handling), versions, simulator panel, stats overlay, read-only modes.
-- [ ] Docs: ADR 0034 (+ ADR 0014 follow-up), data-model, conventions (api, security, data, websocket, audit, errors), READMEs, CHANGELOGs, sign-off.
+- [x] Flows with embedded draft (revision-checked saves), immutable published versions, restore, duplicate, archive, delete guard, import / export JSON.
+- [x] 15 node types with typed configs, named exits, error exits, defaults and limits; shared catalogue for the builder.
+- [x] Validator with all §1e rules; publish blocked on errors.
+- [x] Engine interpreter (pure core + injected effects), loop guard, max duration, error handler, trace, node stats — Phase 7-ready state.
+- [x] `ai_agent` node on Phase 5 agents (exits from outcomes, billing, caps), `api_request` node on the Phase 5 secure executor, AI / keyword intents.
+- [x] Text simulator API (idempotent inputs, snapshots, transcript, trace, cost).
+- [x] Audio library (WAV / MP3, duration checks, preview).
+- [x] 4 templates + seed; `isAgentInUse` live; agent delete guard.
+- [x] UI: flows list, template picker, builder (palette, nodes, inspector, validation, auto-layout, undo / redo, copy / paste, conflict handling), versions, simulator panel, stats overlay, read-only modes.
+- [x] Docs: ADR 0034 (+ ADR 0014 follow-up), data-model, conventions (api, security, data, websocket, audit, errors), READMEs, CHANGELOGs, sign-off.
 
 ## 5. Risks
 
@@ -540,3 +540,12 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T6.1–T6.5
   - Bench: 149 nodes, 10,000 `advance` calls p50 77 µs · p95 96 µs · p99 163 µs; validate 2.3 ms.
   - Seed: the demo greeting uses `emi_amount` (the demo account has no `amount` field); `loan_id` becomes a flow variable.
   - The seeded recovery agent has `transfer_to_human` off (Phase 5 template), so its AI path ends on promise / bye; the API-level test turns transfer on to prove the transfer branch.
+- 2026-10-12: **Batch 3 done (T6.10–T6.15) — Phase 6 complete** ([sign-off](PHASE_6_SIGNOFF.md)). Deviations / precisions:
+  - Frontend: the builder is a lazy chunk (92 KB gzip); the flows list / new / versions / run-detail pages stay eager — lazy-splitting them saved only ~2 KB because shared UI code moved into preloaded chunks. Initial load grew **+9.1 KB gzip** vs `main` (target was ≤ 5 KB).
+  - Flow settings and variables open from buttons above the canvas (`renderDialogs`); the inspector's step forms receive the field errors of the selected step (`config.` prefix stripped).
+  - The simulator panel shows "Waiting for the flow…" while an input is handled (E2E waits on it) and capitalised disposition labels; a failed input is retried with the same `clientInputId`, definite 4xx answers are not retried.
+  - Stats overlay asks for `mode: simulator` and computes the 7 / 30-day range in the account timezone.
+  - A refused agent delete names the flows in a snackbar (not a dialog).
+  - E2E: 11 tests in 5 specs (scenario 1 split per branch with one shared account; builder specs at a 1600 × 1000 viewport); the logic scenario imports a JSON graph (speech intents → API → condition, a 500 API) instead of drawing it.
+  - Bugs found by Playwright and fixed with regression tests: canvas clicks never selected a step; new steps stacked and landed under the settings panel; restoring a version opened the old cached draft; Validate results were hidden with unsaved changes.
+  - Gap test added: another account's audio id in a saved graph → `audio_missing`, no name leak, simulation refused.
