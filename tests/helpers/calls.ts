@@ -82,3 +82,27 @@ export const talk = async (clock: FakeClock, leg: WebCallLeg, ms: number, level 
     await clock.tick(20);
   }
 };
+
+/**
+ * Advances fake time (with silence frames) until `check` passes. Every step also yields
+ * real time, and once the fake budget is spent it keeps polling in real time, so slow
+ * real I/O (Mongo, uploads) on a busy machine never races the fake clock.
+ */
+export const pumpUntil = async (
+  clock: FakeClock,
+  leg: WebCallLeg,
+  check: () => Promise<boolean>,
+  maxMs = 60_000,
+  realMs = 20_000,
+): Promise<boolean> => {
+  const deadline = Date.now() + realMs;
+  for (let fake = 0; Date.now() < deadline;) {
+    if (await check()) return true;
+    if (fake < maxMs) {
+      await talk(clock, leg, 200);
+      fake += 200;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  return check();
+};

@@ -49,7 +49,7 @@ export class RunEndedError extends Error {
 const ACCEPTS: Record<WaitingKind, readonly FlowInput['kind'][]> = {
   dtmf: ['dtmf', 'no_input'],
   speech: ['speech', 'no_input'],
-  ai: ['speech', 'no_input'],
+  ai: ['speech', 'no_input', 'ai_session_end'],
   transfer: ['transfer_result'],
   timer: ['timer'],
 };
@@ -442,7 +442,7 @@ export const advance = async (
       }
     } else if (input.kind === 'hangup') {
       run.addTrace({ nodeId: state.nodeId, event: 'input', handle: 'hangup' }, 'safe');
-      run.finish('customer_hangup');
+      run.finish(input.reason ?? 'customer_hangup');
     } else {
       const kind = state.waitingFor;
       if (!kind || !ACCEPTS[kind].includes(input.kind))

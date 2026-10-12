@@ -102,6 +102,18 @@ export const aiAgentNode: NodeHandler<'ai_agent'> = {
     return wait(node.id, rt);
   },
   input: async (node, input, rt) => {
+    if (input.kind === 'ai_session_end') {
+      // calls: the live voice session ran the conversation (PHASE_7_PLAN §1g)
+      rt.state.ai = null;
+      if (input.reason === 'fallback') return rt.fail(node.id, 'AI voice session failed');
+      applyOutcome(node.id, input.outcome, rt);
+      if (input.reason === 'no_response' || input.reason === 'max_turns')
+        return { exit: 'no_response' };
+      return {
+        exit:
+          aiExitOf({ outcome: input.outcome, ended: input.reason === 'end_call' }) ?? 'resolved',
+      };
+    }
     const ai = rt.state.ai;
     if (!ai) return rt.fail(node.id, 'AI session missing');
     const text = input.kind === 'speech' ? input.text.trim() : '';

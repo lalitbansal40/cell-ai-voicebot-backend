@@ -25,6 +25,8 @@ export interface FlowEffectsDeps {
   timezone: string;
   /** The run — AI charges reference it, keys use it. */
   runId: Types.ObjectId;
+  /** Calls: text-model charges are billed to the call (kind `call`). */
+  callId?: Types.ObjectId;
   mode: 'simulator' | 'call';
   /** Server-only contact facts: API templates (`{{contact.phone}}`) and agent functions. */
   contact: {
@@ -231,9 +233,11 @@ export const createFlowEffects = (deps: FlowEffectsDeps): FlowEffects => {
             inputTokens: out.usage.inputTokens,
             outputTokens: out.usage.outputTokens,
             model: deps.textModel,
-            kind: 'flow_intent',
+            kind: deps.callId ? 'call' : 'flow_intent',
           },
-          ref: { type: 'usage', id: deps.runId.toString() },
+          ref: deps.callId
+            ? { type: 'call', id: deps.callId.toString() }
+            : { type: 'usage', id: deps.runId.toString() },
           idempotencyKey: `aiintent:${deps.runId.toString()}:${inputId}`,
         });
       }

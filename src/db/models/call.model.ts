@@ -114,6 +114,10 @@ export interface CallDoc {
   durationSec: number;
   /** Display values (allowed contact fields + flow values) — never the phone or external id. */
   variables: Record<string, string>;
+  /** Typed tester values (no contact): contact fields + flow variables. */
+  manualVariables: Record<string, string> | null;
+  /** Tester's test phone — only API steps / functions see it; never returned. */
+  testPhone: string | null;
   outcome: Record<string, unknown>;
   disposition: string | null;
   languageDetected: string | null;
@@ -180,6 +184,8 @@ const schema = new Schema<CallDoc>(
     },
     durationSec: { type: Number, default: 0, min: 0 },
     variables: { type: Schema.Types.Mixed, default: () => ({}) },
+    manualVariables: { type: Schema.Types.Mixed, default: null },
+    testPhone: { type: String, default: null, select: false },
     outcome: { type: Schema.Types.Mixed, default: () => ({}) },
     disposition: { type: String, default: null },
     languageDetected: { type: String, default: null },
@@ -197,7 +203,7 @@ const schema = new Schema<CallDoc>(
   },
   { minimize: false },
 );
-schema.plugin(basePlugin);
+schema.plugin(basePlugin, { hide: ['testPhone'] });
 schema.plugin(tenantPlugin);
 schema.index({ accountId: 1, createdAt: -1, _id: -1 });
 schema.index({ accountId: 1, status: 1 });

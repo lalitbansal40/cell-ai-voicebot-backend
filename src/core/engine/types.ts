@@ -15,7 +15,15 @@ export type FlowInputBody =
   | { kind: 'no_input' }
   | { kind: 'timer' }
   | { kind: 'transfer_result'; result: 'connected' | 'failed' | 'no_answer' }
-  | { kind: 'hangup' };
+  /** The call ended outside the flow (calls pass why; default the customer hung up). */
+  | { kind: 'hangup'; reason?: 'customer_hangup' | 'max_duration' | 'engine_error' }
+  /** A live voice AI session (calls) finished the `ai_agent` step. */
+  | {
+      kind: 'ai_session_end';
+      outcome: AiTurnResult['outcome'];
+      reason: 'outcome' | 'end_call' | 'no_response' | 'max_turns' | 'fallback';
+      turns: number;
+    };
 
 /** An input with its idempotency id (simulator `clientInputId`, call event id). */
 export type FlowInput = FlowInputBody & { inputId: string };

@@ -8,7 +8,7 @@ import type { HttpToolOptions } from '../../core/ai/http-tool';
 import { outgoingPolicy } from '../../core/ai/ip-guard';
 import type { AiProvider } from '../../core/ai/types';
 import { InputMismatchError, RunEndedError, advance, runValues } from '../../core/engine/engine';
-import { FlowGraphSchema, type FlowGraph } from '../../core/engine/schema';
+import type { FlowGraph } from '../../core/engine/schema';
 import { mongoStatsRecorder } from '../../core/engine/stats';
 import type {
   AdvanceResult,
@@ -17,10 +17,8 @@ import type {
   FlowRunState,
   TraceRow,
 } from '../../core/engine/types';
-import { hasErrors } from '../../core/engine/validate';
-import { SYSTEM_VARIABLE_NAMES, coerce, type RunValue } from '../../core/engine/variables';
+import type { RunValue } from '../../core/engine/variables';
 import { AccountModel } from '../../db/models/account.model';
-import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import { FlowNodeStatsModel } from '../../db/models/flow-node-stats.model';
 import { FlowRunModel, SIMULATOR_TTL_MS, type FlowRunDoc } from '../../db/models/flow-run.model';
 import { FlowVersionModel, type FlowVersionDoc } from '../../db/models/flow-version.model';
@@ -30,12 +28,11 @@ import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
 import { addDays, ymdInZone } from '../../shared/time';
-import { contactTemplateValues } from '../ai-agents/functions.service';
-import { accountVariables, contactVariables } from '../ai-agents/variables';
 import { accountTimezone } from '../wallet/wallet.service';
 
 import { createFlowEffects } from './effects';
-import { findFlow, flowInvalid, issuesOf, type FlowsDeps } from './flows.service';
+import { findFlow, type FlowsDeps } from './flows.service';
+import { loadContact, resolveStartValues, resolveVersion, type RunContact } from './run-values';
 import type {
   ListSimulationsQuery,
   SimulationInputBody,
@@ -248,29 +245,6 @@ const httpOptions = (deps: SimulatorDeps): HttpToolOptions => ({
   policy: outgoingPolicy(deps.env, deps.extraPorts),
 });
 
-interface RunContact {
-  display: Record<string, string>;
-  phone: string | null;
-  externalId: string | null;
-  templateValues: Record<string, unknown>;
-}
-
-const loadContact = async (
-  accountId: Types.ObjectId,
-  contactId: Types.ObjectId,
-): Promise<RunContact> => {
-  const names = (await accountVariables(accountId)).map((v) => v.name);
-  const { values } = await contactVariables(accountId, contactId, names);
-  const contact = await ContactModel.findOne({ _id: contactId, accountId }).lean<ContactDoc>();
-  if (!contact) throw new NotFoundError('Contact not found');
-  return {
-    display: values,
-    phone: contact.phoneE164,
-    externalId: contact.externalId ?? null,
-    templateValues: contactTemplateValues(contact),
-  };
-};
-
 const runContact = async (run: FlowRunDoc & { testPhone?: string | null }): Promise<RunContact> => {
   if (run.contactId) {
     try {
@@ -437,29 +411,6 @@ const findRun = async (flow: FlowDoc, runId: string, withPhone = false) => {
   return run;
 };
 
-/** Resolves `draft` / `published` / a number to a graph (+ snapshot for drafts). */
-const resolveVersion = async (
-  flow: FlowDoc,
-  version: 'draft' | 'published' | number,
-  deps: SimulatorDeps,
-) => {
-  if (version === 'draft') {
-    const graph = FlowGraphSchema.parse(flow.draft);
-    const issues = await issuesOf(flow.accountId, graph, deps);
-    if (hasErrors(issues)) throw flowInvalid(issues);
-    return { graph, versionRef: 'draft' as const, checksum: flow.draftChecksum ?? '' };
-  }
-  const number = version === 'published' ? flow.publishedVersion : version;
-  if (!number)
-    throw new ConflictError('CONFLICT_INVALID_STATE', 'This flow has no published version.');
-  const v = await FlowVersionModel.findOne({
-    flowId: flow._id,
-    version: number,
-  }).lean<FlowVersionDoc>();
-  if (!v) throw new NotFoundError('Version not found');
-  return { graph: v.graph as unknown as FlowGraph, versionRef: number, checksum: v.checksum };
-};
-
 export const startSimulation = async (
   req: Request,
   flowId: string,
@@ -470,46 +421,12 @@ export const startSimulation = async (
   const flow = await findFlow(accountId, flowId);
   const { graph, versionRef, checksum } = await resolveVersion(flow, body.version, deps);
 
-  let contact: RunContact;
-  const seed: Record<string, RunValue> = {};
-  const contactId = body.contactId ? toObjectId(body.contactId) : null;
-  if (contactId) {
-    contact = await loadContact(accountId, contactId);
-  } else {
-    const contactNames = new Set((await accountVariables(accountId)).map((v) => v.name));
-    const flowTypes = new Map(graph.variables.map((v) => [v.name, v.type]));
-    const display: Record<string, string> = {};
-    const details: { path: string; message: string }[] = [];
-    for (const [name, raw] of Object.entries(body.variables ?? {})) {
-      const value = raw.trim();
-      if (contactNames.has(name)) display[name] = value;
-      else if (flowTypes.has(name)) {
-        try {
-          seed[name] = coerce(flowTypes.get(name) ?? 'text', value);
-        } catch {
-          details.push({
-            path: `variables.${name}`,
-            message: `Not a valid ${flowTypes.get(name) ?? 'value'}`,
-          });
-        }
-      } else {
-        details.push({
-          path: `variables.${name}`,
-          message: SYSTEM_VARIABLE_NAMES.has(name)
-            ? 'Set by the flow — read-only'
-            : 'Not a contact field or flow variable',
-        });
-      }
-    }
-    if (details.length) throw new ValidationError(details);
-    if (body.testPhone && !display.phone_last4) display.phone_last4 = body.testPhone.slice(-4);
-    contact = {
-      display,
-      phone: body.testPhone ?? null,
-      externalId: null,
-      templateValues: body.testPhone ? { phone: body.testPhone, name: display.name ?? '' } : {},
-    };
-  }
+  const contactId = body.contactId ? (toObjectId(body.contactId) ?? null) : null;
+  const { contact, seed } = await resolveStartValues(accountId, graph, {
+    contactId,
+    variables: body.variables,
+    testPhone: body.testPhone,
+  });
 
   const now = (deps.now ?? (() => new Date()))();
   const doc = await FlowRunModel.create({

@@ -20,7 +20,7 @@ import { CallRegistry } from '../../src/modules/calls/registry';
 import type { CallIO, CallScript } from '../../src/modules/calls/session';
 import { createLogger } from '../../src/shared/logger';
 import { createTestAccount, type TestAccount, type TestUser } from '../helpers/auth';
-import { answer, ensureRateCard, fund, makeLeg, scriptOf, talk } from '../helpers/calls';
+import { answer, ensureRateCard, fund, makeLeg, pumpUntil, scriptOf, talk } from '../helpers/calls';
 import { useTempStorage } from '../helpers/contacts';
 import { useTestDb } from '../helpers/db';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
@@ -80,11 +80,7 @@ const until = async (
   check: () => Promise<boolean>,
   maxMs = 60_000,
 ) => {
-  for (let ms = 0; ms < maxMs; ms += 200) {
-    if (await check()) return;
-    await talk(clock, leg, 200);
-  }
-  expect(await check()).toBe(true);
+  expect(await pumpUntil(clock, leg, check, maxMs)).toBe(true);
 };
 
 describe('CallSession — a full web test call', () => {

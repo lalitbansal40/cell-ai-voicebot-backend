@@ -26,6 +26,9 @@ export interface CreateWebCallInput {
   contactId: string | null;
   /** Display values (allowed contact fields + flow values). */
   variables: Record<string, string>;
+  /** Typed tester values (no contact) and the optional test phone. */
+  manualVariables?: Record<string, string> | null;
+  testPhone?: string | null;
 }
 
 export interface CallManagerDeps {
@@ -81,6 +84,8 @@ export class CallManager {
       contactId: input.contactId,
       startedBy: input.userId,
       variables: input.variables,
+      manualVariables: input.manualVariables ?? null,
+      testPhone: input.testPhone ?? null,
       timestamps: { queuedAt: new Date(this.clock.now()) },
     });
     const callId = call._id.toString();
@@ -111,7 +116,7 @@ export class CallManager {
     notifyAccount(input.accountId, 'call.created', { callId, isTest: true });
     return {
       callId,
-      call: { ...call.toObject({ transform: false }), holdId: billing.holdId },
+      call: { ...call.toObject({ transform: false }), testPhone: null, holdId: billing.holdId },
       ...ticket,
     };
   }

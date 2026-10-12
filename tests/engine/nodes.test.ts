@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { FLOW_LIMITS } from '../../src/config/limits';
-import { advance } from '../../src/core/engine/engine';
+import { advance, InputMismatchError } from '../../src/core/engine/engine';
 import { aiExitOf } from '../../src/core/engine/nodes/ai-agent';
 import type { FlowEffects, FlowInputBody, FlowOutput } from '../../src/core/engine/types';
 import {
@@ -726,6 +726,54 @@ describe('ai_agent', () => {
     expect(
       texts((await play(nodes(), edges, [{ kind: 'speech', text: 'hi' }], wallet)).last.outputs),
     ).toEqual(['Wallet empty line', 'AI error']);
+  });
+
+  it('a live voice session ends the step with ai_session_end (calls)', async () => {
+    const end = (
+      reason: 'outcome' | 'end_call' | 'no_response' | 'max_turns' | 'fallback',
+      outcome = {},
+    ) => ({ kind: 'ai_session_end', reason, outcome, turns: 2 }) as const;
+    const promise = await play(nodes(), edges, [
+      end('outcome', { promiseToPay: { date: '2026-10-11', amountMicros: null } }),
+    ]);
+    expect(texts(promise.last.outputs)).toEqual(['Promise 11 Oct 2026']);
+    expect(promise.last.state.outcome.disposition).toBe('promise_to_pay');
+    expect(promise.last.state.ai).toBeNull();
+    const ended = await play(nodes(), edges, [end('end_call')]);
+    expect(texts(ended.last.outputs)).toEqual(['Resolved']);
+    const transfer = await play(nodes(), edges, [end('outcome', { transferRequested: true })]);
+    expect(texts(transfer.last.outputs)).toEqual(['Transfer']);
+    const plain = await play(nodes(), edges, [end('outcome')]);
+    expect(texts(plain.last.outputs)).toEqual(['Resolved']);
+    for (const reason of ['no_response', 'max_turns'] as const) {
+      expect(texts((await play(nodes(), edges, [end(reason)])).last.outputs)).toEqual([
+        'No response',
+      ]);
+    }
+    expect(texts((await play(nodes(), edges, [end('fallback')])).last.outputs)).toEqual([
+      'AI error',
+    ]);
+  });
+
+  it('ai_session_end is refused when the run is not waiting for the AI', async () => {
+    const graph = [
+      {
+        id: 'menu',
+        type: 'gather_dtmf',
+        config: {
+          prompt: { kind: 'speak', text: 'Press' },
+          keys: [{ id: 'k1', key: '1', label: 'x' }],
+        },
+      },
+      bye('b', 'Bye'),
+    ];
+    await expect(
+      play(
+        graph,
+        [['menu', 'key_k1', 'b']],
+        [{ kind: 'ai_session_end', reason: 'outcome', outcome: {}, turns: 0 }],
+      ),
+    ).rejects.toThrow(InputMismatchError);
   });
 
   it('maps outcomes to exits in order', () => {
