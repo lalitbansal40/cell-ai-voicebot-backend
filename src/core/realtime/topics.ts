@@ -23,7 +23,7 @@ export interface TopicContext {
 export type AuthorizeTopic = (ctx: TopicContext, topic: ParsedTopic) => boolean | Promise<boolean>;
 
 /**
- * Phase 1: format check only.
- * TODO(P7/P8): verify the call / campaign belongs to ctx.accountId before allowing the subscription.
+ * Format check only — for tests and tools. The server passes the real check
+ * (`modules/calls/topic-auth.ts`: the call belongs to the account and the role has `calls.read`).
  */
 export const defaultAuthorizeTopic: AuthorizeTopic = () => true;

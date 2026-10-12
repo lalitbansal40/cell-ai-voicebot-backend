@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import type { Redis } from 'ioredis';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 
 import { closeAllRedis, createRedis } from '../../src/core/queues/redis';
@@ -149,6 +149,16 @@ describe('/ws/events authentication', () => {
     expect(msg.id).toMatch(/^evt_/);
     expect(typeof msg.ts).toBe('string');
     expect(msg.data).toEqual({ balanceMicros: 1, holdMicros: 0, currency: 'INR' });
+  });
+
+  it('leaves /ws/media to the media server and destroys unknown paths', async () => {
+    const { server } = await startInstance();
+    const media = { destroy: vi.fn() };
+    const unknown = { destroy: vi.fn() };
+    server.emit('upgrade', { url: '/ws/media?ticket=x' }, media, Buffer.alloc(0));
+    server.emit('upgrade', { url: '/nope' }, unknown, Buffer.alloc(0));
+    expect(media.destroy).not.toHaveBeenCalled();
+    expect(unknown.destroy).toHaveBeenCalled();
   });
 
   it('rejects a reused ticket with 4001', async () => {

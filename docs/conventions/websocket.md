@@ -102,21 +102,24 @@ New events must be added to this table in the same PR that emits them.
 
 ## 8. `/ws/media` — Web Call protocol (Phase 7)
 
-**Text frames (JSON control):**
+**Auth:** `POST /api/v1/calls/web` (Bearer, `calls.trigger`, never while impersonating) creates the call and returns a single-use **media ticket** (60 s, bound to the user, account and call). Connect to `GET /ws/media?ticket=…` on the API origin (the events server leaves this path to the media server). One socket per call.
 
-| Direction       | Message                                                                                               |
-| --------------- | ----------------------------------------------------------------------------------------------------- |
-| client → server | `call.start { flowId? , agentId?, contactId?, variables? }` (exactly one of `flowId` / `agentId`)     |
-| server → client | `call.started { callId }`                                                                             |
-| client → server | `call.dtmf { digit }`                                                                                 |
-| client → server | `call.hangup {}`                                                                                      |
-| server → client | `call.transcript { seq, speaker, text, final }`, `call.event { type, data }`, `call.ended { reason }` |
-| server → client | `audio.clear {}` — barge-in: client must flush its playback buffer immediately                        |
+**Text frames (JSON control, ≤ 16 KB, validated):**
 
-**Binary frames (audio), both directions:**
+| Direction       | Message                                                                                                                                   |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| server → client | `call.config { textInput, sampleRate: 24000, frameBytes: 960 }` — right after the ticket is accepted                                      |
+| client → server | `call.ready { sampleRate: 24000 }` (microphone ready = call answered)                                                                     |
+| client → server | `call.dtmf { digit }` (`0-9 * #`), `call.hangup {}`, `call.mute { muted }`                                                                |
+| client → server | `call.transfer_result { result: connected \| failed \| no_answer }` — answer to `call.transfer`                                           |
+| client → server | `call.say_text { text }` — **dev / tests only** (`VOICE_TEXT_INPUT_ENABLED`, never in production): typed customer words                   |
+| server → client | `call.transcript { seq, speaker, text, final }` (partials greyed), `call.event { type, data }` (timeline), `call.transfer { phoneLast4 }` |
+| server → client | `audio.clear {}` — barge-in: flush the playback buffer now                                                                                |
+| server → client | `call.ended { reason, durationSec, costMicros }`, `error { code }` (`bad_message`, `text_input_disabled`)                                 |
 
-- **PCM16 little-endian, mono, 24 kHz**, **20 ms** per frame = **960 bytes**.
-- Telephony (SIP) audio is G.711 μ-law 8 kHz; conversion happens server-side in the audio bridge, never in the browser.
+**Binary frames (audio), both directions:** exactly **960 bytes** = 20 ms of **PCM16 little-endian mono at 24 kHz**; any other size closes the socket (`4008`). Client → server at most 60 frames / s (burst 100), else `4008`. Server → client audio is paced in real time (≤ 200 ms ahead; it waits while the socket is backed up). Phone (SIP) audio is G.711 μ-law 8 kHz and is converted server-side, never in the browser.
+
+**Close codes:** §7 plus `4011` (this call already has a socket), `4012` (the call has ended), `1001` (server shutting down), `1009` (control message too large).
 
 ## 9. Limits (initial — tuned in Phase 1/7)
 

@@ -39,6 +39,7 @@ import {
   redactMongoUri,
   syncAllIndexes,
 } from './db/mongo';
+import { authorizeTopic } from './modules/calls/topic-auth';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
@@ -185,6 +186,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     redis,
     subscriber: createSubscriber(env.REDIS_URL, logger),
     logger,
+    authorizeTopic,
   });
   setRealtime(realtime);
   lifecycle.onShutdown(

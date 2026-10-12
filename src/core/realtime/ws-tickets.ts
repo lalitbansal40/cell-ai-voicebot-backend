@@ -8,6 +8,8 @@ export interface WsTicketPayload {
   userId: string;
   accountId: string;
   channel: WsChannel;
+  /** Media tickets: the call this socket belongs to. */
+  callId?: string;
   /** Expiry (epoch ms) stored inside the ticket too — lets us report 4010 on clock-skewed reuse. */
   exp: number;
 }
@@ -29,6 +31,7 @@ export class WsTicketService {
     userId: string;
     accountId: string;
     channel: WsChannel;
+    callId?: string;
   }): Promise<{ ticket: string; expiresAt: string }> {
     const ticket = `wst_${randomBytes(32).toString('base64url')}`;
     const exp = Date.now() + this.ttlSec * 1000;

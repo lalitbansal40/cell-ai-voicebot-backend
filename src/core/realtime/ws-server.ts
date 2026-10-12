@@ -12,6 +12,8 @@ import { defaultAuthorizeTopic, parseTopic, type AuthorizeTopic } from './topics
 import { WsTicketService } from './ws-tickets';
 
 export const WS_EVENTS_PATH = '/ws/events';
+/** Web call audio (`core/telephony/media-server.ts`) — handled by its own upgrade listener. */
+export const WS_MEDIA_PATH = '/ws/media';
 
 /** Messages buffered per socket while its ticket is being verified. */
 const MAX_PENDING_MESSAGES = 20;
@@ -258,6 +260,7 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
 
   const onUpgrade = (req: IncomingMessage, socket: Duplex, head: Buffer): void => {
     const url = new URL(req.url ?? '/', 'http://localhost');
+    if (url.pathname === WS_MEDIA_PATH) return;
     if (url.pathname !== WS_EVENTS_PATH) {
       socket.destroy();
       return;
