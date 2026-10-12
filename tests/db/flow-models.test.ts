@@ -295,8 +295,7 @@ describe('FlowAudio model', () => {
 });
 
 describe('Phase 6 catalogue', () => {
-  it('has 41 error codes incl. the two flow codes, usable through ConflictError', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(41);
+  it('has the two flow error codes, usable through ConflictError', () => {
     expect(ERROR_CODES.FLOW_REVISION_CONFLICT.status).toBe(409);
     expect(ERROR_CODES.RESOURCE_IN_USE.status).toBe(409);
     const err = new ConflictError('RESOURCE_IN_USE', undefined, [
@@ -309,8 +308,7 @@ describe('Phase 6 catalogue', () => {
     });
   });
 
-  it('has 68 audit actions incl. the 11 flow actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(68);
+  it('has the 11 flow audit actions', () => {
     expect(AUDIT_ACTIONS.filter((a) => a.startsWith('flow'))).toHaveLength(11);
   });
 

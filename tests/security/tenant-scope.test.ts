@@ -41,6 +41,7 @@ const NOT_TENANT_SCOPED: Record<string, string> = {
   'payment-event.model.ts': 'provider webhooks; accountId nullable until matched',
   'rate-card.model.ts': 'accountId null = platform default card',
   'mock-payment-record.model.ts': 'dev-only mock data; its route is never mounted in production',
+  'tts-cache.model.ts': 'text-to-speech audio cache keyed by a text hash, no tenant data',
 };
 
 describe('tenant scoping (models)', () => {

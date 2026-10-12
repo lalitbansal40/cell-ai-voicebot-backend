@@ -108,6 +108,7 @@ export const PublicAccountSchema = registry.register(
     settings: z.object({
       callingWindow: CallingWindowSchema,
       recordingEnabled: z.boolean(),
+      recordingNotice: z.string(),
       aiDisclosureEnabled: z.boolean(),
     }),
     createdAt: z.string(),

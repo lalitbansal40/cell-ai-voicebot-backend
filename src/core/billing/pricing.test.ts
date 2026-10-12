@@ -72,6 +72,28 @@ describe('callCharge', () => {
     ).toBe(1);
   });
 
+  it('browser test calls (telephony: false) bill AI, TTS and commission only', () => {
+    const web = callCharge(card(), {
+      answered: true,
+      durationSec: 95,
+      aiSeconds: 95,
+      ttsChars: 1000,
+      telephony: false,
+    });
+    const phone = callCharge(card(), {
+      answered: true,
+      durationSec: 95,
+      aiSeconds: 95,
+      ttsChars: 1000,
+    });
+    expect(web.breakdown.telephonyMicros).toBe(0);
+    expect(web.breakdown.billableSeconds).toBe(0);
+    expect(web.breakdown.aiMicros).toBe(phone.breakdown.aiMicros);
+    expect(web.breakdown.ttsMicros).toBe(phone.breakdown.ttsMicros);
+    expect(web.totalMicros).toBeLessThan(phone.totalMicros);
+    expect(holdEstimate(card(), 3, false)).toBeLessThan(holdEstimate(card(), 3));
+  });
+
   it('rejects bad usage numbers', () => {
     expect(() => callCharge(card(), { answered: true, durationSec: -1 })).toThrow(/durationSec/);
     expect(() => callCharge(card(), { answered: true, durationSec: 1.5 })).toThrow();

@@ -1,3 +1,4 @@
+import { CALL_LIMITS } from '../../config/limits';
 import { registry } from '../../shared/openapi/registry';
 import { bearer, errors, ok } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
@@ -31,6 +32,12 @@ export const UpdateAccountBody = z
       .strictObject({
         callingWindow: CallingWindowInput.optional(),
         recordingEnabled: z.boolean().optional(),
+        recordingNotice: z
+          .string()
+          .trim()
+          .min(1)
+          .max(CALL_LIMITS.recordingNoticeMaxChars)
+          .optional(),
         aiDisclosureEnabled: z.boolean().optional(),
       })
       .optional(),

@@ -71,6 +71,9 @@ export const AUDIT_ACTIONS = [
   'flow.unarchived',
   'flow.deleted',
   'flow_audio.changed',
+  'call.test_started',
+  'call.recording_accessed',
+  'call.hung_up_remotely',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

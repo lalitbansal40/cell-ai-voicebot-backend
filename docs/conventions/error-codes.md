@@ -47,6 +47,9 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `KNOWLEDGE_LIMIT_REACHED`     | 422  | Knowledge base limit reached (knowledge bases per account, sources per base or chunks per base)                                           | 5     |
 | `FLOW_REVISION_CONFLICT`      | 409  | The flow draft was saved by someone else since it was loaded — `details` carry the current `revision`, `updatedBy`, `updatedAt`           | 6     |
 | `RESOURCE_IN_USE`             | 409  | The item is used elsewhere (agent / audio used by flows, flow used by campaigns) — `details[]` list the users (`id`, `message` = name)    | 6     |
+| `CALL_LIMIT_REACHED`          | 429  | The account already has its maximum number of calls running (web test calls: 3)                                                           | 7     |
+| `CALL_CAPACITY`               | 503  | This server instance is at its call limit — retry shortly                                                                                 | 7     |
+| `CALL_NOT_ACTIVE`             | 409  | The call is not running (hang up of an ended call, media for a finished call)                                                             | 7     |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

@@ -161,9 +161,15 @@
                 "required": ["start", "end", "days"]
               },
               "recordingEnabled": { "type": "boolean" },
+              "recordingNotice": { "type": "string" },
               "aiDisclosureEnabled": { "type": "boolean" }
             },
-            "required": ["callingWindow", "recordingEnabled", "aiDisclosureEnabled"]
+            "required": [
+              "callingWindow",
+              "recordingEnabled",
+              "recordingNotice",
+              "aiDisclosureEnabled"
+            ]
           },
           "createdAt": { "type": "string" }
         },
@@ -334,7 +340,10 @@
               "flow.archived",
               "flow.unarchived",
               "flow.deleted",
-              "flow_audio.changed"
+              "flow_audio.changed",
+              "call.test_started",
+              "call.recording_accessed",
+              "call.hung_up_remotely"
             ]
           },
           "actor": {
@@ -4698,6 +4707,7 @@
                         "example": { "start": "09:00", "end": "19:00", "days": [1, 2, 3, 4, 5, 6] }
                       },
                       "recordingEnabled": { "type": "boolean" },
+                      "recordingNotice": { "type": "string", "minLength": 1, "maxLength": 200 },
                       "aiDisclosureEnabled": { "type": "boolean" }
                     },
                     "additionalProperties": false

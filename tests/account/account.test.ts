@@ -60,16 +60,24 @@ describe('PATCH /api/v1/account', () => {
     expect(res.body.data.settings).toEqual({
       callingWindow: { start: '09:00', end: '19:00', days: [1, 2, 3, 4, 5, 6] },
       recordingEnabled: false,
+      recordingNotice: 'Yeh call quality ke liye record ki ja rahi hai.',
       aiDisclosureEnabled: true,
     });
     const second = await patch(owner.token, {
-      settings: { callingWindow: { start: '10:00', end: '18:30', days: [1, 2, 3] } },
+      settings: {
+        callingWindow: { start: '10:00', end: '18:30', days: [1, 2, 3] },
+        recordingNotice: '  Ye call record ho rahi hai.  ',
+      },
     });
     expect(second.body.data.settings).toEqual({
       callingWindow: { start: '10:00', end: '18:30', days: [1, 2, 3] },
       recordingEnabled: false,
+      recordingNotice: 'Ye call record ho rahi hai.',
       aiDisclosureEnabled: true,
     });
+    const tooLong = await patch(owner.token, { settings: { recordingNotice: 'x'.repeat(201) } });
+    expect(tooLong.status).toBe(422);
+    expect((await patch(owner.token, { settings: { recordingNotice: ' ' } })).status).toBe(422);
     expect(second.body.data.name).toBe('Renamed Finance');
   });
 

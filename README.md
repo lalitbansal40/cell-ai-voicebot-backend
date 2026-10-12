@@ -359,7 +359,7 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | `AUTH_COOKIE_DOMAIN`               | no                | 2       | Refresh-cookie domain (e.g. `.example.com`); empty = host-only                                           |
 | `SEED_PASSWORD`                    | no (dev only)     | 2       | Password for `npm run db:seed` users; empty = random, printed once                                       |
 | `OPENAI_API_KEY`                   | yes · secret      | 5/7     | OpenAI API key (required in production; with it `AI_PROVIDER` defaults to `openai`)                      |
-| `OPENAI_REALTIME_MODEL`            | yes               | 7       | Realtime model name (set after PoC T0.15)                                                                |
+| `OPENAI_REALTIME_MODEL`            | no                | 7       | Realtime voice model (default `gpt-realtime-2.1-mini`)                                                   |
 | `AI_PROVIDER`                      | no                | 5       | `fake` (deterministic test AI) or `openai`; production requires `openai`                                 |
 | `OPENAI_BASE_URL`                  | no                | 5       | OpenAI API base URL (default `https://api.openai.com/v1`; tests use a local stub)                        |
 | `OPENAI_TEXT_MODEL`                | no                | 5       | Default agent text model (default `gpt-4.1-mini`)                                                        |
@@ -367,6 +367,13 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | `AI_TEXT_MODELS`                   | no                | 5       | Comma list of text models agents may pick (must include `OPENAI_TEXT_MODEL`)                             |
 | `AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS` | no                | 5       | Agent functions / URL sources may reach private hosts (default on outside production, off in production) |
 | `MOCK_APIS_ENABLED`                | no (dev only)     | 5       | Mock client APIs (`/api/v1/mock/*`); default on outside production, must be off in production            |
+| `VOICE_PROVIDER`                   | no                | 7       | `fake` (deterministic voice) or `openai`; default = `AI_PROVIDER`; production requires `openai`          |
+| `VOICE_PIPELINE`                   | no                | 7       | `realtime` (speech-to-speech, default) or `chat` (STT → chat model → TTS)                                |
+| `VOICE_TEXT_INPUT_ENABLED`         | no (dev only)     | 7       | Typed customer text on web calls (default on outside production, must be off in production)              |
+| `OPENAI_TTS_MODEL`                 | no                | 7       | Text-to-speech model for speak steps (default `gpt-4o-mini-tts`)                                         |
+| `OPENAI_TRANSCRIBE_MODEL`          | no                | 7       | Speech-to-text model for listen steps (default `gpt-4o-mini-transcribe`)                                 |
+| `CALL_RETENTION_DAYS`              | no                | 7       | Days calls, transcripts, events and recordings are kept (default 180)                                    |
+| `CALL_RECORDING_TMP_DIR`           | no                | 7       | Folder for recordings being written during a call (default `<os tmp>/cav-rec`)                           |
 | `STORAGE_DRIVER`                   | no                | 7/9     | `local` or `s3`                                                                                          |
 | `STORAGE_LOCAL_PATH`               | no                | 7/9     | Folder for local uploads/recordings                                                                      |
 | `S3_BUCKET`                        | if s3             | 7/9     | S3 bucket name                                                                                           |

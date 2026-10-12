@@ -72,6 +72,12 @@ export const ERROR_CODES = {
     message: 'This flow was changed by someone else. Reload to continue.',
   },
   RESOURCE_IN_USE: { status: 409, message: 'This item is in use.' },
+  CALL_LIMIT_REACHED: { status: 429, message: 'Too many calls are running for this account.' },
+  CALL_CAPACITY: {
+    status: 503,
+    message: 'The server is at its call limit. Try again in a moment.',
+  },
+  CALL_NOT_ACTIVE: { status: 409, message: 'This call is not running.' },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

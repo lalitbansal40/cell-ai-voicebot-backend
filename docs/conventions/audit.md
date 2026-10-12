@@ -82,6 +82,9 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `flow.unarchived`               | user             | flow               | —                                                                                |
 | `flow.deleted`                  | user             | flow               | `name`                                                                           |
 | `flow_audio.changed`            | user             | flow_audio         | `change` (`uploaded` / `renamed` / `deleted`), `name`, `durationMs`              |
+| `call.test_started`             | user             | call               | `source` (`flow` / `agent`), `version` (`draft` / number, flows only)            |
+| `call.recording_accessed`       | user             | call               | —                                                                                |
+| `call.hung_up_remotely`         | user             | call               | —                                                                                |
 
 Contact actions never carry phone numbers, names or variable values in `meta` — counts, ids, keys and list / segment names only (Phase 3).
 

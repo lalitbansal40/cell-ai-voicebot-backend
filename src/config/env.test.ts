@@ -398,3 +398,61 @@ describe('loadEnv — AI (Phase 5)', () => {
     expect(issuesOf(noKey).issues.map((i) => i.variable)).toContain('OPENAI_API_KEY');
   });
 });
+
+describe('loadEnv — voice calls', () => {
+  it('defaults: fake voice, realtime pipeline, text input on, models, retention, tmp dir', () => {
+    const env = loadEnv({});
+    expect(env.VOICE_PROVIDER).toBe('fake');
+    expect(env.VOICE_PIPELINE).toBe('realtime');
+    expect(env.VOICE_TEXT_INPUT_ENABLED).toBe(true);
+    expect(env.OPENAI_REALTIME_MODEL).toBe('gpt-realtime-2.1-mini');
+    expect(env.OPENAI_TTS_MODEL).toBe('gpt-4o-mini-tts');
+    expect(env.OPENAI_TRANSCRIBE_MODEL).toBe('gpt-4o-mini-transcribe');
+    expect(env.CALL_RETENTION_DAYS).toBe(180);
+    expect(env.CALL_RECORDING_TMP_DIR).toMatch(/cav-rec$/);
+  });
+
+  it('follows AI_PROVIDER and parses explicit values', () => {
+    expect(loadEnv({ AI_PROVIDER: 'openai', OPENAI_API_KEY: 'k' }).VOICE_PROVIDER).toBe('openai');
+    const env = loadEnv({
+      VOICE_PROVIDER: 'fake',
+      VOICE_PIPELINE: 'chat',
+      VOICE_TEXT_INPUT_ENABLED: 'false',
+      OPENAI_REALTIME_MODEL: 'gpt-realtime-2.1',
+      CALL_RETENTION_DAYS: '30',
+      CALL_RECORDING_TMP_DIR: '/tmp/rec',
+    });
+    expect(env).toMatchObject({
+      VOICE_PROVIDER: 'fake',
+      VOICE_PIPELINE: 'chat',
+      VOICE_TEXT_INPUT_ENABLED: false,
+      OPENAI_REALTIME_MODEL: 'gpt-realtime-2.1',
+      CALL_RETENTION_DAYS: 30,
+      CALL_RECORDING_TMP_DIR: '/tmp/rec',
+    });
+  });
+
+  it('openai voice needs a key; bad model ids and retention are refused', () => {
+    expect(issuesOf({ VOICE_PROVIDER: 'openai' }).issues).toContainEqual(
+      expect.objectContaining({ variable: 'OPENAI_API_KEY' }),
+    );
+    expect(issuesOf({ OPENAI_REALTIME_MODEL: 'Bad Model' }).issues).toContainEqual(
+      expect.objectContaining({ variable: 'OPENAI_REALTIME_MODEL' }),
+    );
+    expect(issuesOf({ CALL_RETENTION_DAYS: '3' }).issues[0]?.variable).toBe('CALL_RETENTION_DAYS');
+    expect(issuesOf({ VOICE_PIPELINE: 'x' }).issues[0]?.variable).toBe('VOICE_PIPELINE');
+  });
+
+  it('production: openai voice only and no typed text input', () => {
+    expect(loadEnv(validProduction).VOICE_TEXT_INPUT_ENABLED).toBe(false);
+    const err = issuesOf({
+      ...validProduction,
+      VOICE_PROVIDER: 'fake',
+      VOICE_TEXT_INPUT_ENABLED: 'true',
+    });
+    expect(err.issues.map((i) => i.variable).sort()).toEqual([
+      'VOICE_PROVIDER',
+      'VOICE_TEXT_INPUT_ENABLED',
+    ]);
+  });
+});

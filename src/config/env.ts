@@ -1,3 +1,6 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { z } from 'zod';
 
 import { isGstStateCode } from '../shared/gst-states';
@@ -74,6 +77,27 @@ const RawEnvSchema = z.object({
     .enum(['true', 'false'], { message: 'must be true or false' })
     .optional(),
   MOCK_APIS_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+
+  /** Voice AI for calls (Phase 7): `fake` (deterministic) or `openai`; default = resolved AI_PROVIDER. */
+  VOICE_PROVIDER: z.enum(['fake', 'openai']).optional(),
+  /** `realtime` (OpenAI speech-to-speech) or `chat` (STT → chat model → TTS). */
+  VOICE_PIPELINE: z.enum(['realtime', 'chat']).default('realtime'),
+  /** DEV / TEST ONLY — typed customer text on web calls (`call.say_text`); never in production. */
+  VOICE_TEXT_INPUT_ENABLED: z
+    .enum(['true', 'false'], { message: 'must be true or false' })
+    .optional(),
+  OPENAI_TTS_MODEL: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9.-]{1,63}$/, { message: 'must be a model id' })
+    .default('gpt-4o-mini-tts'),
+  OPENAI_TRANSCRIBE_MODEL: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9.-]{1,63}$/, { message: 'must be a model id' })
+    .default('gpt-4o-mini-transcribe'),
+  /** Days calls, transcripts, events and recordings are kept (default 180). */
+  CALL_RETENTION_DAYS: z.coerce.number().int().min(7).max(3650).default(180),
+  /** Folder for recordings being written during a call (default `<os tmp>/cav-rec`). */
+  CALL_RECORDING_TMP_DIR: optionalString,
 
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./uploads'),
@@ -156,6 +180,10 @@ export type Env = Readonly<
     | 'AI_TEXT_MODELS'
     | 'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS'
     | 'MOCK_APIS_ENABLED'
+    | 'OPENAI_REALTIME_MODEL'
+    | 'VOICE_PROVIDER'
+    | 'VOICE_TEXT_INPUT_ENABLED'
+    | 'CALL_RECORDING_TMP_DIR'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -179,6 +207,10 @@ export type Env = Readonly<
     AI_TEXT_MODELS: readonly string[];
     AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS: boolean;
     MOCK_APIS_ENABLED: boolean;
+    OPENAI_REALTIME_MODEL: string;
+    VOICE_PROVIDER: 'fake' | 'openai';
+    VOICE_TEXT_INPUT_ENABLED: boolean;
+    CALL_RECORDING_TMP_DIR: string;
   }
 >;
 
@@ -366,6 +398,25 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       : !production;
   const mockApis =
     raw.MOCK_APIS_ENABLED !== undefined ? raw.MOCK_APIS_ENABLED === 'true' : !production;
+  const voiceProvider = raw.VOICE_PROVIDER ?? aiProvider;
+  if (voiceProvider === 'openai' && aiProvider !== 'openai') {
+    check('OPENAI_API_KEY', 'required when VOICE_PROVIDER=openai', Boolean(raw.OPENAI_API_KEY));
+  }
+  if (raw.OPENAI_REALTIME_MODEL !== undefined) {
+    check(
+      'OPENAI_REALTIME_MODEL',
+      'must be a model id like gpt-realtime-2.1-mini',
+      /^[a-z0-9][a-z0-9.-]{1,63}$/.test(raw.OPENAI_REALTIME_MODEL),
+    );
+  }
+  const voiceTextInput =
+    raw.VOICE_TEXT_INPUT_ENABLED !== undefined
+      ? raw.VOICE_TEXT_INPUT_ENABLED === 'true'
+      : !production;
+  if (production) {
+    check('VOICE_PROVIDER', 'must be openai in production', voiceProvider === 'openai');
+    check('VOICE_TEXT_INPUT_ENABLED', 'must be false in production', !voiceTextInput);
+  }
   if (production) {
     check('AI_PROVIDER', 'must be openai in production', aiProvider === 'openai');
     check('AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS', 'must be false in production', !allowPrivateHosts);
@@ -411,6 +462,10 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     AI_TEXT_MODELS: Object.freeze(textModels),
     AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS: allowPrivateHosts,
     MOCK_APIS_ENABLED: mockApis,
+    OPENAI_REALTIME_MODEL: raw.OPENAI_REALTIME_MODEL ?? 'gpt-realtime-2.1-mini',
+    VOICE_PROVIDER: voiceProvider,
+    VOICE_TEXT_INPUT_ENABLED: voiceTextInput,
+    CALL_RECORDING_TMP_DIR: raw.CALL_RECORDING_TMP_DIR ?? join(tmpdir(), 'cav-rec'),
   });
 };
 

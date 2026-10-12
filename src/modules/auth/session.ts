@@ -90,6 +90,7 @@ export const toPublicAccount = (a: AccountDoc): PublicAccount => ({
       days: [...a.settings.callingWindow.days],
     },
     recordingEnabled: a.settings.recordingEnabled,
+    recordingNotice: a.settings.recordingNotice,
     aiDisclosureEnabled: a.settings.aiDisclosureEnabled,
   },
   createdAt: a.createdAt.toISOString(),

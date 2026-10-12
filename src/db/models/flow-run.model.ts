@@ -50,6 +50,8 @@ export interface FlowRunDoc {
   graph: FlowGraphData | null;
   graphChecksum: string;
   contactId: Types.ObjectId | null;
+  /** The call this run belongs to (`mode: 'call'`, Phase 7). */
+  callId: Types.ObjectId | null;
   manualVariables: Record<string, string> | null;
   /** Only `{{contact.phone}}` in API templates sees it — never returned. */
   testPhone: string | null;
@@ -98,6 +100,7 @@ const schema = new Schema<FlowRunDoc>(
     graph: { type: Schema.Types.Mixed, default: null },
     graphChecksum: { type: String, required: true },
     contactId: { type: Schema.Types.ObjectId, default: null },
+    callId: { type: Schema.Types.ObjectId, default: null },
     manualVariables: { type: Schema.Types.Mixed, default: null },
     testPhone: { type: String, default: null, select: false },
     status: { type: String, enum: RUN_STATUSES, default: 'running' },
@@ -119,6 +122,7 @@ schema.plugin(tenantPlugin);
 schema.index({ accountId: 1, flowId: 1, createdAt: -1 });
 schema.index({ accountId: 1, createdBy: 1, createdAt: -1 });
 schema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+schema.index({ callId: 1 }, { sparse: true });
 
 /** One run of a flow — simulator now, calls from Phase 7 (data-model.md §2.4). */
 export const FlowRunModel: Model<FlowRunDoc> =

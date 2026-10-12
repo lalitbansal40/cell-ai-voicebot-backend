@@ -88,20 +88,21 @@ erDiagram
 
 Not tenant-scoped (it **is** the tenant): no `accountId`.
 
-| Field                        | Type                                               | R   | Notes                                                                               |
-| ---------------------------- | -------------------------------------------------- | --- | ----------------------------------------------------------------------------------- |
-| name                         | string                                             | ✓   | Business name                                                                       |
-| slug                         | string                                             | ✓   | Unique, URL-safe                                                                    |
-| status                       | `active \| suspended`                              | ✓   | Suspended → no calls, read-only                                                     |
-| timezone                     | string                                             | ✓   | IANA, default `Asia/Kolkata`                                                        |
-| country                      | string                                             | ✓   | ISO-3166 alpha-2, default `IN`                                                      |
-| defaultLanguage              | `hi \| en \| hinglish`                             | ✓   | Default for flows/agents                                                            |
-| settings.callingWindow       | `{ start: "09:00", end: "19:00", days: number[] }` | ✓   | Account default; campaigns may narrow it                                            |
-| settings.recordingEnabled    | boolean                                            | ✓   | Default true                                                                        |
-| settings.aiDisclosureEnabled | boolean                                            | ✓   | Default true (compliance)                                                           |
-| ownerId                      | ObjectId → users                                   |     | The single owner (set at signup)                                                    |
-| suspendedAt, suspendReason   | Date, string                                       |     | Set by a superadmin                                                                 |
-| isPlatform                   | boolean                                            | ✓   | `true` only for the internal `platform` account (holds superadmins; migration 0002) |
+| Field                        | Type                                               | R   | Notes                                                                                                    |
+| ---------------------------- | -------------------------------------------------- | --- | -------------------------------------------------------------------------------------------------------- |
+| name                         | string                                             | ✓   | Business name                                                                                            |
+| slug                         | string                                             | ✓   | Unique, URL-safe                                                                                         |
+| status                       | `active \| suspended`                              | ✓   | Suspended → no calls, read-only                                                                          |
+| timezone                     | string                                             | ✓   | IANA, default `Asia/Kolkata`                                                                             |
+| country                      | string                                             | ✓   | ISO-3166 alpha-2, default `IN`                                                                           |
+| defaultLanguage              | `hi \| en \| hinglish`                             | ✓   | Default for flows/agents                                                                                 |
+| settings.callingWindow       | `{ start: "09:00", end: "19:00", days: number[] }` | ✓   | Account default; campaigns may narrow it                                                                 |
+| settings.recordingEnabled    | boolean                                            | ✓   | Default true                                                                                             |
+| settings.recordingNotice     | string (≤ 200)                                     | ✓   | Said at the start of recorded calls (Phase 7); default "Yeh call quality ke liye record ki ja rahi hai." |
+| settings.aiDisclosureEnabled | boolean                                            | ✓   | Default true (compliance)                                                                                |
+| ownerId                      | ObjectId → users                                   |     | The single owner (set at signup)                                                                         |
+| suspendedAt, suspendReason   | Date, string                                       |     | Set by a superadmin                                                                                      |
+| isPlatform                   | boolean                                            | ✓   | `true` only for the internal `platform` account (holds superadmins; migration 0002)                      |
 
 Indexes: `{ slug: 1 }` unique, `{ status: 1 }`. Slugs `platform`, `admin`, `api`, `www`, `app`, `support` are reserved. Defaults: timezone `Asia/Kolkata`, country `IN`, language `hinglish`, calling window 09:00–19:00 Mon–Sat. PII: none. Retention: life of contract.
 
@@ -592,54 +593,64 @@ Indexes: `{ campaignId: 1, contactId: 1 }` unique, `{ campaignId: 1, status: 1, 
 
 #### Call (`calls`) — Phase 7
 
-| Field                                    | Type                                                                                       | R   | Notes                               |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------ | --- | ----------------------------------- |
-| direction                                | `outbound \| inbound`                                                                      | ✓   |                                     |
-| provider                                 | `webcall \| sip \| notifynow`                                                              | ✓   | ADR 0020                            |
-| providerCallId                           | string                                                                                     |     |                                     |
-| from, to                                 | string                                                                                     | ✓   | E.164 (webcall: `webcall:<userId>`) |
-| contactId, campaignId, campaignContactId | ObjectId                                                                                   |     |                                     |
-| flowId, flowVersionId, agentId           | ObjectId                                                                                   |     |                                     |
-| status                                   | `queued \| ringing \| in_progress \| completed \| failed \| busy \| no_answer \| canceled` | ✓   |                                     |
-| hangupCause                              | string                                                                                     |     | Provider cause mapped               |
-| timestamps                               | `{ queuedAt, startedAt, answeredAt, endedAt }`                                             | ✓   |                                     |
-| durationSec, billableSec                 | number                                                                                     |     | billableSec after pulse rounding    |
-| disposition, sentiment, summary          | string                                                                                     |     | Post-call AI (Phase 9)              |
-| languageDetected                         | string                                                                                     |     |                                     |
-| recording                                | `{ fileKey, durationSec, sizeBytes, format }`                                              |     | Embedded                            |
-| cost                                     | `{ telephonyMicros, aiMicros, ttsMicros, totalMicros }`                                    |     |                                     |
-| ledgerEntryId                            | ObjectId                                                                                   |     |                                     |
-| variables                                | snapshot                                                                                   |     |                                     |
-| error                                    | `{ code, message }`                                                                        |     |                                     |
+| Field                 | Type                                                                                                                                                                                                    | R   | Notes                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ---------------------------------------------------------------------- |
+| direction             | `outbound \| inbound`                                                                                                                                                                                   | ✓   |                                                                        |
+| provider              | `webcall \| sip \| notifynow`                                                                                                                                                                           | ✓   | ADR 0020 (Phase 7: `webcall` only)                                     |
+| providerCallId        | string \| null                                                                                                                                                                                          |     | Unique per provider when set                                           |
+| from, to              | string                                                                                                                                                                                                  | ✓   | E.164 for phone calls; web test calls `webcall` → `webcall:<userId>`   |
+| isTest                | boolean                                                                                                                                                                                                 | ✓   | Every web call                                                         |
+| source                | `{ kind: flow \| agent, flowId?, flowVersionRef?: 'draft' \| n, flowVersionId?, agentId? }`                                                                                                             | ✓   | What runs on the call                                                  |
+| contactId, campaignId | ObjectId \| null                                                                                                                                                                                        |     | Campaign from Phase 8                                                  |
+| startedBy             | ObjectId \| null                                                                                                                                                                                        |     | User who started a test call                                           |
+| status                | `queued \| ringing \| in_progress \| completed \| failed \| busy \| no_answer \| canceled`                                                                                                              | ✓   | `busy` / `no_answer` from SIP (Phase 13)                               |
+| endReason             | `hangup_node \| agent_end_call \| customer_hangup \| transferred \| max_duration \| wallet_empty \| ai_failed \| engine_error \| media_timeout \| media_error \| server_shutdown \| canceled \| limit`  |     |                                                                        |
+| hangupCause           | string \| null                                                                                                                                                                                          |     | Provider cause mapped                                                  |
+| timestamps            | `{ queuedAt, ringingAt, answeredAt, endedAt }`                                                                                                                                                          | ✓   |                                                                        |
+| durationSec           | number                                                                                                                                                                                                  | ✓   | Answered → ended                                                       |
+| variables             | object (display strings)                                                                                                                                                                                |     | Allowed contact values + flow values — **never** phone / external id   |
+| outcome, disposition  | object, string \| null                                                                                                                                                                                  |     | Same shape as `FlowRun.outcome` / agent outcome                        |
+| languageDetected      | string \| null                                                                                                                                                                                          |     |                                                                        |
+| metrics               | `{ latency { p50Ms, p95Ms, maxMs, samples }, bargeIns, silencePrompts, framesIn, framesOut, gapsIn, ttsChars, ttsCachedChars, aiSeconds, realtime { input/output audio + text tokens, cachedTokens } }` | ✓   | Numbers only                                                           |
+| holdId, ledgerEntryId | ObjectId \| null                                                                                                                                                                                        |     | Wallet hold (start) and settle row (end)                               |
+| cost                  | `{ telephonyMicros, aiMicros, ttsMicros, commissionMicros, totalMicros }`                                                                                                                               | ✓   | Web test calls: telephony 0                                            |
+| recording             | `{ fileKey, durationSec, sizeBytes, format: 'wav' } \| null`                                                                                                                                            |     | Stereo PCM16 8 kHz (customer left, bot right); file key never returned |
+| flowRunId             | ObjectId \| null                                                                                                                                                                                        |     | `FlowRun` (`mode: call`) of a flow call                                |
+| seq                   | `{ events, transcript }`                                                                                                                                                                                | ✓   | Next sequence numbers (atomic `$inc`)                                  |
+| error                 | `{ code } \| null`                                                                                                                                                                                      |     | Error code only                                                        |
 
-Indexes: `{ accountId: 1, createdAt: -1 }`, `{ accountId: 1, campaignId: 1, status: 1 }`, `{ accountId: 1, contactId: 1, createdAt: -1 }`, `{ provider: 1, providerCallId: 1 }` unique sparse. PII: from/to, variables, summary. Retention: configurable (default 180 days — confirm, T0.18).
+Indexes: `{ accountId: 1, createdAt: -1, _id: -1 }`, `{ accountId: 1, status: 1 }`, `{ accountId: 1, campaignId: 1, status: 1 }`, `{ accountId: 1, contactId: 1, createdAt: -1 }`, `{ accountId: 1, source.flowId: 1, createdAt: -1 }`, `{ accountId: 1, source.agentId: 1, createdAt: -1 }`, `{ provider: 1, providerCallId: 1 }` unique (when set), `{ status: 1, updatedAt: 1 }` (reaper), `{ createdAt: 1 }` (purge). PII: variables, outcome, recording. Retention: `CALL_RETENTION_DAYS` (default 180) — `calls-purge` deletes the recording file, events, transcript, the call-mode `FlowRun` and the call.
 
 #### CallEvent (`callEvents`) — Phase 7 — **immutable**
 
-| Field  | Type                                                                                                    | R   | Notes              |
-| ------ | ------------------------------------------------------------------------------------------------------- | --- | ------------------ |
-| callId | ObjectId → calls                                                                                        | ✓   |                    |
-| seq    | number                                                                                                  | ✓   | Monotonic per call |
-| type   | `status \| node_entered \| node_exited \| dtmf \| ai_function_call \| ai_function_result \| error \| …` | ✓   |                    |
-| data   | object                                                                                                  | ✓   |                    |
-| at     | Date                                                                                                    | ✓   |                    |
+| Field  | Type                                                                                                                                                                                                                                                                                             | R   | Notes                                                                  |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ---------------------------------------------------------------------- |
+| callId | ObjectId → calls                                                                                                                                                                                                                                                                                 | ✓   |                                                                        |
+| seq    | number                                                                                                                                                                                                                                                                                           | ✓   | Monotonic per call                                                     |
+| type   | `status \| node_entered \| node_exited \| dtmf \| speech_started \| barge_in \| silence_prompt \| ai_session_started \| ai_session_ended \| ai_function_call \| ai_function_result \| ai_outcome \| tts \| latency \| wallet_extend \| transfer \| recording_saved \| recording_failed \| error` | ✓   |                                                                        |
+| data   | object                                                                                                                                                                                                                                                                                           | ✓   | Ids, names, counts, ms, codes — never texts, digits, phones or secrets |
+| at     | Date                                                                                                                                                                                                                                                                                             | ✓   |                                                                        |
 
-Indexes: `{ callId: 1, seq: 1 }` unique, `{ accountId: 1, at: -1 }`. Retention: same as calls.
+Indexes: `{ callId: 1, seq: 1 }` unique, `{ accountId: 1, at: -1 }`. Update / replace / re-save hooks throw (append-only). Retention: same as calls.
 
 #### TranscriptTurn (`transcriptTurns`) — Phase 7
 
-| Field          | Type                       | R   | Notes                    |
-| -------------- | -------------------------- | --- | ------------------------ |
-| callId         | ObjectId → calls           | ✓   |                          |
-| seq            | number                     | ✓   |                          |
-| speaker        | `customer \| bot \| agent` | ✓   |                          |
-| text           | string                     | ✓   | **PII**                  |
-| language       | string                     |     |                          |
-| startMs, endMs | number                     |     | Offset from answer       |
-| confidence     | number                     |     |                          |
-| interrupted    | boolean                    |     | Bot turn cut by barge-in |
+| Field          | Type                                          | R   | Notes                                 |
+| -------------- | --------------------------------------------- | --- | ------------------------------------- |
+| callId         | ObjectId → calls                              | ✓   |                                       |
+| seq            | number                                        | ✓   |                                       |
+| speaker        | `customer \| bot \| agent`                    | ✓   |                                       |
+| text           | string                                        | ✓   | **PII** — finals only (DTMF as `[1]`) |
+| language       | string \| null                                |     |                                       |
+| startMs, endMs | number                                        | ✓   | Offset from answer                    |
+| interrupted    | boolean                                       | ✓   | Bot turn cut by barge-in              |
+| source         | `tts \| ai \| stt \| dtmf \| audio \| system` | ✓   |                                       |
 
 Indexes: `{ callId: 1, seq: 1 }` unique. Retention: same as calls.
+
+#### TtsCacheEntry (`ttsCache`) — Phase 7 — platform-wide
+
+`{ key (sha256 of model + voice + language + tone + text — the text is never stored), model, voice, language, chars, fileKey (PCM16 24 kHz in storage), durationMs, hits, lastUsedAt }` — index `{ key: 1 }` unique, `{ lastUsedAt: 1 }`; entries unused for 30 days are purged with their files. Not tenant data.
 
 #### PhoneNumber (`phoneNumbers`) — Phase 13/14
 

@@ -8,6 +8,8 @@ export interface CallUsage {
   durationSec: number;
   aiSeconds?: number;
   ttsChars?: number;
+  /** `false` for browser test calls (no carrier minutes) — default `true`. */
+  telephony?: boolean;
 }
 
 export interface ChargeBreakdown {
@@ -53,7 +55,10 @@ export const callCharge = (card: RateCardValues, usage: CallUsage): Charge => {
   const aiSeconds = count(usage.aiSeconds, MAX_SECONDS, 'aiSeconds');
   const ttsChars = count(usage.ttsChars, MAX_CHARS, 'ttsChars');
   const billed = usage.answered || card.billUnansweredAttempts;
-  const billableSeconds = billed ? ceilDiv(durationSec, card.pulseSeconds) * card.pulseSeconds : 0;
+  const billableSeconds =
+    billed && usage.telephony !== false
+      ? ceilDiv(durationSec, card.pulseSeconds) * card.pulseSeconds
+      : 0;
   const telephonyMicros = perSecond(billableSeconds, card.callPerMinuteMicros);
   const aiMicros = perSecond(aiSeconds, card.aiPerMinuteMicros);
   const ttsMicros = ceilDiv(ttsChars * card.ttsPer1kCharsMicros, 1000);
@@ -80,9 +85,11 @@ export const callCharge = (card: RateCardValues, usage: CallUsage): Charge => {
 export const holdEstimate = (
   card: RateCardValues,
   minutes: number = BILLING_LIMITS.callHoldMinutes,
+  telephony = true,
 ): number => {
   const seconds = count(minutes, 24 * 60, 'minutes') * 60;
-  return callCharge(card, { answered: true, durationSec: seconds, aiSeconds: seconds }).totalMicros;
+  return callCharge(card, { answered: true, durationSec: seconds, aiSeconds: seconds, telephony })
+    .totalMicros;
 };
 
 export interface CampaignEstimateInput {

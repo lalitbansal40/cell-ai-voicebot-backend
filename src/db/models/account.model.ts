@@ -1,5 +1,6 @@
 import mongoose, { Schema, type Model, type Types } from 'mongoose';
 
+import { CALL_LIMITS, CALL_LINES } from '../../config/limits';
 import { basePlugin } from '../plugins/base';
 
 export type AccountStatus = 'active' | 'suspended';
@@ -16,6 +17,8 @@ export interface CallingWindow {
 export interface AccountSettings {
   callingWindow: CallingWindow;
   recordingEnabled: boolean;
+  /** Said at the start of every recorded call (Phase 7). */
+  recordingNotice: string;
   aiDisclosureEnabled: boolean;
 }
 
@@ -69,6 +72,7 @@ export interface AccountDoc {
 export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
   callingWindow: { start: '09:00', end: '19:00', days: [1, 2, 3, 4, 5, 6] },
   recordingEnabled: true,
+  recordingNotice: CALL_LINES.recordingNotice,
   aiDisclosureEnabled: true,
 };
 
@@ -102,6 +106,11 @@ const schema = new Schema<AccountDoc>({
       days: { type: [Number], default: DEFAULT_ACCOUNT_SETTINGS.callingWindow.days },
     },
     recordingEnabled: { type: Boolean, default: true },
+    recordingNotice: {
+      type: String,
+      default: CALL_LINES.recordingNotice,
+      maxlength: CALL_LIMITS.recordingNoticeMaxChars,
+    },
     aiDisclosureEnabled: { type: Boolean, default: true },
   },
   billing: {

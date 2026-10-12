@@ -13,12 +13,7 @@ export type CallStatus =
   'queued' | 'ringing' | 'in_progress' | 'completed' | 'failed' | 'busy' | 'no_answer' | 'canceled';
 
 export interface WsEventMap {
-  'call.created': {
-    callId: string;
-    direction: 'outbound' | 'inbound';
-    to: string;
-    campaignId?: string;
-  };
+  'call.created': { callId: string; isTest: boolean; campaignId?: string };
   'call.status': { callId: string; status: CallStatus };
   'call.transcript': {
     callId: string;
@@ -27,8 +22,16 @@ export interface WsEventMap {
     text: string;
     final: boolean;
   };
-  'call.dtmf': { callId: string; digit: string };
-  'call.ended': { callId: string; durationSec: number; disposition?: string; costMicros: number };
+  /** No digit — key presses can be PINs. */
+  'call.dtmf': { callId: string };
+  'call.ended': {
+    callId: string;
+    status: CallStatus;
+    endReason: string | null;
+    durationSec: number;
+    disposition: string | null;
+    costMicros: number;
+  };
   'campaign.status': { campaignId: string; status: string };
   'campaign.progress': { campaignId: string; stats: Record<string, number> };
   'wallet.updated': {

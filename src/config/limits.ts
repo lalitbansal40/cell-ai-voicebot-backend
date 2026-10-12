@@ -227,3 +227,60 @@ export const FLOW_LIMITS = {
   importMaxBytes: 524_288,
   deletedFlowPurgeDays: 30,
 } as const;
+
+/** Phase 7 voice calls (PHASE_7_PLAN §1l, PHASE_7_PROMPT §1). */
+export const CALL_LIMITS = {
+  frameMs: 20,
+  /** Web call leg: PCM16 mono 24 kHz. */
+  webSampleRate: 24_000,
+  /** 20 ms × 24 kHz × 2 bytes. */
+  webFrameBytes: 960,
+  /** SIP leg (Phase 13): G.711 μ-law 8 kHz. */
+  phoneSampleRate: 8_000,
+  /** Recordings: stereo PCM16 at this rate. */
+  recordingSampleRate: 8_000,
+  concurrentPerAccount: 3,
+  concurrentPerProcess: 20,
+  webCallsPerMinutePerUser: 10,
+  readyTimeoutSec: 15,
+  dropGraceSec: 5,
+  inboundIdleSec: 30,
+  maxCallSecHard: 3_600,
+  framesPerSecMax: 60,
+  framesBurst: 100,
+  controlMaxBytes: 16_384,
+  sayTextMaxChars: 500,
+  ttsTextMaxChars: 1_000,
+  ttsCacheUnusedDays: 30,
+  functionCallsPerTurn: 5,
+  hangupPlaybackWaitSec: 10,
+  shutdownLineMaxSec: 5,
+  /** Extend the wallet hold when it covers less than this. */
+  holdLowWaterSec: 60,
+  holdCheckEverySec: 5,
+  heartbeatSec: 10,
+  registryTtlSec: 30,
+  staleHeartbeatSec: 60,
+  /** Queued calls nobody connected to are canceled after this. */
+  queuedStaleMin: 15,
+  playbackAheadMs: 200,
+  backpressureBytes: 65_536,
+  digitsInterDigitSec: 3,
+  transferAnswerSec: 60,
+  latencySamplesMax: 200,
+  recordingNoticeMaxChars: 200,
+  recordingUrlTtlSec: 300,
+  recordingUploadAttempts: 3,
+  eventsListedMax: 2_000,
+  transcriptListedMax: 2_000,
+  callsPageMax: 100,
+} as const;
+
+/** Locked fixed lines spoken by the runtime (PHASE_7_PROMPT §1 "Fixed lines"). */
+export const CALL_LINES = {
+  recordingNotice: 'Yeh call quality ke liye record ki ja rahi hai.',
+  walletEmpty: 'Aapka balance khatam ho gaya hai, call yahin samaapt ki ja rahi hai.',
+  technical: 'Maaf kijiye, takneeki samasya ki wajah se call samaapt ho rahi hai.',
+  silenceHi: 'Hello? Kya aap sun rahe hain?',
+  silenceEn: 'Hello? Are you still there?',
+} as const;
