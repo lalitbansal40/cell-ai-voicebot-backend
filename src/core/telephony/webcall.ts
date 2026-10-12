@@ -40,6 +40,7 @@ export class WebCallLeg implements CallLeg {
   private dtmfFns: ((digit: string) => void)[] = [];
   private textFns: ((text: string) => void)[] = [];
   private statusFns: ((status: LegStatus, cause?: HangupCause) => void)[] = [];
+  private outgoingFns: ((frame: Int16Array) => void)[] = [];
   private pendingTransfer: ((result: TransferResult) => void) | null = null;
   private muted = false;
   private ended = false;
@@ -51,7 +52,10 @@ export class WebCallLeg implements CallLeg {
     this.pacer = new Pacer({
       clock,
       frameMs: CALL_LIMITS.frameMs,
-      send: (frame) => channel.sendBinary(toBytes(frame)),
+      send: (frame) => {
+        channel.sendBinary(toBytes(frame));
+        for (const fn of this.outgoingFns) fn(frame);
+      },
       congested: () => channel.bufferedAmount() > CALL_LIMITS.backpressureBytes,
     });
   }
@@ -62,6 +66,10 @@ export class WebCallLeg implements CallLeg {
 
   onAudio(fn: (frame: Int16Array) => void): void {
     this.audioFns.push(fn);
+  }
+
+  onOutgoing(fn: (frame: Int16Array) => void): void {
+    this.outgoingFns.push(fn);
   }
 
   onDtmf(fn: (digit: string) => void): void {

@@ -153,6 +153,9 @@ describe('maintenance worker', () => {
       ['import-files-purge', '30 3 * * *'],
       ['export-files-purge', '0 * * * *'],
       ['flows-purge', '45 4 * * *'],
+      ['calls-reaper', '*/1 * * * *'],
+      ['calls-purge', '10 5 * * *'],
+      ['tts-cache-purge', '20 5 * * *'],
     ]);
     const run = processMaintenanceJob({ logger, storage });
     // the worker uses the real clock: rows made by the tests above (dated from

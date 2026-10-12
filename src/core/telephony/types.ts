@@ -21,6 +21,8 @@ export interface CallLeg {
   /** Typed customer words (dev / tests, web calls only). */
   onText(fn: (text: string) => void): void;
   onStatus(fn: (status: LegStatus, cause?: HangupCause) => void): void;
+  /** Every outgoing frame as it is sent (recording, latency). */
+  onOutgoing(fn: (frame: Int16Array) => void): void;
   /** Queues a clip; resolves when it was fully played or cleared. */
   play(pcm: Int16Array, onStart?: () => void): Promise<PlaybackResult>;
   /** Stops playback now (barge-in); returns ms played of the current clip. */

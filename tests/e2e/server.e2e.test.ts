@@ -185,7 +185,7 @@ describe('startServer (e2e)', () => {
     const hooks = logLines
       .filter((l) => l.msg === 'shutdown: running hook')
       .map((l) => l.hook as string);
-    expect(hooks).toEqual(['http', 'ws', 'queues', 'email', 'redis', 'mongo']);
+    expect(hooks).toEqual(['calls', 'http', 'ws', 'queues', 'email', 'redis', 'mongo']);
     expect(logLines.some((l) => l.msg === 'shutdown: complete')).toBe(true);
     expect(exitCodes).toEqual([0]);
     await expect(fetch(`${base}/health`)).rejects.toThrow();

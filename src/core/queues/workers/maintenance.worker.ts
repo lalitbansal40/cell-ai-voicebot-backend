@@ -1,6 +1,9 @@
 import type { Job, Queue, Worker } from 'bullmq';
 
+import { getEnv } from '../../../config/env';
 import { purgeAuditLogs } from '../../../modules/audit/audit-purge';
+import { purgeCalls, reapCalls } from '../../../modules/calls/maintenance';
+import { CallRegistry } from '../../../modules/calls/registry';
 import {
   purgeDeletedContacts,
   purgeExportFiles,
@@ -9,8 +12,10 @@ import {
 import { purgeDeletedAudio } from '../../../modules/flow-audio/flow-audio.service';
 import { purgeDeletedFlows } from '../../../modules/flows/maintenance';
 import type { StorageProvider } from '../../storage';
+import { purgeTtsCache } from '../../voice/tts-cache';
 import { QUEUES } from '../names';
 import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-factory';
+import { getAppRedis } from '../redis';
 
 export const AUDIT_PURGE_JOB = 'audit-purge';
 /** Every day at 03:00 UTC. */
@@ -21,6 +26,10 @@ export const IMPORT_FILES_PURGE_JOB = 'import-files-purge';
 export const EXPORT_FILES_PURGE_JOB = 'export-files-purge';
 /** Soft-deleted flows after 30 days (Phase 6). */
 export const FLOWS_PURGE_JOB = 'flows-purge';
+/** Calls of a dead process (Phase 7). */
+export const CALLS_REAPER_JOB = 'calls-reaper';
+export const CALLS_PURGE_JOB = 'calls-purge';
+export const TTS_CACHE_PURGE_JOB = 'tts-cache-purge';
 
 /** Repeatable maintenance jobs (UTC crons). */
 export const MAINTENANCE_SCHEDULES = [
@@ -29,10 +38,15 @@ export const MAINTENANCE_SCHEDULES = [
   { name: IMPORT_FILES_PURGE_JOB, pattern: '30 3 * * *' },
   { name: EXPORT_FILES_PURGE_JOB, pattern: '0 * * * *' },
   { name: FLOWS_PURGE_JOB, pattern: '45 4 * * *' },
+  { name: CALLS_REAPER_JOB, pattern: '*/1 * * * *' },
+  { name: CALLS_PURGE_JOB, pattern: '10 5 * * *' },
+  { name: TTS_CACHE_PURGE_JOB, pattern: '20 5 * * *' },
 ] as const;
 
 export interface MaintenanceDeps extends Pick<QueueFactoryDeps, 'logger'> {
   storage?: StorageProvider;
+  /** Live-call registry (calls reaper); default from REDIS_URL. */
+  registry?: CallRegistry;
 }
 
 const needStorage = (deps: MaintenanceDeps): StorageProvider => {
@@ -62,6 +76,18 @@ export const processMaintenanceJob =
           ...(await purgeDeletedFlows()),
           ...(deps.storage ? await purgeDeletedAudio(deps.storage) : {}),
         };
+        break;
+      case CALLS_REAPER_JOB:
+        result = await reapCalls(
+          deps.registry ?? new CallRegistry(getAppRedis(getEnv().REDIS_URL, deps.logger)),
+          deps.logger,
+        );
+        break;
+      case CALLS_PURGE_JOB:
+        result = await purgeCalls(deps.storage, getEnv().CALL_RETENTION_DAYS);
+        break;
+      case TTS_CACHE_PURGE_JOB:
+        result = await purgeTtsCache(needStorage(deps));
         break;
       default:
         throw new Error(`Unknown maintenance job "${job.name}"`);

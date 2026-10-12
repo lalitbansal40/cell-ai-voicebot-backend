@@ -71,16 +71,8 @@ export class TtsCache {
   }
 
   /** Removes entries unused for `ttsCacheUnusedDays` with their audio files. */
-  async purge(): Promise<{ entries: number }> {
-    const cutoff = new Date(this.now().getTime() - CALL_LIMITS.ttsCacheUnusedDays * DAY_MS);
-    const old = await TtsCacheModel.find({ lastUsedAt: { $lt: cutoff } })
-      .select({ fileKey: 1 })
-      .lean();
-    for (const entry of old) {
-      await this.deps.storage.delete(entry.fileKey);
-      await TtsCacheModel.deleteOne({ _id: entry._id });
-    }
-    return { entries: old.length };
+  purge(): Promise<{ entries: number }> {
+    return purgeTtsCache(this.deps.storage, this.now());
   }
 
   private async create(key: string, request: TtsRequest): Promise<Int16Array> {
@@ -107,3 +99,19 @@ export class TtsCache {
     return pcm;
   }
 }
+
+/** Entries unused for `ttsCacheUnusedDays` → deleted with their files (maintenance job). */
+export const purgeTtsCache = async (
+  storage: StorageProvider,
+  now: Date = new Date(),
+): Promise<{ entries: number }> => {
+  const cutoff = new Date(now.getTime() - CALL_LIMITS.ttsCacheUnusedDays * DAY_MS);
+  const old = await TtsCacheModel.find({ lastUsedAt: { $lt: cutoff } })
+    .select({ fileKey: 1 })
+    .lean();
+  for (const entry of old) {
+    await storage.delete(entry.fileKey);
+    await TtsCacheModel.deleteOne({ _id: entry._id });
+  }
+  return { entries: old.length };
+};

@@ -32,6 +32,9 @@ import { startMaintenanceWorker } from './core/queues/workers/maintenance.worker
 import { startSystemWorker } from './core/queues/workers/system.worker';
 import { createRealtime, setRealtime } from './core/realtime';
 import { createStorage } from './core/storage';
+import { createMediaServer } from './core/telephony/media-server';
+import { createVoiceProviders } from './core/voice/providers';
+import { TtsCache } from './core/voice/tts-cache';
 import {
   connectMongo,
   disconnectMongo,
@@ -39,6 +42,9 @@ import {
   redactMongoUri,
   syncAllIndexes,
 } from './db/mongo';
+import { CallManager } from './modules/calls/call.service';
+import { CallRegistry } from './modules/calls/registry';
+import { noScripts } from './modules/calls/scripts';
 import { authorizeTopic } from './modules/calls/topic-auth';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { getLogger, type Logger } from './shared/logger';
@@ -189,6 +195,32 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     authorizeTopic,
   });
   setRealtime(realtime);
+
+  const voice = createVoiceProviders(env);
+  logger.info({ provider: voice.name, pipeline: voice.ai.pipeline }, 'voice: providers ready');
+  const callManager = new CallManager({
+    logger,
+    registry: new CallRegistry(redis),
+    tts: new TtsCache({ tts: voice.tts, storage }),
+    storage,
+    recordingDir: env.CALL_RECORDING_TMP_DIR,
+    scriptFor: noScripts,
+  });
+  const media = createMediaServer({
+    server,
+    tickets: realtime.tickets,
+    logger,
+    textInput: voice.textInput,
+    attach: callManager.attach,
+  });
+  lifecycle.onShutdown(
+    'calls',
+    async () => {
+      await callManager.shutdown();
+      await media.close();
+    },
+    5,
+  );
   lifecycle.onShutdown(
     'ws',
     async () => {
