@@ -94,6 +94,12 @@ export const createApiRouter = ({
     | 'ENCRYPTION_KEY'
     | 'OPENAI_EMBEDDING_MODEL'
     | 'OPENAI_API_KEY'
+    | 'VOICE_PROVIDER'
+    | 'VOICE_PIPELINE'
+    | 'VOICE_TEXT_INPUT_ENABLED'
+    | 'OPENAI_REALTIME_MODEL'
+    | 'OPENAI_TTS_MODEL'
+    | 'OPENAI_TRANSCRIBE_MODEL'
   >;
   auth?: Omit<AuthRouterDeps, 'env'>;
   contacts?: ContactsDeps;

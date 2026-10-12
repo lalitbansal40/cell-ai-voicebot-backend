@@ -254,6 +254,28 @@
           "openaiKeyConfigured": {
             "type": "boolean",
             "description": "Whether a key is set — never the key"
+          },
+          "voice": {
+            "type": "object",
+            "properties": {
+              "provider": { "type": "string", "enum": ["openai", "fake"] },
+              "pipeline": { "type": "string", "enum": ["realtime", "chat"] },
+              "realtimeModel": { "type": "string" },
+              "ttsModel": { "type": "string" },
+              "transcribeModel": { "type": "string" },
+              "textInputEnabled": {
+                "type": "boolean",
+                "description": "Typed customer text on web calls (dev / tests only)"
+              }
+            },
+            "required": [
+              "provider",
+              "pipeline",
+              "realtimeModel",
+              "ttsModel",
+              "transcribeModel",
+              "textInputEnabled"
+            ]
           }
         },
         "required": [
@@ -263,7 +285,8 @@
           "embeddingModel",
           "mockApisEnabled",
           "allowPrivateHosts",
-          "openaiKeyConfigured"
+          "openaiKeyConfigured",
+          "voice"
         ]
       },
       "AuditEntry": {

@@ -204,7 +204,7 @@ export interface BuiltInOutcome {
 
 export interface BuiltInContext {
   agent: Pick<AiAgentDoc, 'builtInTools'>;
-  /** `simulated` (playground, Test) records the outcome only; `live` arrives with Phase 7. */
+  /** `simulated` (playground, Test, simulator): result says so; `live` (calls): the call acts on the outcome. */
   mode: 'simulated' | 'live';
   now: Date;
   timezone: string;
@@ -237,7 +237,6 @@ export const executeBuiltIn = (
   rawArgs: unknown,
   ctx: BuiltInContext,
 ): BuiltInResult => {
-  if (ctx.mode === 'live') throw new Error('Live built-in tools are wired in Phase 7');
   if (!enabledBuiltIns(ctx.agent).includes(name)) return failed('tool_disabled');
   const parsed = BUILT_IN_ARGS[name].safeParse(rawArgs ?? {});
   if (!parsed.success) {
@@ -247,7 +246,7 @@ export const executeBuiltIn = (
     );
   }
   const b = ctx.agent.builtInTools;
-  const simulated = { ok: true, simulated: true };
+  const simulated = ctx.mode === 'live' ? { ok: true } : { ok: true, simulated: true };
   switch (name) {
     case 'end_call':
       return { result: { ...simulated, ended: true }, outcome: { endRequested: true } };

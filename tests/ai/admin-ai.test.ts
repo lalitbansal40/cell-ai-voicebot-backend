@@ -149,10 +149,22 @@ describe('/admin/ai/config', () => {
       mockApisEnabled: true,
       allowPrivateHosts: true,
       openaiKeyConfigured: false,
+      voice: {
+        provider: 'fake',
+        pipeline: 'realtime',
+        realtimeModel: 'gpt-realtime-2.1-mini',
+        ttsModel: 'gpt-4o-mini-tts',
+        transcribeModel: 'gpt-4o-mini-transcribe',
+        textInputEnabled: true,
+      },
     });
     const keyed = buildTestApp({ OPENAI_API_KEY: 'test-not-real-key' });
     const withKey = await request(keyed).get('/api/v1/admin/ai/config').set(auth(superadmin));
-    expect(withKey.body.data).toMatchObject({ provider: 'openai', openaiKeyConfigured: true });
+    expect(withKey.body.data).toMatchObject({
+      provider: 'openai',
+      openaiKeyConfigured: true,
+      voice: { provider: 'openai' },
+    });
     expect(withKey.text).not.toContain('test-not-real-key');
   });
 

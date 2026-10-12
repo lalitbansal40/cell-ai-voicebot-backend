@@ -14,6 +14,16 @@ export const AiConfigSchema = registry.register(
     openaiKeyConfigured: z
       .boolean()
       .openapi({ description: 'Whether a key is set — never the key' }),
+    voice: z.object({
+      provider: z.enum(['openai', 'fake']),
+      pipeline: z.enum(['realtime', 'chat']),
+      realtimeModel: z.string(),
+      ttsModel: z.string(),
+      transcribeModel: z.string(),
+      textInputEnabled: z
+        .boolean()
+        .openapi({ description: 'Typed customer text on web calls (dev / tests only)' }),
+    }),
   }),
 );
 

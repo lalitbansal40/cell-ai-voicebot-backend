@@ -226,6 +226,10 @@ describe('executeBuiltIn (simulated)', () => {
     expect(executeBuiltIn('transfer_to_human', null, ctx()).result).toMatchObject({
       error: 'invalid_arguments',
     });
-    expect(() => executeBuiltIn('end_call', {}, { ...ctx(), mode: 'live' })).toThrow(/Phase 7/);
+    // live mode (calls): same checks and outcome, the result is not marked simulated
+    expect(executeBuiltIn('end_call', {}, { ...ctx(), mode: 'live' })).toEqual({
+      result: { ok: true, ended: true },
+      outcome: { endRequested: true },
+    });
   });
 });

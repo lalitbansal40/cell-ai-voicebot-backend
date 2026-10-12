@@ -1,0 +1,4 @@
+{"type": "error", "error": {"type": "invalid_request_error", "code": "invalid_value", "message": "x"}}
+{"type": "error", "error": {"type": "server_error", "message": "y"}}
+{"type": "error", "error": {"message": "z"}}
+{"type": "rate_limits.updated", "rate_limits": []}

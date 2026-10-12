@@ -198,6 +198,38 @@ describe('runAgentTurn — conversations', () => {
     expect(promise.turn.text).toContain('10 Oct 2026');
   });
 
+  it('calls: voice channel, live built-ins and no per-turn token charge', async () => {
+    const agent = await makeAgent();
+    const fake = createFakeProvider();
+    const chat = vi.fn((req: ChatRequest) => fake.chat(req));
+    const provider: AiProvider = { ...createFakeProvider(), chat };
+    const before = await LedgerEntryModel.countDocuments({ accountId: agent.accountId });
+    const live = await turn(agent, 'kal tak de dunga', {
+      provider,
+      source: 'call',
+      channel: 'voice',
+      billing: 'none',
+      builtInMode: 'live',
+    });
+    expect(live.outcome).toEqual({ promiseToPay: { date: '2026-10-10', amountMicros: null } });
+    expect(live.turn.toolCalls[0]).toMatchObject({
+      name: 'save_promise_to_pay',
+      ok: true,
+      simulated: false,
+    });
+    expect(live.turn).toMatchObject({ billing: 'none', costMicros: 0 });
+    expect(live.turn.inputTokens).toBeGreaterThan(0);
+    expect(await LedgerEntryModel.countDocuments({ accountId: agent.accountId })).toBe(before);
+    // the voice channel compiles the spoken-reply rules into the system prompt
+    const system = (chat.mock.calls[0]?.[0] as ChatRequest).messages[0]?.content ?? '';
+    const text = await turn(agent, 'kal tak de dunga', { provider });
+    const textSystem = (chat.mock.calls.at(-1)?.[0] as ChatRequest).messages[0]?.content ?? '';
+    expect(text.turn.billing).toBe('charged');
+    expect(system).not.toEqual(textSystem);
+    const calls = await AgentToolCallModel.find({ agentId: agent._id, source: 'call' }).lean();
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
   it('transfer and goodbye set the outcome; goodbye ends with the closing line', async () => {
     const agent = await makeAgent({
       builtInTools: {

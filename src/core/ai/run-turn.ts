@@ -51,6 +51,12 @@ export interface TurnInput {
   source?: 'playground' | 'call' | 'flow_simulator';
   /** Flow `ai_agent` node goal (rendered) — compiled after the persona. */
   extraInstructions?: string;
+  /** `voice` compiles the spoken-reply rules (calls). Default `text`. */
+  channel?: 'text' | 'voice';
+  /** `none`: no per-turn token charge (calls are billed per AI minute at settle). Default `tokens`. */
+  billing?: 'tokens' | 'none';
+  /** `live` on calls (built-ins act), `simulated` elsewhere (default). */
+  builtInMode?: 'simulated' | 'live';
 }
 
 export type TurnRecord = Omit<PlaygroundTurn, '_id'>;
@@ -136,7 +142,7 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
   const compiled = compileAgent(agent, {
     company: input.company,
     variables: session.variables,
-    channel: 'text',
+    channel: input.channel ?? 'text',
     now,
     timezone: input.timezone,
     ...(input.extraInstructions ? { extraInstructions: input.extraInstructions } : {}),
@@ -240,7 +246,7 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
         const out = argsOk
           ? executeBuiltIn(call.name as BuiltInTool, args, {
               agent,
-              mode: 'simulated',
+              mode: input.builtInMode ?? 'simulated',
               now,
               timezone: input.timezone,
             })
@@ -254,7 +260,7 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
             kind: 'built_in',
             args: redactArgs(args),
             ok,
-            simulated: ok,
+            simulated: ok && input.builtInMode !== 'live',
             resultPreview: redactPreview(text),
             error: ok ? null : String(out.result.error),
           },
@@ -366,7 +372,7 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
     const card = await effectiveRateCard(accountId);
     const cost = turnCost(card, usage) + embedCost(card, embeddingTokens);
     let billing: TurnRecord['billing'] = 'none';
-    if (cost > 0) {
+    if (cost > 0 && input.billing !== 'none') {
       try {
         const charged = await chargeUsage({
           accountId,

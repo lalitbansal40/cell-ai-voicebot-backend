@@ -21,6 +21,12 @@ export const createAdminAiRouter = ({
     | 'MOCK_APIS_ENABLED'
     | 'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS'
     | 'OPENAI_API_KEY'
+    | 'VOICE_PROVIDER'
+    | 'VOICE_PIPELINE'
+    | 'VOICE_TEXT_INPUT_ENABLED'
+    | 'OPENAI_REALTIME_MODEL'
+    | 'OPENAI_TTS_MODEL'
+    | 'OPENAI_TRANSCRIBE_MODEL'
   >;
   provider: Pick<AiProvider, 'name'>;
 }): Router => {
@@ -34,6 +40,14 @@ export const createAdminAiRouter = ({
       mockApisEnabled: env.MOCK_APIS_ENABLED,
       allowPrivateHosts: env.AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS,
       openaiKeyConfigured: Boolean(env.OPENAI_API_KEY),
+      voice: {
+        provider: env.VOICE_PROVIDER,
+        pipeline: env.VOICE_PIPELINE,
+        realtimeModel: env.OPENAI_REALTIME_MODEL,
+        ttsModel: env.OPENAI_TTS_MODEL,
+        transcribeModel: env.OPENAI_TRANSCRIBE_MODEL,
+        textInputEnabled: env.VOICE_TEXT_INPUT_ENABLED,
+      },
     });
   });
   return router;
