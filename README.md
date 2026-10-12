@@ -282,6 +282,8 @@ npm 11 blocks dependency install scripts unless approved. Approvals live in `pac
 
 No install scripts for the Phase 5 knowledge parsers `mammoth`, `html-to-text` and `unpdf` (pure JS / bundled pdf.js; `unpdf` moved from dev to runtime dependencies). `npm audit` reports a moderate `sprintf-js` advisory through `mammoth` → `argparse`: `argparse` is only used by mammoth's command-line tool (`bin/mammoth`), never by the library calls we make (`convertToHtml`); CI audits at `high`.
 
+No install scripts for the Phase 7 MP3 decoder `mpg123-decoder` 1.0.3 (MIT, pure WebAssembly — decodes `play_audio` MP3 files once; its dependencies `@wasm-audio-decoders/common` (MIT), `@eshaz/web-worker` (Apache-2.0) and `simple-yenc` (MIT) have no install scripts either). It is an ES module loaded through Node's `require(esm)`.
+
 No install scripts needed for `nodemailer` / `smtp-server` (pure JS). `smtp-server` has no bundled types and `@types/smtp-server` would pull in `@types/nodemailer` (clashes with nodemailer 10's own types), so tests use a minimal local declaration (`tests/@types/smtp-server.d.ts`).
 
 Run `npm approve-scripts --allow-scripts-pending` after adding dependencies to review new ones.

@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 import { FLOW_LIMITS } from '../../config/limits';
 import { probeAudio } from '../../core/engine/audio-probe';
 import { storageKey, type StorageProvider } from '../../core/storage';
+import { decodedCacheKey } from '../../core/voice/audio/decode';
 import { isDuplicateKeyError } from '../../db/errors';
 import { FlowAudioModel, type FlowAudioDoc } from '../../db/models/flow-audio.model';
 import { UserModel } from '../../db/models/user.model';
@@ -233,11 +234,15 @@ export const purgeDeletedAudio = async (
   const cutoff = new Date(now.getTime() - FLOW_LIMITS.deletedFlowPurgeDays * DAY_MS);
   const old = await FlowAudioModel.find({ deletedAt: { $ne: null, $lte: cutoff } })
     .setOptions({ withDeleted: true })
-    .select({ fileKey: 1 })
-    .lean<Pick<FlowAudioDoc, '_id' | 'fileKey'>[]>();
+    .select({ fileKey: 1, accountId: 1 })
+    .lean<Pick<FlowAudioDoc, '_id' | 'fileKey' | 'accountId'>[]>();
   let audio = 0;
   for (const a of old) {
     await storage.delete(a.fileKey);
+    // decoded copy used by live calls (Phase 7), if any
+    await storage.delete(
+      decodedCacheKey({ id: a._id.toString(), accountId: a.accountId.toString() }),
+    );
     const res = await FlowAudioModel.deleteOne({ _id: a._id }).setOptions({ withDeleted: true });
     audio += res.deletedCount;
   }
