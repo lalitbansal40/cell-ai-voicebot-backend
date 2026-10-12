@@ -153,5 +153,10 @@ export const flowScript = async (call: CallDoc, deps: FlowScriptDeps): Promise<S
       return run._id.toString();
     },
   });
-  return { script: host, voice: graph.settings.voice, language: graph.settings.language };
+  return {
+    script: host,
+    voice: graph.settings.voice,
+    language: graph.settings.language,
+    maxDurationSec: graph.settings.maxDurationSec,
+  };
 };

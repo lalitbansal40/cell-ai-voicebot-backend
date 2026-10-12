@@ -17,7 +17,8 @@ import type { Logger } from '../../shared/logger';
 import { CallBilling } from './billing';
 import { issueMediaTicket } from './media-tickets';
 import type { CallRegistry } from './registry';
-import { CallSession, type CallEndedSummary, type CallScript } from './session';
+import type { ScriptChoice } from './scripts';
+import { CallSession, type CallEndedSummary } from './session';
 
 export interface CreateWebCallInput {
   accountId: string;
@@ -38,7 +39,7 @@ export interface CallManagerDeps {
   storage: StorageProvider | undefined;
   recordingDir: string;
   /** Builds the program of a call when its socket attaches (flow host / AI agent). */
-  scriptFor: (call: CallDoc) => Promise<{ script: CallScript; voice: string; language: string }>;
+  scriptFor: (call: CallDoc) => Promise<ScriptChoice>;
   tickets?: Pick<WsTicketService, 'issue'>;
   clock?: Clock;
 }
@@ -140,7 +141,7 @@ export class CallManager {
     this.waiting.delete(input.callId);
     const account = await AccountModel.findById(call.accountId).select({ settings: 1 }).lean();
     const settings = { ...DEFAULT_ACCOUNT_SETTINGS, ...account?.settings };
-    const { script, voice, language } = await this.deps.scriptFor(call);
+    const { script, voice, language, maxDurationSec } = await this.deps.scriptFor(call);
     const billing = new CallBilling(input.accountId, input.callId, false);
     billing.holdId = call.holdId?.toString() ?? null;
     const session = new CallSession({
@@ -157,6 +158,7 @@ export class CallManager {
       recording: { enabled: settings.recordingEnabled, notice: settings.recordingNotice },
       voice,
       language,
+      maxDurationSec,
       onEnded: (summary) => {
         this.sessions.delete(input.callId);
         for (const listener of this.listeners) listener(summary);

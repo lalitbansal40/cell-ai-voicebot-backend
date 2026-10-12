@@ -6,6 +6,8 @@ export interface ScriptChoice {
   script: CallScript;
   voice: string;
   language: string;
+  /** Flow `settings.maxDurationSec` / agent `maxCallDurationSec`. */
+  maxDurationSec?: number;
 }
 
 export type ScriptFactory = (call: CallDoc) => Promise<ScriptChoice>;

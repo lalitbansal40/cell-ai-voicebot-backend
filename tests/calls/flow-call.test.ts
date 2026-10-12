@@ -22,6 +22,7 @@ import { CallEventModel } from '../../src/db/models/call-event.model';
 import { CallModel, type CallDoc } from '../../src/db/models/call.model';
 import { ContactModel } from '../../src/db/models/contact.model';
 import { CustomFieldModel } from '../../src/db/models/custom-field.model';
+import { FlowAudioModel } from '../../src/db/models/flow-audio.model';
 import { FlowNodeStatsModel } from '../../src/db/models/flow-node-stats.model';
 import { FlowRunModel } from '../../src/db/models/flow-run.model';
 import { TranscriptTurnModel } from '../../src/db/models/transcript-turn.model';
@@ -68,6 +69,7 @@ let redis: Redis;
 let t: TestAccount;
 let manager: TestUser;
 let flowId: string;
+let aiAgentId: string;
 let paid: string;
 let unpaid: string;
 const aiRequests: AiStepRequest[] = [];
@@ -110,6 +112,7 @@ beforeAll(async () => {
     .set(auth(manager))
     .send({ name: 'Recovery', templateKey: 'loan_recovery_hinglish' });
   const agentId = agent.body.data.id as string;
+  aiAgentId = agentId;
   const mockUrl = `http://localhost:${String(port)}/api/v1/mock/payment-status?phone={{contact.phone}}`;
   await AiAgentModel.updateOne({ _id: agentId }, { $set: { 'functions.0.url': mockUrl } });
   const created = await request(app)
@@ -157,7 +160,7 @@ const startCall = async (
     flow?: string;
   } = {},
 ) => {
-  const clock = new FakeClock();
+  const clock = new FakeClock(Date.now());
   const tts = new FakeTts();
   const m = new CallManager({
     logger,
@@ -177,6 +180,7 @@ const startCall = async (
         stt: new FakeStt(),
         storage,
         redis,
+        now: () => new Date(clock.now()),
         runAi: (req) => {
           aiRequests.push(req);
           return Promise.resolve(aiEnd);
@@ -376,46 +380,140 @@ describe('flow calls — Loan recovery live (fake voice)', () => {
     expect(run?.graph).toBeTruthy();
   });
 
-  it('library audio plays on the call (decoded to 24 kHz from storage)', async () => {
-    const uploaded = await request(app)
-      .post('/api/v1/flow-audio')
-      .set(auth(manager))
-      .field('name', 'Welcome tone')
-      .attach(
-        'file',
-        readFileSync(path.resolve(__dirname, '../fixtures/audio/tone-8k-mono.wav')),
-        't.wav',
-      );
-    expect(uploaded.status, JSON.stringify(uploaded.body)).toBe(201);
-    const flow = await newFlow(app, manager, 'Audio flow');
-    const node = (id: string, type: string, config: Record<string, unknown>, y: number) => ({
-      id,
-      type,
-      position: { x: 0, y },
-      config,
-    });
+  /** A draft flow saved through the API (positions filled in). */
+  const draftFlow = async (
+    name: string,
+    nodes: { id: string; type: string; config?: Record<string, unknown> }[],
+    edges: [string, string, string][],
+    settings: Record<string, unknown> = {},
+  ) => {
+    const flow = await newFlow(app, manager, name);
     const saved = await saveGraph(app, manager, flow.id, flow.revision, {
       schemaVersion: 1,
-      nodes: [
-        node('start', 'start', {}, 0),
-        node('tone', 'play_audio', { audioId: uploaded.body.data.id }, 100),
-        node('bye', 'hangup', { text: 'Bye' }, 200),
-      ],
-      edges: [
-        { id: 'e1', source: 'start', sourceHandle: 'next', target: 'tone' },
-        { id: 'e2', source: 'tone', sourceHandle: 'next', target: 'bye' },
-      ],
+      nodes: nodes.map((n, i) => ({ config: {}, position: { x: 0, y: i * 100 }, ...n })),
+      edges: edges.map(([source, sourceHandle, target]) => ({
+        id: `e_${source}_${sourceHandle}`,
+        source,
+        sourceHandle,
+        target,
+      })),
       variables: [],
+      ...(Object.keys(settings).length ? { settings } : {}),
     });
     expect(saved.status, JSON.stringify(saved.body)).toBe(200);
-    const c = await startCall(paid, { draft: true, flow: flow.id });
+    return flow.id;
+  };
+  const upload = async (file: string, name: string) => {
+    const res = await request(app)
+      .post('/api/v1/flow-audio')
+      .set(auth(manager))
+      .field('name', name)
+      .attach('file', readFileSync(path.resolve(__dirname, '../fixtures/audio', file)), file);
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    return res.body.data.id as string;
+  };
+
+  it('library audio plays on the call: WAV and MP3 decoded from storage; a file deleted mid-call → fallback text', async () => {
+    const wav = await upload('tone-8k-mono.wav', 'Welcome tone');
+    const mp3 = await upload('cbr-128k.mp3', 'Music');
+    const gone = await upload('tone-8k-mono.wav', 'Gone');
+    const id = await draftFlow(
+      'Audio flow',
+      [
+        { id: 'start', type: 'start' },
+        { id: 'a1', type: 'play_audio', config: { audioId: wav } },
+        { id: 'a2', type: 'play_audio', config: { audioId: mp3 } },
+        { id: 'a3', type: 'play_audio', config: { audioId: gone, fallbackText: 'Audio missing' } },
+        { id: 'bye', type: 'hangup', config: { text: 'Bye' } },
+      ],
+      [
+        ['start', 'next', 'a1'],
+        ['a1', 'next', 'a2'],
+        ['a2', 'next', 'a3'],
+        ['a3', 'next', 'bye'],
+      ],
+    );
+    const c = await startCall(paid, { draft: true, flow: id });
+    await FlowAudioModel.deleteOne({ _id: gone }); // removed while the call runs
     const call = await waitForEnd(c);
     expect(call.endReason).toBe('hangup_node');
     expect(await lines(c.callId)).toEqual([
       `bot:${CALL_LINES.recordingNotice}`,
       'bot:Welcome tone',
+      'bot:Music',
+      'bot:Audio missing',
       'bot:Bye',
     ]);
+  });
+
+  it('the flow max duration ends the call and the run as max_duration', async () => {
+    const id = await draftFlow(
+      'Long waits',
+      [
+        { id: 'start', type: 'start' },
+        { id: 'w1', type: 'wait', config: { seconds: 40 } },
+        { id: 'w2', type: 'wait', config: { seconds: 40 } },
+        { id: 'bye', type: 'hangup', config: { text: 'Bye' } },
+      ],
+      [
+        ['start', 'next', 'w1'],
+        ['w1', 'next', 'w2'],
+        ['w2', 'next', 'bye'],
+      ],
+      { maxDurationSec: 60 },
+    );
+    const c = await startCall(paid, { draft: true, flow: id });
+    const call = await waitForEnd(c, 120_000);
+    expect(call.endReason).toBe('max_duration');
+    expect(call.durationSec).toBeLessThanOrEqual(61);
+    await vi.waitFor(async () =>
+      expect((await FlowRunModel.findById(call.flowRunId).lean())?.endReason).toBe('max_duration'),
+    );
+  });
+
+  it('press 3 goes to the AI step; an API step answering 500 takes the failure edge', async () => {
+    aiEnd = { outcome: {}, reason: 'end_call', turns: 1, aiSeconds: 3, language: null };
+    const before = aiRequests.length;
+    const three = await startCall(paid);
+    await waitForLine(three, LOAN_TEXTS.menu);
+    press(three, '3');
+    await waitForEnd(three);
+    expect(aiRequests.length).toBe(before + 1);
+    expect(
+      await CallEventModel.exists({
+        callId: three.callId,
+        type: 'node_exited',
+        'data.handle': 'key_k3',
+      }),
+    ).toBeTruthy();
+
+    const port = extraPorts[0] ?? 0;
+    const created = await request(app)
+      .post(FLOWS)
+      .set(auth(manager))
+      .send({
+        name: 'Loan recovery 500',
+        templateKey: 'loan_recovery',
+        agentIds: { ai: aiAgentId },
+      });
+    const draft = created.body.data.draft;
+    draft.nodes.find((n: { id: string }) => n.id === 'check').config.url =
+      `http://localhost:${String(port)}/api/v1/mock/http-status/500`;
+    const saved = await saveGraph(app, manager, created.body.data.id, 1, draft);
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200);
+    const broken = await startCall(paid, { draft: true, flow: created.body.data.id });
+    await waitForLine(broken, LOAN_TEXTS.menu);
+    press(broken, '1');
+    await waitForEnd(broken);
+    expect(
+      await CallEventModel.exists({
+        callId: broken.callId,
+        type: 'node_exited',
+        'data.nodeId': 'check',
+        'data.handle': 'failure',
+      }),
+    ).toBeTruthy();
+    expect(aiRequests.length).toBe(before + 2);
   });
 
   it('typed values instead of a contact; logs never carry texts, phones or digits', async () => {

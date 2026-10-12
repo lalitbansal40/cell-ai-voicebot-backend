@@ -108,6 +108,8 @@ export interface SessionDeps {
   /** Default TTS voice / language for fixed lines. */
   voice: string;
   language: string;
+  /** The program's own limit (flow settings / agent behaviour); the hard cap still applies. */
+  maxDurationSec?: number;
   onEnded?: (summary: CallEndedSummary) => void;
 }
 
@@ -202,7 +204,11 @@ export class CallSession {
       clock.setInterval(() => void this.checkWallet(), CALL_LIMITS.holdCheckEverySec * 1000),
     );
     this.timers.push(
-      clock.setTimeout(() => void this.end('max_duration'), CALL_LIMITS.maxCallSecHard * 1000),
+      clock.setTimeout(
+        () => void this.end('max_duration'),
+        Math.min(deps.maxDurationSec ?? CALL_LIMITS.maxCallSecHard, CALL_LIMITS.maxCallSecHard) *
+          1000,
+      ),
     );
     await this.setStatus('in_progress', { 'timestamps.answeredAt': new Date(this.answeredAt) });
     if (deps.recording.enabled) {
