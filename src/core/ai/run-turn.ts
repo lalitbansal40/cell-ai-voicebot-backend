@@ -2,8 +2,7 @@ import type { Types } from 'mongoose';
 
 import { AI_LIMITS } from '../../config/limits';
 import type { PlaygroundTurn } from '../../db/models/agent-playground-session.model';
-import type { AiAgentDoc, BuiltInTool } from '../../db/models/ai-agent.model';
-import { BUILT_IN_TOOLS } from '../../db/models/ai-agent.model';
+import type { AiAgentDoc } from '../../db/models/ai-agent.model';
 import { AppError } from '../../shared/errors/app-error';
 import { chargeUsage } from '../billing/engine';
 import { effectiveRateCard } from '../billing/rates';
@@ -11,14 +10,13 @@ import { effectiveRateCard } from '../billing/rates';
 import { assertAgentBudget, recordAgentSpend } from './budget';
 import { compileAgent } from './compile';
 import { checkReply, retryNote, type GuardrailRule } from './guardrails';
-import { executeFunction, type HttpToolOptions } from './http-tool';
+import type { HttpToolOptions } from './http-tool';
 import { escapeKnowledge, KNOWLEDGE_CLOSE, KNOWLEDGE_OPEN } from './markers';
 import { embedCost, turnCost } from './pricing';
-import { redactArgs, redactPreview } from './redact';
 import { searchKnowledgeBases } from './retrieve';
-import { logToolCall } from './tool-log';
-import { argumentsValidator, executeBuiltIn, type BuiltInOutcome } from './tools';
-import type { AiProvider, ChatMessage, TokenUsage, ToolCall } from './types';
+import { createToolRunner } from './tool-runner';
+import type { BuiltInOutcome } from './tools';
+import type { AiProvider, ChatMessage, TokenUsage } from './types';
 
 export const HISTORY_MARKER = 'Earlier conversation omitted.';
 export const KNOWLEDGE_PREAMBLE =
@@ -65,6 +63,8 @@ export interface TurnResult {
   turn: TurnRecord;
   outcome: BuiltInOutcome;
   ended: boolean;
+  /** Knowledge search tokens (calls charge them; `billing: 'none'` leaves them to the caller). */
+  embeddingTokens?: number;
 }
 
 /** Rough token estimate used for the history window (`ceil(chars / 4)`). */
@@ -162,9 +162,20 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
     return fallback('capReached');
   }
 
-  const toolCalls: PlaygroundTurn['toolCalls'] = [];
-  const logs: Promise<void>[] = [];
-  const outcome: BuiltInOutcome = {};
+  const tools = createToolRunner({
+    accountId,
+    agent,
+    sessionId: session._id,
+    source: input.source ?? 'playground',
+    now,
+    timezone: input.timezone,
+    company: input.company,
+    contact: input.contact,
+    secretKey: input.secretKey,
+    http: input.http,
+    builtInMode: input.builtInMode ?? 'simulated',
+  });
+  const { toolCalls, outcome } = tools;
   let usage: TokenUsage = { inputTokens: 0, outputTokens: 0 };
   let embeddingTokens = 0;
   let knowledge: TurnRecord['knowledge'] = [];
@@ -205,133 +216,6 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
       return out;
     };
 
-    const runTool = async (call: ToolCall): Promise<string> => {
-      const started = Date.now();
-      const record = (
-        entry: Omit<PlaygroundTurn['toolCalls'][number], 'durationMs'>,
-        log: { httpStatus?: number | null; bytes: number; text: string },
-      ) => {
-        toolCalls.push({ ...entry, durationMs: Date.now() - started });
-        logs.push(
-          logToolCall({
-            accountId,
-            agentId: agent._id,
-            sessionId: session._id,
-            source: input.source ?? 'playground',
-            tool: call.name.slice(0, 60),
-            kind: entry.kind,
-            args: entry.args,
-            ok: entry.ok,
-            httpStatus: log.httpStatus ?? null,
-            durationMs: Date.now() - started,
-            resultBytes: log.bytes,
-            resultText: log.text,
-            errorCode: entry.error,
-            now,
-          }).then(() => undefined),
-        );
-      };
-      let args: Record<string, unknown> = {};
-      let argsOk = true;
-      try {
-        const parsed: unknown = call.arguments ? JSON.parse(call.arguments) : {};
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
-          args = parsed as Record<string, unknown>;
-        else argsOk = false;
-      } catch {
-        argsOk = false;
-      }
-
-      if ((BUILT_IN_TOOLS as readonly string[]).includes(call.name)) {
-        const out = argsOk
-          ? executeBuiltIn(call.name as BuiltInTool, args, {
-              agent,
-              mode: input.builtInMode ?? 'simulated',
-              now,
-              timezone: input.timezone,
-            })
-          : { result: { ok: false, error: 'invalid_arguments' }, outcome: {} };
-        Object.assign(outcome, out.outcome);
-        const text = JSON.stringify(out.result);
-        const ok = out.result.ok === true;
-        record(
-          {
-            name: call.name,
-            kind: 'built_in',
-            args: redactArgs(args),
-            ok,
-            simulated: ok && input.builtInMode !== 'live',
-            resultPreview: redactPreview(text),
-            error: ok ? null : String(out.result.error),
-          },
-          { bytes: text.length, text },
-        );
-        return text;
-      }
-
-      const fn = agent.functions.find((f) => f.name === call.name);
-      if (!fn) {
-        const text = JSON.stringify({ ok: false, error: 'unknown_tool' });
-        record(
-          {
-            name: call.name.slice(0, 60),
-            kind: 'custom',
-            args: {},
-            ok: false,
-            simulated: false,
-            resultPreview: null,
-            error: 'unknown_tool',
-          },
-          { bytes: 0, text: '' },
-        );
-        return text;
-      }
-      const checked = argsOk ? argumentsValidator(fn.parameters).safeParse(args) : null;
-      if (!checked?.success) {
-        // bad arguments never reach the API — the model is told and may retry
-        const details =
-          checked?.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })) ?? [];
-        const text = JSON.stringify({ ok: false, error: 'invalid_arguments', details });
-        record(
-          {
-            name: fn.name,
-            kind: 'custom',
-            args: redactArgs(args),
-            ok: false,
-            simulated: false,
-            resultPreview: null,
-            error: 'invalid_arguments',
-          },
-          { bytes: 0, text: '' },
-        );
-        return text;
-      }
-      const out = await executeFunction(
-        fn,
-        {
-          args: checked.data,
-          contact: input.contact,
-          agentName: agent.name,
-          company: input.company,
-        },
-        input.secretKey,
-        input.http,
-      );
-      record(
-        {
-          name: fn.name,
-          kind: 'custom',
-          args: redactArgs(checked.data),
-          ok: out.ok,
-          simulated: false,
-          resultPreview: redactPreview(out.resultText),
-          error: out.error ?? null,
-        },
-        { httpStatus: out.httpStatus, bytes: out.bytes, text: out.resultText },
-      );
-      return out.ok ? out.resultText : JSON.stringify({ ok: false, error: out.error });
-    };
-
     // ── model + tool loop ──
     let reply = await chatOnce(true);
     let calls = 0;
@@ -342,7 +226,7 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
         const content =
           calls > AI_LIMITS.toolCallsPerTurnMax
             ? JSON.stringify({ ok: false, error: 'too_many_tool_calls' })
-            : await runTool(call);
+            : await tools.run(call);
         messages.push({ role: 'tool', toolCallId: call.id, content });
       }
       reply = await chatOnce(round + 1 < AI_LIMITS.toolRoundsMax);
@@ -366,7 +250,7 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
     const ended = Boolean(outcome.endRequested);
     if (ended && compiled.closingLine) text = compiled.closingLine;
 
-    await Promise.all(logs);
+    await tools.flush();
 
     // ── billing once per turn ──
     const card = await effectiveRateCard(accountId);
@@ -426,10 +310,11 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
       }),
       outcome,
       ended,
+      embeddingTokens,
     };
   } catch (err) {
     // provider down after retries: fallback, nothing billed
-    await Promise.allSettled(logs);
+    await tools.flush();
     if (!isProviderError(err)) throw err;
     return {
       turn: base(compiled.fallbacks.aiFailed, {
@@ -440,6 +325,7 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
       }),
       outcome,
       ended: false,
+      embeddingTokens,
     };
   }
 };

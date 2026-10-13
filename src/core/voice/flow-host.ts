@@ -3,7 +3,7 @@ import type { CallEndReason } from '../../db/models/call.model';
 import type { RunEndReason } from '../../db/models/flow-run.model';
 import type { CallIO, CallScript, ScriptResult } from '../../modules/calls/session';
 import { advance, runValues } from '../engine/engine';
-import type { FlowGraph, NodeConfig } from '../engine/schema';
+import { parseNodeConfig, type FlowGraph, type NodeConfig } from '../engine/schema';
 import type {
   AdvanceResult,
   AiTurnLite,
@@ -32,6 +32,8 @@ export interface AiStepEnd {
 export interface AiInputs {
   setAudio(fn: ((frame: Int16Array) => void) | null): void;
   setText(fn: ((text: string) => void) | null): void;
+  /** Called once when the call ends while the AI step runs. */
+  onStop(fn: () => void): void;
 }
 
 export interface AiStepRequest {
@@ -111,6 +113,8 @@ export class FlowHost implements CallScript {
   private finished = false;
   private wakeSpeech: (() => void) | null = null;
   private digitTimer: unknown = null;
+  private aiStop: (() => void) | null = null;
+  private aiRunning: Promise<AiStepEnd> | null = null;
 
   constructor(private readonly deps: FlowHostDeps) {}
 
@@ -168,6 +172,10 @@ export class FlowHost implements CallScript {
     this.pending = null;
     this.aiAudio = null;
     this.aiText = null;
+    this.aiStop?.();
+    this.aiStop = null;
+    // the AI step reports its seconds / language when it ends
+    await this.aiRunning?.catch(() => undefined);
     // the engine records the end of the run (customer gone / call over)
     if (this.state && this.state.status !== 'ended') {
       try {
@@ -401,25 +409,34 @@ export class FlowHost implements CallScript {
     const io = this.io as CallIO;
     const node = this.deps.graph.nodes.find((n) => n.id === waiting.nodeId);
     const state = this.state as FlowRunState;
-    if (!node || node.type !== 'ai_agent') return { kind: 'no_input' };
+    // like the engine: stored configs may omit defaults (template graphs)
+    const parsed = node?.type === 'ai_agent' ? parseNodeConfig('ai_agent', node.config) : null;
+    if (!node || !parsed?.ok) return { kind: 'no_input' };
     const started = io.clock.now();
     io.event('ai_session_started', { nodeId: node.id });
-    const end = await this.deps.runAi({
+    const running = this.deps.runAi({
       nodeId: node.id,
-      config: node.config as NodeConfig<'ai_agent'>,
+      config: parsed.config,
       values: runValues(this.deps.graph, state),
       turns: state.ai?.turns ?? [],
       io,
       inputs: {
         setAudio: (fn) => (this.aiAudio = fn),
         setText: (fn) => (this.aiText = fn),
+        onStop: (fn) => (this.aiStop = fn),
       },
     });
-    this.aiAudio = null;
-    this.aiText = null;
-    this.aiSeconds += Math.max(end.aiSeconds, (io.clock.now() - started) / 1000);
-    this.language = end.language ?? this.language;
-    io.event('ai_session_ended', { nodeId: node.id, reason: end.reason, turns: end.turns });
+    this.aiRunning = running.then((end) => {
+      this.aiAudio = null;
+      this.aiText = null;
+      this.aiStop = null;
+      this.aiSeconds += Math.max(end.aiSeconds, (io.clock.now() - started) / 1000);
+      this.language = end.language ?? this.language;
+      io.event('ai_session_ended', { nodeId: node.id, reason: end.reason, turns: end.turns });
+      return end;
+    });
+    const end = await this.aiRunning;
+    this.aiRunning = null;
     if (this.stopped) return null;
     return { kind: 'ai_session_end', outcome: end.outcome, reason: end.reason, turns: end.turns };
   }

@@ -108,5 +108,8 @@ export const resolveVersion = async (
     version: number,
   }).lean<FlowVersionDoc>();
   if (!v) throw new NotFoundError('Version not found');
-  return { graph: v.graph as unknown as FlowGraph, versionRef: number, checksum: v.checksum };
+  // stored versions keep what was saved (template graphs omit defaults); fill them like drafts
+  const parsed = FlowGraphSchema.safeParse(v.graph);
+  const graph = parsed.success ? parsed.data : (v.graph as unknown as FlowGraph);
+  return { graph, versionRef: number, checksum: v.checksum };
 };

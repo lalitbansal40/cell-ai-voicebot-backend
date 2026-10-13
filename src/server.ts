@@ -4,7 +4,9 @@ import type { AddressInfo } from 'node:net';
 import { createApp } from './app';
 import { getEnv, type Env } from './config/env';
 import { createAiProvider } from './core/ai';
+import { outgoingPolicy } from './core/ai/ip-guard';
 import { queueAiJobs } from './core/ai/jobs';
+import { secretBoxKey } from './core/ai/secret-box';
 import { queueBillingJobs } from './core/billing/jobs';
 import {
   createEmailProvider,
@@ -33,6 +35,7 @@ import { startSystemWorker } from './core/queues/workers/system.worker';
 import { createRealtime, setRealtime } from './core/realtime';
 import { createStorage } from './core/storage';
 import { createMediaServer } from './core/telephony/media-server';
+import { AiVoiceController } from './core/voice/ai-session';
 import { createVoiceProviders } from './core/voice/providers';
 import { TtsCache } from './core/voice/tts-cache';
 import {
@@ -44,7 +47,7 @@ import {
 } from './db/mongo';
 import { CallManager } from './modules/calls/call.service';
 import { CallRegistry } from './modules/calls/registry';
-import { noScripts } from './modules/calls/scripts';
+import { createScriptFactory } from './modules/calls/scripts';
 import { authorizeTopic } from './modules/calls/topic-auth';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { getLogger, type Logger } from './shared/logger';
@@ -204,7 +207,21 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     tts: new TtsCache({ tts: voice.tts, storage }),
     storage,
     recordingDir: env.CALL_RECORDING_TMP_DIR,
-    scriptFor: noScripts,
+    scriptFor: createScriptFactory({
+      env,
+      secretKey: secretBoxKey(env),
+      provider: aiProvider,
+      stt: voice.stt,
+      storage,
+      redis,
+      controller: new AiVoiceController({
+        voice: voice.ai,
+        ai: aiProvider,
+        embeddingModel: env.OPENAI_EMBEDDING_MODEL,
+        secretKey: secretBoxKey(env),
+        http: { policy: outgoingPolicy(env) },
+      }),
+    }),
   });
   const media = createMediaServer({
     server,

@@ -379,13 +379,23 @@ describe('FlowHost — the AI step and stopping', () => {
     expect(t.finished).toEqual(['customer_hangup']);
 
     let release: (end: AiStepEnd) => void = () => undefined;
-    const ai = host(...aiFlow, { runAi: () => new Promise((resolve) => (release = resolve)) });
+    // a live AI step ends itself when told the call is over (onStop); stop() waits for it
+    const ai = host(...aiFlow, {
+      runAi: (request) =>
+        new Promise((resolve) => {
+          release = resolve;
+          request.inputs.onStop(() =>
+            resolve({ outcome: {}, reason: 'outcome', turns: 1, aiSeconds: 7, language: 'en' }),
+          );
+        }),
+    });
     await ai.until(() => ai.events.includes('ai_session_started:ai'));
     await ai.h.stop('max_duration');
-    release({ outcome: {}, reason: 'outcome', turns: 1, aiSeconds: 1, language: null });
     await ai.done;
     expect(ai.reason()).toBeUndefined();
     expect(ai.finished).toEqual(['max_duration']);
+    expect(ai.h.result()).toMatchObject({ aiSeconds: 7, languageDetected: 'en' });
+    release({ outcome: {}, reason: 'outcome', turns: 1, aiSeconds: 1, language: null }); // late: ignored
 
     const ended = host(...digitsFlow());
     await ended.until(() => ended.leg.playing);

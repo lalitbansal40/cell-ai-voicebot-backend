@@ -50,6 +50,14 @@ export interface TranscriptOptions {
   interrupted?: boolean;
 }
 
+/** A bot reply that arrives in pieces (Realtime audio deltas). */
+export interface BotStream {
+  /** More bot audio at the leg rate; whole 20 ms frames go out at once. */
+  push(pcm: Int16Array): void;
+  /** Plays the rest, waits for the end (or a barge-in) and writes the bot line. */
+  finish(text: string, language?: string | null): Promise<PlaybackResult>;
+}
+
 /** What a call script (flow host / AI agent) can do on a live call. */
 export interface CallIO {
   readonly callId: string;
@@ -65,6 +73,8 @@ export interface CallIO {
   say(text: string, options?: SayOptions): Promise<PlaybackResult>;
   /** Plays prepared audio; `text` (if any) becomes the bot transcript line. */
   play(pcm: Int16Array, text: string | null, source: TranscriptSource): Promise<PlaybackResult>;
+  /** Streams a reply whose audio arrives in pieces (barge-in counts like `say`). */
+  stream(source: TranscriptSource): BotStream;
   /** Barge-in: stops the bot now; returns ms played of the current clip. */
   interrupt(): number;
   transcript(speaker: TranscriptSpeaker, text: string, options: TranscriptOptions): void;
@@ -319,6 +329,7 @@ export class CallSession {
         return this.playLine(pcm, text, options.source ?? 'tts', language);
       },
       play: (pcm, text, source) => this.playLine(pcm, text, source, null),
+      stream: (source) => this.openStream(source),
       interrupt: () => {
         const played = leg.clearAudio();
         if (this.botLine) {
@@ -373,6 +384,53 @@ export class CallSession {
       });
     }
     return result;
+  }
+
+  private openStream(source: TranscriptSource): BotStream {
+    const { leg, clock } = this.deps;
+    const frame = (leg.rate * CALL_LIMITS.frameMs) / 1000;
+    const startMs = this.answeredAt === null ? 0 : clock.now() - this.answeredAt;
+    const line = { text: '', startMs, source };
+    let carry = new Int16Array(0);
+    let playedMs = 0;
+    let cut = false;
+    const plays: Promise<void>[] = [];
+    const send = (pcm: Int16Array) => {
+      plays.push(
+        leg.play(pcm).then((r) => {
+          playedMs += r.playedMs;
+          if (!r.completed) cut = true;
+        }),
+      );
+    };
+    this.botLine = line;
+    return {
+      push: (pcm) => {
+        if (this.endedFlag || cut) return;
+        const all = new Int16Array(carry.length + pcm.length);
+        all.set(carry);
+        all.set(pcm, carry.length);
+        const whole = all.length - (all.length % frame);
+        carry = all.slice(whole);
+        if (whole > 0) send(all.subarray(0, whole));
+      },
+      finish: async (text, language = null) => {
+        if (carry.length && !cut && !this.endedFlag) send(carry);
+        carry = new Int16Array(0);
+        await Promise.all(plays);
+        if (this.botLine === line) this.botLine = null;
+        if (text) {
+          this.transcript('bot', text, {
+            source,
+            language,
+            startMs,
+            endMs: startMs + playedMs,
+            interrupted: cut,
+          });
+        }
+        return { completed: !cut, playedMs };
+      },
+    };
   }
 
   private transcript(speaker: TranscriptSpeaker, text: string, options: TranscriptOptions): void {
