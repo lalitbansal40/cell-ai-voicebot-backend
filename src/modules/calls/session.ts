@@ -147,6 +147,8 @@ export class CallSession {
   private writes: Promise<unknown> = Promise.resolve();
   private botLine: { text: string; startMs: number; source: TranscriptSource } | null = null;
   private endPromise: Promise<CallEndedSummary> | null = null;
+  /** A polite end is saying its line: the script returning must not end the call first. */
+  private politeReason: CallEndReason | null = null;
   private endedFlag = false;
   private walletChecking = false;
 
@@ -234,7 +236,7 @@ export class CallSession {
       }
       if (this.endedFlag) return;
       const reason = await this.deps.script.run(io);
-      if (!this.endedFlag) await this.end(reason ?? 'hangup_node');
+      if (!this.endedFlag && this.politeReason === null) await this.end(reason ?? 'hangup_node');
     } catch (err) {
       this.deps.logger.error({ err, callId: this.callId }, 'call: script failed');
       this.event('error', { code: 'engine_error' });
@@ -275,6 +277,8 @@ export class CallSession {
     maxMs = CALL_LIMITS.shutdownLineMaxSec * 1000,
   ): Promise<CallEndedSummary> {
     if (this.endPromise) return this.endPromise;
+    if (this.politeReason !== null) return this.end(this.politeReason);
+    this.politeReason = reason;
     if (this.answeredAt !== null) {
       await this.deps.script.stop(reason).catch(() => undefined);
       this.deps.leg.clearAudio();

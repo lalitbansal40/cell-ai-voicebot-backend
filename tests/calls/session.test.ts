@@ -20,7 +20,16 @@ import { CallRegistry } from '../../src/modules/calls/registry';
 import type { CallIO, CallScript } from '../../src/modules/calls/session';
 import { createLogger } from '../../src/shared/logger';
 import { createTestAccount, type TestAccount, type TestUser } from '../helpers/auth';
-import { answer, ensureRateCard, fund, makeLeg, pumpUntil, scriptOf, talk } from '../helpers/calls';
+import {
+  answer,
+  emptyResult,
+  ensureRateCard,
+  fund,
+  makeLeg,
+  pumpUntil,
+  scriptOf,
+  talk,
+} from '../helpers/calls';
 import { useTempStorage } from '../helpers/contacts';
 import { useTestDb } from '../helpers/db';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
@@ -321,6 +330,44 @@ describe('CallSession — ways a call ends', () => {
     await stopping;
     expect(await callOf(callId)).toMatchObject({ status: 'failed', endReason: 'server_shutdown' });
     expect(tts.spoken).toContain(CALL_LINES.technical);
+  });
+
+  it('regression: a script that returns when stopped keeps the polite end reason', async () => {
+    // flow hosts / AI agents return from run() once stopped — that used to end the
+    // call as hangup_node while the polite line was still playing
+    let release: (() => void) | null = null;
+    const script: CallScript = {
+      run: () => new Promise<void>((resolve) => (release = resolve)),
+      stop: () => {
+        release?.();
+        return Promise.resolve();
+      },
+      result: () => emptyResult(),
+    };
+    const tts = new FakeTts();
+    const clock = new FakeClock();
+    const m = manager(() => script, clock, tts);
+    const created = await create(m);
+    const { leg } = makeLeg(clock);
+    await m.attach(
+      {
+        callId: created.callId,
+        accountId: t.account._id.toString(),
+        userId: owner.user._id.toString(),
+      },
+      leg,
+    );
+    answer(leg);
+    await until(clock, leg, () => Promise.resolve(release !== null)); // the script runs
+    const stopping = m.shutdown();
+    await talk(clock, leg, 6000);
+    await stopping;
+    expect(await callOf(created.callId)).toMatchObject({
+      status: 'failed',
+      endReason: 'server_shutdown',
+    });
+    const said = await TranscriptTurnModel.find({ callId: created.callId }).lean();
+    expect(said.map((x) => x.text)).toContain(CALL_LINES.technical);
   });
 
   it('runs out of money: polite line, then wallet_empty; no recording when the account turned it off', async () => {
