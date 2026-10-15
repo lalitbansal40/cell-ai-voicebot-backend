@@ -451,7 +451,8 @@ export class CallSession {
     };
     this.queueWrite(() => TranscriptTurnModel.create(doc));
     const payload = { callId: this.callId, seq, speaker, text: doc.text, final: true };
-    this.deps.leg.notify({ type: 'call.transcript', ...payload });
+    // the tester marks a cut line from this flag (the barge-in event comes before the line)
+    this.deps.leg.notify({ type: 'call.transcript', ...payload, interrupted: doc.interrupted });
     void tryGetRealtime()
       ?.pushToTopic(`call:${this.callId}`, 'call.transcript', payload)
       .catch(() => undefined);

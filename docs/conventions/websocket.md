@@ -106,16 +106,16 @@ New events must be added to this table in the same PR that emits them.
 
 **Text frames (JSON control, ≤ 16 KB, validated):**
 
-| Direction       | Message                                                                                                                                   |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| server → client | `call.config { textInput, sampleRate: 24000, frameBytes: 960 }` — right after the ticket is accepted                                      |
-| client → server | `call.ready { sampleRate: 24000 }` (microphone ready = call answered)                                                                     |
-| client → server | `call.dtmf { digit }` (`0-9 * #`), `call.hangup {}`, `call.mute { muted }`                                                                |
-| client → server | `call.transfer_result { result: connected \| failed \| no_answer }` — answer to `call.transfer`                                           |
-| client → server | `call.say_text { text }` — **dev / tests only** (`VOICE_TEXT_INPUT_ENABLED`, never in production): typed customer words                   |
-| server → client | `call.transcript { seq, speaker, text, final }` (partials greyed), `call.event { type, data }` (timeline), `call.transfer { phoneLast4 }` |
-| server → client | `audio.clear {}` — barge-in: flush the playback buffer now                                                                                |
-| server → client | `call.ended { reason, durationSec, costMicros }`, `error { code }` (`bad_message`, `text_input_disabled`)                                 |
+| Direction       | Message                                                                                                                                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| server → client | `call.config { textInput, sampleRate: 24000, frameBytes: 960 }` — right after the ticket is accepted                                                                                                                |
+| client → server | `call.ready { sampleRate: 24000 }` (microphone ready = call answered)                                                                                                                                               |
+| client → server | `call.dtmf { digit }` (`0-9 * #`), `call.hangup {}`, `call.mute { muted }`                                                                                                                                          |
+| client → server | `call.transfer_result { result: connected \| failed \| no_answer }` — answer to `call.transfer`                                                                                                                     |
+| client → server | `call.say_text { text }` — **dev / tests only** (`VOICE_TEXT_INPUT_ENABLED`, never in production): typed customer words                                                                                             |
+| server → client | `call.transcript { seq, speaker, text, final, interrupted? }` (partials greyed; finals say whether a barge-in cut the line), `call.event { event: { type, data, seq } }` (timeline), `call.transfer { phoneLast4 }` |
+| server → client | `audio.clear {}` — barge-in: flush the playback buffer now                                                                                                                                                          |
+| server → client | `call.ended { reason, durationSec, costMicros }`, `error { code }` (`bad_message`, `text_input_disabled`)                                                                                                           |
 
 **Binary frames (audio), both directions:** exactly **960 bytes** = 20 ms of **PCM16 little-endian mono at 24 kHz**; any other size closes the socket (`4008`). Client → server at most 60 frames / s (burst 100), else `4008`. Server → client audio is paced in real time (≤ 200 ms ahead; it waits while the socket is backed up). Phone (SIP) audio is G.711 μ-law 8 kHz and is converted server-side, never in the browser.
 

@@ -356,6 +356,12 @@ describe('flow calls — Loan recovery live (fake voice)', () => {
     await waitForLine(c, LOAN_TEXTS.linkSent);
     const greeting = await TranscriptTurnModel.findOne({ callId: c.callId, text: GREETING }).lean();
     expect(greeting?.interrupted).toBe(true);
+    // the tester learns it from the final transcript notice itself
+    expect(
+      c.json.some(
+        (m) => m.type === 'call.transcript' && m.text === GREETING && m.interrupted === true,
+      ),
+    ).toBe(true);
     expect((await waitForEnd(c)).metrics.bargeIns).toBeGreaterThanOrEqual(1);
     const hang = await startCall(paid);
     await waitForLine(hang, GREETING);
