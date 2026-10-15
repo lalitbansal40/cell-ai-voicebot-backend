@@ -356,6 +356,24 @@ describe('FlowHost — the AI step and stopping', () => {
     expect(frames.length).toBe(before);
   });
 
+  it('regression: words said while the opening line plays reach the AI session (not lost)', async () => {
+    const texts: string[] = [];
+    let release: (end: AiStepEnd) => void = () => undefined;
+    const t = host(...aiFlow, {
+      runAi: (request) => {
+        request.inputs.setText((x) => texts.push(x));
+        return new Promise((resolve) => (release = resolve));
+      },
+    });
+    await t.until(() => t.leg.playing); // the opening line
+    t.leg.receiveControl({ type: 'call.say_text', text: 'kal tak de dunga' });
+    await t.until(() => t.events.includes('ai_session_started:ai'));
+    expect(texts).toEqual(['kal tak de dunga']);
+    expect(t.heard).not.toContain('customer:kal tak de dunga'); // the AI session writes it
+    release({ outcome: {}, reason: 'end_call', turns: 1, aiSeconds: 1, language: null });
+    await t.until(() => t.reason() !== 'running');
+  });
+
   it.each([
     ['no_response', 'Quiet'],
     ['max_turns', 'Quiet'],

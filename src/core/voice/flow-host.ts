@@ -115,6 +115,9 @@ export class FlowHost implements CallScript {
   private digitTimer: unknown = null;
   private aiStop: (() => void) | null = null;
   private aiRunning: Promise<AiStepEnd> | null = null;
+  /** The engine waits for an AI step next: words heard meanwhile belong to it. */
+  private aiNext = false;
+  private aiQueue: string[] = [];
 
   constructor(private readonly deps: FlowHostDeps) {}
 
@@ -131,8 +134,14 @@ export class FlowHost implements CallScript {
     });
     stt.on('final', ({ text, language }) => {
       if (!text.trim()) return;
-      io.transcript('customer', text, { source: 'stt', language });
       io.customerDone();
+      if (this.aiNext && !this.aiText) {
+        // said while the AI step's opening line plays: hand it to the AI session
+        // when it opens (it writes the transcript line itself)
+        this.aiQueue.push(text);
+        return;
+      }
+      io.transcript('customer', text, { source: 'stt', language });
       this.language = language ?? this.language;
       this.speech.push({ text, language });
       this.deliver();
@@ -156,6 +165,7 @@ export class FlowHost implements CallScript {
 
     let result = await this.step({ kind: 'start', trigger: 'test' });
     for (;;) {
+      this.aiNext = result.waiting?.kind === 'ai';
       await this.perform(result.outputs);
       if (this.stopped) return;
       if (!result.waiting) return RUN_TO_CALL[result.state.endReason ?? 'hangup_node'];
@@ -422,7 +432,10 @@ export class FlowHost implements CallScript {
       io,
       inputs: {
         setAudio: (fn) => (this.aiAudio = fn),
-        setText: (fn) => (this.aiText = fn),
+        setText: (fn) => {
+          this.aiText = fn;
+          if (fn) for (const words of this.aiQueue.splice(0)) fn(words);
+        },
         onStop: (fn) => (this.aiStop = fn),
       },
     });
