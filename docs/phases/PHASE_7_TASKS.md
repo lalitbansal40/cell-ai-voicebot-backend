@@ -9,10 +9,10 @@ Source plan: [PHASE_7_PLAN.md](PHASE_7_PLAN.md) — Batch 1 = T7.1–T7.5, Batch
 | [x]  | T7.3  | Voice providers: OpenAI Realtime / TTS / transcription + deterministic fakes, TTS cache                                                                     | BE   | L    |
 | [x]  | T7.4  | Telephony interface + WebCall provider, `/ws/media` (tickets, protocol, limits), `call:<id>` topic authorisation                                            | BE   | M    |
 | [x]  | T7.5  | Call session manager: lifecycle, Redis registry, limits, billing hold / extend / settle, recording, persistence, WS, shutdown, reaper, purge                | BE   | L    |
-| [ ]  | T7.6  | Flow voice host: outputs → audio, DTMF / STT / timers, barge-in, engine `ai_session_end` input, call-mode trace + stats                                     | BE   | L    |
-| [ ]  | T7.7  | Live AI voice session: Realtime agent, live tools + built-ins, knowledge tool, barge-in truncate, silence, caps, language, fallbacks, latency               | BE   | L    |
-| [ ]  | T7.8  | Calls API (`/calls/web`, list, detail, transcript, events, recording, hangup, active) + OpenAPI                                                             | BE   | M    |
-| [ ]  | T7.9  | Seed, samples, ADR 0035, `bench:voice`, docs, live-OpenAI checklist                                                                                         | BE   | M    |
+| [x]  | T7.6  | Flow voice host: outputs → audio, DTMF / STT / timers, barge-in, engine `ai_session_end` input, call-mode trace + stats                                     | BE   | L    |
+| [x]  | T7.7  | Live AI voice session: Realtime agent, live tools + built-ins, knowledge tool, barge-in truncate, silence, caps, language, fallbacks, latency               | BE   | L    |
+| [x]  | T7.8  | Calls API (`/calls/web`, list, detail, transcript, events, recording, hangup, active) + OpenAPI                                                             | BE   | M    |
+| [x]  | T7.9  | Seed, samples, ADR 0035, `bench:voice`, docs, live-OpenAI checklist                                                                                         | BE   | M    |
 | [ ]  | T7.10 | FE foundation: clients, routes, `LIVE_PHASE = 7`, WS events, audio worklets, media socket client                                                            | FE   | M    |
 | [ ]  | T7.11 | Web Call Tester page                                                                                                                                        | FE   | L    |
 | [ ]  | T7.12 | Calls list + call detail (recording, transcript, timeline, cost, outcome)                                                                                   | FE   | M    |
