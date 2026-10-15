@@ -54,6 +54,7 @@ Confidence: **high** = read on an official source · **medium** = official sourc
 
 - No single Indian statute found that requires consent for a participant to record a call; **best practice** (and the 2026 RBI draft) is to **inform** the borrower at the start: e.g. _"Yeh call quality aur record ke liye record ki ja rahi hai."_ — confidence **low**; confirm with legal.
 - Store recordings encrypted, signed-URL access only, retention per client policy.
+- **Phase 7 built:** every answered call starts with the account's **recording notice** (Settings → Calls; default _"Yeh call quality ke liye record ki ja rahi hai."_, ≤ 200 characters) when recording is on; recording can be switched off per account (owner / admin). Recordings, transcripts and events are kept **`CALL_RETENTION_DAYS` (default 180)** and then purged by the daily `calls-purge` job; every recording access is audited. Confirm wording and retention with the client's legal team (§7 Q5).
 
 ## 5. AI disclosure
 

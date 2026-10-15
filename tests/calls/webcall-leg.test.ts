@@ -35,6 +35,9 @@ describe('WebCallLeg', () => {
     clock.advance(60);
     expect(await done).toEqual({ completed: true, playedMs: 80 });
     expect(started).toEqual(['x']);
+    // the congested socket held frames back; the stats say so
+    expect(leg.pacerStats.stalledFrames).toBeGreaterThan(0);
+    expect(leg.pacerStats.lateTicks).toBeGreaterThanOrEqual(0);
     void leg.play(new Int16Array(480 * 5));
     clock.advance(20);
     expect(leg.clearAudio()).toBe(40);

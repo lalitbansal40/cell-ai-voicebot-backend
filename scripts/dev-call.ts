@@ -101,7 +101,13 @@ const main = async () => {
     calls: { manager, registry, textInput: voice.textInput },
   });
   const server = createServer(app);
-  await new Promise<void>((r) => server.listen(0, r));
+  // on APP_URL's port when free: the flow's payment check calls APP_URL/api/v1/mock
+  // (a running dev server answers it otherwise)
+  const appPort = Number(new URL(env.APP_URL).port || 80);
+  await new Promise<void>((resolve) => {
+    server.once('error', () => server.listen(0, resolve));
+    server.listen(appPort, resolve);
+  });
   const media = createMediaServer({
     server,
     tickets,

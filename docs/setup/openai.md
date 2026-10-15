@@ -29,6 +29,19 @@ AI agents talk to OpenAI through our own REST client (ADR 0033). Day-to-day deve
 
 **Prices.** What customers pay is set by the superadmin on the rate card (defaults ₹0.20 per 1k text tokens, ₹0.01 per 1k embedding tokens — docs/cost/cost-model.md); OpenAI's own price is our cost.
 
+### Voice (Phase 7)
+
+```dotenv
+VOICE_PROVIDER=openai          # default = AI_PROVIDER
+VOICE_PIPELINE=realtime        # or chat: transcription → agent turn (text model) → TTS
+OPENAI_REALTIME_MODEL=gpt-realtime-2.1-mini
+OPENAI_TTS_MODEL=gpt-4o-mini-tts            # speak steps (cached per text + voice)
+OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe   # listen steps + Realtime input transcripts
+VOICE_TEXT_INPUT_ENABLED=false # typed words are a dev / test aid
+```
+
+**Model switch.** `gpt-realtime-2.1-mini` is the default (≈ 3× cheaper than `gpt-realtime-2.1`, ADR 0021). Switch to the full model only if the live checklist below shows a clear quality gap. `VOICE_PIPELINE=chat` is the fallback when Realtime misses the latency / language thresholds (it uses `OPENAI_TEXT_MODEL` for the turns).
+
 ## 2. Data retention (before go-live)
 
 - API data is **not used for training** by default.
@@ -51,8 +64,23 @@ Run on the dev server (`AI_PROVIDER=openai`, `WORKERS_ENABLED=true`, `npm run db
 | 8   | Persona tweak asking it to say a never-say phrase ("legal notice")        | Blocked → retried → no never-say phrase in the reply (guardrail shown on the turn)                |
 | 9   | Each turn                                                                 | Ledger `ai_charge` per turn with input / output tokens; cost ≈ tokens × rate                      |
 
+### Voice live checklist (Phase 7)
+
+Use the web call tester (Calls → Test call) with **headphones**, `VOICE_PROVIDER=openai`, the seeded Loan recovery flow and Recovery Bot. Note the latency per turn (shown in the tester and `metrics.latency`) and `metrics.realtime` tokens on the call.
+
+| #   | Step                                                 | Expected (thresholds from ADR 0021)                                                   |
+| --- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| V1  | Loan recovery, even-phone contact, press 1           | Greeting with name + amount, "payment mil gaya", disposition Paid; recording plays    |
+| V2  | Press 3 → speak "kal tak de dunga"                   | Agent replies in Hinglish, promise saved for tomorrow (IST), flow says the date       |
+| V3  | Agent-only call, speak English "I have already paid" | English reply after the payment check                                                 |
+| V4  | Interrupt the bot mid-sentence                       | Bot stops within ~300 ms; the cut line shows "interrupted"; the reply follows         |
+| V5  | Stay silent                                          | "Hello? Kya aap sun rahe hain?" twice, then the call ends                             |
+| V6  | 10 turns across V1–V5                                | Latency **p50 ≤ 1.2 s, p95 ≤ 2 s**; language match ≥ 90%; function calls 100%         |
+| V7  | Each call                                            | Ledger `call_charge` with AI minutes; `metrics.realtime` tokens ≈ cost-model estimate |
+
 ### Results
 
 | Date       | Who                         | Result                                                                                                                                                                                                                                                                   |
 | ---------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-10-15 | build run (Phase 7 Batch 2) | **Pending input (OpenAI key)** — voice checklist V1–V7 not run live; the same calls were verified with the fake provider (`npm run dev:call`, the call tests, `db:seed` demo calls). ADR 0021 stays proposed until V6 passes.                                            |
 | 2026-10-09 | build run (Phase 5 Batch 2) | **Pending input (OpenAI key)** — `OPENAI_API_KEY` is empty in the local `.env`; the whole flow was verified with the fake provider instead (PHASE_5 B2 manual e2e). Run this checklist once a key is provided and record latency, cost per turn and language match here. |

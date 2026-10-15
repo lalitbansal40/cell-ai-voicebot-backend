@@ -244,6 +244,14 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 - **Simulator:** `POST /flows/:id/simulations { version: draft | published | <n>, contactId? | variables? + testPhone? }` starts a text run (a draft with errors → 422 `FLOW_INVALID`; draft runs keep a snapshot of the graph). `POST …/simulations/:runId/inputs { clientInputId (uuid), kind: dtmf | speech | no_input | transfer_result | hangup, value? }` — idempotent by `clientInputId` (a replay returns the same `added` rows with `replay: true`, no second AI charge); 422 when the run waits for another kind (`details[0].message` "Waiting for dtmf"), 409 when it ended or another input won the race. `wait` nodes are skipped. 60 starts + inputs / min / user. Runs expire after 30 days.
 - **In use:** deleting an agent used by a flow's draft or published version (or audio, or a flow used by campaigns from Phase 8) is **409 `RESOURCE_IN_USE`**; `details[]` list the users (`message` = name, `id`).
 
+## 14b. Calls (Phase 7)
+
+- **Start a browser test call:** `POST /calls/web { flowId + version? (published default | draft | n) | agentId, contactId? | variables? + testPhone? }` → **201** `{ call, mediaTicket, expiresAt, wsPath: "/ws/media", textInput }`. Needs `calls.trigger` plus `flows.read` (flow) or `agents.read` (agent); blocked while impersonating; 10 / min / user. Errors: 422 `FLOW_INVALID` (draft with errors), 409 `CONFLICT_INVALID_STATE` (nothing published), 422 `VALIDATION_FAILED` at `agentId` (agent switched off) or `variables.<name>`, 422 `WALLET_INSUFFICIENT_BALANCE` (no call is left behind), 429 `CALL_LIMIT_REACHED` (3 live per account), 503 `CALL_CAPACITY` (this server is full).
+- **Media:** open `wss://<host>/ws/media?ticket=<mediaTicket>` within 60 s ([websocket.md §8](websocket.md)); an unconnected call is canceled after 75 s and its hold released.
+- **History:** `GET /calls` uses cursor pagination (§6) with `status` (comma list), `flowId`, `agentId`, `contactId`, `isTest`, `from` / `to` (ISO date-times), `q` (contact name). `GET /calls/active` lists live calls; `/calls/:id`, `/:id/transcript` (final turns in order), `/:id/events` (no texts, digits or phones). Call views never include the test phone, the wallet hold or the recording key.
+- **Recording:** `GET /calls/:id/recording` → `{ url, expiresAt, durationSec }` (5 minutes, `calls.listen`, audited, 404 when there is none).
+- **Hang up:** `POST /calls/:id/hangup` ends a live call running on this server (`calls.trigger`, audited) → the ended call; **409 `CALL_NOT_ACTIVE`** when it is not live here.
+
 ## 15. Versioning & deprecation
 
 - The contract is served at **`GET /api/v1/openapi.json`** (OpenAPI 3.1, raw document — **not** wrapped in the success envelope) and browsable at **`/api/docs`** (Swagger UI, off in production unless `API_DOCS_ENABLED=true`). [ADR 0029](../adr/0029-shared-api-types-via-openapi.md).

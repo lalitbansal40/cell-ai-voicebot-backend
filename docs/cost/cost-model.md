@@ -105,3 +105,12 @@ The playground (and later chat-style AI usage) is billed per token, separately f
 | Embeddings                      | ₹0.01 per 1,000 tokens (`embeddingPer1kTokensMicros = 10_000`) | Superadmin rate card                         | Once per knowledge source ingest (`kbingest:<sourceId>:<version>`)                                                                               |
 
 `cost = ceil(tokens × ratePer1k / 1000)` micros (never rounded down). A typical playground turn with the default persona is ~1,500 input + ~60 output tokens ≈ **₹0.31**; ingesting a 10-page PDF (~6,000 tokens) ≈ **₹0.06**. Our cost at OpenAI list prices for `gpt-4.1-mini` / `text-embedding-3-small` is well below these defaults — confirm the margin once the live run (docs/setup/openai.md) records real token counts.
+
+## 7. Reading a call's cost (Phase 7)
+
+Every call stores what it used and what it cost:
+
+- **`cost`** — `aiMicros` (AI minutes at the rate card's AI per-minute price), `ttsMicros`, `telephonyMicros` (**0 for web test calls** — they use no phone line), `commissionMicros`, `totalMicros`. The ledger row (`call_charge`, ref `call`) carries the same breakdown; knowledge searches during a call are separate `ai_charge` rows (kind `call`, embedding tokens).
+- **`metrics.aiSeconds`** — seconds an AI session owned the call (flow AI steps or the whole agent-only call); billed per started minute like other AI usage.
+- **`metrics.realtime`** — raw OpenAI Realtime usage: `inputAudioTokens`, `outputAudioTokens`, `inputTextTokens`, `outputTextTokens`, `cachedTokens`. Our cost ≈ input audio × $10 / 1M + output audio × $20 / 1M + text tokens at the text price (mini model, §1). Compare it with what the rate card charged (`cost.aiMicros`) to check the margin per call; these numbers replace the **low-confidence estimates in §1** once live calls run.
+- **`metrics.ttsChars` / `ttsCachedChars`** — speak-step characters synthesised vs served from the TTS cache (cached lines cost nothing again).

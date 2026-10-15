@@ -60,6 +60,11 @@ export class WebCallLeg implements CallLeg {
     });
   }
 
+  /** Pacer health for benches / metrics: late timer ticks, frames held back by backpressure. */
+  get pacerStats(): { lateTicks: number; stalledFrames: number } {
+    return { lateTicks: this.pacer.lateTicks, stalledFrames: this.pacer.stalledFrames };
+  }
+
   get playing(): boolean {
     return this.pacer.playing;
   }

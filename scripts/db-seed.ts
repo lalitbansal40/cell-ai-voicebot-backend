@@ -3,18 +3,20 @@
  * contacts (fields, list, segment, DND — scripts/seed-contacts.ts), demo
  * billing (profile, ₹1,000 credit, simulated calls, a fake top-up + invoice —
  * scripts/seed-billing.ts), demo AI agents + knowledge base + mock payment
- * records (scripts/seed-ai.ts) and a platform superadmin. Needs Mongo + Redis (the
+ * records (scripts/seed-ai.ts), the demo flows (scripts/seed-flows.ts), two finished
+ * demo calls run through the real call runtime on fake voice (scripts/seed-calls.ts)
+ * and a platform superadmin. Needs Mongo + Redis (the
  * invoice PDF is rendered by the billing worker of a running dev server).
  * Idempotent; existing users are left as they are.
  * Password: SEED_PASSWORD, else a random one printed once. Refuses in production.
  */
 import { getEnv } from '../src/config/env';
-import { createAiProvider } from '../src/core/ai';
+import { createAiProvider, createFakeProvider } from '../src/core/ai';
 import { unavailableAiJobs } from '../src/core/ai/jobs';
 import { queueBillingJobs } from '../src/core/billing/jobs';
 import { QUEUES } from '../src/core/queues/names';
 import { closeAllQueues, createQueue } from '../src/core/queues/queue-factory';
-import { closeAllRedis } from '../src/core/queues/redis';
+import { closeAllRedis, getAppRedis } from '../src/core/queues/redis';
 import { createStorage } from '../src/core/storage';
 import { AccountModel } from '../src/db/models/account.model';
 import { UserModel } from '../src/db/models/user.model';
@@ -26,6 +28,7 @@ import { getLogger } from '../src/shared/logger';
 
 import { SEED_KB_NAME, seedAi } from './seed-ai';
 import { seedBilling } from './seed-billing';
+import { SEED_CALL_MARKS, seedCalls } from './seed-calls';
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
 import { SEED_FLOW_NAMES, seedFlows } from './seed-flows';
 
@@ -97,6 +100,18 @@ const main = async (): Promise<void> => {
     });
     console.info(
       `Flows: ${flows.flows} new ("${SEED_FLOW_NAMES.loan}" published v1, "${SEED_FLOW_NAMES.feedback}" draft), audio "Welcome tone" ${flows.audio ? 'added' : 'kept'}${flows.addedVariables.length ? `, flow variables for missing fields: ${flows.addedVariables.join(', ')}` : ''}`,
+    );
+
+    const demoCalls = await seedCalls(account._id, {
+      env,
+      ownerId: owner?._id ?? account._id,
+      storage: createStorage(env, logger),
+      redis: getAppRedis(env.REDIS_URL, logger),
+      provider: createFakeProvider(), // demo calls never spend on a real model
+      logger,
+    });
+    console.info(
+      `Calls: ${demoCalls.calls} new demo calls (${Object.values(SEED_CALL_MARKS).join(', ')}) — fake voice, real runtime`,
     );
 
     console.info(

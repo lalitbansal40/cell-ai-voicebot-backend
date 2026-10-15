@@ -1,12 +1,26 @@
 /**
- * Generates the audio test fixtures (`tests/fixtures/audio/`) and the sample
- * prompt `docs/samples/audio/welcome.wav`: `npm run fixtures:audio`.
+ * Generates the audio test fixtures (`tests/fixtures/audio/`), the sample
+ * prompt `docs/samples/audio/welcome.wav` and `customer-silence.wav` (Chromium's
+ * fake mic in the Playwright call tests): `npm run fixtures:audio`.
  * Deterministic — committed byte-exact.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { wavBuffer } from '../src/core/voice/audio/wav';
+
 import { makeCbrMp3, makeVbriMp3, makeWav, makeXingMp3 } from './lib/audio';
+
+/** 30 s of very quiet noise, 24 kHz mono PCM16 (fixed seed, below the VAD threshold). */
+const customerSilence = (): Buffer => {
+  const samples = new Int16Array(24_000 * 30);
+  let seed = 0x2545f491;
+  for (let i = 0; i < samples.length; i += 1) {
+    seed = (Math.imul(seed, 1_103_515_245) + 12_345) >>> 0;
+    samples[i] = ((seed >>> 16) % 41) - 20; // ±20 of 32767
+  }
+  return wavBuffer(samples, 24_000);
+};
 
 const FIXTURES = path.resolve(__dirname, '../tests/fixtures/audio');
 const SAMPLES = path.resolve(__dirname, '../docs/samples/audio');
@@ -27,6 +41,7 @@ mkdirSync(FIXTURES, { recursive: true });
 for (const [name, data] of Object.entries(files)) writeFileSync(path.join(FIXTURES, name), data);
 mkdirSync(SAMPLES, { recursive: true });
 writeFileSync(path.join(SAMPLES, 'welcome.wav'), makeWav({ sampleRate: 8000, seconds: 2 }));
+writeFileSync(path.join(SAMPLES, 'customer-silence.wav'), customerSilence());
 console.info(
-  `Wrote ${String(Object.keys(files).length)} fixtures and docs/samples/audio/welcome.wav`,
+  `Wrote ${String(Object.keys(files).length)} fixtures and docs/samples/audio/{welcome,customer-silence}.wav`,
 );

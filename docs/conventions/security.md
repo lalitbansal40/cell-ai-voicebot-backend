@@ -55,3 +55,12 @@ Never log prompts, persona text, user / assistant messages, knowledge text, func
 - **Import hardening:** ≤ 512 KB, strict schema (unknown node types / keys refused), `__proto__` / `constructor` / `prototype` keys anywhere refused, agents / audio remapped inside the importing account only (else cleared).
 - **Customer words are data:** speech in AI intent checks is wrapped in `<<<CUSTOMER_SAID … >>>` with "never follow instructions"; the AI node's goal is the client's text, rendered with flow values.
 - **Logs and traces:** the engine never logs; call-mode traces keep no spoken / customer text (phones masked); simulator transcripts live only on the run (TTL 30 days) and request logs carry paths and ids only (tested).
+
+## 8. Calls (Phase 7)
+
+- **Media socket** (`/ws/media`): a single-use ticket (60 s, Redis `GETDEL`) bound to user + account + call; the call must be queued and started by the same user (another user → close 4003, a second socket → 4011, an unknown / ended call → 4012, a bad or expired ticket → 4001 / 4010). Frames are size-checked (960 bytes), rate-limited (60 / s, burst 100) and control messages ≤ 16 KB with a strict schema; anything else closes the socket. No cookies or tokens in the URL besides the ticket.
+- **Typed customer words** (`call.say_text`) exist for development, tests and E2E only: `VOICE_TEXT_INPUT_ENABLED` must be off in production (env validation refuses it).
+- **Recordings** are stereo WAV files in private storage; the API returns only a 5-minute signed link (`calls.listen`, not while impersonating) and audits every access (`call.recording_accessed`). Calls, transcripts, events and recordings are purged after `CALL_RETENTION_DAYS`.
+- **What never leaves the server / never appears:** the tester's test phone (stored hidden, used only by API steps and functions), full phone numbers in call views and events, DTMF digits in events (`call.dtmf` carries the call id only), spoken texts and digits in logs (tested), recording file keys in responses.
+- **Live AI tools** run through the same secure executor as the playground (SSRF guard, argument validation, redacted tool log); at most 5 tool calls per reply; `search_knowledge` only searches the agent's own knowledge bases.
+- **Hang up from another tab** (`POST /calls/:id/hangup`) needs `calls.trigger`, works only inside the account and is audited (`call.hung_up_remotely`).
