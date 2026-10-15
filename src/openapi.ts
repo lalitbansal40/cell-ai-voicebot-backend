@@ -37,6 +37,7 @@ import './modules/billing/invoices.schema';
 import './modules/admin/admin-billing.schema';
 import './modules/notifications/notifications.schema';
 import './modules/payments/webhooks.schema';
+import './modules/calls/calls.schema';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;
 

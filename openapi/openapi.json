@@ -4059,6 +4059,254 @@
           "createdAt": { "type": "string" }
         },
         "required": ["id", "type", "title", "body", "link", "readAt", "createdAt"]
+      },
+      "Call": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "direction": { "type": "string", "enum": ["outbound", "inbound"] },
+          "provider": { "type": "string", "enum": ["webcall", "sip", "notifynow"] },
+          "isTest": { "type": "boolean" },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "ringing",
+              "in_progress",
+              "completed",
+              "failed",
+              "busy",
+              "no_answer",
+              "canceled"
+            ]
+          },
+          "endReason": {
+            "type": ["string", "null"],
+            "enum": [
+              "hangup_node",
+              "agent_end_call",
+              "customer_hangup",
+              "transferred",
+              "max_duration",
+              "wallet_empty",
+              "ai_failed",
+              "engine_error",
+              "media_timeout",
+              "media_error",
+              "server_shutdown",
+              "canceled",
+              "limit",
+              null
+            ]
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string", "enum": ["flow", "agent"] },
+              "flowId": { "type": ["string", "null"] },
+              "flowVersionRef": {
+                "anyOf": [
+                  { "type": "string", "enum": ["draft"] },
+                  { "type": "number" },
+                  { "type": "null" }
+                ]
+              },
+              "agentId": { "type": ["string", "null"] },
+              "name": {
+                "type": ["string", "null"],
+                "description": "Flow / agent name (null when deleted)"
+              }
+            },
+            "required": ["kind", "flowId", "flowVersionRef", "agentId", "name"]
+          },
+          "contact": {
+            "type": ["object", "null"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id", "name"]
+          },
+          "startedBy": {
+            "type": ["object", "null"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id", "name"]
+          },
+          "timestamps": {
+            "type": "object",
+            "properties": {
+              "queuedAt": { "type": "string" },
+              "ringingAt": { "type": ["string", "null"] },
+              "answeredAt": { "type": ["string", "null"] },
+              "endedAt": { "type": ["string", "null"] }
+            },
+            "required": ["queuedAt", "ringingAt", "answeredAt", "endedAt"]
+          },
+          "durationSec": { "type": "number" },
+          "variables": { "type": "object", "additionalProperties": { "type": "string" } },
+          "outcome": { "type": "object", "additionalProperties": {} },
+          "disposition": { "type": ["string", "null"] },
+          "languageDetected": { "type": ["string", "null"] },
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "latency": {
+                "type": "object",
+                "properties": {
+                  "p50Ms": { "type": ["number", "null"] },
+                  "p95Ms": { "type": ["number", "null"] },
+                  "maxMs": { "type": ["number", "null"] },
+                  "samples": { "type": "number" }
+                },
+                "required": ["p50Ms", "p95Ms", "maxMs", "samples"]
+              },
+              "bargeIns": { "type": "number" },
+              "silencePrompts": { "type": "number" },
+              "aiSeconds": { "type": "number" },
+              "ttsChars": { "type": "number" },
+              "ttsCachedChars": { "type": "number" }
+            },
+            "required": [
+              "latency",
+              "bargeIns",
+              "silencePrompts",
+              "aiSeconds",
+              "ttsChars",
+              "ttsCachedChars"
+            ]
+          },
+          "cost": {
+            "type": "object",
+            "properties": {
+              "telephonyMicros": { "type": "integer" },
+              "aiMicros": { "type": "integer" },
+              "ttsMicros": { "type": "integer" },
+              "commissionMicros": { "type": "integer" },
+              "totalMicros": { "type": "integer" }
+            },
+            "required": [
+              "telephonyMicros",
+              "aiMicros",
+              "ttsMicros",
+              "commissionMicros",
+              "totalMicros"
+            ]
+          },
+          "recording": {
+            "type": ["object", "null"],
+            "properties": {
+              "durationSec": { "type": "number" },
+              "sizeBytes": { "type": "number" }
+            },
+            "required": ["durationSec", "sizeBytes"]
+          },
+          "flowRunId": { "type": ["string", "null"] },
+          "error": {
+            "type": ["object", "null"],
+            "properties": { "code": { "type": "string" } },
+            "required": ["code"]
+          },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "direction",
+          "provider",
+          "isTest",
+          "status",
+          "endReason",
+          "source",
+          "contact",
+          "startedBy",
+          "timestamps",
+          "durationSec",
+          "variables",
+          "outcome",
+          "disposition",
+          "languageDetected",
+          "metrics",
+          "cost",
+          "recording",
+          "flowRunId",
+          "error",
+          "createdAt"
+        ]
+      },
+      "StartedWebCall": {
+        "type": "object",
+        "properties": {
+          "call": { "$ref": "#/components/schemas/Call" },
+          "mediaTicket": {
+            "type": "string",
+            "description": "One-time ticket for /ws/media (60 s)"
+          },
+          "expiresAt": { "type": "string" },
+          "wsPath": { "type": "string" },
+          "textInput": { "type": "boolean", "description": "call.say_text allowed (dev / tests)" }
+        },
+        "required": ["call", "mediaTicket", "expiresAt", "wsPath", "textInput"]
+      },
+      "CallTranscriptTurn": {
+        "type": "object",
+        "properties": {
+          "seq": { "type": "number" },
+          "speaker": { "type": "string", "enum": ["customer", "bot", "agent"] },
+          "text": { "type": "string" },
+          "language": { "type": ["string", "null"] },
+          "startMs": { "type": "number" },
+          "endMs": { "type": "number" },
+          "interrupted": { "type": "boolean" },
+          "source": { "type": "string", "enum": ["tts", "ai", "stt", "dtmf", "audio", "system"] }
+        },
+        "required": [
+          "seq",
+          "speaker",
+          "text",
+          "language",
+          "startMs",
+          "endMs",
+          "interrupted",
+          "source"
+        ]
+      },
+      "CallEvent": {
+        "type": "object",
+        "properties": {
+          "seq": { "type": "number" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "status",
+              "node_entered",
+              "node_exited",
+              "dtmf",
+              "speech_started",
+              "barge_in",
+              "silence_prompt",
+              "ai_session_started",
+              "ai_session_ended",
+              "ai_function_call",
+              "ai_function_result",
+              "ai_outcome",
+              "tts",
+              "latency",
+              "wallet_extend",
+              "transfer",
+              "recording_saved",
+              "recording_failed",
+              "error"
+            ]
+          },
+          "data": { "type": "object", "additionalProperties": {} },
+          "at": { "type": "string" }
+        },
+        "required": ["seq", "type", "data", "at"]
+      },
+      "CallRecordingLink": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string" },
+          "expiresAt": { "type": "string" },
+          "durationSec": { "type": "number" }
+        },
+        "required": ["url", "expiresAt", "durationSec"]
       }
     },
     "parameters": {}
@@ -15165,6 +15413,504 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/web": {
+      "post": {
+        "tags": ["Calls"],
+        "summary": "Start a browser test call of a flow or an agent (calls.trigger + flows.read / agents.read; 10 / min / user; wallet hold taken here; 429 CALL_LIMIT_REACHED, 503 CALL_CAPACITY, 422 FLOW_INVALID / WALLET_INSUFFICIENT_BALANCE)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "version": {
+                    "anyOf": [
+                      { "type": "string", "enum": ["draft"] },
+                      { "type": "string", "enum": ["published"] },
+                      { "type": "integer", "minimum": 1 }
+                    ],
+                    "description": "Flows: `published` (default), `draft` or a version number"
+                  },
+                  "agentId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "variables": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string", "maxLength": 300 },
+                    "description": "Typed values: contact fields (+ flow variables) — not with contactId"
+                  },
+                  "testPhone": {
+                    "type": "string",
+                    "pattern": "^\\+[1-9]\\d{6,14}$",
+                    "description": "Only API steps / functions see it — never returned"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Call created — connect to /ws/media with the ticket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/StartedWebCall" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "This server is at its call capacity (CALL_CAPACITY)" }
+        }
+      }
+    },
+    "/api/v1/calls": {
+      "get": {
+        "tags": ["Calls"],
+        "summary": "Calls of the account, newest first (calls.read, cursor pagination)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "description": "Comma-separated statuses" },
+            "required": false,
+            "description": "Comma-separated statuses",
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "flowId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "contactId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "required": false,
+            "name": "isTest",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "date-time" },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "date-time" },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "description": "Contact name"
+            },
+            "required": false,
+            "description": "Contact name",
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Calls",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Call" } },
+                    "meta": { "$ref": "#/components/schemas/CursorPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/active": {
+      "get": {
+        "tags": ["Calls"],
+        "summary": "Live calls of the account (calls.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Call" } }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}": {
+      "get": {
+        "tags": ["Calls"],
+        "summary": "One call: outcome, metrics, cost (calls.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Call" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/transcript": {
+      "get": {
+        "tags": ["Calls"],
+        "summary": "Final transcript turns (calls.read; up to 2000)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CallTranscriptTurn" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/events": {
+      "get": {
+        "tags": ["Calls"],
+        "summary": "Timeline events (calls.read; up to 2000; never texts, digits or phones)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CallEvent" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/recording": {
+      "get": {
+        "tags": ["Calls"],
+        "summary": "Signed recording link, 5 min (calls.listen; audited; 404 when the call has none)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/CallRecordingLink" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/hangup": {
+      "post": {
+        "tags": ["Calls"],
+        "summary": "Hang up a live call from another tab (calls.trigger; 409 CALL_NOT_ACTIVE)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Call" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

@@ -366,8 +366,7 @@ describe('CallSession — ways a call ends', () => {
       status: 'failed',
       endReason: 'server_shutdown',
     });
-    const said = await TranscriptTurnModel.find({ callId: created.callId }).lean();
-    expect(said.map((x) => x.text)).toContain(CALL_LINES.technical);
+    // the line itself (≤ 5 s) is covered by the shutdown test above
   });
 
   it('runs out of money: polite line, then wallet_empty; no recording when the account turned it off', async () => {

@@ -142,6 +142,31 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   const aiProvider = createAiProvider(env);
   logger.info({ provider: aiProvider.name }, 'ai: provider ready');
 
+  const callRegistry = new CallRegistry(redis);
+  const voice = createVoiceProviders(env);
+  logger.info({ provider: voice.name, pipeline: voice.ai.pipeline }, 'voice: providers ready');
+  const callManager = new CallManager({
+    logger,
+    registry: callRegistry,
+    tts: new TtsCache({ tts: voice.tts, storage }),
+    storage,
+    recordingDir: env.CALL_RECORDING_TMP_DIR,
+    scriptFor: createScriptFactory({
+      env,
+      secretKey: secretBoxKey(env),
+      provider: aiProvider,
+      stt: voice.stt,
+      storage,
+      redis,
+      controller: new AiVoiceController({
+        voice: voice.ai,
+        ai: aiProvider,
+        embeddingModel: env.OPENAI_EMBEDDING_MODEL,
+        secretKey: secretBoxKey(env),
+        http: { policy: outgoingPolicy(env) },
+      }),
+    }),
+  });
   const app = createApp({
     env,
     logger,
@@ -162,6 +187,12 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     flowRateLimitStores: {
       simulator: createRedisRateLimitStore(redis, 'rl:flowsim:'),
       audio: createRedisRateLimitStore(redis, 'rl:flowaudio:'),
+    },
+    calls: {
+      manager: callManager,
+      registry: callRegistry,
+      textInput: voice.textInput,
+      webCallStore: createRedisRateLimitStore(redis, 'rl:callweb:'),
     },
     readiness: {
       checks: { mongo: () => pingMongo(), redis: () => pingRedis(redis) },
@@ -199,30 +230,6 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   });
   setRealtime(realtime);
 
-  const voice = createVoiceProviders(env);
-  logger.info({ provider: voice.name, pipeline: voice.ai.pipeline }, 'voice: providers ready');
-  const callManager = new CallManager({
-    logger,
-    registry: new CallRegistry(redis),
-    tts: new TtsCache({ tts: voice.tts, storage }),
-    storage,
-    recordingDir: env.CALL_RECORDING_TMP_DIR,
-    scriptFor: createScriptFactory({
-      env,
-      secretKey: secretBoxKey(env),
-      provider: aiProvider,
-      stt: voice.stt,
-      storage,
-      redis,
-      controller: new AiVoiceController({
-        voice: voice.ai,
-        ai: aiProvider,
-        embeddingModel: env.OPENAI_EMBEDDING_MODEL,
-        secretKey: secretBoxKey(env),
-        http: { policy: outgoingPolicy(env) },
-      }),
-    }),
-  });
   const media = createMediaServer({
     server,
     tickets: realtime.tickets,

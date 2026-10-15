@@ -17,6 +17,9 @@ import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
 import { createBillingRouter } from './modules/billing/billing.routes';
 import { createInvoicesRouter } from './modules/billing/invoices.routes';
+import type { CallManager } from './modules/calls/call.service';
+import { createCallsRouter } from './modules/calls/calls.routes';
+import type { CallRegistry } from './modules/calls/registry';
 import { createContactExportsRouter } from './modules/contact-exports/contact-exports.routes';
 import { createContactImportsRouter } from './modules/contact-imports/contact-imports.routes';
 import { createContactListsRouter } from './modules/contact-lists/contact-lists.routes';
@@ -63,6 +66,16 @@ export interface FlowsDeps {
   rateLimitStores?: { simulator?: Store; audio?: Store };
 }
 
+/** The live call runtime (Phase 7) — absent where no voice runs (most tests). */
+export interface CallsApiDeps {
+  manager: CallManager;
+  registry: CallRegistry;
+  /** `call.say_text` allowed (dev / tests). */
+  textInput: boolean;
+  /** Web calls limiter store (`rl:callweb:`). */
+  webCallStore?: Store;
+}
+
 export interface ContactsDeps {
   storage?: StorageProvider;
   jobs?: ContactJobs;
@@ -75,6 +88,7 @@ export const createApiRouter = ({
   billing = {},
   ai = { provider: createFakeProvider() },
   flows = {},
+  calls,
 }: {
   env: Pick<
     Env,
@@ -106,6 +120,7 @@ export const createApiRouter = ({
   billing?: BillingDeps;
   ai?: AiDeps;
   flows?: FlowsDeps;
+  calls?: CallsApiDeps;
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));
@@ -195,6 +210,18 @@ export const createApiRouter = ({
       ...(flows.rateLimitStores?.audio ? { uploadStore: flows.rateLimitStores.audio } : {}),
     }),
   );
+  if (calls) {
+    router.use(
+      '/calls',
+      createCallsRouter({
+        env,
+        secretKey: secretBoxKey(env),
+        ...(ai.http?.extraPorts ? { extraPorts: ai.http.extraPorts } : {}),
+        storage: ai.storage,
+        ...calls,
+      }),
+    );
+  }
   if (env.MOCK_APIS_ENABLED) router.use('/mock', createMockApisRouter());
   return router;
 };

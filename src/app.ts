@@ -20,7 +20,7 @@ import { createDocsRouter } from './modules/docs/docs.routes';
 import { createFilesRouter } from './modules/files/files.routes';
 import type { ReadinessDeps } from './modules/health/health.controller';
 import { createHealthRouter } from './modules/health/health.routes';
-import { createApiRouter, type AiDeps } from './routes';
+import { createApiRouter, type AiDeps, type CallsApiDeps } from './routes';
 import type { Logger } from './shared/logger';
 import { corsMiddleware } from './shared/middlewares/cors';
 import { errorHandler } from './shared/middlewares/error-handler';
@@ -62,6 +62,8 @@ export interface AppDeps {
   aiHttp?: AiDeps['http'];
   /** Phase 6 limiter stores: simulator inputs (`rl:flowsim:`), audio uploads (`rl:flowaudio:`). */
   flowRateLimitStores?: { simulator?: Store; audio?: Store };
+  /** Phase 7 live call runtime (`/calls` routes); omitted where no voice runs. */
+  calls?: CallsApiDeps;
 }
 
 /**
@@ -86,6 +88,7 @@ export const createApp = ({
   aiRateLimitStores = {},
   aiHttp,
   flowRateLimitStores = {},
+  calls,
 }: AppDeps): Express => {
   // Wallet low-balance / exhausted alerts run after every committed wallet change.
   registerWalletAlerts();
@@ -129,6 +132,7 @@ export const createApp = ({
         ...(aiHttp ? { http: aiHttp } : {}),
       },
       flows: { rateLimitStores: flowRateLimitStores },
+      ...(calls ? { calls } : {}),
     }),
   );
 

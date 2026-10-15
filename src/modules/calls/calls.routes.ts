@@ -1,0 +1,99 @@
+import { Router } from 'express';
+import type { Store } from 'express-rate-limit';
+
+import { CALL_LIMITS } from '../../config/limits';
+import { created, ok } from '../../shared/http/envelope';
+import { authenticate } from '../../shared/middlewares/authenticate';
+import { createRateLimiter } from '../../shared/middlewares/rate-limit';
+import {
+  blockWhenImpersonating,
+  requirePermission,
+} from '../../shared/middlewares/require-permission';
+import { handle } from '../../shared/middlewares/validate';
+
+import { CallParams, ListCallsQuery, StartWebCallBody } from './calls.schema';
+import {
+  activeCalls,
+  callEvents,
+  callTranscript,
+  getCall,
+  hangupCall,
+  listCalls,
+  recordingLink,
+  startWebCall,
+  type CallsDeps,
+} from './calls.service';
+
+export type CallsRouterDeps = CallsDeps & { webCallStore?: Store };
+
+/** `/api/v1/calls` — browser test calls, history, transcripts, recordings (PHASE_7_PLAN §1o). */
+export const createCallsRouter = (deps: CallsRouterDeps): Router => {
+  const router = Router();
+  router.use(authenticate());
+  const read = requirePermission('calls.read');
+  const trigger = [requirePermission('calls.trigger'), blockWhenImpersonating()];
+  const listen = [requirePermission('calls.listen'), blockWhenImpersonating()];
+  const webCallLimiter = createRateLimiter({
+    windowMs: 60_000,
+    limit: CALL_LIMITS.webCallsPerMinutePerUser,
+    keyGenerator: (req) => `callweb:${req.auth?.userId ?? 'anonymous'}`,
+    ...(deps.webCallStore ? { store: deps.webCallStore } : {}),
+  });
+
+  router.post(
+    '/web',
+    ...trigger,
+    webCallLimiter,
+    ...handle({ body: StartWebCallBody }, async ({ body, req, res }) => {
+      created(res, await startWebCall(req, body, deps));
+    }),
+  );
+  router.get(
+    '/',
+    read,
+    ...handle({ query: ListCallsQuery }, async ({ query, req, res }) => {
+      const page = await listCalls(req, query);
+      ok(res, page.items, page.meta);
+    }),
+  );
+  // static paths before /:id
+  router.get('/active', read, async (req, res) => {
+    ok(res, await activeCalls(req, deps));
+  });
+  router.get(
+    '/:id',
+    read,
+    ...handle({ params: CallParams }, async ({ params, req, res }) => {
+      ok(res, await getCall(req, params.id));
+    }),
+  );
+  router.get(
+    '/:id/transcript',
+    read,
+    ...handle({ params: CallParams }, async ({ params, req, res }) => {
+      ok(res, await callTranscript(req, params.id));
+    }),
+  );
+  router.get(
+    '/:id/events',
+    read,
+    ...handle({ params: CallParams }, async ({ params, req, res }) => {
+      ok(res, await callEvents(req, params.id));
+    }),
+  );
+  router.get(
+    '/:id/recording',
+    ...listen,
+    ...handle({ params: CallParams }, async ({ params, req, res }) => {
+      ok(res, await recordingLink(req, params.id, deps));
+    }),
+  );
+  router.post(
+    '/:id/hangup',
+    ...trigger,
+    ...handle({ params: CallParams }, async ({ params, req, res }) => {
+      ok(res, await hangupCall(req, params.id, deps));
+    }),
+  );
+  return router;
+};
