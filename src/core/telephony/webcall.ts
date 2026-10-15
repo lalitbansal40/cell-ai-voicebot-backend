@@ -44,6 +44,8 @@ export class WebCallLeg implements CallLeg {
   private pendingTransfer: ((result: TransferResult) => void) | null = null;
   private muted = false;
   private ended = false;
+  /** The socket is gone (closed by us or by the browser). */
+  private closed = false;
 
   constructor(
     private readonly channel: MediaChannel,
@@ -123,6 +125,7 @@ export class WebCallLeg implements CallLeg {
 
   /** The socket closed (or dropped). */
   socketClosed(cause: HangupCause = 'customer_hangup'): void {
+    this.closed = true;
     this.finish(cause);
   }
 
@@ -160,12 +163,18 @@ export class WebCallLeg implements CallLeg {
     if (!this.ended) this.channel.sendJson(notice);
   }
 
+  /**
+   * Ends the leg from the server side. Also after the tester hung up
+   * (`call.hangup`): the browser still gets the final notice and a close,
+   * as long as its socket is open.
+   */
   hangup(cause: HangupCause, notice?: LegNotice): Promise<void> {
-    if (notice) this.notify(notice);
     this.pacer.clear();
-    if (!this.ended) {
-      this.ended = true;
-      this.pendingTransfer?.('failed');
+    this.ended = true;
+    this.pendingTransfer?.('failed');
+    if (!this.closed) {
+      this.closed = true;
+      if (notice) this.channel.sendJson(notice);
       this.channel.close(CAUSE_CLOSE[cause], cause);
     }
     return Promise.resolve();

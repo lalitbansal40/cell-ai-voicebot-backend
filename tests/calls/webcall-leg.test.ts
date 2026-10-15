@@ -104,4 +104,23 @@ describe('WebCallLeg', () => {
     await third.hangup('media_error');
     expect(c2.closed).toEqual([[1011, 'media_error']]);
   });
+
+  it('regression: after the tester hangs up, the browser still gets call.ended and a close', async () => {
+    const c = channel();
+    const leg = new WebCallLeg(c.ch, new FakeClock());
+    leg.receiveControl({ type: 'call.ready', sampleRate: 24000 });
+    leg.receiveControl({ type: 'call.hangup' });
+    leg.notify({ type: 'call.transcript' }); // nothing more after the end…
+    await leg.hangup('customer_hangup', { type: 'call.ended', reason: 'customer_hangup' });
+    // …except the final notice and the close (the tester was left waiting before)
+    expect(c.json).toEqual([{ type: 'call.ended', reason: 'customer_hangup' }]);
+    expect(c.closed).toEqual([[1000, 'customer_hangup']]);
+    // a socket the browser closed is not written to
+    const gone = channel();
+    const dropped = new WebCallLeg(gone.ch, new FakeClock());
+    dropped.socketClosed();
+    await dropped.hangup('customer_hangup', { type: 'call.ended' });
+    expect(gone.json).toEqual([]);
+    expect(gone.closed).toEqual([]);
+  });
 });
