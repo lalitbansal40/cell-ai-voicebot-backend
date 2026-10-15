@@ -465,7 +465,9 @@ describe('flow calls — Loan recovery live (fake voice)', () => {
     const c = await startCall(paid, { draft: true, flow: id });
     const call = await waitForEnd(c, 120_000);
     expect(call.endReason).toBe('max_duration');
-    expect(call.durationSec).toBeLessThanOrEqual(61);
+    // the limit fires at 60 s; the fake clock keeps ticking while the call settles
+    expect(call.durationSec).toBeGreaterThanOrEqual(60);
+    expect(call.durationSec).toBeLessThanOrEqual(65);
     await vi.waitFor(async () =>
       expect((await FlowRunModel.findById(call.flowRunId).lean())?.endReason).toBe('max_duration'),
     );
