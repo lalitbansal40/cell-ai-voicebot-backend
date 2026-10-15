@@ -4239,9 +4239,14 @@
           },
           "expiresAt": { "type": "string" },
           "wsPath": { "type": "string" },
-          "textInput": { "type": "boolean", "description": "call.say_text allowed (dev / tests)" }
+          "textInput": { "type": "boolean", "description": "call.say_text allowed (dev / tests)" },
+          "voice": {
+            "type": "string",
+            "enum": ["openai", "fake"],
+            "description": "`fake`: deterministic test voice (tone TTS, typed words)"
+          }
         },
-        "required": ["call", "mediaTicket", "expiresAt", "wsPath", "textInput"]
+        "required": ["call", "mediaTicket", "expiresAt", "wsPath", "textInput", "voice"]
       },
       "CallTranscriptTurn": {
         "type": "object",

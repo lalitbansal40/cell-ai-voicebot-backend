@@ -72,6 +72,7 @@ export interface CallsApiDeps {
   registry: CallRegistry;
   /** `call.say_text` allowed (dev / tests). */
   textInput: boolean;
+  voiceProvider: 'openai' | 'fake';
   /** Web calls limiter store (`rl:callweb:`). */
   webCallStore?: Store;
 }

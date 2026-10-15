@@ -85,7 +85,7 @@ beforeAll(async () => {
     {
       storage,
       aiProvider: createFakeProvider(),
-      calls: { manager, registry, textInput: true },
+      calls: { manager, registry, textInput: true, voiceProvider: 'fake' },
     },
   );
   server = createServer(app);
@@ -151,6 +151,7 @@ describe('POST /calls/web', () => {
     expect(data).toMatchObject({
       wsPath: '/ws/media',
       textInput: true,
+      voice: 'fake',
       call: {
         status: 'queued',
         isTest: true,

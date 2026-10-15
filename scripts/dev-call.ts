@@ -98,7 +98,7 @@ const main = async () => {
     logger,
     storage,
     aiProvider,
-    calls: { manager, registry, textInput: voice.textInput },
+    calls: { manager, registry, textInput: voice.textInput, voiceProvider: voice.name },
   });
   const server = createServer(app);
   // on APP_URL's port when free: the flow's payment check calls APP_URL/api/v1/mock

@@ -30,6 +30,8 @@ export interface CallsDeps extends FlowsDeps {
   storage?: StorageProvider | undefined;
   /** `call.say_text` allowed (dev / tests). */
   textInput: boolean;
+  /** Which voice runs the calls (the tester shows a badge for the fake one). */
+  voiceProvider: 'openai' | 'fake';
 }
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
@@ -211,6 +213,7 @@ export const startWebCall = async (
     expiresAt: started.expiresAt,
     wsPath: started.wsPath,
     textInput: deps.textInput,
+    voice: deps.voiceProvider,
   };
 };
 

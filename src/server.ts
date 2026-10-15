@@ -192,6 +192,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       manager: callManager,
       registry: callRegistry,
       textInput: voice.textInput,
+      voiceProvider: voice.name,
       webCallStore: createRedisRateLimitStore(redis, 'rl:callweb:'),
     },
     readiness: {

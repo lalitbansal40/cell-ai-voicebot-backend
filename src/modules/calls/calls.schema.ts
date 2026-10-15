@@ -151,6 +151,9 @@ export const StartedWebCallSchema = registry.register(
     expiresAt: z.string(),
     wsPath: z.string(),
     textInput: z.boolean().openapi({ description: 'call.say_text allowed (dev / tests)' }),
+    voice: z
+      .enum(['openai', 'fake'])
+      .openapi({ description: '`fake`: deterministic test voice (tone TTS, typed words)' }),
   }),
 );
 
