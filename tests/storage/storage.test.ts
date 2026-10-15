@@ -18,7 +18,7 @@ import {
   storageKey,
   verifySignature,
 } from '../../src/core/storage';
-import { contentTypeFor } from '../../src/modules/files/files.controller';
+import { byteRange, contentTypeFor } from '../../src/modules/files/files.controller';
 import { createLogger } from '../../src/shared/logger';
 import { testEnv } from '../helpers/test-app';
 
@@ -154,6 +154,46 @@ describe('GET /files/*key (local driver)', () => {
     expect(res.headers['content-type']).toBe('audio/wav');
     expect(res.headers['cache-control']).toMatch(/^private, max-age=\d+$/);
     expect((res.body as Buffer).toString()).toBe('RIFF-fake');
+  });
+
+  it('regression: signed files load cross-origin (the app on another port plays recordings) and seek with ranges', async () => {
+    const url = pathOf(
+      await storage.signedUrl('accounts/a1/recordings/c1.wav', { expiresInSec: 120 }),
+    );
+    const whole = await request(app).get(url);
+    // helmet's default same-origin policy made browsers refuse recordings from the dashboard
+    expect(whole.headers['cross-origin-resource-policy']).toBe('cross-origin');
+    expect(whole.headers['accept-ranges']).toBe('bytes');
+    expect(whole.headers['content-length']).toBe('9');
+    const part = await request(app)
+      .get(url)
+      .set('Range', 'bytes=2-5')
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(part.status).toBe(206);
+    expect(part.headers['content-range']).toBe('bytes 2-5/9');
+    expect((part.body as Buffer).toString()).toBe('FF-f');
+    const past = await request(app).get(url).set('Range', 'bytes=50-');
+    expect(past.status).toBe(416);
+    expect(past.headers['content-range']).toBe('bytes */9');
+    const odd = await request(app).get(url).set('Range', 'items=0-1');
+    expect(odd.status).toBe(200);
+  });
+
+  it('byteRange: start-end, open end, suffix, clamping, nonsense', () => {
+    expect(byteRange('bytes=0-3', 9)).toEqual({ start: 0, end: 3 });
+    expect(byteRange('bytes=4-', 9)).toEqual({ start: 4, end: 8 });
+    expect(byteRange('bytes=-4', 9)).toEqual({ start: 5, end: 8 });
+    expect(byteRange('bytes=-40', 9)).toEqual({ start: 0, end: 8 });
+    expect(byteRange('bytes=2-400', 9)).toEqual({ start: 2, end: 8 });
+    expect(byteRange('bytes=9-', 9)).toBe('unsatisfiable');
+    expect(byteRange('bytes=5-2', 9)).toBe('unsatisfiable');
+    expect(byteRange('bytes=-', 9)).toBeNull();
+    expect(byteRange(undefined, 9)).toBeNull();
   });
 
   it('rejects a tampered signature with 403', async () => {

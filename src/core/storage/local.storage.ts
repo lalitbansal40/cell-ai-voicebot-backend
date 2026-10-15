@@ -40,10 +40,20 @@ export class LocalStorage implements StorageProvider {
     return { key, size: (await stat(full)).size };
   }
 
-  async get(key: string): Promise<Readable> {
+  async get(key: string, range?: { start: number; end: number }): Promise<Readable> {
     const full = this.resolve(key);
     if (!(await this.exists(key))) throw new NotFoundError('File not found');
-    return createReadStream(full);
+    return createReadStream(full, range);
+  }
+
+  /** Size in bytes (NotFoundError when missing). */
+  async size(key: string): Promise<number> {
+    try {
+      return (await stat(this.resolve(key))).size;
+    } catch (err) {
+      if (err instanceof ValidationError) throw err;
+      throw new NotFoundError('File not found');
+    }
   }
 
   async delete(key: string): Promise<void> {
