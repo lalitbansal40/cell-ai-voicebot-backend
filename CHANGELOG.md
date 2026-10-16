@@ -9,11 +9,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - **Phase 7 · Batch 3 (T7.10–T7.15) — Phase 7 complete** — 2026-10-16
   - Frontend web call tester, calls list and call detail, test call entry points, Settings → Calls, ledger call breakdown, dashboard recent calls — see the frontend CHANGELOG.
   - `POST /calls/web` returns which voice runs (`voice: 'openai' | 'fake'`).
-  - Fixed (found by Playwright, each with a regression test): signed files were blocked for the dashboard by the same-origin CORP header and could not seek (now `Cross-Origin-Resource-Policy: cross-origin` + `Range` support); the media socket stayed open after the tester hung up; words said during the AI step's opening line were lost; the transcript notice now names the line a barge-in cut (`interrupted`).
+  - Fixed (found by Playwright, each with a regression test): signed files were blocked for the dashboard by the same-origin CORP header and could not seek (now `Cross-Origin-Resource-Policy: cross-origin` + `Range` support); the media socket stayed open after the tester hung up; words said during the AI step's opening line were lost; the transcript notice now names the line a barge-in cut (`interrupted`). Frontend fix from the fresh-clone run: the tester result waits for the saved call.
   - Gap test: `/ws/media` fuzz (single-use tickets, control garbage, wrong frame sizes, oversized control).
   - Playwright: 12 call tests (44 total, green twice); backend logs of the run free of secret headers, `Bearer`, `sk-`, customer words, bot / template texts, names and phones.
   - Sign-off: [PHASE_7_SIGNOFF.md](docs/phases/PHASE_7_SIGNOFF.md) (gap audit, numbers, deviations, TODOs by phase, pending inputs).
-  - Tests: 2015 → 2022 (frontend 614 → 665).
+  - Tests: 2015 → 2022 (frontend 614 → 666).
 
 - **Phase 7 · Batch 2 (T7.6–T7.9)** — 2026-10-15
   - Flow voice host: published / draft flows run live on calls (say / play / listen / digits / transfer / hang up, TTS cache, type-ahead keys, barge-in, timers, recording notice, max duration), engine `ai_session_end` input, call-mode runs, traces and node stats.
