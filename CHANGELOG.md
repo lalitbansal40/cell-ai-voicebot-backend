@@ -6,6 +6,32 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 7 · Batch 3 (T7.10–T7.15) — Phase 7 complete** — 2026-10-16
+  - Frontend web call tester, calls list and call detail, test call entry points, Settings → Calls, ledger call breakdown, dashboard recent calls — see the frontend CHANGELOG.
+  - `POST /calls/web` returns which voice runs (`voice: 'openai' | 'fake'`).
+  - Fixed (found by Playwright, each with a regression test): signed files were blocked for the dashboard by the same-origin CORP header and could not seek (now `Cross-Origin-Resource-Policy: cross-origin` + `Range` support); the media socket stayed open after the tester hung up; words said during the AI step's opening line were lost; the transcript notice now names the line a barge-in cut (`interrupted`).
+  - Gap test: `/ws/media` fuzz (single-use tickets, control garbage, wrong frame sizes, oversized control).
+  - Playwright: 12 call tests (44 total, green twice); backend logs of the run free of secret headers, `Bearer`, `sk-`, customer words, bot / template texts, names and phones.
+  - Sign-off: [PHASE_7_SIGNOFF.md](docs/phases/PHASE_7_SIGNOFF.md) (gap audit, numbers, deviations, TODOs by phase, pending inputs).
+  - Tests: 2015 → 2022 (frontend 614 → 665).
+
+- **Phase 7 · Batch 2 (T7.6–T7.9)** — 2026-10-15
+  - Flow voice host: published / draft flows run live on calls (say / play / listen / digits / transfer / hang up, TTS cache, type-ahead keys, barge-in, timers, recording notice, max duration), engine `ai_session_end` input, call-mode runs, traces and node stats.
+  - Live AI voice sessions: agents alone or as a flow step, live tools and built-ins (`createToolRunner`), knowledge search tool, barge-in truncate, silence prompts, caps, wallet checks, language per turn, fallbacks, latency metrics.
+  - Calls API: `/calls/web` (flow version / draft or agent, contact or typed values + test phone, media ticket), list (cursor, filters), active, detail, transcript, events, signed recording link (audited), hangup; OpenAPI.
+  - Seed (demo flow + agent calls), `customer-silence.wav` fixture, ADR 0035, `bench:voice` (20 calls: 1.8 % CPU per call, lag p99 15 ms), docs, live OpenAI voice checklist.
+  - Fixed: flow calls now end at the flow max duration; a polite end (wallet, shutdown) is kept when the script returns on stop.
+  - Tests: 1953 → 2015.
+
+- **Phase 7 · Batch 1 (T7.1–T7.5)** — 2026-10-13
+  - Models (Call, CallEvent, TranscriptTurn, TTS cache), FlowRun `callId`, migration 0008, `CALL_LIMITS`, voice env vars with production rules, error codes 41 → 44, audit 68 → 71, `call.*` WS events, `telephony` flag in the call charge.
+  - Audio core: PCM16, G.711 μ-law / A-law, resampler, framer, pacer, energy VAD, stereo WAV recorder, WAV / MP3 decode (`mpg123-decoder` 1.0.3, MIT) with a cache.
+  - Voice providers: OpenAI Realtime / TTS / transcription behind interfaces, deterministic fakes (chat-backed voice session, fake TTS / STT), TTS cache with single flight.
+  - Telephony interface + WebCall provider, `/ws/media` (single-use tickets, protocol, frame limits, close codes), `call:<id>` topic authorisation.
+  - Call session manager: lifecycle, Redis registry and limits, wallet hold / extend / settle, recording, transcript and events, WS, graceful shutdown, reaper and retention purge; `npm run dev:call`.
+  - Fixed: two simultaneous TTS requests for the same line both synthesised.
+  - Tests: 1865 → 1953.
+
 - **Phase 6 · Batch 3 (T6.10–T6.15) — Phase 6 complete** — 2026-10-12
   - Frontend flows list, template picker, import / export, versions, visual builder (all 15 step forms, flow settings / variables, problems, undo / redo, copy / paste, auto-layout, conflict handling), simulator panel, run details and stats overlay — see the frontend CHANGELOG.
   - Agent list rows carry the template key (template picker suggestions).

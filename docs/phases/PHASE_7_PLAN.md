@@ -315,133 +315,133 @@ Batches: **Batch 1 = T7.1–T7.5** (`[P7-B1-DONE]`), **Batch 2 = T7.6–T7.9** (
 
 ### T7.1 — Models, migration 0008, limits, catalogue
 
-- [ ] `call.model.ts` (data-model Call + §1e Phase 7 fields), `call-event.model.ts` (immutable hooks like FlowVersion), `transcript-turn.model.ts`, `tts-cache.model.ts` (`{ key (sha256), voice, language, model, chars, fileKey, durationMs, hits, lastUsedAt }`); all `tenantPlugin` except the TTS cache (platform-wide, text hash only — listed in `NOT_TENANT_SCOPED` with the reason).
-- [ ] `FlowRun.callId` (sparse index); `RUN_MODES` already has `call`.
-- [ ] Migration **0008-calls**: indexes (data-model), `account.settings.recordingNotice` default; up / down + rollback test.
-- [ ] `CALL_LIMITS` (§1l) in `config/limits.ts`; env: `VOICE_PROVIDER`, `VOICE_TEXT_INPUT_ENABLED`, `OPENAI_TTS_MODEL` (`gpt-4o-mini-tts`), `OPENAI_TRANSCRIBE_MODEL` (`gpt-4o-mini-transcribe`), `OPENAI_REALTIME_MODEL` default `gpt-realtime-2.1-mini`, `CALL_RETENTION_DAYS` (180), `CALL_RECORDING_TMP_DIR`; production rules (openai only, text input off) + tests.
-- [ ] Error codes 41 → 44, audit 68 → 71 (meta shapes), WS event payload schemas, `CallUsage.telephony` in `callCharge` (+ tests, invoice lines unchanged for SIP).
-- [ ] data-model.md / error-codes.md / audit.md / websocket.md updated.
+- [x] `call.model.ts` (data-model Call + §1e Phase 7 fields), `call-event.model.ts` (immutable hooks like FlowVersion), `transcript-turn.model.ts`, `tts-cache.model.ts` (`{ key (sha256), voice, language, model, chars, fileKey, durationMs, hits, lastUsedAt }`); all `tenantPlugin` except the TTS cache (platform-wide, text hash only — listed in `NOT_TENANT_SCOPED` with the reason).
+- [x] `FlowRun.callId` (sparse index); `RUN_MODES` already has `call`.
+- [x] Migration **0008-calls**: indexes (data-model), `account.settings.recordingNotice` default; up / down + rollback test.
+- [x] `CALL_LIMITS` (§1l) in `config/limits.ts`; env: `VOICE_PROVIDER`, `VOICE_TEXT_INPUT_ENABLED`, `OPENAI_TTS_MODEL` (`gpt-4o-mini-tts`), `OPENAI_TRANSCRIBE_MODEL` (`gpt-4o-mini-transcribe`), `OPENAI_REALTIME_MODEL` default `gpt-realtime-2.1-mini`, `CALL_RETENTION_DAYS` (180), `CALL_RECORDING_TMP_DIR`; production rules (openai only, text input off) + tests.
+- [x] Error codes 41 → 44, audit 68 → 71 (meta shapes), WS event payload schemas, `CallUsage.telephony` in `callCharge` (+ tests, invoice lines unchanged for SIP).
+- [x] data-model.md / error-codes.md / audit.md / websocket.md updated.
 
 ### T7.2 — Audio core (`core/voice/audio/`)
 
-- [ ] `pcm.ts` (Int16 helpers, dBFS, RMS), `mulaw.ts` / `alaw.ts` (G.711 tables), `resample.ts` (8 / 16 / 24 kHz, SNR test), `framer.ts` (exact 20 ms frames from any chunk sizes), `pacer.ts` (real-time sender with a fake clock, backpressure hook, `clear()`), `vad.ts` (energy VAD with hangover, speech_started / stopped), `wav.ts` (reader for PCM16 / μ-law / A-law, streaming stereo writer with header patch), `mixer.ts` (customer / bot → stereo 8 kHz).
-- [ ] MP3 decode: add a WASM MP3 decoder (exact version, licence MIT / LGPL-compatible checked, `allowScripts` unchanged) behind `decodeAudio(file) → PCM16 24 kHz`; decoded cache in storage `flow-audio-cache/<audioId>.pcm` (deleted with the audio).
-- [ ] Bench numbers (resample 1 s of audio, framer) in the test output (no perf asserts that flake).
-- [ ] 100 % branch tests for the pure audio code.
+- [x] `pcm.ts` (Int16 helpers, dBFS, RMS), `mulaw.ts` / `alaw.ts` (G.711 tables), `resample.ts` (8 / 16 / 24 kHz, SNR test), `framer.ts` (exact 20 ms frames from any chunk sizes), `pacer.ts` (real-time sender with a fake clock, backpressure hook, `clear()`), `vad.ts` (energy VAD with hangover, speech_started / stopped), `wav.ts` (reader for PCM16 / μ-law / A-law, streaming stereo writer with header patch), `mixer.ts` (customer / bot → stereo 8 kHz).
+- [x] MP3 decode: add a WASM MP3 decoder (exact version, licence MIT / LGPL-compatible checked, `allowScripts` unchanged) behind `decodeAudio(file) → PCM16 24 kHz`; decoded cache in storage `flow-audio-cache/<audioId>.pcm` (deleted with the audio).
+- [x] Bench numbers (resample 1 s of audio, framer) in the test output (no perf asserts that flake).
+- [x] 100 % branch tests for the pure audio code.
 
 ### T7.3 — Voice providers (`core/voice/providers/`)
 
-- [ ] Interfaces + typed events (`audio`, `transcript_partial` / `final`, `speech_started` / `stopped`, `function_call`, `response_done { usage }`, `error`), zod parsers for OpenAI Realtime server events (unknown → ignored + counted).
-- [ ] `openai.realtime.ts` (session open / update / sendAudio / truncate / function output / response.create / close, connect timeout, no mid-call reconnect), `openai.tts.ts` (REST, streaming PCM), `openai.stt.ts` (transcription session).
-- [ ] `fake.voice.ts` (§1f), `fake.tts.ts`, `fake.stt.ts` — deterministic; share Phase 5 fake rules.
-- [ ] `tts-cache.ts`: key = sha256(model + voice + language + tone + text), storage file + `TtsCacheEntry`, hit counter, single-flight per key (two calls saying the same line synthesize once), purge job (30 days unused).
-- [ ] Recorded fixture streams (`tests/fixtures/realtime/*.jsonl`) from the PoC event shapes; no network in tests (axios / ws mocked).
-- [ ] `providers.ts` picks fake / OpenAI by env; health / config in `/admin/ai/config` (voice provider, models, key set).
+- [x] Interfaces + typed events (`audio`, `transcript_partial` / `final`, `speech_started` / `stopped`, `function_call`, `response_done { usage }`, `error`), zod parsers for OpenAI Realtime server events (unknown → ignored + counted).
+- [x] `openai.realtime.ts` (session open / update / sendAudio / truncate / function output / response.create / close, connect timeout, no mid-call reconnect), `openai.tts.ts` (REST, streaming PCM), `openai.stt.ts` (transcription session).
+- [x] `fake.voice.ts` (§1f), `fake.tts.ts`, `fake.stt.ts` — deterministic; share Phase 5 fake rules.
+- [x] `tts-cache.ts`: key = sha256(model + voice + language + tone + text), storage file + `TtsCacheEntry`, hit counter, single-flight per key (two calls saying the same line synthesize once), purge job (30 days unused).
+- [x] Recorded fixture streams (`tests/fixtures/realtime/*.jsonl`) from the PoC event shapes; no network in tests (axios / ws mocked).
+- [x] `providers.ts` picks fake / OpenAI by env; health / config in `/admin/ai/config` (voice provider, models, key set).
 
 ### T7.4 — Telephony + `/ws/media`
 
-- [ ] `core/telephony/types.ts` (§1c), `webcall.provider.ts` (+ `CallLeg` over a socket), hangup cause mapping.
-- [ ] Media tickets (`calls/media-tickets.ts`: create / consume, hashed in Redis, 60 s, bound to user + call + account).
-- [ ] `/ws/media` upgrade handler next to `/ws` (path routing in `ws-server.ts`), protocol §1d with zod, frame size / rate limits, close codes, one socket per call, drop grace, impersonation refused.
-- [ ] `defaultAuthorizeTopic` → real check for `call:<id>` (account owns the call) and `campaign:<id>` (not found until Phase 8) + tests.
-- [ ] Integration tests with a `ws` test client (synthetic audio, bad frames, ticket reuse, expiry, wrong account).
+- [x] `core/telephony/types.ts` (§1c), `webcall.provider.ts` (+ `CallLeg` over a socket), hangup cause mapping.
+- [x] Media tickets (`calls/media-tickets.ts`: create / consume, hashed in Redis, 60 s, bound to user + call + account).
+- [x] `/ws/media` upgrade handler next to `/ws` (path routing in `ws-server.ts`), protocol §1d with zod, frame size / rate limits, close codes, one socket per call, drop grace, impersonation refused.
+- [x] `defaultAuthorizeTopic` → real check for `call:<id>` (account owns the call) and `campaign:<id>` (not found until Phase 8) + tests.
+- [x] Integration tests with a `ws` test client (synthetic audio, bad frames, ticket reuse, expiry, wrong account).
 
 ### T7.5 — Call session manager (`modules/calls/`)
 
-- [ ] `lifecycle.ts` pure transitions + end-reason rules; `session.ts` (per-call orchestrator, error boundary), `registry.ts` (Redis live keys + heartbeat + per-account / per-process counts), `call.service.ts` (`createWebCall`, `endCall`, `startCall` contract for Phase 8).
-- [ ] Billing: hold before `ringing`, extend timer, settle / release; `wallet_empty` polite end; `chargeUsage` kind `call` helper; AgentUsage update.
-- [ ] Recording pipeline (§1j) with the fake storage in tests; upload retry job; `recording_saved` / `recording_failed` events.
-- [ ] Persistence: CallEvent `seq` allocator (atomic), TranscriptTurn finals, Call status / timestamps / metrics; WS `call.created` / `status` / `transcript` / `dtmf` / `ended`.
-- [ ] Graceful shutdown hook in `core/lifecycle.ts`; `calls-reaper` (stale heartbeat) and `calls-purge` (retention) jobs in the queue scheduler.
-- [ ] Tests: lifecycle table, limits (429 / 503), hold failure → no call, extend failure → `wallet_empty`, settle idempotent, reaper, shutdown, purge, logs without texts.
+- [x] `lifecycle.ts` pure transitions + end-reason rules; `session.ts` (per-call orchestrator, error boundary), `registry.ts` (Redis live keys + heartbeat + per-account / per-process counts), `call.service.ts` (`createWebCall`, `endCall`, `startCall` contract for Phase 8).
+- [x] Billing: hold before `ringing`, extend timer, settle / release; `wallet_empty` polite end; `chargeUsage` kind `call` helper; AgentUsage update.
+- [x] Recording pipeline (§1j) with the fake storage in tests; upload retry job; `recording_saved` / `recording_failed` events.
+- [x] Persistence: CallEvent `seq` allocator (atomic), TranscriptTurn finals, Call status / timestamps / metrics; WS `call.created` / `status` / `transcript` / `dtmf` / `ended`.
+- [x] Graceful shutdown hook in `core/lifecycle.ts`; `calls-reaper` (stale heartbeat) and `calls-purge` (retention) jobs in the queue scheduler.
+- [x] Tests: lifecycle table, limits (429 / 503), hold failure → no call, extend failure → `wallet_empty`, settle idempotent, reaper, shutdown, purge, logs without texts.
 
 **`[P7-B1-DONE]`** after T7.5 (full verify, manual: a Node script makes a fake call end to end on the dev server).
 
 ### T7.6 — Flow voice host (`core/voice/flow-host.ts`)
 
-- [ ] Output → audio mapping §1g with the TTS cache, audio decode cache, timers (fake clock in tests), type-ahead DTMF, digits collection, STT sessions per listen, transfer prompt to the tester.
-- [ ] Barge-in for interruptible `say` (VAD / STT `speech_started` → `clearAudio`, transcript `interrupted`, speech kept for the next listener); non-interruptible → customer audio ignored until playback ends.
-- [ ] Engine extension: `ai_session_end` input (+ engine / node tests, simulator untouched, fuzz test still green).
-- [ ] Recording notice line, max duration, hangup playback wait, engine state in Redis, FlowRun `mode: call` + `callId`, node stats `call`, trace → CallEvents (no texts).
-- [ ] Tests: every Loan recovery branch on a fake leg (press 1 paid / unpaid → AI, press 2, press 3, silence ×3, wrong keys ×3) with exact template texts in the transcript; DTMF during a prompt; a 500 API node; missing audio file fallback; MP3 + WAV play.
+- [x] Output → audio mapping §1g with the TTS cache, audio decode cache, timers (fake clock in tests), type-ahead DTMF, digits collection, STT sessions per listen, transfer prompt to the tester.
+- [x] Barge-in for interruptible `say` (VAD / STT `speech_started` → `clearAudio`, transcript `interrupted`, speech kept for the next listener); non-interruptible → customer audio ignored until playback ends.
+- [x] Engine extension: `ai_session_end` input (+ engine / node tests, simulator untouched, fuzz test still green).
+- [x] Recording notice line, max duration, hangup playback wait, engine state in Redis, FlowRun `mode: call` + `callId`, node stats `call`, trace → CallEvents (no texts).
+- [x] Tests: every Loan recovery branch on a fake leg (press 1 paid / unpaid → AI, press 2, press 3, silence ×3, wrong keys ×3) with exact template texts in the transcript; DTMF during a prompt; a 500 API node; missing audio file fallback; MP3 + WAV play.
 
 ### T7.7 — Live AI voice session (`core/voice/ai-session.ts`)
 
-- [ ] Session open with `compileAgent(voice)` + step goal, tools (custom live, built-ins live — implement `mode: 'live'` in `core/ai/tools.ts`, knowledge search tool), opening line rules.
-- [ ] Function loop (max 5 per turn, timeouts), tool logs `source: 'call'`, outcomes → session end reasons → `ai_session_end` (flow) or call end (agent-only).
-- [ ] Barge-in truncate with played-ms tracking, silence prompts + retries, max turns / duration, `assertAgentBudget` + wallet checks, language detection per turn, tone, fallbacks (§1h).
-- [ ] Latency measurement (§1i) + metrics; Realtime usage tokens into `metrics.realtime`.
-- [ ] Tests with the fake provider and with replayed OpenAI fixtures: paid / unpaid / promise ("kal tak de dunga" → tomorrow IST) / transfer / end_call / knowledge / tool error / provider error mid-call / cap reached / wallet empty / barge-in / silence.
+- [x] Session open with `compileAgent(voice)` + step goal, tools (custom live, built-ins live — implement `mode: 'live'` in `core/ai/tools.ts`, knowledge search tool), opening line rules.
+- [x] Function loop (max 5 per turn, timeouts), tool logs `source: 'call'`, outcomes → session end reasons → `ai_session_end` (flow) or call end (agent-only).
+- [x] Barge-in truncate with played-ms tracking, silence prompts + retries, max turns / duration, `assertAgentBudget` + wallet checks, language detection per turn, tone, fallbacks (§1h).
+- [x] Latency measurement (§1i) + metrics; Realtime usage tokens into `metrics.realtime`.
+- [x] Tests with the fake provider and with replayed OpenAI fixtures: paid / unpaid / promise ("kal tak de dunga" → tomorrow IST) / transfer / end_call / knowledge / tool error / provider error mid-call / cap reached / wallet empty / barge-in / silence.
 
 ### T7.8 — Calls API
 
-- [ ] Routes §1o with schemas (`calls.schema.ts`), service, OpenAPI registration, rate limit `rl:callweb:`, audit, impersonation rules, suspended account → 403 for starts.
-- [ ] `POST /calls/web` validations: flow draft with errors → 422 `FLOW_INVALID`, foreign flow / agent / contact → 404, manual values rules from the simulator (reused), concurrency.
-- [ ] Tests: every route, roles (viewer read-only, agent can test, impersonator read-only), isolation (another account → 404, never listed), pagination, filters, recording URL audited + expires.
+- [x] Routes §1o with schemas (`calls.schema.ts`), service, OpenAPI registration, rate limit `rl:callweb:`, audit, impersonation rules, suspended account → 403 for starts.
+- [x] `POST /calls/web` validations: flow draft with errors → 422 `FLOW_INVALID`, foreign flow / agent / contact → 404, manual values rules from the simulator (reused), concurrency.
+- [x] Tests: every route, roles (viewer read-only, agent can test, impersonator read-only), isolation (another account → 404, never listed), pagination, filters, recording URL audited + expires.
 
 ### T7.9 — Seed, samples, ADR, bench, docs (`[P7-B2-DONE]` after this)
 
-- [ ] `npm run fixtures:audio` adds `docs/samples/audio/customer.wav` (24 kHz speech-like noise bursts for the Chromium fake mic) — deterministic.
-- [ ] Seed: two finished demo calls (flow + agent-only) with transcript, events, recording (fake TTS audio), ledger rows — idempotent.
-- [ ] ADR **0035 — Voice runtime** (architecture §1a, audio formats, one-process ownership, billing, barge-in); ADR 0020 → accepted (interface built); ADR 0021 stays **proposed** until live runs (follow-up note).
-- [ ] `npm run bench:voice` (§1i) numbers in README + sign-off.
-- [ ] Docs: README (Calls section, env vars, how to test with the browser), security.md (media socket, recordings), compliance.md (recording notice, retention), api.md, `docs/setup/openai.md` (Realtime + TTS + transcription live checklist, ZDR), cost-model.md (per-minute numbers from `metrics.realtime` once live).
-- [ ] Manual check on the dev server with the browser (fake provider): every Loan recovery branch by voice / keypad, recording plays, ledger row, clean logs.
+- [x] `npm run fixtures:audio` adds `docs/samples/audio/customer.wav` (24 kHz speech-like noise bursts for the Chromium fake mic) — deterministic.
+- [x] Seed: two finished demo calls (flow + agent-only) with transcript, events, recording (fake TTS audio), ledger rows — idempotent.
+- [x] ADR **0035 — Voice runtime** (architecture §1a, audio formats, one-process ownership, billing, barge-in); ADR 0020 → accepted (interface built); ADR 0021 stays **proposed** until live runs (follow-up note).
+- [x] `npm run bench:voice` (§1i) numbers in README + sign-off.
+- [x] Docs: README (Calls section, env vars, how to test with the browser), security.md (media socket, recordings), compliance.md (recording notice, retention), api.md, `docs/setup/openai.md` (Realtime + TTS + transcription live checklist, ZDR), cost-model.md (per-minute numbers from `metrics.realtime` once live).
+- [x] Manual check on the dev server with the browser (fake provider): every Loan recovery branch by voice / keypad, recording plays, ledger row, clean logs.
 
 ### T7.10 — Frontend foundation
 
-- [ ] `gen:api`; clients `calls.ts`; `features/calls/{keys,queries}.ts`; WS events (`call.*`); `LIVE_PHASE = 7`; routes `/calls`, `/calls/test`, `/calls/:id` (tester + detail lazy).
-- [ ] `src/features/calls/audio/`: capture worklet (downmix, resample to 24 kHz, 960-byte frames), playback worklet (ring buffer, clear, underrun count), `media-socket.ts` (ticket connect, control messages, binary frames, close codes → messages), mic permission helper; pure logic tested in Vitest.
+- [x] `gen:api`; clients `calls.ts`; `features/calls/{keys,queries}.ts`; WS events (`call.*`); `LIVE_PHASE = 7`; routes `/calls`, `/calls/test`, `/calls/:id` (tester + detail lazy).
+- [x] `src/features/calls/audio/`: capture worklet (downmix, resample to 24 kHz, 960-byte frames), playback worklet (ring buffer, clear, underrun count), `media-socket.ts` (ticket connect, control messages, binary frames, close codes → messages), mic permission helper; pure logic tested in Vitest.
 
 ### T7.11 — Web Call Tester
 
-- [ ] Setup panel (flow + version or agent, contact or typed values + test phone, mic check with level meter), Start → states (connecting / ringing / in call / ended), timer, mute, hang up, keypad, transfer prompt, "Type instead of speaking" (only when the server says text input is allowed), live transcript (partials / finals / interrupted), events timeline, latency chips, outcome + cost at the end, fake-AI badge, errors (mic denied, wallet, limits, socket drop), leave-page guard during a call.
-- [ ] Tests with a fake `MediaStream`, fake `AudioContext` / worklet port and a fake media socket.
+- [x] Setup panel (flow + version or agent, contact or typed values + test phone, mic check with level meter), Start → states (connecting / ringing / in call / ended), timer, mute, hang up, keypad, transfer prompt, "Type instead of speaking" (only when the server says text input is allowed), live transcript (partials / finals / interrupted), events timeline, latency chips, outcome + cost at the end, fake-AI badge, errors (mic denied, wallet, limits, socket drop), leave-page guard during a call.
+- [x] Tests with a fake `MediaStream`, fake `AudioContext` / worklet port and a fake media socket.
 
 ### T7.12 — Calls list + call detail
 
-- [ ] List (filters in the URL, cursor pagination, live status / ended updates, test badge, empty state).
-- [ ] Detail (summary, recording player with `calls.listen` + signed URL refresh, transcript with timestamps → seek, timeline, cost breakdown, outcome, metrics, links to the flow version / agent / contact, hang up for live calls).
-- [ ] Tests incl. roles (viewer no player, impersonator no player).
+- [x] List (filters in the URL, cursor pagination, live status / ended updates, test badge, empty state).
+- [x] Detail (summary, recording player with `calls.listen` + signed URL refresh, transcript with timestamps → seek, timeline, cost breakdown, outcome, metrics, links to the flow version / agent / contact, hang up for live calls).
+- [x] Tests incl. roles (viewer no player, impersonator no player).
 
 ### T7.13 — Entry points
 
-- [ ] Flow builder toolbar "Test call" (saved draft / published, disabled with unsaved changes), agent editor "Test call", Settings → Calls (recording on / off, notice text — owner / admin), ledger drawer call breakdown (AI / TTS / commission, "Web test call"), dashboard "Recent calls" card.
-- [ ] Bundle check (main chunk growth ≤ 5 KB gzip, tester / detail in their own chunks).
+- [x] Flow builder toolbar "Test call" (saved draft / published, disabled with unsaved changes), agent editor "Test call", Settings → Calls (recording on / off, notice text — owner / admin), ledger drawer call breakdown (AI / TTS / commission, "Web test call"), dashboard "Recent calls" card.
+- [x] Bundle check (main chunk growth ≤ 5 KB gzip, tester / detail in their own chunks).
 
 ### T7.14 — Playwright E2E
 
-- [ ] Chromium launch args (fake mic file + fake UI), helpers `e2e/calls.ts` (`startWebCall`, `pressKey`, `sayText`, `expectBotLine`, `expectCustomerLine`, `hangUp`, `openCall`).
-- [ ] Scenarios (separate short tests):
+- [x] Chromium launch args (fake mic file + fake UI), helpers `e2e/calls.ts` (`startWebCall`, `pressKey`, `sayText`, `expectBotLine`, `expectCustomerLine`, `hangUp`, `openCall`).
+- [x] Scenarios (separate short tests):
   1. **Done when (keypad):** Loan recovery flow (published), paid contact → greeting with name + amount → press 1 → API check → thanks → ended; call detail has transcript, recording (plays, duration > 0), ledger **call charge** (AI + TTS, no telephony).
   2. **Done when (voice, Hinglish):** unpaid contact → press 1 → AI → "maine pay kar diya" → unpaid reply → "kal tak de dunga" → promise for tomorrow (IST) → ended, outcome Promise to pay.
   3. **English:** agent-only call, "I have already paid" → English paid reply (fake rules).
   4. **Barge-in:** text injected while the bot speaks → `audio.clear` seen, bot turn marked interrupted.
   5. **Silence / wrong keys:** callback branch; AI silence prompt.
   6. **Money & roles:** wallet too low → start refused; wallet runs out mid-call → polite end `wallet_empty`; viewer cannot start or play; impersonator read-only; 4th concurrent call refused.
-- [ ] All earlier 32 tests stay green; whole suite **twice**; `E2E_FRONTEND_PORT=3150` locally.
+- [x] All earlier 32 tests stay green; whole suite **twice**; `E2E_FRONTEND_PORT=3150` locally.
 
 ### T7.15 — Gap audit, security, docs, sign-off
 
-- [ ] Requirement → test table for §0 / §1 / every task; missing tests added.
-- [ ] Security checklist: media socket fuzz (bad frames, floods, ticket reuse, cross-account topics), `call.say_text` off in production config test, recordings signed + audited, logs grep in `E2E_BACKEND_LOGS=1` (no transcript texts, template texts, phones, secrets, `Bearer`, `sk-`), gitleaks both repos, isolation list.
-- [ ] Coverage re-measured (gates raised to new values rounded down to 5, never lowered), bundle numbers vs `main`.
-- [ ] Docs both repos (READMEs, CHANGELOGs), BUILD_PLAN Phase 7 ✅, PHASE_7_TASKS all `[x]`, this plan ticked + changelog, **PHASE_7_SIGNOFF.md**; `[P7-B3-DONE]` (full verify both repos, E2E twice, fresh clones without `.env`, actionlint, `infra:down`).
+- [x] Requirement → test table for §0 / §1 / every task; missing tests added.
+- [x] Security checklist: media socket fuzz (bad frames, floods, ticket reuse, cross-account topics), `call.say_text` off in production config test, recordings signed + audited, logs grep in `E2E_BACKEND_LOGS=1` (no transcript texts, template texts, phones, secrets, `Bearer`, `sk-`), gitleaks both repos, isolation list.
+- [x] Coverage re-measured (gates raised to new values rounded down to 5, never lowered), bundle numbers vs `main`.
+- [x] Docs both repos (READMEs, CHANGELOGs), BUILD_PLAN Phase 7 ✅, PHASE_7_TASKS all `[x]`, this plan ticked + changelog, **PHASE_7_SIGNOFF.md**; `[P7-B3-DONE]` (full verify both repos, E2E twice, fresh clones without `.env`, actionlint, `infra:down`).
 
 ---
 
 ## 4. Deliverables checklist
 
-- [ ] `TelephonyProvider` / `CallLeg` + WebCall provider over `/ws/media` (tickets, limits, topic authorisation).
-- [ ] Call session manager: lifecycle, registry, limits, billing hold / extend / settle, recording, transcript, events, WS, shutdown, reaper, purge.
-- [ ] Audio bridge: G.711, resampling, framing, pacing, VAD, stereo recorder, WAV / MP3 decode.
-- [ ] Voice providers: OpenAI Realtime / TTS / transcription + deterministic fakes; TTS cache.
-- [ ] Flow voice host running Phase 6 flows live (every output type, barge-in, type-ahead DTMF, timers) + engine `ai_session_end` input.
-- [ ] Live AI voice session (tools live, built-ins live, knowledge, caps, silence, barge-in, language, fallbacks, latency).
-- [ ] Calls API + OpenAPI; seed; samples; `bench:voice`.
-- [ ] UI: Web Call Tester, Calls list, call detail, entry points, Settings → Calls.
-- [ ] Playwright: Done when (keypad + voice), English, barge-in, silence, money & roles.
-- [ ] Docs: ADR 0035 (+ 0020 / 0021 updates), data-model, conventions, setup (OpenAI live checklist), compliance, cost model, READMEs, CHANGELOGs, sign-off.
+- [x] `TelephonyProvider` / `CallLeg` + WebCall provider over `/ws/media` (tickets, limits, topic authorisation).
+- [x] Call session manager: lifecycle, registry, limits, billing hold / extend / settle, recording, transcript, events, WS, shutdown, reaper, purge.
+- [x] Audio bridge: G.711, resampling, framing, pacing, VAD, stereo recorder, WAV / MP3 decode.
+- [x] Voice providers: OpenAI Realtime / TTS / transcription + deterministic fakes; TTS cache.
+- [x] Flow voice host running Phase 6 flows live (every output type, barge-in, type-ahead DTMF, timers) + engine `ai_session_end` input.
+- [x] Live AI voice session (tools live, built-ins live, knowledge, caps, silence, barge-in, language, fallbacks, latency).
+- [x] Calls API + OpenAPI; seed; samples; `bench:voice`.
+- [x] UI: Web Call Tester, Calls list, call detail, entry points, Settings → Calls.
+- [x] Playwright: Done when (keypad + voice), English, barge-in, silence, money & roles.
+- [x] Docs: ADR 0035 (+ 0020 / 0021 updates), data-model, conventions, setup (OpenAI live checklist), compliance, cost model, READMEs, CHANGELOGs, sign-off.
 
 ## 5. Risks
 
@@ -524,3 +524,13 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T7.1–T7.5
   - Manual check: there is no browser UI before Batch 3, so the Batch 2 check ran `npm run dev:call` through the real API and `/ws/media` with a WebSocket client: Loan recovery paid branch (26 s, ₹0.90, 793 KB recording) and agent-only (21 s, `agent_end_call`). The real-mic browser check moves to Batch 3 (T7.11 / T7.14).
   - Live OpenAI voice checklist written (docs/setup/openai.md V1–V7); not run — no key yet. ADR 0021 stays proposed.
   - Batch 2 verify: lint, typecheck, `openapi:check`, build — clean; 2,015 tests, coverage 97.29 / 89.14 / 97.13 / 98.32 (gate 95 / 85 / 95 / 95).
+- 2026-10-16: **Batch 3 done (T7.10–T7.15) — Phase 7 complete**, see [PHASE_7_SIGNOFF.md](PHASE_7_SIGNOFF.md). Deviations / precisions:
+  - `POST /calls/web` also returns `voice: 'openai' | 'fake'` so the tester shows the "Fake voice (test mode)" badge (backend `44d3fec`).
+  - The transfer prompt in the tester is three buttons (connected / no answer / failed) sent back as `call.transfer_result`.
+  - Bundle: main chunk 439.0 → 445.9 KB gzip (**+6.9 KB**, over the 5 KB target). The tester (8.0 KB), detail (3.0 KB), list (2.5 KB) and the two worklets (0.9 + 0.8 KB) are their own chunks; the extra is the clients, routes, Settings → Calls, the ledger breakdown and the dashboard card. Lazy-loading the dashboard card made the main chunk bigger (447.9 KB), so it stays eager.
+  - The Chromium fake mic plays `docs/samples/audio/customer-silence.wav` (near silence) instead of a speech-like `customer.wav`: E2E customer words are typed ("Type instead of speaking", allowed outside production), so the VAD never fires on noise and runs stay deterministic. The mic → worklet → socket path is still exercised on every E2E call.
+  - Money & roles E2E: the 4th call test creates the first 3 calls through the API, because headless Chromium freezes background tabs and their media sockets drop (which ends the calls). Wallet running out **mid-call** is proven by backend tests (`session.test.ts`, `ai-call.test.ts`: polite line, `wallet_empty`), not by E2E — draining a wallet during a real-time call is not deterministic in the browser.
+  - Barge-in E2E checks the cut line marked "interrupted" and the "Customer interrupted the bot" event; `audio.clear` itself is covered by the media socket / tester unit tests.
+  - The manual dev-server browser check is replaced by the Playwright runs (headless Chromium with the fake mic, the real worklets and `/ws/media`). A real-mic check by a person stays in the sign-off checklist.
+  - Real bugs found by the E2E runs, each fixed in its own commit with a regression test: signed files were blocked for the dashboard by the same-origin CORP header and could not seek (backend `ec8439c`); the tester stuck at "Ending…" after a hang up because the socket was never closed (backend `fbd2451`); words said while the AI step's opening line played were lost (backend `ae123b1`); the tester marked the wrong transcript line as interrupted (backend `4b2e56d` + frontend `8ecebd7`). The flow max-duration test got a bound for the settle time (`cc894d3`).
+  - T7.15 gap tests: `/ws/media` fuzz (`tests/calls/media-fuzz.test.ts`: single-use tickets, random control garbage only gets `bad_message` errors, any non-960-byte binary frame closes 4008, oversized control closes 1009).
