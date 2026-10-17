@@ -141,6 +141,7 @@ const cancel = async (callId: string) => {
     { $set: { status: 'canceled', endReason: 'canceled' } },
   );
   await registry.unregister(callId, t.account._id.toString());
+  await manager.releaseLease(callId);
 };
 
 describe('POST /calls/web', () => {
@@ -290,6 +291,7 @@ describe('POST /calls/web', () => {
     expect(codes.at(-1)).toBe('RATE_LIMITED');
     for (const c of await CallModel.find({ accountId: busy.account._id }).lean()) {
       await registry.unregister(c._id.toString(), busy.account._id.toString());
+      await manager.releaseLease(c._id.toString());
     }
   });
 });

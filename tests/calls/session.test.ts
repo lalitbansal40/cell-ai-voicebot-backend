@@ -212,6 +212,42 @@ describe('CallManager — limits, holds and attaches', () => {
     expect(await CallModel.countDocuments({ accountId: poor.account._id })).toBe(0);
   });
 
+  it('slots are atomic: two creates at the limit → exactly one refused; account limit; leases freed', async () => {
+    const clock = new FakeClock();
+    const a = await createTestAccount();
+    const user = await a.addUser('owner');
+    await fund(a.account._id);
+    const m = manager(() => scriptOf(() => Promise.resolve()), clock);
+    const accountId = a.account._id.toString();
+    await create(m, a.account._id, user.user._id);
+    await create(m, a.account._id, user.user._id);
+    const results = await Promise.allSettled([
+      create(m, a.account._id, user.user._id),
+      create(m, a.account._id, user.user._id),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const refused = results.find((r) => r.status === 'rejected');
+    expect((refused as PromiseRejectedResult).reason).toMatchObject({ code: 'CALL_LIMIT_REACHED' });
+    expect(await m.slots.count(accountId)).toBe(3);
+    // a call nobody connects to gives its slot back
+    clock.advance(76_000);
+    await vi.waitFor(async () => expect(await m.slots.count(accountId)).toBe(0));
+
+    // the superadmin-set account limit counts every call of the account
+    const small = await createTestAccount();
+    const smallUser = await small.addUser('owner');
+    await fund(small.account._id);
+    await AccountModel.updateOne({ _id: small.account._id }, { 'limits.maxConcurrentCalls': 1 });
+    await create(m, small.account._id, smallUser.user._id);
+    await expect(create(m, small.account._id, smallUser.user._id)).rejects.toMatchObject({
+      code: 'CALL_LIMIT_REACHED',
+    });
+    expect(await m.accountLimits(new Types.ObjectId().toString())).toEqual({
+      maxConcurrentCalls: 10,
+      dialsPerMinute: 60,
+    });
+  });
+
   it('refuses unknown calls, other users and second attaches; cancels calls nobody connects to', async () => {
     const clock = new FakeClock();
     const m = manager(() => scriptOf(() => new Promise(() => undefined)), clock);

@@ -9,10 +9,16 @@ import { MEDIA_CLOSE } from '../../core/telephony/media-server';
 import type { CallLeg } from '../../core/telephony/types';
 import { systemClock, type Clock } from '../../core/voice/clock';
 import type { TtsCache } from '../../core/voice/tts-cache';
-import { AccountModel, DEFAULT_ACCOUNT_SETTINGS } from '../../db/models/account.model';
+import {
+  AccountModel,
+  DEFAULT_ACCOUNT_LIMITS,
+  DEFAULT_ACCOUNT_SETTINGS,
+  type AccountLimits,
+} from '../../db/models/account.model';
 import { CallModel, type CallDoc, type CallSource } from '../../db/models/call.model';
 import { AppError } from '../../shared/errors/app-error';
 import type { Logger } from '../../shared/logger';
+import { DialSlots, type SlotLease } from '../campaigns/slots';
 
 import { CallBilling } from './billing';
 import { issueMediaTicket } from './media-tickets';
@@ -42,6 +48,8 @@ export interface CallManagerDeps {
   scriptFor: (call: CallDoc) => Promise<ScriptChoice>;
   tickets?: Pick<WsTicketService, 'issue'>;
   clock?: Clock;
+  /** Atomic dial slots (default: on the registry's Redis connection and prefix). */
+  slots?: DialSlots;
 }
 
 export type CallEndedListener = (summary: CallEndedSummary) => void;
@@ -52,9 +60,49 @@ export class CallManager {
   private readonly waiting = new Map<string, unknown>();
   private readonly listeners: CallEndedListener[] = [];
   private readonly clock: Clock;
+  readonly slots: DialSlots;
+  /** Slot leases of this process's calls, refreshed with the heartbeat. */
+  private readonly leases = new Map<string, SlotLease>();
+  private leaseTimer: unknown = null;
 
   constructor(private readonly deps: CallManagerDeps) {
     this.clock = deps.clock ?? systemClock;
+    this.slots =
+      deps.slots ??
+      new DialSlots(deps.registry.redis, deps.registry.prefix, () => this.clock.now());
+  }
+
+  /** Keeps a call's slot lease alive until `releaseLease`. */
+  keepLease(callId: string, lease: SlotLease): void {
+    this.leases.set(callId, lease);
+    this.leaseTimer ??= this.clock.setInterval(() => {
+      for (const l of this.leases.values()) {
+        void this.slots
+          .refresh(l)
+          .catch((err: unknown) => this.deps.logger.warn({ err }, 'call: slot refresh failed'));
+      }
+    }, CALL_LIMITS.heartbeatSec * 1000);
+  }
+
+  async releaseLease(callId: string): Promise<void> {
+    const lease = this.leases.get(callId);
+    if (!lease) return;
+    this.leases.delete(callId);
+    if (this.leases.size === 0 && this.leaseTimer !== null) {
+      this.clock.clearInterval(this.leaseTimer);
+      this.leaseTimer = null;
+    }
+    await this.slots
+      .release(lease)
+      .catch((err: unknown) => this.deps.logger.warn({ err, callId }, 'call: slot release failed'));
+  }
+
+  /** Dialing limits of an account (superadmin-set, Phase 8). */
+  async accountLimits(accountId: string): Promise<AccountLimits> {
+    const account = await AccountModel.findById(accountId)
+      .select({ limits: 1 })
+      .lean<{ limits?: Partial<AccountLimits> }>();
+    return { ...DEFAULT_ACCOUNT_LIMITS, ...account?.limits };
   }
 
   /** Live sessions + calls waiting for their socket on this process. */
@@ -72,9 +120,26 @@ export class CallManager {
    */
   async createWebCall(input: CreateWebCallInput) {
     if (this.load >= CALL_LIMITS.concurrentPerProcess) throw new AppError('CALL_CAPACITY');
-    const live = await this.deps.registry.liveCalls(input.accountId);
-    if (live.length >= CALL_LIMITS.concurrentPerAccount) throw new AppError('CALL_LIMIT_REACHED');
+    const id = new Types.ObjectId();
+    const callId = id.toString();
+    const limits = await this.accountLimits(input.accountId);
+    // atomic: two creates at the same moment can't both take the last slot
+    const slot = await this.slots.acquire({
+      accountId: input.accountId,
+      campaignId: null,
+      member: callId,
+      limits: {
+        account: limits.maxConcurrentCalls,
+        group: CALL_LIMITS.concurrentPerAccount,
+        process: CALL_LIMITS.concurrentPerProcess,
+      },
+    });
+    if (!slot.ok) {
+      throw new AppError(slot.scope === 'process' ? 'CALL_CAPACITY' : 'CALL_LIMIT_REACHED');
+    }
+    this.keepLease(callId, slot.lease);
     const call = await CallModel.create({
+      _id: id,
       accountId: input.accountId,
       direction: 'outbound',
       provider: 'webcall',
@@ -89,12 +154,12 @@ export class CallManager {
       testPhone: input.testPhone ?? null,
       timestamps: { queuedAt: new Date(this.clock.now()) },
     });
-    const callId = call._id.toString();
     const billing = new CallBilling(input.accountId, callId, false);
     try {
       await billing.hold();
     } catch (err) {
       await CallModel.deleteOne({ _id: call._id });
+      await this.releaseLease(callId);
       throw err;
     }
     await CallModel.updateOne({ _id: call._id }, { $set: { holdId: billing.holdId } });
@@ -161,6 +226,7 @@ export class CallManager {
       maxDurationSec,
       onEnded: (summary) => {
         this.sessions.delete(input.callId);
+        void this.releaseLease(input.callId);
         for (const listener of this.listeners) listener(summary);
       },
     });
@@ -195,6 +261,7 @@ export class CallManager {
 
   private async cancelUnattached(callId: string, accountId: string): Promise<void> {
     this.waiting.delete(callId);
+    await this.releaseLease(callId);
     const call = await CallModel.findOneAndUpdate(
       { _id: callId, status: 'queued' },
       {

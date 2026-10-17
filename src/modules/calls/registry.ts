@@ -19,8 +19,9 @@ export interface LiveCall {
  */
 export class CallRegistry {
   constructor(
-    private readonly redis: Redis,
-    private readonly prefix = '',
+    /** Shared with the dial slots (same connection and key prefix). */
+    readonly redis: Redis,
+    readonly prefix = '',
   ) {}
 
   private key(callId: string): string {

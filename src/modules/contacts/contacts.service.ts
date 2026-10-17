@@ -322,8 +322,16 @@ const assertNoDuplicates = async (
   }
 };
 
-const isOnDnd = async (accountId: Types.ObjectId, phoneE164: string): Promise<boolean> =>
-  Boolean(await DndEntryModel.exists({ accountId, phoneE164 }));
+/** Any of `phones` is on the account's do-not-call list (one query; campaigns use it too). */
+export const isPhoneOnDnd = async (
+  accountId: Types.ObjectId | string,
+  phones: readonly string[],
+): Promise<boolean> =>
+  phones.length > 0 &&
+  Boolean(await DndEntryModel.exists({ accountId, phoneE164: { $in: [...new Set(phones)] } }));
+
+const isOnDnd = (accountId: Types.ObjectId, phoneE164: string): Promise<boolean> =>
+  isPhoneOnDnd(accountId, [phoneE164]);
 
 const rethrowDuplicate = (err: unknown): never => {
   if (isDuplicateKeyError(err)) {
