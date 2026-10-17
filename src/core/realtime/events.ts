@@ -26,13 +26,27 @@ export interface WsEventMap {
   'call.dtmf': { callId: string };
   'call.ended': {
     callId: string;
+    /** Campaign calls only. */
+    campaignId?: string;
     status: CallStatus;
     endReason: string | null;
     durationSec: number;
     disposition: string | null;
     costMicros: number;
   };
-  'campaign.status': { campaignId: string; status: string };
+  'campaign.status': {
+    campaignId: string;
+    status: 'draft' | 'scheduled' | 'running' | 'paused' | 'completed' | 'canceled' | 'failed';
+    pauseReason?:
+      | 'manual'
+      | 'wallet_empty'
+      | 'budget_reached'
+      | 'account_suspended'
+      | 'too_many_failures'
+      | 'admin';
+    /** ISO time the calling window opens again (running, outside the window). */
+    waitingUntil?: string;
+  };
   'campaign.progress': { campaignId: string; stats: Record<string, number> };
   'wallet.updated': {
     balanceMicros: number;

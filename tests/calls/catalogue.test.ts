@@ -10,8 +10,7 @@ import { AppError } from '../../src/shared/errors/app-error';
 import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 7 catalogue', () => {
-  it('has 44 error codes incl. the three call codes', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(44);
+  it('has the three call error codes (counts: tests/campaigns/catalogue.test.ts)', () => {
     expect(ERROR_CODES.CALL_LIMIT_REACHED.status).toBe(429);
     expect(ERROR_CODES.CALL_CAPACITY.status).toBe(503);
     expect(ERROR_CODES.CALL_NOT_ACTIVE.status).toBe(409);
@@ -21,13 +20,14 @@ describe('Phase 7 catalogue', () => {
     });
   });
 
-  it('has 71 audit actions incl. the three call actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(71);
-    expect(AUDIT_ACTIONS.filter((a) => a.startsWith('call.'))).toEqual([
-      'call.test_started',
-      'call.recording_accessed',
-      'call.hung_up_remotely',
-    ]);
+  it('has the three call audit actions', () => {
+    expect(AUDIT_ACTIONS.filter((a) => a.startsWith('call.'))).toEqual(
+      expect.arrayContaining([
+        'call.test_started',
+        'call.recording_accessed',
+        'call.hung_up_remotely',
+      ]),
+    );
   });
 
   it('lists the call WS events and bills calls with the call ledger kind', () => {

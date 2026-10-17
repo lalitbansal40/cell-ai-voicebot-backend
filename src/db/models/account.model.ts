@@ -14,8 +14,23 @@ export interface CallingWindow {
   days: number[];
 }
 
+/** Per-contact call caps across all campaigns and single calls (Phase 8). */
+export interface CallCaps {
+  perDay: number;
+  perWeek: number;
+  /** Minimum minutes between two calls to the same contact. */
+  minGapMinutes: number;
+}
+
+/** Dialing limits set by a superadmin per account (Phase 8). */
+export interface AccountLimits {
+  maxConcurrentCalls: number;
+  dialsPerMinute: number;
+}
+
 export interface AccountSettings {
   callingWindow: CallingWindow;
+  callCaps: CallCaps;
   recordingEnabled: boolean;
   /** Said at the start of every recorded call (Phase 7). */
   recordingNotice: string;
@@ -64,6 +79,7 @@ export interface AccountDoc {
   country: string;
   defaultLanguage: AccountLanguage;
   settings: AccountSettings;
+  limits: AccountLimits;
   billing?: (BillingProfile & { updatedAt: Date }) | null;
   createdAt: Date;
   updatedAt: Date;
@@ -71,10 +87,13 @@ export interface AccountDoc {
 
 export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
   callingWindow: { start: '09:00', end: '19:00', days: [1, 2, 3, 4, 5, 6] },
+  callCaps: { perDay: 3, perWeek: 10, minGapMinutes: 30 },
   recordingEnabled: true,
   recordingNotice: CALL_LINES.recordingNotice,
   aiDisclosureEnabled: true,
 };
+
+export const DEFAULT_ACCOUNT_LIMITS: AccountLimits = { maxConcurrentCalls: 10, dialsPerMinute: 60 };
 
 const schema = new Schema<AccountDoc>({
   name: { type: String, required: true, trim: true, maxlength: 80 },
@@ -105,6 +124,14 @@ const schema = new Schema<AccountDoc>({
       end: { type: String, default: DEFAULT_ACCOUNT_SETTINGS.callingWindow.end },
       days: { type: [Number], default: DEFAULT_ACCOUNT_SETTINGS.callingWindow.days },
     },
+    callCaps: {
+      perDay: { type: Number, default: DEFAULT_ACCOUNT_SETTINGS.callCaps.perDay },
+      perWeek: { type: Number, default: DEFAULT_ACCOUNT_SETTINGS.callCaps.perWeek },
+      minGapMinutes: {
+        type: Number,
+        default: DEFAULT_ACCOUNT_SETTINGS.callCaps.minGapMinutes,
+      },
+    },
     recordingEnabled: { type: Boolean, default: true },
     recordingNotice: {
       type: String,
@@ -112,6 +139,10 @@ const schema = new Schema<AccountDoc>({
       maxlength: CALL_LIMITS.recordingNoticeMaxChars,
     },
     aiDisclosureEnabled: { type: Boolean, default: true },
+  },
+  limits: {
+    maxConcurrentCalls: { type: Number, default: DEFAULT_ACCOUNT_LIMITS.maxConcurrentCalls },
+    dialsPerMinute: { type: Number, default: DEFAULT_ACCOUNT_LIMITS.dialsPerMinute },
   },
   billing: {
     type: new Schema<BillingProfile & { updatedAt: Date }>(

@@ -74,6 +74,18 @@ export const AUDIT_ACTIONS = [
   'call.test_started',
   'call.recording_accessed',
   'call.hung_up_remotely',
+  'call.triggered',
+  'campaign.created',
+  'campaign.updated',
+  'campaign.scheduled',
+  'campaign.started',
+  'campaign.paused',
+  'campaign.resumed',
+  'campaign.canceled',
+  'campaign.deleted',
+  'campaign.exported',
+  'campaign.admin_paused',
+  'account.limits_updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

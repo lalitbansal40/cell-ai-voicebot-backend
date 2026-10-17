@@ -160,12 +160,22 @@
                 },
                 "required": ["start", "end", "days"]
               },
+              "callCaps": {
+                "type": "object",
+                "properties": {
+                  "perDay": { "type": "integer" },
+                  "perWeek": { "type": "integer" },
+                  "minGapMinutes": { "type": "integer" }
+                },
+                "required": ["perDay", "perWeek", "minGapMinutes"]
+              },
               "recordingEnabled": { "type": "boolean" },
               "recordingNotice": { "type": "string" },
               "aiDisclosureEnabled": { "type": "boolean" }
             },
             "required": [
               "callingWindow",
+              "callCaps",
               "recordingEnabled",
               "recordingNotice",
               "aiDisclosureEnabled"
@@ -366,7 +376,19 @@
               "flow_audio.changed",
               "call.test_started",
               "call.recording_accessed",
-              "call.hung_up_remotely"
+              "call.hung_up_remotely",
+              "call.triggered",
+              "campaign.created",
+              "campaign.updated",
+              "campaign.scheduled",
+              "campaign.started",
+              "campaign.paused",
+              "campaign.resumed",
+              "campaign.canceled",
+              "campaign.deleted",
+              "campaign.exported",
+              "campaign.admin_paused",
+              "account.limits_updated"
             ]
           },
           "actor": {
@@ -4049,7 +4071,10 @@
               "billing.refund_received",
               "billing.payment_unmatched",
               "billing.payment_mismatch",
-              "billing.reconcile_mismatch"
+              "billing.reconcile_mismatch",
+              "campaign.completed",
+              "campaign.paused",
+              "campaign.run_skipped"
             ]
           },
           "title": { "type": "string" },
@@ -4065,7 +4090,7 @@
         "properties": {
           "id": { "type": "string" },
           "direction": { "type": "string", "enum": ["outbound", "inbound"] },
-          "provider": { "type": "string", "enum": ["webcall", "sip", "notifynow"] },
+          "provider": { "type": "string", "enum": ["webcall", "sip", "notifynow", "dryrun"] },
           "isTest": { "type": "boolean" },
           "status": {
             "type": "string",
@@ -4096,6 +4121,10 @@
               "server_shutdown",
               "canceled",
               "limit",
+              "busy",
+              "no_answer",
+              "invalid_number",
+              "campaign_canceled",
               null
             ]
           },

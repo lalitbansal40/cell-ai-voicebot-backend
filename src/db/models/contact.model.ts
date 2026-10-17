@@ -30,6 +30,8 @@ export interface ContactDoc {
   searchText: string;
   lastCalledAt?: Date | null;
   callCount: number;
+  /** Disposition of the last answered campaign / single call (Phase 8). */
+  lastDisposition?: string | null;
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +67,7 @@ const schema = new Schema<ContactDoc>({
   searchText: { type: String, default: '' },
   lastCalledAt: { type: Date, default: null },
   callCount: { type: Number, default: 0 },
+  lastDisposition: { type: String, default: null },
 });
 schema.plugin(basePlugin, { hide: ['searchText', 'deletedAt'] });
 schema.plugin(tenantPlugin);

@@ -58,6 +58,13 @@ describe('call lifecycle rules', () => {
     expect(canMove('completed', 'failed')).toBe(false);
     expect(isFinal('canceled')).toBe(true);
     expect(isFinal('ringing')).toBe(false);
+    // phone legs (dry run, SIP): busy / no answer only before the answer
+    for (const to of ['busy', 'no_answer'] as const) {
+      expect(canMove('ringing', to)).toBe(true);
+      expect(canMove('queued', to)).toBe(false);
+      expect(canMove('in_progress', to)).toBe(false);
+      expect(isFinal(to)).toBe(true);
+    }
   });
 
   it('maps end reasons and hang-up causes', () => {
@@ -72,6 +79,15 @@ describe('call lifecycle rules', () => {
     expect(endReasonFor('normal')).toBe('customer_hangup');
     expect(endReasonFor('server_shutdown')).toBe('server_shutdown');
     expect(endReasonFor('limit')).toBe('limit');
+    expect(finalStatus('busy', false)).toBe('busy');
+    expect(finalStatus('no_answer', false)).toBe('no_answer');
+    expect(finalStatus('invalid_number', false)).toBe('failed');
+    expect(finalStatus('campaign_canceled', false)).toBe('canceled');
+    expect(finalStatus('campaign_canceled', true)).toBe('completed');
+    expect(endReasonFor('busy')).toBe('busy');
+    expect(endReasonFor('no_answer')).toBe('no_answer');
+    expect(endReasonFor('rejected')).toBe('busy');
+    expect(endReasonFor('invalid_number')).toBe('invalid_number');
   });
 });
 

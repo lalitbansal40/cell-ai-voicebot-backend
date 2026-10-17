@@ -75,6 +75,14 @@ describe('system roles', () => {
     expect(set('agent').has('wallet.read')).toBe(false);
   });
 
+  it('campaign results export (Phase 8): owner, admin, manager only', () => {
+    for (const key of ['owner', 'admin', 'manager'] as const) {
+      expect(set(key).has('campaigns.export')).toBe(true);
+    }
+    expect(set('agent').has('campaigns.export')).toBe(false);
+    expect(set('viewer').has('campaigns.export')).toBe(false);
+  });
+
   it('matches the role matrix of PHASE_2_PLAN §1b', () => {
     expect(
       Object.fromEntries(SYSTEM_ROLE_KEYS.map((k) => [k, [...SYSTEM_ROLES[k].permissions].sort()])),

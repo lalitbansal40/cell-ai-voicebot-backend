@@ -3,7 +3,17 @@ import type { PlaybackResult } from '../voice/audio/pacer';
 export type LegStatus = 'ringing' | 'answered' | 'ended';
 
 export type HangupCause =
-  'normal' | 'customer_hangup' | 'media_timeout' | 'media_error' | 'server_shutdown' | 'limit';
+  | 'normal'
+  | 'customer_hangup'
+  | 'media_timeout'
+  | 'media_error'
+  | 'server_shutdown'
+  | 'limit'
+  // phone legs before the answer (dry run now, SIP in Phase 13)
+  | 'busy'
+  | 'no_answer'
+  | 'rejected'
+  | 'invalid_number';
 
 export type TransferResult = 'connected' | 'failed' | 'no_answer';
 

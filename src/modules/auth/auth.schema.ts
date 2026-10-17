@@ -107,6 +107,11 @@ export const PublicAccountSchema = registry.register(
     defaultLanguage: z.enum(['hi', 'en', 'hinglish']),
     settings: z.object({
       callingWindow: CallingWindowSchema,
+      callCaps: z.object({
+        perDay: z.number().int(),
+        perWeek: z.number().int(),
+        minGapMinutes: z.number().int(),
+      }),
       recordingEnabled: z.boolean(),
       recordingNotice: z.string(),
       aiDisclosureEnabled: z.boolean(),

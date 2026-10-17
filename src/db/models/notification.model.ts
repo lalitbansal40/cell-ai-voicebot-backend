@@ -12,6 +12,9 @@ export const NOTIFICATION_TYPES = [
   'billing.payment_unmatched',
   'billing.payment_mismatch',
   'billing.reconcile_mismatch',
+  'campaign.completed',
+  'campaign.paused',
+  'campaign.run_skipped',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

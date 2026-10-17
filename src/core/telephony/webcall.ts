@@ -29,6 +29,11 @@ const CAUSE_CLOSE: Record<HangupCause, number> = {
   media_error: 1011,
   server_shutdown: 1001,
   limit: 1000,
+  // phone-only causes (a browser leg never ends this way)
+  busy: 1000,
+  no_answer: 1000,
+  rejected: 1000,
+  invalid_number: 1000,
 };
 
 /** Browser call leg: 24 kHz PCM16 frames over the media socket, paced in real time. */

@@ -2,7 +2,11 @@ import type { Request, Response } from 'express';
 import type { Types } from 'mongoose';
 
 import { getEnv } from '../../config/env';
-import { AccountModel, type AccountDoc } from '../../db/models/account.model';
+import {
+  AccountModel,
+  DEFAULT_ACCOUNT_SETTINGS,
+  type AccountDoc,
+} from '../../db/models/account.model';
 import { RoleModel, type RoleDoc } from '../../db/models/role.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
 import { UnauthenticatedError } from '../../shared/errors/app-error';
@@ -89,6 +93,7 @@ export const toPublicAccount = (a: AccountDoc): PublicAccount => ({
       end: a.settings.callingWindow.end,
       days: [...a.settings.callingWindow.days],
     },
+    callCaps: { ...DEFAULT_ACCOUNT_SETTINGS.callCaps, ...a.settings.callCaps },
     recordingEnabled: a.settings.recordingEnabled,
     recordingNotice: a.settings.recordingNotice,
     aiDisclosureEnabled: a.settings.aiDisclosureEnabled,

@@ -78,6 +78,15 @@ export const ERROR_CODES = {
     message: 'The server is at its call limit. Try again in a moment.',
   },
   CALL_NOT_ACTIVE: { status: 409, message: 'This call is not running.' },
+  CALL_NOT_ALLOWED: { status: 422, message: "This contact can't be called right now." },
+  CAMPAIGN_LIMIT_REACHED: {
+    status: 429,
+    message: 'Too many active campaigns for this account.',
+  },
+  CAMPAIGN_REVISION_CONFLICT: {
+    status: 409,
+    message: 'This campaign was changed by someone else. Reload to see the latest version.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

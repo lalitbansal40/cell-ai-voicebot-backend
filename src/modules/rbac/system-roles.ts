@@ -23,6 +23,7 @@ const MANAGER: Permission[] = [
   'campaigns.read',
   'campaigns.write',
   'campaigns.run',
+  'campaigns.export',
   'reports.read',
   'reports.export',
 ];

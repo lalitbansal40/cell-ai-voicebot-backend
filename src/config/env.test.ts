@@ -456,3 +456,34 @@ describe('loadEnv — voice calls', () => {
     ]);
   });
 });
+
+describe('loadEnv — campaigns', () => {
+  it('defaults: dry-run telephony, max speed 50, campaigns on', () => {
+    const env = loadEnv({});
+    expect(env.TELEPHONY_PROVIDER).toBe('dryrun');
+    expect(env.DRY_RUN_MAX_SPEED).toBe(50);
+    expect(env.CAMPAIGNS_ENABLED).toBe(true);
+  });
+
+  it('parses explicit values; sip is not available yet; speed 1–100', () => {
+    expect(
+      loadEnv({ DRY_RUN_MAX_SPEED: '5', CAMPAIGNS_ENABLED: 'false', TELEPHONY_PROVIDER: 'dryrun' }),
+    ).toMatchObject({
+      DRY_RUN_MAX_SPEED: 5,
+      CAMPAIGNS_ENABLED: false,
+      TELEPHONY_PROVIDER: 'dryrun',
+    });
+    expect(issuesOf({ TELEPHONY_PROVIDER: 'sip' }).issues[0]?.variable).toBe('TELEPHONY_PROVIDER');
+    expect(issuesOf({ DRY_RUN_MAX_SPEED: '0' }).issues[0]?.variable).toBe('DRY_RUN_MAX_SPEED');
+    expect(issuesOf({ DRY_RUN_MAX_SPEED: '101' }).issues[0]?.variable).toBe('DRY_RUN_MAX_SPEED');
+    expect(issuesOf({ CAMPAIGNS_ENABLED: 'yes' }).issues[0]?.variable).toBe('CAMPAIGNS_ENABLED');
+  });
+
+  it('production: max speed defaults to 20 and may not exceed it', () => {
+    expect(loadEnv(validProduction).DRY_RUN_MAX_SPEED).toBe(20);
+    expect(loadEnv({ ...validProduction, DRY_RUN_MAX_SPEED: '10' }).DRY_RUN_MAX_SPEED).toBe(10);
+    expect(
+      issuesOf({ ...validProduction, DRY_RUN_MAX_SPEED: '50' }).issues.map((i) => i.variable),
+    ).toEqual(['DRY_RUN_MAX_SPEED']);
+  });
+});

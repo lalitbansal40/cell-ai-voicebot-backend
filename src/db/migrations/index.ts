@@ -8,6 +8,7 @@ import { walletsMigration } from './0005-wallets';
 import { aiAgentsMigration } from './0006-ai-agents';
 import { flowsMigration } from './0007-flows';
 import { callsMigration } from './0008-calls';
+import { campaignsMigration } from './0009-campaigns';
 
 /** Ordered migration registry. Add new files here (no fs globbing — keeps builds simple). */
 export const MIGRATIONS: Migration[] = [
@@ -19,4 +20,5 @@ export const MIGRATIONS: Migration[] = [
   aiAgentsMigration,
   flowsMigration,
   callsMigration,
+  campaignsMigration,
 ];

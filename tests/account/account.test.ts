@@ -59,6 +59,7 @@ describe('PATCH /api/v1/account', () => {
     });
     expect(res.body.data.settings).toEqual({
       callingWindow: { start: '09:00', end: '19:00', days: [1, 2, 3, 4, 5, 6] },
+      callCaps: { perDay: 3, perWeek: 10, minGapMinutes: 30 },
       recordingEnabled: false,
       recordingNotice: 'Yeh call quality ke liye record ki ja rahi hai.',
       aiDisclosureEnabled: true,
@@ -71,6 +72,7 @@ describe('PATCH /api/v1/account', () => {
     });
     expect(second.body.data.settings).toEqual({
       callingWindow: { start: '10:00', end: '18:30', days: [1, 2, 3] },
+      callCaps: { perDay: 3, perWeek: 10, minGapMinutes: 30 },
       recordingEnabled: false,
       recordingNotice: 'Ye call record ho rahi hai.',
       aiDisclosureEnabled: true,

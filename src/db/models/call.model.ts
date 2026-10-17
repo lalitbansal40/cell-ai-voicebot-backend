@@ -4,7 +4,7 @@ import { basePlugin } from '../plugins/base';
 import { tenantPlugin } from '../plugins/tenant';
 
 export const CALL_DIRECTIONS = ['outbound', 'inbound'] as const;
-export const CALL_PROVIDERS = ['webcall', 'sip', 'notifynow'] as const;
+export const CALL_PROVIDERS = ['webcall', 'sip', 'notifynow', 'dryrun'] as const;
 export type CallProvider = (typeof CALL_PROVIDERS)[number];
 
 export const CALL_STATUSES = [
@@ -35,6 +35,10 @@ export const CALL_END_REASONS = [
   'server_shutdown',
   'canceled',
   'limit',
+  'busy',
+  'no_answer',
+  'invalid_number',
+  'campaign_canceled',
 ] as const;
 export type CallEndReason = (typeof CALL_END_REASONS)[number];
 
@@ -101,6 +105,9 @@ export interface CallDoc {
   source: CallSource;
   contactId: Types.ObjectId | null;
   campaignId: Types.ObjectId | null;
+  /** Campaign contact + 1-based attempt (unique together: never dial an attempt twice). */
+  campaignContactId: Types.ObjectId | null;
+  attempt: number | null;
   startedBy: Types.ObjectId | null;
   status: CallStatus;
   endReason: CallEndReason | null;
@@ -125,6 +132,8 @@ export interface CallDoc {
   holdId: Types.ObjectId | null;
   ledgerEntryId: Types.ObjectId | null;
   cost: CallCost;
+  /** `false` for dry-run calls: `cost` is what the call would have cost, no ledger rows. */
+  charged: boolean;
   recording: CallRecording | null;
   flowRunId: Types.ObjectId | null;
   /** Next CallEvent / TranscriptTurn sequence numbers. */
@@ -172,6 +181,8 @@ const schema = new Schema<CallDoc>(
     source: { type: Schema.Types.Mixed, required: true },
     contactId: { type: Schema.Types.ObjectId, default: null },
     campaignId: { type: Schema.Types.ObjectId, default: null },
+    campaignContactId: { type: Schema.Types.ObjectId, default: null },
+    attempt: { type: Number, default: null, min: 1 },
     startedBy: { type: Schema.Types.ObjectId, default: null },
     status: { type: String, enum: CALL_STATUSES, default: 'queued', required: true },
     endReason: { type: String, enum: [...CALL_END_REASONS, null], default: null },
@@ -193,6 +204,7 @@ const schema = new Schema<CallDoc>(
     holdId: { type: Schema.Types.ObjectId, default: null },
     ledgerEntryId: { type: Schema.Types.ObjectId, default: null },
     cost: { type: Schema.Types.Mixed, default: emptyCallCost },
+    charged: { type: Boolean, default: true },
     recording: { type: Schema.Types.Mixed, default: null },
     flowRunId: { type: Schema.Types.ObjectId, default: null },
     seq: {
@@ -215,6 +227,11 @@ schema.index(
   { provider: 1, providerCallId: 1 },
   { unique: true, partialFilterExpression: { providerCallId: { $type: 'string' } } },
 );
+schema.index(
+  { campaignContactId: 1, attempt: 1 },
+  { unique: true, partialFilterExpression: { campaignContactId: { $type: 'objectId' } } },
+);
+schema.index({ accountId: 1, contactId: 1, provider: 1, createdAt: -1 });
 schema.index({ status: 1, updatedAt: 1 });
 schema.index({ createdAt: 1 });
 

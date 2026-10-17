@@ -99,6 +99,13 @@ const RawEnvSchema = z.object({
   /** Folder for recordings being written during a call (default `<os tmp>/cav-rec`). */
   CALL_RECORDING_TMP_DIR: optionalString,
 
+  /** Phone line for campaigns / single calls (Phase 8: `dryrun` only; `sip` arrives in Phase 13). */
+  TELEPHONY_PROVIDER: z.enum(['dryrun']).default('dryrun'),
+  /** Fastest dry-run speed (virtual time ×N); default 50, production 20 (≤ 20). */
+  DRY_RUN_MAX_SPEED: z.coerce.number().int().min(1).max(100).optional(),
+  /** `false` stops the campaign dispatchers and worker (maintenance). Default true. */
+  CAMPAIGNS_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./uploads'),
   S3_BUCKET: optionalString,
@@ -184,6 +191,8 @@ export type Env = Readonly<
     | 'VOICE_PROVIDER'
     | 'VOICE_TEXT_INPUT_ENABLED'
     | 'CALL_RECORDING_TMP_DIR'
+    | 'DRY_RUN_MAX_SPEED'
+    | 'CAMPAIGNS_ENABLED'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -211,6 +220,8 @@ export type Env = Readonly<
     VOICE_PROVIDER: 'fake' | 'openai';
     VOICE_TEXT_INPUT_ENABLED: boolean;
     CALL_RECORDING_TMP_DIR: string;
+    DRY_RUN_MAX_SPEED: number;
+    CAMPAIGNS_ENABLED: boolean;
   }
 >;
 
@@ -413,6 +424,10 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     raw.VOICE_TEXT_INPUT_ENABLED !== undefined
       ? raw.VOICE_TEXT_INPUT_ENABLED === 'true'
       : !production;
+  const dryRunMaxSpeed = raw.DRY_RUN_MAX_SPEED ?? (production ? 20 : 50);
+  if (production) {
+    check('DRY_RUN_MAX_SPEED', 'must be at most 20 in production', dryRunMaxSpeed <= 20);
+  }
   if (production) {
     check('VOICE_PROVIDER', 'must be openai in production', voiceProvider === 'openai');
     check('VOICE_TEXT_INPUT_ENABLED', 'must be false in production', !voiceTextInput);
@@ -466,6 +481,8 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     VOICE_PROVIDER: voiceProvider,
     VOICE_TEXT_INPUT_ENABLED: voiceTextInput,
     CALL_RECORDING_TMP_DIR: raw.CALL_RECORDING_TMP_DIR ?? join(tmpdir(), 'cav-rec'),
+    DRY_RUN_MAX_SPEED: dryRunMaxSpeed,
+    CAMPAIGNS_ENABLED: raw.CAMPAIGNS_ENABLED !== 'false',
   });
 };
 

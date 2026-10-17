@@ -4,7 +4,7 @@ import type { CallEndReason, CallStatus } from '../../db/models/call.model';
 /** Allowed status moves (PHASE_7_PLAN §1e); final statuses have none. */
 export const CALL_TRANSITIONS: Record<CallStatus, readonly CallStatus[]> = {
   queued: ['ringing', 'canceled', 'failed'],
-  ringing: ['in_progress', 'canceled', 'failed'],
+  ringing: ['in_progress', 'busy', 'no_answer', 'canceled', 'failed'],
   in_progress: ['completed', 'failed'],
   completed: [],
   failed: [],
@@ -23,8 +23,12 @@ const BROKEN: readonly CallEndReason[] = ['engine_error', 'media_error', 'server
 
 /** Status of a call when it ends for `reason`. */
 export const finalStatus = (reason: CallEndReason, answered: boolean): CallStatus => {
-  if (!answered)
-    return reason === 'canceled' || reason === 'customer_hangup' ? 'canceled' : 'failed';
+  if (!answered) {
+    if (reason === 'busy' || reason === 'no_answer') return reason;
+    return reason === 'canceled' || reason === 'customer_hangup' || reason === 'campaign_canceled'
+      ? 'canceled'
+      : 'failed';
+  }
   return BROKEN.includes(reason) ? 'failed' : 'completed';
 };
 
@@ -35,6 +39,10 @@ const BY_CAUSE: Record<HangupCause, CallEndReason> = {
   media_error: 'media_error',
   server_shutdown: 'server_shutdown',
   limit: 'limit',
+  busy: 'busy',
+  no_answer: 'no_answer',
+  rejected: 'busy',
+  invalid_number: 'invalid_number',
 };
 
 export const endReasonFor = (cause: HangupCause | undefined): CallEndReason =>

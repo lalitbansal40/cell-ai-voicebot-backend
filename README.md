@@ -298,6 +298,8 @@ No install scripts for the Phase 5 knowledge parsers `mammoth`, `html-to-text` a
 
 No install scripts for the Phase 7 MP3 decoder `mpg123-decoder` 1.0.3 (MIT, pure WebAssembly — decodes `play_audio` MP3 files once; its dependencies `@wasm-audio-decoders/common` (MIT), `@eshaz/web-worker` (Apache-2.0) and `simple-yenc` (MIT) have no install scripts either). It is an ES module loaded through Node's `require(esm)`.
 
+No install scripts for the Phase 8 date libraries `date-fns` 4.4.0 and `@date-fns/tz` 1.5.0 (both MIT, pure JS, no dependencies) — calling windows, schedules and recurring runs in the account timezone (ADR 0017).
+
 No install scripts needed for `nodemailer` / `smtp-server` (pure JS). `smtp-server` has no bundled types and `@types/smtp-server` would pull in `@types/nodemailer` (clashes with nodemailer 10's own types), so tests use a minimal local declaration (`tests/@types/smtp-server.d.ts`).
 
 Run `npm approve-scripts --allow-scripts-pending` after adding dependencies to review new ones.
@@ -390,6 +392,9 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | `OPENAI_TRANSCRIBE_MODEL`          | no                | 7       | Speech-to-text model for listen steps (default `gpt-4o-mini-transcribe`)                                 |
 | `CALL_RETENTION_DAYS`              | no                | 7       | Days calls, transcripts, events and recordings are kept (default 180)                                    |
 | `CALL_RECORDING_TMP_DIR`           | no                | 7       | Folder for recordings being written during a call (default `<os tmp>/cav-rec`)                           |
+| `TELEPHONY_PROVIDER`               | no                | 8       | Phone line for campaigns / single calls: `dryrun` (simulated, default); `sip` arrives in Phase 13        |
+| `DRY_RUN_MAX_SPEED`                | no                | 8       | Fastest dry-run speed (virtual time ×N; default 50, production 20 and at most 20)                        |
+| `CAMPAIGNS_ENABLED`                | no                | 8       | `false` stops campaign dispatching (maintenance); default `true`                                         |
 | `STORAGE_DRIVER`                   | no                | 7/9     | `local` or `s3`                                                                                          |
 | `STORAGE_LOCAL_PATH`               | no                | 7/9     | Folder for local uploads/recordings                                                                      |
 | `S3_BUCKET`                        | if s3             | 7/9     | S3 bucket name                                                                                           |

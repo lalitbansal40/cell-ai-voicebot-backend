@@ -284,3 +284,64 @@ export const CALL_LINES = {
   silenceHi: 'Hello? Kya aap sun rahe hain?',
   silenceEn: 'Hello? Are you still there?',
 } as const;
+
+/** Phase 8 campaigns (PHASE_8_PLAN §1l, PHASE_8_PROMPT §1 "Limits"). */
+export const CAMPAIGN_LIMITS = {
+  nameMaxChars: 120,
+  maxContacts: 50_000,
+  maxActivePerAccount: 10,
+  maxPickedContacts: 1_000,
+  snapshotBatch: 1_000,
+  scheduleAheadDays: 90,
+  maxAttemptsMin: 1,
+  maxAttemptsMax: 5,
+  intervalMinMinutes: 15,
+  intervalMaxMinutes: 1_440,
+  callbackMaxDaysMax: 14,
+  promiseDaysAfterMax: 14,
+  dialsPerMinuteMax: 120,
+  tickMs: 2_000,
+  wakeDebounceMs: 100,
+  claimLeaseMs: 120_000,
+  slotLeaseMs: 30_000,
+  windowEndBufferMin: 5,
+  failuresToPause: 10,
+  progressThrottleMs: 1_000,
+  exportMaxRows: 100_000,
+  deletedPurgeDays: 30,
+  dryRunSpeeds: [1, 5, 10, 20],
+  previewSampleRows: 20,
+  etaWindowMinutes: 10,
+  historyMax: 100,
+  /** Average answered call when the flow has no history yet. */
+  defaultAvgDurationSec: 60,
+  estimateSampleCalls: 100,
+  /** TRAI: commercial calls 09:00–21:00 (every live campaign). */
+  trafficHardWindow: { start: '09:00', end: '21:00' },
+  /** RBI recovery conduct: 08:00–19:00 (live campaigns with a recovery agent). */
+  recoveryHardWindow: { start: '08:00', end: '19:00' },
+  defaults: {
+    maxAttempts: 3,
+    intervalMinutes: 60,
+    retryOn: ['no_answer', 'busy', 'failed'],
+    concurrency: 5,
+    dialsPerMinute: 30,
+    priority: 'normal',
+    callbackMaxDays: 7,
+    promiseDaysAfter: 1,
+    dryRunSpeed: 10,
+  },
+} as const;
+
+/** Superadmin-set dialing limits per account (PHASE_8_PROMPT T8.6). */
+export const ACCOUNT_LIMIT_RANGES = {
+  maxConcurrentCalls: { min: 1, max: 200 },
+  dialsPerMinute: { min: 1, max: 600 },
+} as const;
+
+/** Per-contact call caps an owner / admin may set (PHASE_8_PROMPT T8.6). */
+export const CALL_CAP_RANGES = {
+  perDay: { min: 1, max: 10 },
+  perWeek: { min: 1, max: 50 },
+  minGapMinutes: { min: 0, max: 1_440 },
+} as const;
