@@ -55,6 +55,8 @@ export interface TurnInput {
   billing?: 'tokens' | 'none';
   /** `live` on calls (built-ins act), `simulated` elsewhere (default). */
   builtInMode?: 'simulated' | 'live';
+  /** `false`: no wallet / spend-cap gate (dry-run calls spend nothing). Default `true`. */
+  budgetCheck?: boolean;
 }
 
 export type TurnRecord = Omit<PlaygroundTurn, '_id'>;
@@ -155,7 +157,10 @@ export const runAgentTurn = async (input: TurnInput): Promise<TurnResult> => {
 
   // ── gates (no model call, no cost) ──
   if (!agent.isActive) return fallback('agentOff');
-  const budget = await assertAgentBudget({ accountId, agent, now, timezone: input.timezone });
+  const budget =
+    input.budgetCheck === false
+      ? ({ ok: true } as const)
+      : await assertAgentBudget({ accountId, agent, now, timezone: input.timezone });
   if (!budget.ok) {
     if (budget.reason === 'wallet_empty') return fallback('walletEmpty');
     if (agent.limits.onCap === 'stop') throw new AppError('AI_SPEND_CAP_REACHED');

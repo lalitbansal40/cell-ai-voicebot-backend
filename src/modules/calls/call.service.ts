@@ -4,11 +4,14 @@ import { CALL_LIMITS, CALL_LINES } from '../../config/limits';
 import { notifyAccount } from '../../core/realtime/notify';
 import type { WsTicketService } from '../../core/realtime/ws-tickets';
 import type { StorageProvider } from '../../core/storage';
+import { DryRunProvider, type DryRunSettings } from '../../core/telephony/dryrun';
 import type { AttachResult, MediaAttachInput } from '../../core/telephony/media-server';
 import { MEDIA_CLOSE } from '../../core/telephony/media-server';
 import type { CallLeg } from '../../core/telephony/types';
 import { systemClock, type Clock } from '../../core/voice/clock';
+import { ScaledClock } from '../../core/voice/scaled-clock';
 import type { TtsCache } from '../../core/voice/tts-cache';
+import { isDuplicateKeyError } from '../../db/errors';
 import {
   AccountModel,
   DEFAULT_ACCOUNT_LIMITS,
@@ -23,8 +26,9 @@ import { DialSlots, type SlotLease } from '../campaigns/slots';
 import { CallBilling } from './billing';
 import { issueMediaTicket } from './media-tickets';
 import type { CallRegistry } from './registry';
-import type { ScriptChoice } from './scripts';
+import type { ScriptChoice, ScriptFactory } from './scripts';
 import { CallSession, type CallEndedSummary } from './session';
+import { VirtualCallBilling, type VirtualGate } from './virtual-billing';
 
 export interface CreateWebCallInput {
   accountId: string;
@@ -50,6 +54,33 @@ export interface CallManagerDeps {
   clock?: Clock;
   /** Atomic dial slots (default: on the registry's Redis connection and prefix). */
   slots?: DialSlots;
+  /** Dry-run calls: programs on the fake voice + fake AI, TTS without the storage cache. */
+  dryRun?: { scriptFor: ScriptFactory; tts: Pick<TtsCache, 'get'> };
+}
+
+/** A phone call placed by a campaign or "Call now" (PHASE_8_PLAN §1c). */
+export interface StartOutboundCallInput {
+  accountId: string;
+  /** Phase 8 has the dry-run line only; `sip` arrives in Phase 13. */
+  provider: 'dryrun' | 'sip';
+  /** E.164, server-only. */
+  to: string;
+  contactId: string;
+  source: CallSource;
+  /** Display values (the snapshot of the fields the flow uses). */
+  variables: Record<string, string>;
+  campaign?: { campaignId: string; campaignContactId: string; attempt: number };
+  /** The user of a single "Call now"; `null` for campaign calls. */
+  initiatedBy: string | null;
+  /** Campaign concurrency (the group slot limit); single calls use the web group (3). */
+  groupLimit?: number;
+  dryRun?: DryRunSettings & { speed: number; gate?: VirtualGate };
+}
+
+export interface OutboundCall {
+  callId: string;
+  /** Resolves with the summary once the call ended (any way). */
+  ended: Promise<CallEndedSummary>;
 }
 
 export type CallEndedListener = (summary: CallEndedSummary) => void;
@@ -64,6 +95,7 @@ export class CallManager {
   /** Slot leases of this process's calls, refreshed with the heartbeat. */
   private readonly leases = new Map<string, SlotLease>();
   private leaseTimer: unknown = null;
+  private readonly dryRunLine = new DryRunProvider();
 
   constructor(private readonly deps: CallManagerDeps) {
     this.clock = deps.clock ?? systemClock;
@@ -187,6 +219,118 @@ export class CallManager {
     };
   }
 
+  /**
+   * A phone call — a campaign attempt or a single "Call now" (PHASE_8_PLAN §1c):
+   * slot → call doc → billing → the line → session. Phase 8 has the dry-run
+   * line only (simulated customer on virtual time, priced but never charged).
+   */
+  async startOutboundCall(input: StartOutboundCallInput): Promise<OutboundCall> {
+    const dry = this.deps.dryRun;
+    if (input.provider !== 'dryrun' || !input.dryRun || !dry) {
+      throw new AppError('CAMPAIGN_NOT_RUNNABLE', 'Phone calls need a SIP line (Phase 13).');
+    }
+    const id = new Types.ObjectId();
+    const callId = id.toString();
+    const limits = await this.accountLimits(input.accountId);
+    const slot = await this.slots.acquire({
+      accountId: input.accountId,
+      campaignId: input.campaign?.campaignId ?? null,
+      member: callId,
+      limits: {
+        account: limits.maxConcurrentCalls,
+        group: input.groupLimit ?? CALL_LIMITS.concurrentPerAccount,
+        process: CALL_LIMITS.concurrentPerProcess,
+      },
+    });
+    if (!slot.ok) {
+      throw new AppError(slot.scope === 'process' ? 'CALL_CAPACITY' : 'CALL_LIMIT_REACHED');
+    }
+    this.keepLease(callId, slot.lease);
+    const billing = new VirtualCallBilling(
+      input.accountId,
+      input.dryRun.gate ?? (() => Promise.resolve(true)),
+    );
+    let call: CallDoc;
+    try {
+      if (!(await billing.canStart())) throw new AppError('WALLET_INSUFFICIENT_BALANCE');
+      const created = await CallModel.create({
+        _id: id,
+        accountId: input.accountId,
+        direction: 'outbound',
+        provider: 'dryrun',
+        from: 'dryrun',
+        to: input.to,
+        isTest: true,
+        charged: false,
+        source: input.source,
+        contactId: input.contactId,
+        campaignId: input.campaign?.campaignId ?? null,
+        campaignContactId: input.campaign?.campaignContactId ?? null,
+        attempt: input.campaign?.attempt ?? null,
+        startedBy: input.initiatedBy,
+        variables: input.variables,
+        timestamps: { queuedAt: new Date(this.clock.now()) },
+      });
+      call = created.toObject({ transform: false });
+    } catch (err) {
+      await this.releaseLease(callId);
+      if (isDuplicateKeyError(err)) {
+        throw new AppError('CONFLICT_INVALID_STATE', 'This attempt was already dialed.');
+      }
+      throw err;
+    }
+    const campaignId = input.campaign?.campaignId;
+    notifyAccount(input.accountId, 'call.created', {
+      callId,
+      isTest: true,
+      ...(campaignId ? { campaignId } : {}),
+    });
+    // a program that can't be built ends the call as an engine error (one path)
+    const choice: ScriptChoice = await dry.scriptFor(call).catch((err: unknown) => {
+      this.deps.logger.error({ err, callId }, 'call: dry-run program failed');
+      return { script: failingScript(err), voice: 'coral', language: 'hinglish' };
+    });
+    const clock = new ScaledClock(input.dryRun.speed, this.clock);
+    await this.deps.registry.register(
+      callId,
+      input.accountId,
+      clock.now(),
+      CALL_LIMITS.registryTtlSec,
+    );
+    const leg = this.dryRunLine.startCall({ callId, to: input.to, dryRun: input.dryRun, clock });
+    let resolveEnded: (summary: CallEndedSummary) => void = () => undefined;
+    const ended = new Promise<CallEndedSummary>((resolve) => {
+      resolveEnded = resolve;
+    });
+    const session = new CallSession({
+      call,
+      leg,
+      clock,
+      logger: this.deps.logger,
+      tts: dry.tts,
+      storage: this.deps.storage,
+      registry: this.deps.registry,
+      billing,
+      script: choice.script,
+      recordingDir: this.deps.recordingDir,
+      recording: { enabled: false, notice: '' },
+      voice: choice.voice,
+      language: choice.language,
+      ...(choice.maxDurationSec !== undefined ? { maxDurationSec: choice.maxDurationSec } : {}),
+      media: 'none',
+      onEnded: (summary) => {
+        this.sessions.delete(callId);
+        void this.releaseLease(callId);
+        for (const listener of this.listeners) listener(summary);
+        resolveEnded(summary);
+      },
+    });
+    this.sessions.set(callId, session);
+    await session.start();
+    leg.ring();
+    return { callId, ended };
+  }
+
   /** Media server hook: the call's socket arrived. */
   attach = async (input: MediaAttachInput, leg: CallLeg): Promise<AttachResult> => {
     if (!Types.ObjectId.isValid(input.callId))
@@ -283,3 +427,17 @@ export class CallManager {
     notifyAccount(accountId, 'call.status', { callId, status: 'canceled' });
   }
 }
+
+/** The program of a call whose flow / agent could not be loaded: ends it as an engine error. */
+const failingScript = (err: unknown) => ({
+  run: () => Promise.reject(err instanceof Error ? err : new Error('program unavailable')),
+  stop: () => Promise.resolve(),
+  result: () => ({
+    outcome: {},
+    disposition: null,
+    variables: {},
+    languageDetected: null,
+    aiSeconds: 0,
+    flowRunId: null,
+  }),
+});

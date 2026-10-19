@@ -401,6 +401,10 @@ describe('runAgentTurn — guardrails, fallbacks and gates', () => {
       costMicros: 0,
     });
     expect(provider.calls).not.toHaveBeenCalled();
+    // dry-run calls skip the wallet / cap gate (and are never charged)
+    const free = await turn(agent, 'hi', { provider, budgetCheck: false, billing: 'none' });
+    expect(free.turn.fallback).toBeNull();
+    expect(provider.calls).toHaveBeenCalledTimes(1);
   });
 
   it('spend caps: stop throws, fallback answers', async () => {

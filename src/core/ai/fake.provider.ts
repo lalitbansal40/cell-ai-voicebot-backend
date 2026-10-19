@@ -27,6 +27,11 @@ import type {
  * production). Rules are checked in order; documented in ADR 0033.
  */
 export const FAKE_RULES = {
+  /** Phase 8 (checked first): wrong person, refusal, callback request. */
+  wrongNumber: /\b(galat number|wrong number|yeh vyakti nahi)\b/i,
+  refuse: /\b(nahi karunga|nahi dunga|won't pay|will not pay)\b/i,
+  callback:
+    /\b(call (karna|kariye|karo|back)|callback|baad mein call|phir se call|call me (back|later))\b/i,
   paymentClaim: /(pay|paid|bhar|jama|payment)\b.*\b(kar|ho|diya|done|gaya|made|did)/i,
   paymentTool: /payment|paid|dues/,
   promise: /\b(kal|parso|tomorrow|tak de|\d{1,2}\s*(tarikh|date))\b/i,
@@ -134,6 +139,18 @@ const T = {
   goodbye: (l: Lang) =>
     l === 'en' ? 'Thank you, have a good day.' : 'Dhanyavaad, aapka din shubh ho.',
   noted: (l: Lang) => (l === 'en' ? 'Noted, thank you.' : 'Ji, note kar liya.'),
+  callback: (l: Lang, date: string, time: string) =>
+    l === 'en'
+      ? `Sure, we will call you back on ${date} at ${time}.`
+      : `Ji zaroor, hum aapko ${date} ko ${time} baje call karenge.`,
+  refused: (l: Lang) =>
+    l === 'en'
+      ? 'I have noted that. You can reach us any time if you change your mind.'
+      : 'Ji, maine note kar liya. Aap kabhi bhi humse sampark kar sakte hain.',
+  wrongNumber: (l: Lang) =>
+    l === 'en'
+      ? 'Sorry for the trouble, thank you.'
+      : 'Maaf kijiye, galti se call ho gaya. Dhanyavaad.',
   calm: (l: Lang) =>
     l === 'en'
       ? "I understand you're upset. Let's sort this out calmly."
@@ -187,6 +204,19 @@ const promiseDate = (text: string, today: string): string => {
   return addDays(today, 1);
 };
 
+/**
+ * A callback time from the customer's words: "5 baje" / "shaam 5" / "5 pm" →
+ * 17:00 (hours before 8 count as afternoon / evening); default 10:00.
+ */
+export const callbackTime = (text: string): string => {
+  const m = /\b(\d{1,2})\s*(baje|pm|am)?\b/i.exec(text);
+  if (!m?.[1]) return '10:00';
+  let hour = Number(m[1]) % 24;
+  const evening = /\b(shaam|pm|evening|raat)\b/i.test(text);
+  if (m[2]?.toLowerCase() !== 'am' && hour < 12 && (evening || hour < 8)) hour += 12;
+  return `${String(hour).padStart(2, '0')}:00`;
+};
+
 const replyFromTools = (messages: ChatMessage[], lang: Lang): string => {
   const results = messages.slice(messages.findLastIndex((m) => m.role === 'assistant') + 1);
   const call = lastOf(messages, (m) => m.role === 'assistant' && Boolean(m.toolCalls?.length));
@@ -210,8 +240,15 @@ const replyFromTools = (messages: ChatMessage[], lang: Lang): string => {
       parts.push(T.promise(lang, readableDate(str(args.date))));
     } else if (tool.name === 'transfer_to_human') {
       parts.push(T.transfer(lang));
+    } else if (tool.name === 'schedule_callback') {
+      const args = parseJson(tool.arguments) ?? {};
+      parts.push(T.callback(lang, readableDate(str(args.date)), str(args.time)));
+    } else if (tool.name === 'set_disposition') {
+      const disposition = str(parseJson(tool.arguments)?.disposition);
+      if (disposition === 'refused_to_pay') parts.push(T.refused(lang));
+      else if (disposition === 'wrong_number') parts.push(T.wrongNumber(lang));
     } else if (tool.name === 'end_call') {
-      parts.push(T.goodbye(lang));
+      if (!parts.length) parts.push(T.goodbye(lang));
     } else {
       parts.push(T.noted(lang));
     }
@@ -219,8 +256,8 @@ const replyFromTools = (messages: ChatMessage[], lang: Lang): string => {
   return parts.join(' ') || T.noted(lang);
 };
 
-const call = (tool: ToolDefinition, args: Record<string, unknown>): ToolCall => ({
-  id: 'call_fake_1',
+const call = (tool: ToolDefinition, args: Record<string, unknown>, n = 1): ToolCall => ({
+  id: `call_fake_${String(n)}`,
   name: tool.name,
   arguments: JSON.stringify(args),
 });
@@ -253,6 +290,41 @@ const decide = (request: ChatRequest): { content: string; toolCalls: ToolCall[] 
   if (last?.role === 'tool') return { content: replyFromTools(messages, lang), toolCalls: [] };
 
   const tool = (pick: (t: ToolDefinition) => boolean) => tools.find(pick);
+  const dispositionTool = (value: string) =>
+    tool(
+      (t) =>
+        t.name === 'set_disposition' &&
+        (t.parameters.properties.disposition?.enum ?? []).includes(value),
+    );
+  const endTool = tool((t) => t.name === 'end_call');
+  if (FAKE_RULES.wrongNumber.test(lastUser)) {
+    const disp = dispositionTool('wrong_number');
+    const calls = [
+      ...(disp ? [call(disp, { disposition: 'wrong_number' })] : []),
+      ...(endTool ? [call(endTool, { reason: 'Wrong number' }, 2)] : []),
+    ];
+    return calls.length
+      ? { content: '', toolCalls: calls }
+      : { content: T.wrongNumber(lang), toolCalls: [] };
+  }
+  if (FAKE_RULES.refuse.test(lastUser)) {
+    const disp = dispositionTool('refused_to_pay');
+    return disp
+      ? { content: '', toolCalls: [call(disp, { disposition: 'refused_to_pay' })] }
+      : { content: T.refused(lang), toolCalls: [] };
+  }
+  const callbackTool = tool((t) => t.name === 'schedule_callback');
+  if (FAKE_RULES.callback.test(lastUser) && callbackTool) {
+    const date = promiseDate(lastUser.replace(/\b\d{1,2}\s*(baje|pm|am)\b/gi, ''), todayOf(system));
+    const disp = dispositionTool('callback_requested');
+    return {
+      content: '',
+      toolCalls: [
+        call(callbackTool, { date, time: callbackTime(lastUser) }),
+        ...(disp ? [call(disp, { disposition: 'callback_requested' }, 2)] : []),
+      ],
+    };
+  }
   const paymentTool = tool((t) => FAKE_RULES.paymentTool.test(t.name));
   if (FAKE_RULES.paymentClaim.test(lastUser) && paymentTool) {
     return { content: '', toolCalls: [call(paymentTool, argsFor(paymentTool, lastUser))] };
@@ -270,7 +342,6 @@ const decide = (request: ChatRequest): { content: string; toolCalls: ToolCall[] 
     };
   }
   if (FAKE_RULES.goodbye.test(lastUser)) {
-    const endTool = tool((t) => t.name === 'end_call');
     return endTool
       ? { content: '', toolCalls: [call(endTool, { reason: 'Customer ended the conversation' })] }
       : { content: T.goodbye(lang), toolCalls: [] };

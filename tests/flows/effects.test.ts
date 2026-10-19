@@ -381,6 +381,17 @@ describe('intent and audio effects', () => {
         inputId: 'i2',
       }),
     ).rejects.toThrow('wallet_empty');
+    // dry-run calls (Phase 8): no wallet check, no charge
+    const free = createFlowEffects({ ...deps({ accountId: poor }), billing: 'none' });
+    expect(
+      await free.classifyIntent({
+        nodeId: 'g',
+        text: 'maine pay kar diya',
+        intents,
+        inputId: 'i3',
+      }),
+    ).toBe('pay');
+    expect(await LedgerEntryModel.countDocuments({ accountId: poor })).toBe(0);
   });
 
   it('loads audio of the account only', async () => {

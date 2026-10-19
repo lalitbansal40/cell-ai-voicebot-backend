@@ -28,7 +28,7 @@ import {
 } from '../../db/models/transcript-turn.model';
 import type { Logger } from '../../shared/logger';
 
-import type { CallBilling } from './billing';
+import type { CallBillingPort } from './billing';
 import { finalStatus, endReasonFor } from './lifecycle';
 import { CallRecorder, uploadRecording } from './recording';
 import type { CallRegistry } from './registry';
@@ -104,14 +104,15 @@ export interface CallScript {
 }
 
 export interface SessionDeps {
-  call: Pick<CallDoc, '_id' | 'accountId' | 'startedBy' | 'provider'> & { voice?: string };
+  call: Pick<CallDoc, '_id' | 'accountId' | 'startedBy' | 'provider'> &
+    Partial<Pick<CallDoc, 'campaignId'>> & { voice?: string };
   leg: CallLeg;
   clock: Clock;
   logger: Logger;
-  tts: TtsCache;
+  tts: Pick<TtsCache, 'get'>;
   storage: StorageProvider | undefined;
   registry: CallRegistry;
-  billing: CallBilling;
+  billing: CallBillingPort;
   script: CallScript;
   recordingDir: string;
   recording: { enabled: boolean; notice: string };
@@ -120,6 +121,11 @@ export interface SessionDeps {
   language: string;
   /** The program's own limit (flow settings / agent behaviour); the hard cap still applies. */
   maxDurationSec?: number;
+  /**
+   * `none`: the leg carries no audio (dry run) — no 20 ms tick and no idle
+   * timeout; timers, heartbeat and the wallet check still run.
+   */
+  media?: 'audio' | 'none';
   onEnded?: (summary: CallEndedSummary) => void;
 }
 
@@ -204,8 +210,10 @@ export class CallSession {
     this.answeredAt = clock.now();
     this.lastAudioAt = this.answeredAt;
     // timers first: nothing may slip through while the I/O below runs
+    if (deps.media !== 'none') {
+      this.intervals.push(clock.setInterval(() => this.tick(), CALL_LIMITS.frameMs));
+    }
     this.intervals.push(
-      clock.setInterval(() => this.tick(), CALL_LIMITS.frameMs),
       clock.setInterval(() => {
         void deps.registry
           .heartbeat(this.callId, this.accountId, this.answeredAt ?? clock.now(), clock.now())
@@ -596,6 +604,7 @@ export class CallSession {
     notifyAccount(this.accountId, 'call.status', { callId: this.callId, status });
     notifyAccount(this.accountId, 'call.ended', {
       callId: this.callId,
+      ...(this.deps.call.campaignId ? { campaignId: this.deps.call.campaignId.toString() } : {}),
       status,
       endReason: reason,
       durationSec,

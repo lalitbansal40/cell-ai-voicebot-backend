@@ -17,8 +17,20 @@ const oid = (id: string) => {
   return value;
 };
 
+/** What a call session needs from billing (real wallet or a dry run's virtual one). */
+export interface CallBillingPort {
+  readonly holdId: string | null;
+  needsExtension(elapsedSec: number): boolean;
+  /** False when no more money may be spent — the call must end politely. */
+  extend(): Promise<boolean>;
+  settle(
+    usage: Omit<CallUsage, 'telephony'>,
+  ): Promise<{ ledgerEntryId: string | null; cost: CallCost }>;
+  release(reason: string): Promise<void>;
+}
+
 /** Wallet side of one call: hold at start, extend while it runs, settle or release at the end. */
-export class CallBilling {
+export class CallBilling implements CallBillingPort {
   holdId: string | null = null;
   private coveredSec = 0;
   private extensions = 0;

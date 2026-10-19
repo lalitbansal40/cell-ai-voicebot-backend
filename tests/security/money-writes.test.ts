@@ -26,6 +26,22 @@ describe('money writes (security)', () => {
     expect(offenders.map((f) => path.relative(SRC, f))).toEqual([]);
   });
 
+  it('dry-run calls never reach the billing engine (Phase 8: priced, not charged)', () => {
+    const dryRun = [
+      'modules/calls/virtual-billing.ts',
+      'modules/calls/dry-run.ts',
+      'core/telephony/dryrun.ts',
+      'core/telephony/scenarios.ts',
+      'core/voice/scaled-clock.ts',
+    ].map((f) => path.join(SRC, f));
+    const offenders = dryRun.filter((f) =>
+      /billing\/engine|holdForCall|settleCall|chargeUsage|chargeCallUsage/.test(
+        readFileSync(f, 'utf8'),
+      ),
+    );
+    expect(offenders.map((f) => path.relative(SRC, f))).toEqual([]);
+  });
+
   it('has no float arithmetic in the money core', () => {
     const offenders = [...files(BILLING_CORE), path.join(SRC, 'shared/money.ts')].filter((f) =>
       /parseFloat|toFixed\(|\* ?0\.\d/.test(readFileSync(f, 'utf8')),

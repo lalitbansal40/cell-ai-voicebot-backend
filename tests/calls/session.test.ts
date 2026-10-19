@@ -273,8 +273,14 @@ describe('CallManager — limits, holds and attaches', () => {
       code: 'CALL_NOT_ACTIVE',
     });
     // ringing without a microphone for 15 s → failed (media timeout), hold released
+    const ended = new Promise<void>((resolve) =>
+      m.onCallEnded((summary) => {
+        if (summary.callId === callId) resolve();
+      }),
+    );
     await clock.tick(15_000, 1000);
-    await vi.waitFor(async () => expect((await callOf(callId)).status).toBe('failed'));
+    await ended; // the summary comes after the call doc is final (no polling window)
+    expect((await callOf(callId)).status).toBe('failed');
     expect((await callOf(callId)).endReason).toBe('media_timeout');
     const released = await LedgerEntryModel.find({ 'ref.id': callId }).lean();
     expect(released.some((r) => r.status === 'released')).toBe(true);
@@ -344,9 +350,15 @@ describe('CallSession — ways a call ends', () => {
   });
 
   it('silence on the socket for 30 s ends the call; shutdown says the technical line', async () => {
-    const idle = await run(scriptOf(waitLong), async ({ clock, callId }) => {
+    const idle = await run(scriptOf(waitLong), async ({ clock, callId, m }) => {
+      const ended = new Promise<void>((resolve) =>
+        m.onCallEnded((summary) => {
+          if (summary.callId === callId) resolve();
+        }),
+      );
       await clock.tick(40_000, 200);
-      await vi.waitFor(async () => expect((await callOf(callId)).status).toBe('completed'));
+      await ended; // the summary comes after the call doc is final (no polling window)
+      expect((await callOf(callId)).status).toBe('completed');
     });
     expect((await callOf(idle.callId)).endReason).toBe('media_timeout');
     const tts = new FakeTts();

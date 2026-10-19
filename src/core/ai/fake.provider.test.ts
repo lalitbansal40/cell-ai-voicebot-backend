@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createFakeProvider, fakeEmbedding, FAKE_RULES } from './fake.provider';
+import { callbackTime, createFakeProvider, fakeEmbedding, FAKE_RULES } from './fake.provider';
 import type { ChatMessage, ToolDefinition } from './types';
 
 const fake = createFakeProvider();
@@ -211,9 +211,130 @@ describe('fake provider — rules', () => {
     });
   });
 
+  it('Phase 8: wrong number, refusal and callback requests come before payment / promise rules', async () => {
+    const all = [
+      ...TOOLS.filter((t) => t.name !== 'set_disposition'),
+      tool('set_disposition', ['disposition'], {
+        disposition: {
+          type: 'string',
+          enum: ['paid', 'refused_to_pay', 'wrong_number', 'callback_requested', 'other'],
+        },
+      }),
+      tool('schedule_callback', ['date'], { date: { type: 'string' }, time: { type: 'string' } }),
+    ];
+    const wrong = await chat('galat number hai, main yeh vyakti nahi hoon', [], all);
+    expect(wrong.toolCalls.map((c) => [c.id, c.name, JSON.parse(c.arguments) as unknown])).toEqual([
+      ['call_fake_1', 'set_disposition', { disposition: 'wrong_number' }],
+      ['call_fake_2', 'end_call', { reason: 'Wrong number' }],
+    ]);
+    // "payment nahi karunga" would match the payment claim — refusal wins
+    const refuse = await chat('main payment nahi karunga', [], all);
+    expect(refuse.toolCalls.map((c) => JSON.parse(c.arguments) as unknown)).toEqual([
+      { disposition: 'refused_to_pay' },
+    ]);
+    // "kal" would be a promise — the callback request wins; 5 baje + shaam → 17:00 tomorrow
+    const back = await chat('abhi busy hoon, kal shaam 5 baje call karna', [], all);
+    expect(back.toolCalls.map((c) => [c.name, JSON.parse(c.arguments) as unknown])).toEqual([
+      ['schedule_callback', { date: '2026-10-10', time: '17:00' }],
+      ['set_disposition', { disposition: 'callback_requested' }],
+    ]);
+    const parso = await chat('parso call back karo', [], all);
+    expect(JSON.parse(parso.toolCalls[0]?.arguments ?? '{}')).toEqual({
+      date: '2026-10-11',
+      time: '10:00',
+    });
+    // without the tools: plain replies (callback without its tool falls through)
+    expect((await chat('wrong number', [], [])).content).toBe('Sorry for the trouble, thank you.');
+    expect((await chat('main nahi dunga', [], [])).content).toMatch(/note kar liya/);
+    const noDisp = await chat(
+      'galat number',
+      [],
+      [tool('end_call', [], { reason: { type: 'string' } })],
+    );
+    expect(noDisp.toolCalls.map((c) => c.name)).toEqual(['end_call']);
+    const refuseNoEnum = await chat('main nahi karunga', [], TOOLS);
+    expect(refuseNoEnum.toolCalls).toEqual([]);
+    const backNoDisp = await chat(
+      'call back karna',
+      [],
+      [tool('schedule_callback', ['date'], { date: { type: 'string' } })],
+    );
+    expect(backNoDisp.toolCalls.map((c) => c.name)).toEqual(['schedule_callback']);
+    expect((await chat('kal phir se call karo', [], TOOLS)).toolCalls[0]?.name).toBe(
+      'save_promise_to_pay',
+    );
+  });
+
+  it('Phase 8: replies after the callback / disposition / end tools', async () => {
+    const reply = (calls: { name: string; args: unknown }[]) =>
+      fake.chat({
+        model: 'm',
+        temperatureTenths: 6,
+        maxOutputTokens: 300,
+        tools: TOOLS,
+        messages: [
+          { role: 'system', content: SYSTEM },
+          { role: 'user', content: 'haan ji' },
+          {
+            role: 'assistant',
+            content: '',
+            toolCalls: calls.map((c, i) => ({
+              id: `c${String(i)}`,
+              name: c.name,
+              arguments: JSON.stringify(c.args),
+            })),
+          },
+          ...calls.map((_, i) => ({
+            role: 'tool' as const,
+            toolCallId: `c${String(i)}`,
+            content: '{"ok":true}',
+          })),
+        ],
+      });
+    expect(
+      (
+        await reply([
+          { name: 'schedule_callback', args: { date: '2026-10-10', time: '17:00' } },
+          { name: 'set_disposition', args: { disposition: 'callback_requested' } },
+        ])
+      ).content,
+    ).toBe('Ji zaroor, hum aapko 10 Oct 2026 ko 17:00 baje call karenge.');
+    expect(
+      (
+        await reply([
+          { name: 'set_disposition', args: { disposition: 'wrong_number' } },
+          { name: 'end_call', args: {} },
+        ])
+      ).content,
+    ).toBe('Maaf kijiye, galti se call ho gaya. Dhanyavaad.');
+    expect(
+      (await reply([{ name: 'set_disposition', args: { disposition: 'refused_to_pay' } }])).content,
+    ).toMatch(/note kar liya/);
+    expect(
+      (await reply([{ name: 'set_disposition', args: { disposition: 'paid' } }])).content,
+    ).toBe('Ji, note kar liya.');
+    expect((await reply([{ name: 'end_call', args: {} }])).content).toBe(
+      'Dhanyavaad, aapka din shubh ho.',
+    );
+  });
+
+  it('callback times: N baje / pm / shaam, morning hours, defaults', () => {
+    expect(callbackTime('kal 5 baje')).toBe('17:00');
+    expect(callbackTime('shaam 6')).toBe('18:00');
+    expect(callbackTime('call me at 3 pm')).toBe('15:00');
+    expect(callbackTime('11 baje call karna')).toBe('11:00');
+    expect(callbackTime('9 am')).toBe('09:00');
+    expect(callbackTime('7 am')).toBe('07:00');
+    expect(callbackTime('raat 9 baje')).toBe('21:00');
+    expect(callbackTime('call back please')).toBe('10:00');
+  });
+
   it('exposes its rule table', () => {
     expect(FAKE_RULES.paymentClaim.test('payment ho gaya')).toBe(true);
     expect(FAKE_RULES.hinglishMarkers.test('नमस्ते')).toBe(true);
+    expect(FAKE_RULES.callback.test('baad mein call karna')).toBe(true);
+    expect(FAKE_RULES.refuse.test('I will not pay')).toBe(true);
+    expect(FAKE_RULES.wrongNumber.test('wrong number')).toBe(true);
   });
 });
 

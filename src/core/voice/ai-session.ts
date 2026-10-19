@@ -55,6 +55,8 @@ export interface AiControllerDeps {
   secretKey: Buffer;
   http: HttpToolOptions;
   now?: () => Date;
+  /** `none` (dry runs): no wallet / cap gate and no knowledge charges. Default `charge`. */
+  billing?: 'charge' | 'none';
 }
 
 export interface AiSessionRequest {
@@ -258,6 +260,7 @@ class LiveAiSession {
 
   /** False (and the session ended with the right fallback) when caps / wallet stop the AI. */
   private async budgetOk(): Promise<boolean> {
+    if (this.deps.billing === 'none') return true;
     const { agent } = this.req;
     const budget = await assertAgentBudget({
       accountId: agent.accountId,
@@ -313,6 +316,7 @@ class LiveAiSession {
         secretKey: this.deps.secretKey,
         http: this.deps.http,
         embeddingModel: this.deps.embeddingModel,
+        budgetCheck: this.deps.billing !== 'none',
         source: 'call',
         channel: 'voice',
         billing: 'none',
@@ -353,7 +357,7 @@ class LiveAiSession {
   }
 
   private async chargeEmbedding(tokens: number, key: string): Promise<void> {
-    if (tokens <= 0) return;
+    if (tokens <= 0 || this.deps.billing === 'none') return;
     const card = await effectiveRateCard(this.req.agent.accountId);
     const amountMicros = embedCost(card, tokens);
     if (amountMicros <= 0) return;

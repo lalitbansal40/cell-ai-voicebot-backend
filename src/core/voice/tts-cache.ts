@@ -115,3 +115,8 @@ export const purgeTtsCache = async (
   }
   return { entries: old.length };
 };
+
+/** Synthesis without the storage cache (dry-run calls: fake tones, nothing worth keeping). */
+export const passThroughTts = (tts: TtsProvider): Pick<TtsCache, 'get'> => ({
+  get: async (request) => ({ pcm: await tts.synthesize(request), cached: false }),
+});

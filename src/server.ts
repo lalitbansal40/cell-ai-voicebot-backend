@@ -46,6 +46,7 @@ import {
   syncAllIndexes,
 } from './db/mongo';
 import { CallManager } from './modules/calls/call.service';
+import { createDryRunPrograms } from './modules/calls/dry-run';
 import { CallRegistry } from './modules/calls/registry';
 import { createScriptFactory } from './modules/calls/scripts';
 import { authorizeTopic } from './modules/calls/topic-auth';
@@ -145,9 +146,12 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   const callRegistry = new CallRegistry(redis);
   const voice = createVoiceProviders(env);
   logger.info({ provider: voice.name, pipeline: voice.ai.pipeline }, 'voice: providers ready');
+  // dry-run calls (Phase 8): always the fake voice + fake AI (no spend), TTS without the cache
+  const dryRun = createDryRunPrograms({ env, storage, redis });
   const callManager = new CallManager({
     logger,
     registry: callRegistry,
+    dryRun,
     tts: new TtsCache({ tts: voice.tts, storage }),
     storage,
     recordingDir: env.CALL_RECORDING_TMP_DIR,

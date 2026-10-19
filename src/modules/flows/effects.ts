@@ -41,6 +41,8 @@ export interface FlowEffectsDeps {
   secretKey: Buffer;
   http: HttpToolOptions;
   now: () => Date;
+  /** `none` (dry-run calls): AI intents are neither wallet-checked nor charged. Default `charge`. */
+  billing?: 'charge' | 'none';
 }
 
 const OPEN_FAILED = 'secret_unavailable';
@@ -214,15 +216,16 @@ export const createFlowEffects = (deps: FlowEffectsDeps): FlowEffects => {
     },
 
     classifyIntent: async ({ text, intents, inputId }) => {
-      const wallet = await getOrCreateWallet(deps.accountId);
-      if (wallet.balanceMicros - wallet.holdMicros <= 0) throw new Error('wallet_empty');
+      const charge = deps.billing !== 'none';
+      const wallet = charge ? await getOrCreateWallet(deps.accountId) : null;
+      if (wallet && wallet.balanceMicros - wallet.holdMicros <= 0) throw new Error('wallet_empty');
       const out = await deps.provider.chat({
         model: deps.textModel,
         messages: intentMessages(text, intents),
         temperatureTenths: 0,
         maxOutputTokens: 50,
       });
-      const cost = turnCost(await effectiveRateCard(deps.accountId), out.usage);
+      const cost = charge ? turnCost(await effectiveRateCard(deps.accountId), out.usage) : 0;
       if (cost > 0) {
         await chargeUsage({
           accountId: deps.accountId,

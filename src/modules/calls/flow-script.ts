@@ -32,6 +32,8 @@ export interface FlowScriptDeps extends FlowsDeps {
   /** Test hooks for API steps (fake resolver, dial map). */
   http?: Omit<HttpToolOptions, 'policy'>;
   now?: () => Date;
+  /** `none` for dry-run calls: AI intents are not charged (PHASE_8_PROMPT §1 "Virtual billing"). */
+  billing?: 'charge' | 'none';
   /** Live AI step (T7.7 controller). */
   runAi: (request: AiStepRequest, context: AiCallContext) => Promise<AiStepEnd>;
 }
@@ -63,6 +65,8 @@ export const flowScript = async (call: CallDoc, deps: FlowScriptDeps): Promise<S
     variables: call.manualVariables,
     testPhone: withPhone?.testPhone ?? null,
   });
+  // campaign calls: the audience snapshot wins for the fields the flow uses
+  if (call.campaignContactId) contact.display = { ...contact.display, ...call.variables };
   const account = await AccountModel.findById(accountId)
     .select({ name: 1 })
     .lean<{ name: string }>();
@@ -106,6 +110,7 @@ export const flowScript = async (call: CallDoc, deps: FlowScriptDeps): Promise<S
     secretKey: deps.secretKey,
     http: { ...(deps.http ?? {}), policy: outgoingPolicy(deps.env, deps.extraPorts) },
     now,
+    ...(deps.billing ? { billing: deps.billing } : {}),
   });
   const callId = call._id.toString();
   const host = new FlowHost({
