@@ -519,6 +519,28 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
     unwire();
   });
 
+  it('stop waits for a tick in flight; a stopped dispatcher schedules nothing', async () => {
+    const w = await world();
+    const id = await w.campaign({ audience: { listIds: [await w.listOf(1)] } });
+    await startCampaign(w.req, id);
+    w.clock.advance(Math.max(0, Date.now() - w.clock.now()));
+    let ticked = false;
+    void w.dispatcher.tick(w.t.account._id.toString()).then(() => (ticked = true));
+    await w.dispatcher.stop();
+    expect(ticked).toBe(true);
+    w.dispatcher.wake(w.t.account._id.toString());
+    w.dispatcher.ensureAccount(w.t.account._id.toString());
+    expect(w.clock.pending).toBe(0);
+    // the call it dialed still ends (calls are not the dispatcher's to stop)
+    const live = () =>
+      CallModel.countDocuments({
+        campaignId: id,
+        status: { $in: ['queued', 'ringing', 'in_progress'] },
+      });
+    for (let i = 0; i < 400 && (await live()) > 0; i += 1) await sleep(25);
+    expect(await live()).toBe(0);
+  });
+
   it('a suspended account pauses its running campaigns; endAt completes the rest', async () => {
     const w = await world();
     const running = await w.campaign({ audience: { listIds: [await w.listOf(1)] } });

@@ -107,7 +107,9 @@ describe('CallSession — a full web test call', () => {
     );
     const m = manager(() => script, clock);
     const ended: string[] = [];
-    m.onCallEnded((s) => ended.push(`${s.status}:${s.endReason}`));
+    m.onCallEnded((s) => {
+      ended.push(`${s.status}:${s.endReason}`);
+    });
     const created = await create(m);
     const callId = created.callId;
     expect(created).toMatchObject({ mediaTicket: 'wst_test', wsPath: '/ws/media' });

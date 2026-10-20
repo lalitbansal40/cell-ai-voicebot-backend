@@ -243,10 +243,9 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       await startCampaignsWorker({ ...queueDeps, dispatcher });
       lifecycle.onShutdown(
         'campaigns',
-        () => {
-          dispatcher.stop();
+        async () => {
+          await dispatcher.stop();
           unwire();
-          return Promise.resolve();
         },
         4,
       );

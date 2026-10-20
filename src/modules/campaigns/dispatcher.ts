@@ -68,15 +68,17 @@ export class CampaignDispatcher {
   private readonly loops = new Map<string, unknown>();
   private readonly ticking = new Set<string>();
   private readonly again = new Set<string>();
+  private readonly running = new Set<Promise<void>>();
   private stopped = false;
 
   constructor(private readonly deps: DispatcherDeps) {
     this.clock = deps.clock ?? systemClock;
-    deps.calls.onCallEnded((summary) => {
-      void this.callEnded(summary).catch((err: unknown) =>
+    // returned: CallManager.shutdown() waits for the results of the calls it ends
+    deps.calls.onCallEnded((summary) =>
+      this.callEnded(summary).catch((err: unknown) =>
         deps.logger.error({ err, callId: summary.callId }, 'campaign: result failed'),
-      );
-    });
+      ),
+    );
   }
 
   /** Starts (or keeps) the loop of an account. */
@@ -93,10 +95,12 @@ export class CampaignDispatcher {
     this.schedule(accountId, CAMPAIGN_LIMITS.wakeDebounceMs);
   }
 
-  stop(): void {
+  /** No new ticks; resolves when the ticks in flight are done (before calls / Mongo close). */
+  async stop(): Promise<void> {
     this.stopped = true;
     for (const h of this.loops.values()) this.clock.clearTimeout(h);
     this.loops.clear();
+    await Promise.all([...this.running]);
   }
 
   private schedule(accountId: string, ms: number): void {
@@ -113,6 +117,18 @@ export class CampaignDispatcher {
 
   /** One pass over the account's running campaigns; re-arms itself while any runs. */
   async tick(accountId: string): Promise<void> {
+    const work = this.runTick(accountId);
+    const tracked = work.catch(() => undefined);
+    this.running.add(tracked);
+    try {
+      await work;
+    } finally {
+      this.running.delete(tracked);
+    }
+  }
+
+  private async runTick(accountId: string): Promise<void> {
+    if (this.stopped) return;
     if (this.ticking.has(accountId)) {
       this.again.add(accountId);
       return;

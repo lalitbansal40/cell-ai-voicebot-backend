@@ -367,6 +367,36 @@ describe('outbound dry-run calls', () => {
       expect(log).not.toContain(secret);
     }
   });
+
+  it('shutdown waits for the async work of call-ended listeners (results before Mongo closes)', async () => {
+    const shared = manager;
+    manager = new CallManager({
+      logger,
+      registry: new CallRegistry(redis, prefix),
+      tts: new TtsCache({ tts: new FakeTts(), storage }),
+      storage,
+      recordingDir,
+      scriptFor: () => Promise.reject(new Error('web calls are not used here')),
+      dryRun: createDryRunPrograms({
+        env: loadEnv({ VOICE_PROVIDER: 'fake' }),
+        storage,
+        redis,
+      }),
+    });
+    let written = false;
+    manager.onCallEnded(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+      written = true;
+    });
+    try {
+      const call = await dial(paid, PAID_PHONE, { outcome: 'busy' });
+      await call.ended;
+      await manager.shutdown();
+      expect(written).toBe(true);
+    } finally {
+      manager = shared;
+    }
+  });
 });
 
 describe('dry-run programs and virtual billing', () => {

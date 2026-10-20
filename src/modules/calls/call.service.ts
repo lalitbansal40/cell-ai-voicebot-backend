@@ -83,13 +83,15 @@ export interface OutboundCall {
   ended: Promise<CallEndedSummary>;
 }
 
-export type CallEndedListener = (summary: CallEndedSummary) => void;
+/** May return a promise: `shutdown()` waits for it (e.g. campaign results written before Mongo closes). */
+export type CallEndedListener = (summary: CallEndedSummary) => void | Promise<unknown>;
 
 /** Calls of this process: creation, socket attach, live sessions, shutdown. */
 export class CallManager {
   private readonly sessions = new Map<string, CallSession>();
   private readonly waiting = new Map<string, unknown>();
   private readonly listeners: CallEndedListener[] = [];
+  private readonly listening = new Set<Promise<unknown>>();
   private readonly clock: Clock;
   readonly slots: DialSlots;
   /** Slot leases of this process's calls, refreshed with the heartbeat. */
@@ -146,6 +148,19 @@ export class CallManager {
 
   onCallEnded(listener: CallEndedListener): void {
     this.listeners.push(listener);
+  }
+
+  private emitEnded(summary: CallEndedSummary): void {
+    for (const listener of this.listeners) {
+      const work = listener(summary);
+      if (!work) continue;
+      const tracked = work.then(
+        () => undefined,
+        () => undefined,
+      );
+      this.listening.add(tracked);
+      void tracked.finally(() => this.listening.delete(tracked));
+    }
   }
 
   /**
@@ -324,7 +339,7 @@ export class CallManager {
         this.sessions.delete(callId);
         this.campaignCalls.delete(callId);
         void this.releaseLease(callId);
-        for (const listener of this.listeners) listener(summary);
+        this.emitEnded(summary);
         resolveEnded(summary);
       },
     });
@@ -375,7 +390,7 @@ export class CallManager {
       onEnded: (summary) => {
         this.sessions.delete(input.callId);
         void this.releaseLease(input.callId);
-        for (const listener of this.listeners) listener(summary);
+        this.emitEnded(summary);
       },
     });
     this.sessions.set(input.callId, session);
@@ -416,6 +431,8 @@ export class CallManager {
     await Promise.all(
       [...this.sessions.values()].map((s) => s.politeEnd(CALL_LINES.technical, 'server_shutdown')),
     );
+    // listeners' work for the calls that just ended (and earlier ones still running)
+    await Promise.all([...this.listening]);
   }
 
   private async cancelUnattached(callId: string, accountId: string): Promise<void> {
