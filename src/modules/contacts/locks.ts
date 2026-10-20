@@ -5,7 +5,8 @@ import { getLogger } from '../../shared/logger';
 
 const redis = () => getAppRedis(getEnv().REDIS_URL, getLogger());
 
-export type JobLockKind = 'import' | 'bulk' | 'export';
+/** `campaign-export`: one running campaign results export per account (Phase 8). */
+export type JobLockKind = 'import' | 'bulk' | 'export' | 'campaign-export';
 
 /** One running import / bulk / export per account (PHASE_3_PROMPT §1 "Locks"). */
 export const jobLockKey = (kind: JobLockKind, accountId: string): string =>

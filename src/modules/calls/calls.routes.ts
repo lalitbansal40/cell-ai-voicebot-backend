@@ -1,17 +1,19 @@
 import { Router } from 'express';
 import type { Store } from 'express-rate-limit';
 
-import { CALL_LIMITS } from '../../config/limits';
+import { CALL_LIMITS, CAMPAIGN_LIMITS } from '../../config/limits';
 import { created, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
+import { idempotency } from '../../shared/middlewares/idempotency';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
 import {
   blockWhenImpersonating,
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
+import { startSingleCall } from '../campaigns/single-call';
 
-import { CallParams, ListCallsQuery, StartWebCallBody } from './calls.schema';
+import { CallParams, ListCallsQuery, StartCallBody, StartWebCallBody } from './calls.schema';
 import {
   activeCalls,
   callEvents,
@@ -24,7 +26,7 @@ import {
   type CallsDeps,
 } from './calls.service';
 
-export type CallsRouterDeps = CallsDeps & { webCallStore?: Store };
+export type CallsRouterDeps = CallsDeps & { webCallStore?: Store; calloutStore?: Store };
 
 /** `/api/v1/calls` — browser test calls, history, transcripts, recordings (PHASE_7_PLAN §1o). */
 export const createCallsRouter = (deps: CallsRouterDeps): Router => {
@@ -40,6 +42,23 @@ export const createCallsRouter = (deps: CallsRouterDeps): Router => {
     ...(deps.webCallStore ? { store: deps.webCallStore } : {}),
   });
 
+  const calloutLimiter = createRateLimiter({
+    windowMs: 60_000,
+    limit: CAMPAIGN_LIMITS.singleCallsPerMinutePerUser,
+    keyGenerator: (req) => `callout:${req.auth?.userId ?? 'anonymous'}`,
+    ...(deps.calloutStore ? { store: deps.calloutStore } : {}),
+  });
+
+  // one outbound call to a contact ("Call now", Phase 8)
+  router.post(
+    '/',
+    ...trigger,
+    calloutLimiter,
+    idempotency({ scope: (req) => req.auth?.accountId }),
+    ...handle({ body: StartCallBody }, async ({ body, req, res }) => {
+      created(res, await startSingleCall(req, body, deps));
+    }),
+  );
   router.post(
     '/web',
     ...trigger,

@@ -313,6 +313,9 @@ export const CAMPAIGN_LIMITS = {
   previewSampleRows: 20,
   etaWindowMinutes: 10,
   historyMax: 100,
+  /** `rl:campaign:` campaign writes and `rl:callout:` single calls, per user per minute. */
+  writesPerMinutePerUser: 60,
+  singleCallsPerMinutePerUser: 10,
   /** Recurring parents handled per sweep; runs shown per parent. */
   sweepBatch: 100,
   runsListMax: 100,

@@ -13,11 +13,15 @@ import {
   SKIP_REASONS,
   VERSION_POLICIES,
 } from '../../db/models/campaign.model';
+import { EXPORT_FORMATS } from '../../db/models/export-job.model';
+import { CursorPageMetaSchema } from '../../shared/openapi/common.schemas';
 import { registry } from '../../shared/openapi/registry';
+import { bearer, errors, noContentResponse, ok } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { CursorQuerySchema, ObjectIdSchema } from '../../shared/validation/schemas';
 import { CallingWindowInput } from '../account/account.schema';
 import { TimezoneSchema } from '../auth/auth.schema';
+import { ExportJobSchema } from '../contact-exports/contact-exports.schema';
 import { ContactFilterSchema } from '../contacts/filter/filter.schema';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -130,6 +134,8 @@ export const UpdateCampaignBody = z.strictObject({
 });
 
 export const CancelCampaignBody = z.strictObject({ hangUpLive: z.boolean().default(false) });
+
+export const ExportCampaignBody = z.strictObject({ format: z.enum(EXPORT_FORMATS).default('csv') });
 
 export const AudiencePreviewBody = z.strictObject({
   flowId: ObjectIdSchema,
@@ -340,3 +346,171 @@ export const CampaignEstimateSchema = registry.register(
     walletAvailableMicros: z.number(),
   }),
 );
+
+// ── paths ───────────────────────────────────────────────────────────────────
+
+const tags = ['Campaigns'];
+const base = '/api/v1/campaigns';
+const json = <T extends z.ZodType>(schema: T) => ({
+  body: { content: { 'application/json': { schema } } },
+});
+const cursorPage = <T extends z.ZodType>(item: T, description: string) => ({
+  description,
+  content: {
+    'application/json': {
+      schema: z.object({
+        success: z.literal(true),
+        data: z.array(item),
+        meta: CursorPageMetaSchema,
+      }),
+    },
+  },
+});
+const common = { 401: errors[401], 403: errors[403], 404: errors[404] };
+const writes = { ...common, 409: errors[409], 422: errors[422], 429: errors[429] };
+const idempotencyHeader = z.object({
+  'idempotency-key': z
+    .string()
+    .openapi({ description: 'Required — the same key replays the first answer' }),
+});
+
+registry.registerPath({
+  method: 'get',
+  path: base,
+  tags,
+  summary: 'Campaigns of the account with stats (campaigns.read, cursor pagination)',
+  security: bearer,
+  request: { query: ListCampaignsQuery },
+  responses: { 200: cursorPage(CampaignListItemSchema, 'Campaigns'), ...common, 422: errors[422] },
+});
+registry.registerPath({
+  method: 'post',
+  path: base,
+  tags,
+  summary: `Create a draft (campaigns.write; ${String(CAMPAIGN_LIMITS.writesPerMinutePerUser)} writes / min / user)`,
+  security: bearer,
+  request: json(CreateCampaignBody),
+  responses: { 201: ok(CampaignSchema), ...writes },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/audience/preview`,
+  tags,
+  summary:
+    'Audience counts, exclusions, samples (last 4 digits) and missing values (campaigns.read)',
+  security: bearer,
+  request: json(AudiencePreviewBody),
+  responses: { 200: ok(AudiencePreviewSchema), ...common, 422: errors[422] },
+});
+registry.registerPath({
+  method: 'get',
+  path: `${base}/{id}`,
+  tags,
+  summary: 'Campaign with stats, estimate and waiting info (campaigns.read)',
+  security: bearer,
+  request: { params: CampaignParams },
+  responses: { 200: ok(CampaignSchema), ...common },
+});
+registry.registerPath({
+  method: 'patch',
+  path: `${base}/{id}`,
+  tags,
+  summary:
+    'Edit (campaigns.write) — per-status rules; a stale revision → 409 CAMPAIGN_REVISION_CONFLICT',
+  security: bearer,
+  request: { params: CampaignParams, ...json(UpdateCampaignBody) },
+  responses: { 200: ok(CampaignSchema), ...writes },
+});
+registry.registerPath({
+  method: 'delete',
+  path: `${base}/{id}`,
+  tags,
+  summary: 'Soft delete a draft / finished campaign (campaigns.write)',
+  security: bearer,
+  request: { params: CampaignParams },
+  responses: { 204: noContentResponse, ...writes },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/duplicate`,
+  tags,
+  summary: 'Copy as a new draft (campaigns.write)',
+  security: bearer,
+  request: { params: CampaignParams },
+  responses: { 201: ok(CampaignSchema), ...writes },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/estimate`,
+  tags,
+  summary: 'Cost estimate for the current settings + wallet available (campaigns.read)',
+  security: bearer,
+  request: { params: CampaignParams },
+  responses: { 200: ok(CampaignEstimateSchema), ...common, 409: errors[409], 422: errors[422] },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/start`,
+  tags,
+  summary:
+    'Start now or schedule (campaigns.run, Idempotency-Key) — 409 CAMPAIGN_NOT_RUNNABLE, 429 CAMPAIGN_LIMIT_REACHED',
+  security: bearer,
+  request: { params: CampaignParams, headers: idempotencyHeader },
+  responses: { 200: ok(CampaignSchema), ...writes },
+});
+for (const [action, summary] of [
+  ['unschedule', 'Scheduled → draft (campaigns.run)'],
+  ['pause', 'Pause (campaigns.run); live calls finish'],
+  ['resume', 'Resume (campaigns.run) — refused while the pause cause holds'],
+] as const) {
+  registry.registerPath({
+    method: 'post',
+    path: `${base}/{id}/${action}`,
+    tags,
+    summary,
+    security: bearer,
+    request: { params: CampaignParams },
+    responses: { 200: ok(CampaignSchema), ...writes },
+  });
+}
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/cancel`,
+  tags,
+  summary: 'Cancel (campaigns.run); `hangUpLive` ends the live calls too',
+  security: bearer,
+  request: { params: CampaignParams, ...json(CancelCampaignBody) },
+  responses: { 200: ok(CampaignSchema), ...writes },
+});
+registry.registerPath({
+  method: 'get',
+  path: `${base}/{id}/contacts`,
+  tags,
+  summary: 'Per-contact results (campaigns.read) — phones as the last 4 digits only',
+  security: bearer,
+  request: { params: CampaignParams, query: ListCampaignContactsQuery },
+  responses: {
+    200: cursorPage(CampaignContactRowSchema, 'Campaign contacts'),
+    ...common,
+    422: errors[422],
+  },
+});
+registry.registerPath({
+  method: 'get',
+  path: `${base}/{id}/runs`,
+  tags,
+  summary: 'Runs of a recurring campaign, newest first (campaigns.read)',
+  security: bearer,
+  request: { params: CampaignParams },
+  responses: { 200: ok(z.array(CampaignListItemSchema)), ...common },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/export`,
+  tags,
+  summary:
+    'Results export (campaigns.export) — CSV / XLSX job; full phones only with contacts.export; download via GET /contact-exports/{id}',
+  security: bearer,
+  request: { params: CampaignParams, ...json(ExportCampaignBody) },
+  responses: { 202: ok(ExportJobSchema, 'Queued'), ...writes },
+});

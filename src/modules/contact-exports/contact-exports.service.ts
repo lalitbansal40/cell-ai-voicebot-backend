@@ -33,6 +33,9 @@ const iso = (d?: Date | null) => (d ? d.toISOString() : null);
 
 export const toPublicExport = (job: ExportJobDoc, downloadUrl?: string) => ({
   id: job._id.toString(),
+  kind: job.kind,
+  campaignId: job.campaignId ? job.campaignId.toString() : null,
+  format: job.format,
   scope: job.scope,
   columns: [...job.columns],
   status: job.status,
@@ -141,7 +144,8 @@ export const createExport = async (
 };
 
 export const listExports = async (req: Request, q: z.infer<typeof ListExportsQuery>) => {
-  const filter = tenantFilter(req);
+  // contact exports only (campaign results are listed on their campaign)
+  const filter = { ...tenantFilter(req), kind: { $ne: 'campaign_results' as const } };
   const [jobs, total] = await Promise.all([
     ExportJobModel.find(filter)
       .sort({ createdAt: -1, _id: -1 })
@@ -162,6 +166,9 @@ export const getExport = async (req: Request, id: string, storage: StorageProvid
     ? await ExportJobModel.findOne({ _id, ...tenantFilter(req) }).lean<ExportJobDoc>()
     : null;
   if (!job) throw new NotFoundError('Export not found');
+  // each kind needs its own permission; without it the export "does not exist"
+  const needs = job.kind === 'campaign_results' ? 'campaigns.export' : 'contacts.export';
+  if (!requireAuth(req).permissions.has(needs)) throw new NotFoundError('Export not found');
   const ready =
     job.status === 'ready' && job.fileKey && job.expiresAt && job.expiresAt > new Date();
   const url = ready

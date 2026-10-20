@@ -81,8 +81,7 @@
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.1",
-    "vitest": "^5.0.3",
-    "write-excel-file": "^4.1.1"
+    "vitest": "^5.0.3"
   },
   "allowScripts": {
     "esbuild": true,
@@ -139,6 +138,7 @@
     "read-excel-file": "^9.3.12",
     "swagger-ui-dist": "^5.33.1",
     "unpdf": "1.8.1",
+    "write-excel-file": "^4.1.1",
     "ws": "^8.22.0",
     "zod": "^4.6.5"
   }

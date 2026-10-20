@@ -20,6 +20,10 @@ import { createInvoicesRouter } from './modules/billing/invoices.routes';
 import type { CallManager } from './modules/calls/call.service';
 import { createCallsRouter } from './modules/calls/calls.routes';
 import type { CallRegistry } from './modules/calls/registry';
+import {
+  createCampaignsRouter,
+  type CampaignsRouterDeps,
+} from './modules/campaigns/campaigns.routes';
 import { createContactExportsRouter } from './modules/contact-exports/contact-exports.routes';
 import { createContactImportsRouter } from './modules/contact-imports/contact-imports.routes';
 import { createContactListsRouter } from './modules/contact-lists/contact-lists.routes';
@@ -75,6 +79,8 @@ export interface CallsApiDeps {
   voiceProvider: 'openai' | 'fake';
   /** Web calls limiter store (`rl:callweb:`). */
   webCallStore?: Store;
+  /** Single calls limiter store (`rl:callout:`). */
+  calloutStore?: Store;
 }
 
 export interface ContactsDeps {
@@ -90,6 +96,7 @@ export const createApiRouter = ({
   ai = { provider: createFakeProvider() },
   flows = {},
   calls,
+  campaigns = {},
 }: {
   env: Pick<
     Env,
@@ -122,6 +129,7 @@ export const createApiRouter = ({
   ai?: AiDeps;
   flows?: FlowsDeps;
   calls?: CallsApiDeps;
+  campaigns?: CampaignsRouterDeps;
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));
@@ -211,6 +219,7 @@ export const createApiRouter = ({
       ...(flows.rateLimitStores?.audio ? { uploadStore: flows.rateLimitStores.audio } : {}),
     }),
   );
+  router.use('/campaigns', createCampaignsRouter(campaigns));
   if (calls) {
     router.use(
       '/calls',

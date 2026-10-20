@@ -1,4 +1,4 @@
-import { CALL_LIMITS, FLOW_LIMITS } from '../../config/limits';
+import { CALL_LIMITS, CAMPAIGN_LIMITS, FLOW_LIMITS } from '../../config/limits';
 import { CALL_EVENT_TYPES } from '../../db/models/call-event.model';
 import { CALL_END_REASONS, CALL_PROVIDERS, CALL_STATUSES } from '../../db/models/call.model';
 import { TRANSCRIPT_SOURCES, TRANSCRIPT_SPEAKERS } from '../../db/models/transcript-turn.model';
@@ -62,6 +62,26 @@ const csvOf = <T extends readonly [string, ...string[]]>(values: T) =>
     )
     .pipe(z.array(z.enum(values)).min(1).max(values.length));
 
+/** `POST /calls` — one outbound call to a contact (dry-run provider until phone lines exist). */
+export const StartCallBody = z
+  .strictObject({
+    contactId: ObjectIdSchema,
+    flowId: ObjectIdSchema.optional(),
+    version: z
+      .union([z.literal('published'), z.number().int().min(1)])
+      .optional()
+      .openapi({ description: 'Flows: `published` (default) or a version number' }),
+    agentId: ObjectIdSchema.optional(),
+  })
+  .superRefine((b, ctx) => {
+    if (Boolean(b.flowId) === Boolean(b.agentId)) {
+      ctx.addIssue({ code: 'custom', path: ['flowId'], message: 'Choose a flow or an agent' });
+    }
+    if (b.agentId && b.version !== undefined) {
+      ctx.addIssue({ code: 'custom', path: ['version'], message: 'Only flows have versions' });
+    }
+  });
+
 export const ListCallsQuery = z
   .strictObject({
     ...CursorQuerySchema.shape,
@@ -70,6 +90,8 @@ export const ListCallsQuery = z
     flowId: ObjectIdSchema.optional(),
     agentId: ObjectIdSchema.optional(),
     contactId: ObjectIdSchema.optional(),
+    campaignId: ObjectIdSchema.optional(),
+    provider: z.enum(CALL_PROVIDERS).optional(),
     isTest: z
       .enum(['true', 'false'])
       .transform((v) => v === 'true')
@@ -94,6 +116,10 @@ export const CallSchema = registry.register(
     direction: z.enum(['outbound', 'inbound']),
     provider: z.enum(CALL_PROVIDERS),
     isTest: z.boolean(),
+    charged: z
+      .boolean()
+      .openapi({ description: 'false for dry-run calls (priced, never charged)' }),
+    campaign: z.object({ id: z.string(), name: z.string(), attempt: z.number() }).nullable(),
     status: z.enum(CALL_STATUSES),
     endReason: z.enum(CALL_END_REASONS).nullable(),
     source: z.object({
@@ -284,4 +310,22 @@ registry.registerPath({
   security: bearer,
   request: { params: CallParams },
   responses: { 200: ok(CallSchema), ...read, 409: errors[409] },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: base,
+  tags,
+  summary: `Call one contact now (calls.trigger + flows.read / agents.read, Idempotency-Key, ${String(CAMPAIGN_LIMITS.singleCallsPerMinutePerUser)} / min / user) — dry-run provider (simulated, never charged) until phone lines exist; the dial guard applies: 422 CALL_OUTSIDE_WINDOW (details[0].message = next window start), 422 CALL_NOT_ALLOWED (DND / opted out / daily or weekly limit / minimum gap)`,
+  security: bearer,
+  request: {
+    headers: z.object({ 'idempotency-key': z.string() }),
+    body: { content: { 'application/json': { schema: StartCallBody } } },
+  },
+  responses: {
+    201: ok(CallSchema, 'Call started'),
+    ...read,
+    422: errors[422],
+    429: errors[429],
+  },
 });

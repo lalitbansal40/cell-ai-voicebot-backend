@@ -15,6 +15,7 @@ import { registerWalletAlerts } from './core/billing/alerts';
 import type { BillingJobs } from './core/billing/jobs';
 import { createPaymentProvider, type PaymentProvider } from './core/payments';
 import { LocalStorage, type StorageProvider } from './core/storage';
+import type { CampaignsRouterDeps } from './modules/campaigns/campaigns.routes';
 import type { ContactJobs } from './modules/contacts/jobs';
 import { createDocsRouter } from './modules/docs/docs.routes';
 import { createFilesRouter } from './modules/files/files.routes';
@@ -64,6 +65,8 @@ export interface AppDeps {
   flowRateLimitStores?: { simulator?: Store; audio?: Store };
   /** Phase 7 live call runtime (`/calls` routes); omitted where no voice runs. */
   calls?: CallsApiDeps;
+  /** Phase 8: campaign export queue + `rl:campaign:` limiter store. */
+  campaigns?: CampaignsRouterDeps;
 }
 
 /**
@@ -89,6 +92,7 @@ export const createApp = ({
   aiHttp,
   flowRateLimitStores = {},
   calls,
+  campaigns = {},
 }: AppDeps): Express => {
   // Wallet low-balance / exhausted alerts run after every committed wallet change.
   registerWalletAlerts();
@@ -133,6 +137,7 @@ export const createApp = ({
       },
       flows: { rateLimitStores: flowRateLimitStores },
       ...(calls ? { calls } : {}),
+      campaigns,
     }),
   );
 

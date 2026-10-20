@@ -15,7 +15,11 @@ export const startCampaignsWorker = async (
   const queue = createQueue(QUEUES.campaigns, deps);
   const worker = createWorker(
     QUEUES.campaigns,
-    processCampaignJob({ dispatcher: deps.dispatcher, logger: deps.logger }),
+    processCampaignJob({
+      dispatcher: deps.dispatcher,
+      logger: deps.logger,
+      ...(deps.storage ? { storage: deps.storage } : {}),
+    }),
     { ...deps, concurrency: 4 },
   );
   for (const s of CAMPAIGN_SCHEDULES) {

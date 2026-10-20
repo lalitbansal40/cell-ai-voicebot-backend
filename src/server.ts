@@ -52,7 +52,7 @@ import { CallRegistry } from './modules/calls/registry';
 import { createScriptFactory } from './modules/calls/scripts';
 import { authorizeTopic } from './modules/calls/topic-auth';
 import { CampaignDispatcher } from './modules/campaigns/dispatcher';
-import { queueCampaignJobs, wireCampaigns } from './modules/campaigns/jobs';
+import { queueCampaignExports, queueCampaignJobs, wireCampaigns } from './modules/campaigns/jobs';
 import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { getLogger, type Logger } from './shared/logger';
@@ -196,12 +196,17 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       simulator: createRedisRateLimitStore(redis, 'rl:flowsim:'),
       audio: createRedisRateLimitStore(redis, 'rl:flowaudio:'),
     },
+    campaigns: {
+      exports: queueCampaignExports(createQueue(QUEUES.campaigns, queueDeps)),
+      rateLimitStore: createRedisRateLimitStore(redis, 'rl:campaign:'),
+    },
     calls: {
       manager: callManager,
       registry: callRegistry,
       textInput: voice.textInput,
       voiceProvider: voice.name,
       webCallStore: createRedisRateLimitStore(redis, 'rl:callweb:'),
+      calloutStore: createRedisRateLimitStore(redis, 'rl:callout:'),
     },
     readiness: {
       checks: { mongo: () => pingMongo(), redis: () => pingRedis(redis) },
@@ -240,7 +245,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
         calls: callManager,
         logger,
       });
-      await startCampaignsWorker({ ...queueDeps, dispatcher });
+      await startCampaignsWorker({ ...queueDeps, dispatcher, storage });
       lifecycle.onShutdown(
         'campaigns',
         async () => {

@@ -7,6 +7,7 @@ import type { StorageProvider } from '../../core/storage';
 import { AiAgentModel, type AiAgentDoc } from '../../db/models/ai-agent.model';
 import { CallEventModel } from '../../db/models/call-event.model';
 import { CallModel, type CallDoc, type CallSource } from '../../db/models/call.model';
+import { CampaignModel } from '../../db/models/campaign.model';
 import { ContactModel } from '../../db/models/contact.model';
 import { FlowModel } from '../../db/models/flow.model';
 import { TranscriptTurnModel } from '../../db/models/transcript-turn.model';
@@ -41,6 +42,7 @@ type Names = {
   contacts: Map<string, string>;
   flows: Map<string, string>;
   agents: Map<string, string>;
+  campaigns: Map<string, string>;
 };
 
 /** Names for the views (users, contacts, flows, agents) in one query each. */
@@ -52,9 +54,10 @@ const namesOf = async (accountId: Types.ObjectId, calls: CallDoc[]): Promise<Nam
   const contactIds = ids((c) => c.contactId);
   const flowIds = ids((c) => c.source.flowId);
   const agentIds = ids((c) => c.source.agentId);
+  const campaignIds = ids((c) => c.campaignId);
   const map = (rows: { _id: Types.ObjectId; name?: string | null }[]) =>
     new Map(rows.map((r) => [r._id.toString(), r.name ?? '']));
-  const [users, contacts, flows, agents] = await Promise.all([
+  const [users, contacts, flows, agents, campaigns] = await Promise.all([
     userIds.length
       ? UserModel.find({ _id: { $in: userIds } })
           .select({ name: 1 })
@@ -75,8 +78,19 @@ const namesOf = async (accountId: Types.ObjectId, calls: CallDoc[]): Promise<Nam
           .select({ name: 1 })
           .lean<{ _id: Types.ObjectId; name: string }[]>()
       : [],
+    campaignIds.length
+      ? CampaignModel.find({ accountId, _id: { $in: campaignIds } }, null, { withDeleted: true })
+          .select({ name: 1 })
+          .lean<{ _id: Types.ObjectId; name: string }[]>()
+      : [],
   ]);
-  return { users: map(users), contacts: map(contacts), flows: map(flows), agents: map(agents) };
+  return {
+    users: map(users),
+    contacts: map(contacts),
+    flows: map(flows),
+    agents: map(agents),
+    campaigns: map(campaigns),
+  };
 };
 
 /** Public view of a call — never the test phone, hold, recording key or raw numbers. */
@@ -90,6 +104,15 @@ export const toCallView = (c: CallDoc, names: Names) => {
     direction: c.direction,
     provider: c.provider,
     isTest: c.isTest,
+    /** Dry-run calls are priced but never charged. */
+    charged: c.charged,
+    campaign: c.campaignId
+      ? {
+          id: c.campaignId.toString(),
+          name: names.campaigns.get(c.campaignId.toString()) ?? '',
+          attempt: c.attempt ?? 1,
+        }
+      : null,
     status: c.status,
     endReason: c.endReason,
     source: {
@@ -130,9 +153,9 @@ export const toCallView = (c: CallDoc, names: Names) => {
   };
 };
 
-const viewOne = async (c: CallDoc) => toCallView(c, await namesOf(c.accountId, [c]));
+export const viewOne = async (c: CallDoc) => toCallView(c, await namesOf(c.accountId, [c]));
 
-const findCall = async (accountId: Types.ObjectId, id: string): Promise<CallDoc> => {
+export const findCall = async (accountId: Types.ObjectId, id: string): Promise<CallDoc> => {
   const call = await CallModel.findOne({ _id: id, accountId }).lean<CallDoc>();
   if (!call) throw new NotFoundError('Call not found');
   return call;
@@ -224,6 +247,8 @@ export const listCalls = async (req: Request, query: z.infer<typeof ListCallsQue
   if (query.flowId) filter['source.flowId'] = new Types.ObjectId(query.flowId);
   if (query.agentId) filter['source.agentId'] = new Types.ObjectId(query.agentId);
   if (query.isTest !== undefined) filter.isTest = query.isTest;
+  if (query.campaignId) filter.campaignId = new Types.ObjectId(query.campaignId);
+  if (query.provider) filter.provider = query.provider;
   const at: Record<string, Date> = {};
   if (query.from) at.$gte = new Date(query.from);
   if (query.to) at.$lt = new Date(query.to);

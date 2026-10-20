@@ -1,4 +1,10 @@
-import { EXPORT_SCOPES, EXPORT_STATUSES } from '../../db/models/export-job.model';
+import {
+  EXPORT_FORMATS,
+  EXPORT_JOB_SCOPES,
+  EXPORT_KINDS,
+  EXPORT_SCOPES,
+  EXPORT_STATUSES,
+} from '../../db/models/export-job.model';
 import { registry } from '../../shared/openapi/registry';
 import { bearer, errors, ok, okPage } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
@@ -53,7 +59,10 @@ export const ExportJobSchema = registry.register(
   'ExportJob',
   z.object({
     id: z.string(),
-    scope: z.enum(EXPORT_SCOPES),
+    kind: z.enum(EXPORT_KINDS).openapi({ description: 'campaign_results: needs campaigns.export' }),
+    campaignId: z.string().nullable(),
+    format: z.enum(EXPORT_FORMATS),
+    scope: z.enum(EXPORT_JOB_SCOPES),
     columns: z.array(z.string()),
     status: z.enum(EXPORT_STATUSES),
     progress: z.object({ processed: z.number(), total: z.number() }),
@@ -103,7 +112,8 @@ registry.registerPath({
   method: 'get',
   path: '/api/v1/contact-exports/{id}',
   tags,
-  summary: 'Export status, with a fresh signed download link when ready',
+  summary:
+    'Export status, with a fresh signed download link when ready (contact exports: contacts.export; campaign results: campaigns.export)',
   security: bearer,
   request: { params: ExportIdParams },
   responses: { 200: ok(ExportJobSchema), 403: errors[403], 404: errors[404] },

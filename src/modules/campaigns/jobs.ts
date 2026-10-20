@@ -2,6 +2,7 @@ import type { Job, JobsOptions, Queue } from 'bullmq';
 import { Types } from 'mongoose';
 
 import { availableMicros, walletEvents, type WalletChange } from '../../core/billing/events';
+import type { StorageProvider } from '../../core/storage';
 import { CampaignModel, type CampaignDoc } from '../../db/models/campaign.model';
 import type { Logger } from '../../shared/logger';
 import type { CallManager } from '../calls/call.service';
@@ -13,6 +14,7 @@ import {
   startScheduled,
 } from './campaigns.service';
 import { completeCampaign, virtualRoom, type CampaignDispatcher } from './dispatcher';
+import { runCampaignExport, type CampaignExportJobs } from './export';
 import { cronOf } from './recurrence';
 import { runDue, runSchedulerId } from './runs';
 import { sweepCampaigns } from './sweep';
@@ -24,6 +26,8 @@ export interface CampaignJobData {
   'campaign.wake': { accountId: string };
   /** One occurrence of a recurring parent (job scheduler `runs-<id>`). */
   'campaign.run': { campaignId: string };
+  /** Results export (CSV / XLSX) of a campaign. */
+  'campaign.export': { accountId: string; exportJobId: string };
   'campaigns.sweep': Record<string, never>;
 }
 export type CampaignJobName = keyof CampaignJobData;
@@ -33,6 +37,7 @@ export const CAMPAIGN_JOB_NAMES = [
   'campaign.end',
   'campaign.wake',
   'campaign.run',
+  'campaign.export',
   'campaigns.sweep',
 ] as const satisfies readonly CampaignJobName[];
 
@@ -110,7 +115,16 @@ export const queueCampaignJobs = (queue: Queue, now: () => number = Date.now): C
 export interface CampaignJobContext {
   dispatcher: CampaignDispatcher;
   logger: Logger;
+  /** Export files (absent: export jobs fail). */
+  storage?: StorageProvider;
 }
+
+/** The API's port into the queue for results exports (`export-<id>` job ids). */
+export const queueCampaignExports = (queue: Queue): CampaignExportJobs => ({
+  async enqueue(data) {
+    await queue.add('campaign.export', data, { ...OPTIONS, jobId: `export-${data.exportJobId}` });
+  },
+});
 
 export const processCampaignJob =
   (ctx: CampaignJobContext) =>
@@ -133,6 +147,13 @@ export const processCampaignJob =
       case 'campaign.run': {
         const { campaignId } = job.data as CampaignJobData['campaign.run'];
         return runDue(campaignId, new Date(), ctx.logger);
+      }
+      case 'campaign.export': {
+        if (!ctx.storage) throw new Error('Campaign exports need file storage');
+        return runCampaignExport(job.data as CampaignJobData['campaign.export'], {
+          storage: ctx.storage,
+          logger: ctx.logger,
+        });
       }
       case 'campaign.wake':
         ctx.dispatcher.wake((job.data as CampaignJobData['campaign.wake']).accountId);
