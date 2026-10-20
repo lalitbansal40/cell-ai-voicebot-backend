@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 8 · Batch 1 (T8.1–T8.5)** — 2026-10-20
+  - Models: Campaign (mode, pinned flow version, audience, schedule, window, retry, follow-ups, pacing, dry-run settings, stats, history) and CampaignContact (audience snapshot), Call `campaignContactId` / `attempt` / `charged` / provider `dryrun`, busy / no-answer statuses, Contact `lastDisposition`, Account `limits` + `settings.callCaps`; migration 0009, `CAMPAIGN_LIMITS`, env (`TELEPHONY_PROVIDER`, `DRY_RUN_MAX_SPEED`, `CAMPAIGNS_ENABLED`), error codes 44 → 47, audit 71 → 83, `campaign.*` WS events, permission `campaigns.export`, notification types.
+  - Calling-window math (`date-fns` 4.4.0 + `@date-fns/tz` 1.5.0, MIT), dial guard (DND, opt-out, per-contact caps, min gap, money, compliance bounds), atomic Redis dial slots (Lua) + rate buckets; web test calls use the slots.
+  - Outbound call path (`startOutboundCall`) and the dry-run telephony provider: seeded outcomes, simulated customers per template, scaled clock, virtual billing (never charges).
+  - Campaign service: CRUD with revisions, audience preview + resumable snapshot, cost estimate, start / schedule / pause / resume / cancel, flows in use by campaigns.
+  - Scheduler + dispatcher + results: per-account dial loop (priority, round robin, window, money gate, slots, rate, claim, guard), result classification (retries into the window, callbacks, promise follow-ups), circuit breaker, auto-pause / auto-resume, sweep every minute, live progress; `npm run dev:campaign`.
+  - Fixed: a high-priority campaign now fills the slots before a normal one; shutdown waits for dispatcher ticks and call results in flight; a cancel with hang-up also ends calls that were still being set up or dialed.
+  - Tests: 2022 → 2132.
+
 - **Phase 7 · Batch 3 (T7.10–T7.15) — Phase 7 complete** — 2026-10-16
   - Frontend web call tester, calls list and call detail, test call entry points, Settings → Calls, ledger call breakdown, dashboard recent calls — see the frontend CHANGELOG.
   - `POST /calls/web` returns which voice runs (`voice: 'openai' | 'fake'`).

@@ -314,12 +314,12 @@ Full backend verify; `bench:campaign` numbers; PHASE_8_TASKS T8.6–T8.9 `[x]`; 
 
 **Batch 1**
 
-- [ ] T8.1 models, migration 0009, limits, env, codes (47), audit (83), WS, permission, notifications, lifecycle
-- [ ] T8.2 window math (100 % branches), dial guard, caps, slots + rate (Lua), web calls on slots
-- [ ] T8.3 `startOutboundCall`, dry-run provider, simulated customer, scaled clock, virtual billing, fake AI callback / refuse / wrong-number rules
-- [ ] T8.4 campaign service, audience preview + resumable snapshot, estimate, lifecycle actions, `isFlowInUse`
-- [ ] T8.5 queue + jobs, dispatcher, results + retries + callbacks, auto-pause / resume, sweep, shutdown
-- [ ] P8-B1-DONE (verify, `dev:campaign`, docs)
+- [x] T8.1 models, migration 0009, limits, env, codes (47), audit (83), WS, permission, notifications, lifecycle
+- [x] T8.2 window math (100 % branches), dial guard, caps, slots + rate (Lua), web calls on slots
+- [x] T8.3 `startOutboundCall`, dry-run provider, simulated customer, scaled clock, virtual billing, fake AI callback / refuse / wrong-number rules
+- [x] T8.4 campaign service, audience preview + resumable snapshot, estimate, lifecycle actions, `isFlowInUse`
+- [x] T8.5 queue + jobs, dispatcher, results + retries + callbacks, auto-pause / resume, sweep, shutdown
+- [x] P8-B1-DONE (verify, `dev:campaign`, docs)
 
 **Batch 2**
 

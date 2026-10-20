@@ -381,45 +381,45 @@ Batches: **Batch 1 = T8.1–T8.5** (`[P8-B1-DONE]`), **Batch 2 = T8.6–T8.9** (
 
 ### T8.1 — Models, migration 0009, limits, catalogue
 
-- [ ] `campaign.model.ts` (§1e, `tenantPlugin`, soft delete, `revision`), `campaign-contact.model.ts` (§1f, indexes), `Call` + `campaignContactId`, `attempt`, `charged`, provider `dryrun`, statuses / end reasons (`busy`, `no_answer`, `invalid_number`), unique partial index `{ campaignContactId, attempt }`; `Contact.lastDisposition`; `Account.limits { maxConcurrentCalls, dialsPerMinute }`, `Account.settings.callCaps`.
-- [ ] Migration **0009-campaigns**: indexes, account defaults (`limits`, `callCaps`), `syncSystemRoles()` for `campaigns.export`; up / down + rollback test.
-- [ ] `CAMPAIGN_LIMITS` (§1l), `DRY_RUN_MAX_SPEED` env (default 50, production ≤ 20), `TELEPHONY_PROVIDER` env (`dryrun` only in Phase 8; `sip` reserved), production rules + tests.
-- [ ] Error codes (`CALL_NOT_ALLOWED`, `CAMPAIGN_LIMIT_REACHED`, `CAMPAIGN_REVISION_CONFLICT`), audit actions (§1r) with meta shapes, WS payload schemas (`campaign.status` + `pauseReason`, `campaign.progress`), notification types, permission `campaigns.export` + role matrix test.
-- [ ] Add `date-fns` + `@date-fns/tz` (exact versions, licence MIT checked) per ADR 0017.
-- [ ] data-model.md (Campaign / CampaignContact rewritten, `holdLedgerEntryId` removed with the Phase 4 reason), error-codes.md, audit.md, websocket.md, rbac docs updated.
+- [x] `campaign.model.ts` (§1e, `tenantPlugin`, soft delete, `revision`), `campaign-contact.model.ts` (§1f, indexes), `Call` + `campaignContactId`, `attempt`, `charged`, provider `dryrun`, statuses / end reasons (`busy`, `no_answer`, `invalid_number`), unique partial index `{ campaignContactId, attempt }`; `Contact.lastDisposition`; `Account.limits { maxConcurrentCalls, dialsPerMinute }`, `Account.settings.callCaps`.
+- [x] Migration **0009-campaigns**: indexes, account defaults (`limits`, `callCaps`), `syncSystemRoles()` for `campaigns.export`; up / down + rollback test.
+- [x] `CAMPAIGN_LIMITS` (§1l), `DRY_RUN_MAX_SPEED` env (default 50, production ≤ 20), `TELEPHONY_PROVIDER` env (`dryrun` only in Phase 8; `sip` reserved), production rules + tests.
+- [x] Error codes (`CALL_NOT_ALLOWED`, `CAMPAIGN_LIMIT_REACHED`, `CAMPAIGN_REVISION_CONFLICT`), audit actions (§1r) with meta shapes, WS payload schemas (`campaign.status` + `pauseReason`, `campaign.progress`), notification types, permission `campaigns.export` + role matrix test.
+- [x] Add `date-fns` + `@date-fns/tz` (exact versions, licence MIT checked) per ADR 0017.
+- [x] data-model.md (Campaign / CampaignContact rewritten, `holdLedgerEntryId` removed with the Phase 4 reason), error-codes.md, audit.md, websocket.md, rbac docs updated.
 
 ### T8.2 — Window math, dial guard, caps, slots
 
-- [ ] `campaigns/window.ts`: `isInWindow`, `nextWindowStart`, `intersect`, `effectiveWindow({ account, campaign, live, recovery })`, end buffer — pure, `Clock`-free inputs; 100 % branch tests incl. Sunday, days list gaps, exact boundary minutes, `Asia/Kolkata` + one DST zone (e.g. `Europe/London`).
-- [ ] `campaigns/dial-guard.ts`: `assertDialAllowed(input) → ok | wait(until, reason) | skip(reason) | pause(reason)` (§1d table, each row tested), DND lookup on snapshot + current phone, opt-out, deleted contact, caps (day / ISO week in account tz, per mode), min gap.
-- [ ] `campaigns/slots.ts`: Lua lease script (three sets, expiry, atomic), refresh, release, `count(accountId)`; rate buckets (campaign + account); tests with real Redis (unique prefix) incl. 50 concurrent claim attempts never exceeding limits.
-- [ ] Web test calls (Phase 7) move to the slots (per-account limit atomic) — Phase 7 tests stay green.
+- [x] `campaigns/window.ts`: `isInWindow`, `nextWindowStart`, `intersect`, `effectiveWindow({ account, campaign, live, recovery })`, end buffer — pure, `Clock`-free inputs; 100 % branch tests incl. Sunday, days list gaps, exact boundary minutes, `Asia/Kolkata` + one DST zone (e.g. `Europe/London`).
+- [x] `campaigns/dial-guard.ts`: `assertDialAllowed(input) → ok | wait(until, reason) | skip(reason) | pause(reason)` (§1d table, each row tested), DND lookup on snapshot + current phone, opt-out, deleted contact, caps (day / ISO week in account tz, per mode), min gap.
+- [x] `campaigns/slots.ts`: Lua lease script (three sets, expiry, atomic), refresh, release, `count(accountId)`; rate buckets (campaign + account); tests with real Redis (unique prefix) incl. 50 concurrent claim attempts never exceeding limits.
+- [x] Web test calls (Phase 7) move to the slots (per-account limit atomic) — Phase 7 tests stay green.
 
 ### T8.3 — Outbound call path + dry-run provider
 
-- [ ] `CallManager.startOutboundCall` (§1c): refactor the session start out of `attach`, provider registry (`webcall`, `dryrun`; `sip` → `CAMPAIGN_NOT_RUNNABLE` / 409), lease → Call → billing → `startCall` → session → end → lease release + `onEnded`.
-- [ ] Lifecycle: transitions `ringing → busy | no_answer | failed`, causes `busy`, `no_answer`, `rejected`, `invalid_number` → statuses / end reasons; table tests.
-- [ ] `core/telephony/dryrun.ts`: `DryRunLeg` (seeded pre-answer outcome + ring time, `play()` on the scaled clock, DTMF / text from the simulated customer, hangup), `ScaledClock` (speed, tested against `FakeClock`).
-- [ ] `simulated-customer.ts`: scenarios (§1b) for Loan recovery / Payment reminder / Feedback survey / Inbound support + generic; reacts to "bot done speaking"; deterministic per seed; tests run each scenario on its template and assert the disposition.
-- [ ] `VirtualCallBilling`: prices as a phone call, `charged: false`, no ledger rows (money-writes test extended: dry-run never writes ledger), returns virtual cost to the campaign.
-- [ ] Dry-run forces the fake voice + fake AI model (test: `VOICE_PROVIDER=openai` env still gives a fake session for dry-run calls).
+- [x] `CallManager.startOutboundCall` (§1c): refactor the session start out of `attach`, provider registry (`webcall`, `dryrun`; `sip` → `CAMPAIGN_NOT_RUNNABLE` / 409), lease → Call → billing → `startCall` → session → end → lease release + `onEnded`.
+- [x] Lifecycle: transitions `ringing → busy | no_answer | failed`, causes `busy`, `no_answer`, `rejected`, `invalid_number` → statuses / end reasons; table tests.
+- [x] `core/telephony/dryrun.ts`: `DryRunLeg` (seeded pre-answer outcome + ring time, `play()` on the scaled clock, DTMF / text from the simulated customer, hangup), `ScaledClock` (speed, tested against `FakeClock`).
+- [x] `simulated-customer.ts`: scenarios (§1b) for Loan recovery / Payment reminder / Feedback survey / Inbound support + generic; reacts to "bot done speaking"; deterministic per seed; tests run each scenario on its template and assert the disposition.
+- [x] `VirtualCallBilling`: prices as a phone call, `charged: false`, no ledger rows (money-writes test extended: dry-run never writes ledger), returns virtual cost to the campaign.
+- [x] Dry-run forces the fake voice + fake AI model (test: `VOICE_PROVIDER=openai` env still gives a fake session for dry-run calls).
 
 ### T8.4 — Campaign service
 
-- [ ] CRUD with revision checks, validation (flow published & not deleted, version exists, window ∩ account non-empty, recurrence valid, pacing ≤ account limits, `live` refused), duplicate, delete rules, list with filters.
-- [ ] `audience.ts`: preview (counts by exclusion, samples with last 4 digits, missing flow variables per field) and snapshot (batched, resumable cursor, dedupe by phone, `excludeActiveCampaigns`, `skipIfMissing`, variables limited to the fields the version uses + name).
-- [ ] Estimate (§1j) + stored estimate; wallet available in the response.
-- [ ] Actions: start (now / schedule, pinned version checks), unschedule, pause, resume (cause check), cancel (`hangUpLive` → `CallManager.hangup` for the campaign's live calls), all state-checked + audited + `campaign.status`.
-- [ ] `isFlowInUse` real (flow delete 409 lists campaigns; Phase 6 tests updated).
+- [x] CRUD with revision checks, validation (flow published & not deleted, version exists, window ∩ account non-empty, recurrence valid, pacing ≤ account limits, `live` refused), duplicate, delete rules, list with filters.
+- [x] `audience.ts`: preview (counts by exclusion, samples with last 4 digits, missing flow variables per field) and snapshot (batched, resumable cursor, dedupe by phone, `excludeActiveCampaigns`, `skipIfMissing`, variables limited to the fields the version uses + name).
+- [x] Estimate (§1j) + stored estimate; wallet available in the response.
+- [x] Actions: start (now / schedule, pinned version checks), unschedule, pause, resume (cause check), cancel (`hangUpLive` → `CallManager.hangup` for the campaign's live calls), all state-checked + audited + `campaign.status`.
+- [x] `isFlowInUse` real (flow delete 409 lists campaigns; Phase 6 tests updated).
 
 ### T8.5 — Scheduler, dispatcher, results
 
-- [ ] Queue `campaigns` (`QUEUES`), worker + job names (§1a), deduped job ids, schedules registered on boot; `campaign.start` / `end` / `dispatch` / `sweep`.
-- [ ] `dispatcher.ts`: per-account loop (§1h) — priority + round robin, window wait (`waitingUntil` + delayed wake), wallet / budget gate (real + virtual), slots + rate, claim (`findOneAndUpdate` with `claimToken`), guard, `startOutboundCall`; never awaits a call's end.
-- [ ] `results.ts`: classification table (§1i), retries into the window, callbacks (date / time → tz → window), promise follow-up, stats `$inc`, contact updates, completion, wake; idempotent per call.
-- [ ] Auto-pause / resume (wallet, budget, suspended account via `account.suspended` hook, circuit breaker), notifications.
-- [ ] Recover + sweep (§1k), graceful shutdown order (dispatchers stop before calls end).
-- [ ] Tests with `FakeClock` + dry-run at ×50: window waits, retry timing, callbacks, caps / min gap, priority, concurrency ceiling, completion, auto-pause / resume, recover after a simulated crash (claims released, no double dial), logs without phones.
+- [x] Queue `campaigns` (`QUEUES`), worker + job names (§1a), deduped job ids, schedules registered on boot; `campaign.start` / `end` / `dispatch` / `sweep`.
+- [x] `dispatcher.ts`: per-account loop (§1h) — priority + round robin, window wait (`waitingUntil` + delayed wake), wallet / budget gate (real + virtual), slots + rate, claim (`findOneAndUpdate` with `claimToken`), guard, `startOutboundCall`; never awaits a call's end.
+- [x] `results.ts`: classification table (§1i), retries into the window, callbacks (date / time → tz → window), promise follow-up, stats `$inc`, contact updates, completion, wake; idempotent per call.
+- [x] Auto-pause / resume (wallet, budget, suspended account via `account.suspended` hook, circuit breaker); the in-app / email notifications come with `notifications.ts` in T8.6.
+- [x] Recover + sweep (§1k), graceful shutdown order (dispatchers stop before calls end).
+- [x] Tests with `FakeClock` + dry-run at ×50: window waits, retry timing, callbacks, caps / min gap, priority, concurrency ceiling, completion, auto-pause / resume, recover after a simulated crash (claims released, no double dial), logs without phones.
 
 ### T8.6 — Recurring runs, notifications, contacts, admin (`[P8-B1-DONE]` after T8.5)
 
@@ -569,3 +569,4 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T8.1–T8.5
 
 - 2026-10-16: Plan created after Phase 7 sign-off (Phase 7 merged to `main`: backend `a6823cd`, frontend `7daa8ba`).
 - 2026-10-16: Run prompt [PHASE_8_PROMPT.md](../prompts/PHASE_8_PROMPT.md) added (one file, 3 batches). Precisions there: module layout, exact Campaign / CampaignContact fields (+ `dueRank` claim order, `history` for the Activity tab instead of the audit log), call lifecycle for busy / no answer, window math rules (`[start, end)`, DST-tested), pure `decideDial` + 3-query wrapper, Lua slots (account / campaign / process leases) and rate buckets, BullMQ job ids with `-` (BullMQ refuses `:`), in-process dispatcher loops woken by jobs, result classification incl. callbacks without a date (= no outcome), dry-run leg / scaled clock / virtual billing details, simulated-customer scripts per template, fake AI rules for callback / refusal / wrong number, export through `ExportJob.kind`, dotted notification types, env vars (`TELEPHONY_PROVIDER`, `DRY_RUN_MAX_SPEED`, `CAMPAIGNS_ENABLED`), error codes 44 → 47, audit 71 → 83, E2E specs and sample `campaign-100.csv`. Dry-run speed also divides retry / promise follow-up delays; auto-resume re-checks the wallet on every balance increase.
+- 2026-10-20: **Batch 1 done** (T8.1–T8.5 + three fix commits, `[P8-B1-DONE]`). `npm run dev:campaign` ran on the dev DB: 30 contacts at ×20 in 64 s, 30 attempts, 17 completed / 3 failed / 10 waiting (retries and callbacks due later in real time, next at 09:00 IST), virtual cost ₹40.05, logs clean (the first run showed `campaign: tick failed` after Mongo closed → fixed). Full verify: 2132 tests, coverage 96.94 / 89.29 / 96.59 / 97.97. Deviations: Lua scripts are inline strings in `slots.ts` (the build copies no `.lua` files); the simulated customer lives in `core/telephony/scenarios.ts` + `DryRunLeg` (no separate `simulated-customer.ts`; Inbound support uses the generic script); `assertDialAllowed` is the pure `decideDial` (+ a `release` kind when the claim must go back unchanged) with a 3-query `loadContactFacts` wrapper; snapshot order is the contact `_id` order; campaign calls load the contact at dial time but snapshot display values win; the dry-run money gate uses the virtual balance and budget pauses share the wallet resume gate; the default 30-min min gap also delays retries shorter than the gap (and a dev re-run over the same contacts waits for it); added fields `history` (Activity tab), `pausedAt`, `flowVersion`, `stats.failureStreak`; `startScheduled` lives in the campaign service (breaks a jobs ↔ sweep import cycle); the wake job is `campaign.wake` (no separate `dispatch` job). Fixed while closing the batch: priority now fills slots high → normal → low (round robin only within one priority), shutdown waits for in-flight dispatcher ticks and call results (`CallManager.shutdown()` awaits call-ended listeners), and a cancel with hang-up also ends campaign calls that were still being set up or dialed.
