@@ -96,6 +96,8 @@ export class CallManager {
   private readonly leases = new Map<string, SlotLease>();
   private leaseTimer: unknown = null;
   private readonly dryRunLine = new DryRunProvider();
+  /** Live campaign calls of this process: call id → campaign id (cancel with hang-up). */
+  private readonly campaignCalls = new Map<string, string>();
 
   constructor(private readonly deps: CallManagerDeps) {
     this.clock = deps.clock ?? systemClock;
@@ -320,12 +322,14 @@ export class CallManager {
       media: 'none',
       onEnded: (summary) => {
         this.sessions.delete(callId);
+        this.campaignCalls.delete(callId);
         void this.releaseLease(callId);
         for (const listener of this.listeners) listener(summary);
         resolveEnded(summary);
       },
     });
     this.sessions.set(callId, session);
+    if (campaignId) this.campaignCalls.set(callId, campaignId);
     await session.start();
     leg.ring();
     return { callId, ended };
@@ -386,6 +390,17 @@ export class CallManager {
       throw new AppError('CALL_NOT_ACTIVE');
     }
     return session.end('customer_hangup');
+  }
+
+  /** Ends every live call of a campaign on this process (cancel with hang-up). */
+  async hangupCampaign(campaignId: string): Promise<number> {
+    const ids = [...this.campaignCalls].filter(([, c]) => c === campaignId).map(([id]) => id);
+    const live = ids.flatMap((id) => {
+      const session = this.sessions.get(id);
+      return session ? [session] : [];
+    });
+    await Promise.all(live.map((session) => session.end('campaign_canceled')));
+    return ids.length;
   }
 
   isLiveHere(callId: string): boolean {

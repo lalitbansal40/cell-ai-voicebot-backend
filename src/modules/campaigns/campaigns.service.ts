@@ -14,6 +14,7 @@ import {
   DEFAULT_ACCOUNT_LIMITS,
   DEFAULT_ACCOUNT_SETTINGS,
   type AccountLimits,
+  type CallCaps,
   type CallingWindow,
 } from '../../db/models/account.model';
 import { AiAgentModel } from '../../db/models/ai-agent.model';
@@ -44,6 +45,7 @@ import {
   type ErrorDetail,
 } from '../../shared/errors/app-error';
 import { decodeCursor, encodeCursor } from '../../shared/http/cursor';
+import type { Logger } from '../../shared/logger';
 import { escapeRegex } from '../../shared/utils/regex';
 import { accountVariables } from '../ai-agents/variables';
 import { auditRequest } from '../audit/audit.service';
@@ -104,10 +106,11 @@ export const findCampaign = async (accountId: Types.ObjectId, id: string): Promi
   return campaign;
 };
 
-interface AccountFacts {
+export interface AccountFacts {
   timezone: string;
   window: CallingWindow;
   limits: AccountLimits;
+  caps: CallCaps;
   status: 'active' | 'suspended';
 }
 
@@ -117,13 +120,14 @@ export const accountFacts = async (accountId: Types.ObjectId): Promise<AccountFa
     .lean<{
       timezone?: string;
       status?: 'active' | 'suspended';
-      settings?: { callingWindow?: CallingWindow };
+      settings?: { callingWindow?: CallingWindow; callCaps?: Partial<CallCaps> };
       limits?: Partial<AccountLimits>;
     }>();
   return {
     timezone: account?.timezone ?? 'Asia/Kolkata',
     window: account?.settings?.callingWindow ?? DEFAULT_ACCOUNT_SETTINGS.callingWindow,
     limits: { ...DEFAULT_ACCOUNT_LIMITS, ...account?.limits },
+    caps: { ...DEFAULT_ACCOUNT_SETTINGS.callCaps, ...account?.settings?.callCaps },
     status: account?.status ?? 'active',
   };
 };
@@ -1053,4 +1057,19 @@ export const cancelCampaign = async (req: Request, id: string, hangUpLive: boole
   if (hangUpLive) await hooks.hangUpLive(canceled);
   await auditRequest(req, 'campaign.canceled', { target: target(canceled), meta: { hangUpLive } });
   return view(await findCampaign(accountId, id));
+};
+
+/** Starts a scheduled campaign (job / sweep); an unrunnable one ends `failed` with its code. */
+export const startScheduled = async (
+  campaign: CampaignDoc,
+  logger: Pick<Logger, 'warn'>,
+): Promise<void> => {
+  if (campaign.status !== 'scheduled' || campaign.schedule.recurrence) return;
+  try {
+    await beginRun(campaign, campaign.startedBy);
+  } catch (err) {
+    if (!(err instanceof AppError) || err.code !== 'CAMPAIGN_NOT_RUNNABLE') throw err;
+    logger.warn({ campaignId: campaign._id.toString(), code: err.code }, 'campaign: start failed');
+    await setStatus(campaign, 'failed', { set: { error: { code: err.code } } });
+  }
 };

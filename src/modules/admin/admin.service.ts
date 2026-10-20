@@ -21,6 +21,7 @@ import {
   toPublicUser,
   type AuthSession,
 } from '../auth/session';
+import { pauseAccountCampaigns } from '../campaigns/jobs';
 
 import type { ListAccountsQuery } from './admin.schema';
 
@@ -159,6 +160,8 @@ export const suspendAccount = async (req: Request, id: string, reason: string) =
   if (!updated) throw new NotFoundError();
   await auditBothSides(req, updated, 'account.suspended', { reason });
   notifyAccount(updated._id.toString(), 'account.suspended', { reason });
+  // campaigns stop dialing (enabling the account later does not resume them)
+  await pauseAccountCampaigns(updated._id, 'account_suspended');
   return toPublicAccount(updated);
 };
 

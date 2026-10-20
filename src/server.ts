@@ -28,6 +28,7 @@ import {
 } from './core/queues/redis';
 import { startAiWorker } from './core/queues/workers/ai.worker';
 import { startBillingWorker } from './core/queues/workers/billing.worker';
+import { startCampaignsWorker } from './core/queues/workers/campaigns.worker';
 import { startContactsWorker } from './core/queues/workers/contacts.worker';
 import { startEmailWorker } from './core/queues/workers/email.worker';
 import { startMaintenanceWorker } from './core/queues/workers/maintenance.worker';
@@ -50,6 +51,9 @@ import { createDryRunPrograms } from './modules/calls/dry-run';
 import { CallRegistry } from './modules/calls/registry';
 import { createScriptFactory } from './modules/calls/scripts';
 import { authorizeTopic } from './modules/calls/topic-auth';
+import { CampaignDispatcher } from './modules/campaigns/dispatcher';
+import { queueCampaignJobs, wireCampaigns } from './modules/campaigns/jobs';
+import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
@@ -223,6 +227,30 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     startContactsWorker({ ...queueDeps, storage, jobs: contactJobs });
     await startBillingWorker({ ...queueDeps, storage, jobs: billingJobs });
     await startAiWorker({ ...queueDeps, storage, provider: aiProvider, jobs: aiJobs });
+    if (env.CAMPAIGNS_ENABLED) {
+      // Phase 8: the dispatcher dials in this process (it owns the calls)
+      const dispatcher = new CampaignDispatcher({
+        calls: callManager,
+        rate: new DialRate(redis, prefix ? `${prefix}:` : ''),
+        logger,
+      });
+      const unwire = wireCampaigns({
+        jobs: queueCampaignJobs(createQueue(QUEUES.campaigns, queueDeps)),
+        dispatcher,
+        calls: callManager,
+        logger,
+      });
+      await startCampaignsWorker({ ...queueDeps, dispatcher });
+      lifecycle.onShutdown(
+        'campaigns',
+        () => {
+          dispatcher.stop();
+          unwire();
+          return Promise.resolve();
+        },
+        4,
+      );
+    }
     logger.info('workers: started');
   }
 
