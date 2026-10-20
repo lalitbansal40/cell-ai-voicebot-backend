@@ -113,10 +113,14 @@ describe('graph helpers', () => {
 describe('service edges', () => {
   it('a flow in use cannot be deleted', async () => {
     const a = await newFlow(app, manager, 'In use flow');
-    vi.spyOn(inUse, 'isFlowInUse').mockResolvedValue(true);
+    vi.spyOn(inUse, 'campaignsUsingFlow').mockResolvedValue([{ id: 'c1', name: 'October run' }]);
     const res = await request(app).delete(`${FLOWS}/${a.id}`).set(auth(manager));
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('RESOURCE_IN_USE');
+    expect(res.body.error).toMatchObject({
+      code: 'RESOURCE_IN_USE',
+      message: 'This flow is used by 1 campaign. Cancel or finish them first.',
+      details: [{ path: 'campaigns', message: 'October run', id: 'c1' }],
+    });
   });
 
   it('variables of a legacy draft without a variables list', async () => {

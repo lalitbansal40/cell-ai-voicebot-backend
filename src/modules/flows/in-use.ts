@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 
+import { ACTIVE_CAMPAIGN_STATUSES, CampaignModel } from '../../db/models/campaign.model';
 import { FlowVersionModel } from '../../db/models/flow-version.model';
 import { FlowModel, type FlowDoc } from '../../db/models/flow.model';
 
@@ -50,8 +51,21 @@ export const isAudioInUse = async (audioId: string | Types.ObjectId): Promise<bo
   (await flowsUsingAudio(audioId)).length > 0;
 
 /**
- * Whether a flow may not be deleted — Phase 8 campaigns / Phase 14 inbound
- * numbers will answer here. Phase 6: nothing uses flows yet.
+ * Campaigns that keep a flow in use (Phase 8): scheduled / running / paused,
+ * recurring parents included. Phase 14 inbound numbers will join here.
  */
-export const isFlowInUse = (_flowId: string | Types.ObjectId): Promise<boolean> =>
-  Promise.resolve(false);
+export const campaignsUsingFlow = async (
+  flowId: string | Types.ObjectId,
+): Promise<{ id: string; name: string }[]> => {
+  const _id = asId(flowId);
+  if (!_id) return [];
+  const rows = await CampaignModel.find({ flowId: _id, status: { $in: ACTIVE_CAMPAIGN_STATUSES } })
+    .sort({ name: 1 })
+    .select({ name: 1 })
+    .lean<{ _id: Types.ObjectId; name: string }[]>();
+  return rows.map((c) => ({ id: c._id.toString(), name: c.name }));
+};
+
+/** Whether a flow may not be deleted (or purged). */
+export const isFlowInUse = async (flowId: string | Types.ObjectId): Promise<boolean> =>
+  (await campaignsUsingFlow(flowId)).length > 0;

@@ -33,7 +33,8 @@ export const accountVariables = async (accountId: Types.ObjectId): Promise<Varia
   ];
 };
 
-const formatValue = (type: VariableInfo['type'], value: unknown): string => {
+/** A contact value as the model / a call sees it (₹, readable dates, Indian grouping). */
+export const formatVariable = (type: VariableInfo['type'], value: unknown): string => {
   if (value === null || value === undefined || value === '') return '';
   if (type === 'currency' && typeof value === 'number') return formatInr(value);
   if (type === 'date' && typeof value === 'string') return readableDate(value);
@@ -64,7 +65,7 @@ export const contactVariables = async (
   for (const name of allowed) {
     if (name === 'name') values.name = contact.name ?? '';
     else if (name === 'phone_last4') values.phone_last4 = contact.phoneE164.slice(-4);
-    else values[name] = formatValue(types.get(name) ?? 'text', vars[name]);
+    else values[name] = formatVariable(types.get(name) ?? 'text', vars[name]);
   }
   return { values, contact };
 };

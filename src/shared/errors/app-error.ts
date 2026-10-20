@@ -67,7 +67,9 @@ export class ConflictError extends AppError {
       | 'CONFLICT_DUPLICATE'
       | 'CONFLICT_INVALID_STATE'
       | 'FLOW_REVISION_CONFLICT'
-      | 'RESOURCE_IN_USE' = 'CONFLICT_DUPLICATE',
+      | 'RESOURCE_IN_USE'
+      | 'CAMPAIGN_NOT_RUNNABLE'
+      | 'CAMPAIGN_REVISION_CONFLICT' = 'CONFLICT_DUPLICATE',
     message?: string,
     details?: ErrorDetail[],
   ) {

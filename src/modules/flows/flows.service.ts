@@ -42,7 +42,7 @@ import { accountVariables } from '../ai-agents/variables';
 import { auditRequest } from '../audit/audit.service';
 
 import type { CreateFlowBody, ListFlowsQuery, UpdateFlowBody } from './flows.schema';
-import { isFlowInUse } from './in-use';
+import { campaignsUsingFlow } from './in-use';
 import { findFlowTemplate } from './templates';
 
 export const NAME_COLLATION = { locale: 'en', strength: 2 } as const;
@@ -633,10 +633,12 @@ export const setArchived = async (req: Request, id: string, archived: boolean, d
 export const deleteFlow = async (req: Request, id: string): Promise<void> => {
   const { accountId } = tenantFilter(req);
   const flow = await findFlow(accountId, id);
-  if (await isFlowInUse(flow._id)) {
+  const campaigns = await campaignsUsingFlow(flow._id);
+  if (campaigns.length) {
     throw new ConflictError(
       'RESOURCE_IN_USE',
-      'This flow is in use by a campaign or phone number.',
+      `This flow is used by ${String(campaigns.length)} campaign${campaigns.length === 1 ? '' : 's'}. Cancel or finish them first.`,
+      campaigns.map((c) => ({ path: 'campaigns', message: c.name, id: c.id })),
     );
   }
   await FlowModel.updateOne({ _id: flow._id, accountId }, { $set: { deletedAt: new Date() } });
