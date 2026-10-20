@@ -909,6 +909,24 @@ export const beginRun = async (
   return fresh;
 };
 
+/**
+ * Why the campaign's pinned version can't run now (agents switched off, audio
+ * gone, flow / version not loadable) — empty when it can.
+ */
+export const pinnedProblems = async (campaign: CampaignDoc): Promise<ErrorDetail[]> => {
+  try {
+    const pinned = await loadFlowVersion(
+      campaign.accountId,
+      campaign.flowId,
+      campaign.flowVersion ?? campaign.chosenVersion,
+    );
+    return await runnableProblems(pinned);
+  } catch (err) {
+    if (!isNotRunnableError(err)) throw err;
+    return err.details?.length ? err.details : [{ path: 'flowId', message: err.message }];
+  }
+};
+
 /** Start now, or schedule (a start time in the future, or a recurring parent). */
 export const startCampaign = async (req: Request, id: string) => {
   const { accountId } = tenantFilter(req);

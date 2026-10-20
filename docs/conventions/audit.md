@@ -90,7 +90,7 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `campaign.updated`              | user             | campaign           | `fields` (names only)                                                                                                         |
 | `campaign.scheduled`            | user             | campaign           | `startAt` (ISO)                                                                                                               |
 | `campaign.started`              | user / system    | campaign           | `contacts` (snapshot size), `flowVersion`                                                                                     |
-| `campaign.paused`               | user / system    | campaign           | `reason` (`manual`, `wallet_empty`, `budget_reached`, `account_suspended`, `too_many_failures`, `admin`)                      |
+| `campaign.paused`               | user / system    | campaign           | `reason` (`manual`, `wallet_empty`, `budget_reached`, `account_suspended`, `too_many_failures`, `flow_not_runnable`, `admin`) |
 | `campaign.resumed`              | user / system    | campaign           | `auto` (true after a top-up); a superadmin lifting an `admin` pause: target account, `campaignId`, `admin: true` (both sides) |
 | `campaign.canceled`             | user             | campaign           | `hangUpLive`                                                                                                                  |
 | `campaign.deleted`              | user             | campaign           | —                                                                                                                             |

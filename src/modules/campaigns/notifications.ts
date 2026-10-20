@@ -17,6 +17,7 @@ export const PAUSE_REASON_LABELS: Record<PauseReason, string> = {
   account_suspended: 'the account was suspended',
   too_many_failures: 'too many calls failed in a row',
   admin: 'paused by the platform team',
+  flow_not_runnable: 'its flow can no longer run (an AI agent is switched off or audio is missing)',
 };
 
 const link = (campaignId: Types.ObjectId) => `/campaigns/${campaignId.toString()}`;

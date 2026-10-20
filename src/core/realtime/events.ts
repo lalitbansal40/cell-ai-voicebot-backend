@@ -43,7 +43,8 @@ export interface WsEventMap {
       | 'budget_reached'
       | 'account_suspended'
       | 'too_many_failures'
-      | 'admin';
+      | 'admin'
+      | 'flow_not_runnable';
     /** ISO time the calling window opens again (running, outside the window). */
     waitingUntil?: string;
   };

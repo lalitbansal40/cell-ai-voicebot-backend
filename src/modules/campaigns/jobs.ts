@@ -9,6 +9,7 @@ import type { CallManager } from '../calls/call.service';
 
 import {
   pauseCampaignDoc,
+  pinnedProblems,
   resumeCampaignDoc,
   setCampaignHooks,
   startScheduled,
@@ -167,6 +168,10 @@ export const processCampaignJob =
 
 /** Why a paused campaign can't resume yet (PHASE_8_PLAN §1j), or `null`. */
 export const resumeBlocker = async (campaign: CampaignDoc): Promise<string | null> => {
+  if (campaign.pauseReason === 'flow_not_runnable') {
+    const problems = await pinnedProblems(campaign);
+    return problems.length ? `The flow can't run yet: ${problems[0]?.message ?? ''}` : null;
+  }
   if (campaign.pauseReason !== 'wallet_empty' && campaign.pauseReason !== 'budget_reached') {
     return null;
   }

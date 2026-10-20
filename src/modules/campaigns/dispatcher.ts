@@ -26,7 +26,7 @@ import type { Logger } from '../../shared/logger';
 import type { CallManager } from '../calls/call.service';
 import type { CallEndedSummary } from '../calls/session';
 
-import { accountFacts, pauseCampaignDoc, setStatus } from './campaigns.service';
+import { accountFacts, pauseCampaignDoc, pinnedProblems, setStatus } from './campaigns.service';
 import { decideDial, loadContactFacts } from './dial-guard';
 import { publishProgress } from './progress';
 import { classifyResult } from './results';
@@ -35,6 +35,7 @@ import { contactCounts, countsToStats, STATUS_STAT } from './snapshot';
 import { canDialAt, effectiveWindow, nextWindowStart } from './window';
 
 const PRIORITY_RANK = { high: 0, normal: 1, low: 2 } as const;
+const RUNNABLE_CHECK_MS = 30_000;
 const OPEN: readonly CampaignContactStatus[] = [
   'pending',
   'queued',
@@ -68,6 +69,8 @@ export class CampaignDispatcher {
   private readonly loops = new Map<string, unknown>();
   private readonly ticking = new Set<string>();
   private readonly again = new Set<string>();
+  /** Campaign id → when its pinned version was last seen runnable (checked every 30 s). */
+  private readonly runnableAt = new Map<string, number>();
   private readonly running = new Set<Promise<void>>();
   private stopped = false;
 
@@ -172,6 +175,10 @@ export class CampaignDispatcher {
         continue;
       }
       if (!campaign.snapshot.done) continue; // the sweep resumes it
+      if (!(await this.stillRunnable(campaign))) {
+        await pauseCampaignDoc(campaign, 'flow_not_runnable', null).catch(() => undefined);
+        continue;
+      }
       const window = effectiveWindow({
         account: account.window,
         campaign: campaign.window,
@@ -223,6 +230,19 @@ export class CampaignDispatcher {
       status: campaign.status,
       ...(until ? { waitingUntil: until.toISOString() } : {}),
     });
+  }
+
+  /** The pinned version can still run (an agent switched off would fail every call). */
+  private async stillRunnable(campaign: CampaignDoc): Promise<boolean> {
+    const id = campaign._id.toString();
+    const now = this.clock.now();
+    if (now - (this.runnableAt.get(id) ?? -Infinity) < RUNNABLE_CHECK_MS) return true;
+    if ((await pinnedProblems(campaign)).length) {
+      this.runnableAt.delete(id);
+      return false;
+    }
+    this.runnableAt.set(id, now);
+    return true;
   }
 
   /** Real campaigns: something left in the wallet; dry runs: the virtual balance. */

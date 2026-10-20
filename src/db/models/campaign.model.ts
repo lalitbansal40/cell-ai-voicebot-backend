@@ -34,6 +34,8 @@ export const PAUSE_REASONS = [
   'account_suspended',
   'too_many_failures',
   'admin',
+  /** The pinned flow version can't run any more (an AI agent switched off, audio gone). */
+  'flow_not_runnable',
 ] as const;
 export type PauseReason = (typeof PAUSE_REASONS)[number];
 

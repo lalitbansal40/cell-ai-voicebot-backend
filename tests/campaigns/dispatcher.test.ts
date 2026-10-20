@@ -31,6 +31,7 @@ import { CallRegistry } from '../../src/modules/calls/registry';
 import {
   cancelCampaign,
   createCampaign,
+  resumeCampaign,
   setCampaignHooks,
   startCampaign,
 } from '../../src/modules/campaigns/campaigns.service';
@@ -546,6 +547,37 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
     expect(await drive(w, statusIs(id, 'paused'))).toBe(true);
     expect(await docOf(id)).toMatchObject({ pauseReason: 'too_many_failures' });
     expect((await docOf(id)).stats.failureStreak).toBeGreaterThanOrEqual(10);
+  });
+
+  it('a flow that can no longer run (its AI agent switched off) pauses the campaign until fixed', async () => {
+    const w = await world();
+    const unwire = wireCampaigns({
+      jobs: {
+        schedule: () => Promise.resolve(),
+        scheduleEnd: () => Promise.resolve(),
+        drop: () => Promise.resolve(),
+      },
+      dispatcher: w.dispatcher,
+      calls,
+      logger,
+    });
+    try {
+      const id = await w.campaign({ audience: { listIds: [await w.listOf(3)] } });
+      await startCampaign(w.req, id);
+      await AiAgentModel.updateOne({ _id: agentId }, { isActive: false });
+      w.clock.advance(Math.max(0, Date.now() - w.clock.now()));
+      await w.dispatcher.tick(w.t.account._id.toString());
+      expect(await docOf(id)).toMatchObject({ status: 'paused', pauseReason: 'flow_not_runnable' });
+      expect(await CallModel.countDocuments({ campaignId: id })).toBe(0);
+      await expect(resumeCampaign(w.req, id)).rejects.toMatchObject({
+        code: 'CONFLICT_INVALID_STATE',
+      });
+      await AiAgentModel.updateOne({ _id: agentId }, { isActive: true });
+      expect((await resumeCampaign(w.req, id)).status).toBe('running');
+      expect(await drive(w, statusIs(id, 'completed'))).toBe(true);
+    } finally {
+      unwire();
+    }
   });
 
   it('cancel with hang-up ends the live calls as campaign_canceled', async () => {
