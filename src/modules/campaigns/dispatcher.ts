@@ -354,6 +354,11 @@ export class CampaignDispatcher {
         { _id: campaign._id },
         { $inc: { ...moveStats('queued', 'calling'), 'stats.attempts': 1 } },
       );
+      // canceled while this contact was being dialed: its hang-up missed this call
+      if (await CampaignModel.exists({ _id: campaign._id, status: 'canceled' })) {
+        await this.deps.calls.hangupCampaign(campaign._id.toString());
+        return 'blocked';
+      }
       return 'dialed';
     } catch (err) {
       await this.settleContact(campaign, cc, cc.status, {});

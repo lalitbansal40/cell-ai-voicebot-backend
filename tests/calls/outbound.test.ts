@@ -8,7 +8,7 @@ import { Writable } from 'node:stream';
 import type { Redis } from 'ioredis';
 import { Types } from 'mongoose';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { loadEnv } from '../../src/config/env';
 import { createFakeProvider } from '../../src/core/ai';
@@ -365,6 +365,80 @@ describe('outbound dry-run calls', () => {
       PHRASES.callback,
     ]) {
       expect(log).not.toContain(secret);
+    }
+  });
+
+  it('a campaign hang-up that lands while the call is still being set up ends it', async () => {
+    const shared = manager;
+    const programs = createDryRunPrograms({
+      env: loadEnv({ MOCK_APIS_ENABLED: 'true', VOICE_PROVIDER: 'fake' }),
+      storage,
+      redis,
+    });
+    let open: () => void = () => undefined;
+    const gate = new Promise<void>((r) => {
+      open = r;
+    });
+    let building: () => void = () => undefined;
+    const built = new Promise<void>((r) => {
+      building = r;
+    });
+    manager = new CallManager({
+      logger,
+      registry: new CallRegistry(redis, prefix),
+      tts: new TtsCache({ tts: new FakeTts(), storage }),
+      storage,
+      recordingDir,
+      scriptFor: () => Promise.reject(new Error('web calls are not used here')),
+      dryRun: {
+        ...programs,
+        scriptFor: async (call) => {
+          building();
+          await gate;
+          return programs.scriptFor(call);
+        },
+      },
+    });
+    try {
+      const campaignId = new Types.ObjectId().toString();
+      const starting = dial(paid, PAID_PHONE, {
+        campaign: { campaignId, campaignContactId: new Types.ObjectId().toString(), attempt: 1 },
+      });
+      await built;
+      expect(await manager.hangupCampaign(campaignId)).toBe(1);
+      open();
+      const call = await starting;
+      expect(await call.ended).toMatchObject({ endReason: 'campaign_canceled' });
+    } finally {
+      await manager.shutdown();
+      manager = shared;
+    }
+  });
+
+  it('a registry failure while setting up gives the slot back and forgets the call', async () => {
+    const registry = new CallRegistry(redis, prefix);
+    const shared = manager;
+    manager = new CallManager({
+      logger,
+      registry,
+      tts: new TtsCache({ tts: new FakeTts(), storage }),
+      storage,
+      recordingDir,
+      scriptFor: () => Promise.reject(new Error('web calls are not used here')),
+      dryRun: createDryRunPrograms({ env: loadEnv({ VOICE_PROVIDER: 'fake' }), storage, redis }),
+    });
+    vi.spyOn(registry, 'register').mockRejectedValueOnce(new Error('redis down'));
+    try {
+      const campaignId = new Types.ObjectId().toString();
+      await expect(
+        dial(paid, PAID_PHONE, {
+          campaign: { campaignId, campaignContactId: new Types.ObjectId().toString(), attempt: 1 },
+        }),
+      ).rejects.toThrow('redis down');
+      expect(await manager.hangupCampaign(campaignId)).toBe(0);
+      expect(await manager.slots.count(t.account._id.toString())).toBe(0);
+    } finally {
+      manager = shared;
     }
   });
 

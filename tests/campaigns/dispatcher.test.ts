@@ -519,6 +519,35 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
     unwire();
   });
 
+  it('canceled while a contact was being dialed: that call is hung up too', async () => {
+    const w = await world();
+    const id = await w.campaign({
+      audience: { listIds: [await w.listOf(1)] },
+      dryRun: { speed: 1 },
+    });
+    await startCampaign(w.req, id);
+    const real = calls.startOutboundCall.bind(calls);
+    const spy = vi.spyOn(calls, 'startOutboundCall').mockImplementation(async (input) => {
+      const out = await real(input);
+      // the cancel (and its hang-up) happened while this dial was in flight
+      await CampaignModel.updateOne({ _id: id }, { $set: { status: 'canceled' } });
+      return out;
+    });
+    try {
+      w.clock.advance(Math.max(0, Date.now() - w.clock.now()));
+      await w.dispatcher.tick(w.t.account._id.toString());
+    } finally {
+      spy.mockRestore();
+    }
+    const call = await CallModel.findOne({ campaignId: id }).lean();
+    for (let i = 0; i < 400; i += 1) {
+      const now = await CallModel.findById(call?._id).lean();
+      if (now?.endReason) break;
+      await sleep(25);
+    }
+    expect((await CallModel.findById(call?._id).lean())?.endReason).toBe('campaign_canceled');
+  });
+
   it('stop waits for a tick in flight; a stopped dispatcher schedules nothing', async () => {
     const w = await world();
     const id = await w.campaign({ audience: { listIds: [await w.listOf(1)] } });

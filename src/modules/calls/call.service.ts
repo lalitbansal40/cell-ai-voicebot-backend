@@ -100,6 +100,8 @@ export class CallManager {
   private readonly dryRunLine = new DryRunProvider();
   /** Live campaign calls of this process: call id → campaign id (cancel with hang-up). */
   private readonly campaignCalls = new Map<string, string>();
+  /** Campaign calls hung up before their session existed — ended right after it starts. */
+  private readonly endRequested = new Set<string>();
 
   constructor(private readonly deps: CallManagerDeps) {
     this.clock = deps.clock ?? systemClock;
@@ -297,6 +299,8 @@ export class CallManager {
       throw err;
     }
     const campaignId = input.campaign?.campaignId;
+    // known to hangupCampaign from now on (the session follows after the awaits below)
+    if (campaignId) this.campaignCalls.set(callId, campaignId);
     notifyAccount(input.accountId, 'call.created', {
       callId,
       isTest: true,
@@ -308,12 +312,19 @@ export class CallManager {
       return { script: failingScript(err), voice: 'coral', language: 'hinglish' };
     });
     const clock = new ScaledClock(input.dryRun.speed, this.clock);
-    await this.deps.registry.register(
-      callId,
-      input.accountId,
-      clock.now(),
-      CALL_LIMITS.registryTtlSec,
-    );
+    try {
+      await this.deps.registry.register(
+        callId,
+        input.accountId,
+        clock.now(),
+        CALL_LIMITS.registryTtlSec,
+      );
+    } catch (err) {
+      this.campaignCalls.delete(callId);
+      this.endRequested.delete(callId);
+      await this.releaseLease(callId);
+      throw err;
+    }
     const leg = this.dryRunLine.startCall({ callId, to: input.to, dryRun: input.dryRun, clock });
     let resolveEnded: (summary: CallEndedSummary) => void = () => undefined;
     const ended = new Promise<CallEndedSummary>((resolve) => {
@@ -338,15 +349,16 @@ export class CallManager {
       onEnded: (summary) => {
         this.sessions.delete(callId);
         this.campaignCalls.delete(callId);
+        this.endRequested.delete(callId);
         void this.releaseLease(callId);
         this.emitEnded(summary);
         resolveEnded(summary);
       },
     });
     this.sessions.set(callId, session);
-    if (campaignId) this.campaignCalls.set(callId, campaignId);
     await session.start();
-    leg.ring();
+    if (this.endRequested.delete(callId)) await session.end('campaign_canceled');
+    else leg.ring();
     return { callId, ended };
   }
 
@@ -412,6 +424,7 @@ export class CallManager {
     const ids = [...this.campaignCalls].filter(([, c]) => c === campaignId).map(([id]) => id);
     const live = ids.flatMap((id) => {
       const session = this.sessions.get(id);
+      if (!session) this.endRequested.add(id);
       return session ? [session] : [];
     });
     await Promise.all(live.map((session) => session.end('campaign_canceled')));
