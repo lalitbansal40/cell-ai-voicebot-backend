@@ -5,6 +5,11 @@ import type { z } from 'zod';
 import { notifyAccount } from '../../core/realtime/notify';
 import { AccountModel, type AccountDoc } from '../../db/models/account.model';
 import { AuditLogModel, type AuditLogDoc } from '../../db/models/audit-log.model';
+import {
+  ACTIVE_CAMPAIGN_STATUSES,
+  CampaignModel,
+  type CampaignDoc,
+} from '../../db/models/campaign.model';
 import { RoleModel, type RoleDoc } from '../../db/models/role.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
 import { requireAuth } from '../../shared/auth/auth-context';
@@ -21,9 +26,10 @@ import {
   toPublicUser,
   type AuthSession,
 } from '../auth/session';
+import { resumeCampaignDoc } from '../campaigns/campaigns.service';
 import { pauseAccountCampaigns } from '../campaigns/jobs';
 
-import type { ListAccountsQuery } from './admin.schema';
+import type { AccountLimitsBody, ListAccountsQuery } from './admin.schema';
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -111,7 +117,7 @@ export const listAccounts = async (query: z.infer<typeof ListAccountsQuery>) => 
 
 export const accountDetail = async (id: string) => {
   const account = await findCustomerAccount(id);
-  const [owner, byStatus, recent] = await Promise.all([
+  const [owner, byStatus, recent, activeCampaigns] = await Promise.all([
     account.ownerId ? UserModel.findById(account.ownerId).lean<UserDoc>() : null,
     UserModel.aggregate<{ _id: UserDoc['status']; n: number }>([
       { $match: { accountId: account._id } },
@@ -121,6 +127,11 @@ export const accountDetail = async (id: string) => {
       .sort({ at: -1, _id: -1 })
       .limit(20)
       .lean<AuditLogDoc[]>(),
+    CampaignModel.countDocuments({
+      accountId: account._id,
+      parentId: null,
+      status: { $in: ACTIVE_CAMPAIGN_STATUSES },
+    }),
   ]);
   const usersByStatus = { invited: 0, active: 0, disabled: 0 };
   for (const s of byStatus) usersByStatus[s._id] = s.n;
@@ -129,6 +140,11 @@ export const accountDetail = async (id: string) => {
     owner: owner ? toPublicUser(owner) : null,
     usersCount: usersByStatus.invited + usersByStatus.active + usersByStatus.disabled,
     usersByStatus,
+    limits: {
+      maxConcurrentCalls: account.limits.maxConcurrentCalls,
+      dialsPerMinute: account.limits.dialsPerMinute,
+    },
+    activeCampaigns,
     recentAudit: recent.map((r) => ({
       id: r._id.toString(),
       action: r.action,
@@ -179,6 +195,64 @@ export const enableAccount = async (req: Request, id: string) => {
   await auditBothSides(req, updated, 'account.enabled');
   notifyAccount(updated._id.toString(), 'account.enabled', {});
   return toPublicAccount(updated);
+};
+
+/** Dialing limits (Phase 8): concurrent calls (web test calls count) and dials per minute. */
+export const setAccountLimits = async (
+  req: Request,
+  id: string,
+  body: z.infer<typeof AccountLimitsBody>,
+) => {
+  const account = await findCustomerAccount(id);
+  const fields = (['maxConcurrentCalls', 'dialsPerMinute'] as const).filter(
+    (k) => body[k] !== undefined,
+  );
+  const updated = await AccountModel.findByIdAndUpdate(
+    account._id,
+    { $set: Object.fromEntries(fields.map((k) => [`limits.${k}`, body[k]])) },
+    { returnDocument: 'after' },
+  ).lean<AccountDoc>();
+  if (!updated) throw new NotFoundError();
+  await auditBothSides(req, updated, 'account.limits_updated', { fields });
+  return {
+    maxConcurrentCalls: updated.limits.maxConcurrentCalls,
+    dialsPerMinute: updated.limits.dialsPerMinute,
+  };
+};
+
+/** Emergency stop: every scheduled / running campaign pauses with reason `admin`. */
+export const pauseAllCampaigns = async (req: Request, id: string) => {
+  const account = await findCustomerAccount(id);
+  const paused = await pauseAccountCampaigns(account._id, 'admin');
+  await auditBothSides(req, account, 'campaign.admin_paused', { campaigns: paused });
+  return { paused };
+};
+
+/** Only a superadmin lifts an `admin` pause (the account's own users get 409). */
+export const resumeAdminPaused = async (req: Request, id: string, campaignId: string) => {
+  const account = await findCustomerAccount(id);
+  const _id = toObjectId(campaignId);
+  const campaign = _id
+    ? await CampaignModel.findOne({
+        _id,
+        accountId: account._id,
+        deletedAt: null,
+      }).lean<CampaignDoc>()
+    : null;
+  if (!campaign) throw new NotFoundError();
+  if (campaign.status !== 'paused' || campaign.pauseReason !== 'admin') {
+    throw new ConflictError(
+      'CONFLICT_INVALID_STATE',
+      'Only a campaign paused by the platform team is resumed here.',
+    );
+  }
+  const resumed = await resumeCampaignDoc(campaign, null);
+  await auditBothSides(req, account, 'campaign.resumed', {
+    campaignId: campaign._id.toString(),
+    auto: false,
+    admin: true,
+  });
+  return { id: resumed._id.toString(), status: resumed.status };
 };
 
 /**

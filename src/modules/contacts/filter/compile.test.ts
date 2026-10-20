@@ -191,3 +191,71 @@ describe('isoDay', () => {
     expect(problems).toEqual([]);
   });
 });
+
+describe('call history conditions (Phase 8)', () => {
+  // today in Asia/Kolkata is 2026-10-09; IST midnight = 18:30 UTC the day before
+  it.each([
+    [{ key: 'lastDisposition', op: 'eq', value: 'paid' }, { lastDisposition: 'paid' }],
+    [{ key: 'lastDisposition', op: 'neq', value: 'paid' }, { lastDisposition: { $ne: 'paid' } }],
+    [{ key: 'lastDisposition', op: 'exists' }, { lastDisposition: { $ne: null } }],
+    [{ key: 'lastDisposition', op: 'not_exists' }, { lastDisposition: null }],
+    [{ key: 'lastCalledAt', op: 'not_exists' }, { lastCalledAt: null }],
+    [
+      { key: 'lastCalledAt', op: 'before', value: '2026-10-05' },
+      { lastCalledAt: { $lt: new Date('2026-10-04T18:30:00Z') } },
+    ],
+    [
+      { key: 'lastCalledAt', op: 'after', value: '05/10/2026' },
+      { lastCalledAt: { $gte: new Date('2026-10-05T18:30:00Z') } },
+    ],
+    [
+      { key: 'lastCalledAt', op: 'within_last_days', value: 7 },
+      { lastCalledAt: { $gte: new Date('2026-10-01T18:30:00Z') } },
+    ],
+    [
+      { key: 'lastCalledAt', op: 'within_last_days', value: 0 },
+      { lastCalledAt: { $gte: new Date('2026-10-08T18:30:00Z') } },
+    ],
+  ] as [FilterCondition, Record<string, unknown>][])('%o', (cond, clause) => {
+    expect(one(cond)).toEqual(clause);
+  });
+
+  it('uses the account timezone for day boundaries', () => {
+    const { query } = compileContactFilter(
+      accountId,
+      { conditions: [{ key: 'lastCalledAt', op: 'before', value: '2026-10-05' }] },
+      { ...ctx, timezone: 'Europe/London' },
+    );
+    expect((query.$and as Record<string, unknown>[])[0]).toEqual({
+      lastCalledAt: { $lt: new Date('2026-10-04T23:00:00Z') },
+    });
+  });
+
+  it('refuses wrong operators and values; does not need a custom field', () => {
+    expect(
+      problemOf({ conditions: [{ key: 'lastDisposition', op: 'contains', value: 'p' }] }).problems,
+    ).toEqual([
+      { path: 'conditions.0.op', message: `"contains" can't be used with lastDisposition` },
+    ]);
+    expect(
+      problemOf({ conditions: [{ key: 'lastDisposition', op: 'eq', value: 'happy' }] }).problems[0]
+        ?.path,
+    ).toBe('conditions.0.value');
+    expect(
+      problemOf({ conditions: [{ key: 'lastCalledAt', op: 'exists' }] }).problems[0]?.path,
+    ).toBe('conditions.0.op');
+    expect(
+      problemOf({ conditions: [{ key: 'lastCalledAt', op: 'after', value: 'soon' }] }).problems[0]
+        ?.message,
+    ).toBe('Must be a date (YYYY-MM-DD)');
+    expect(
+      problemOf({ conditions: [{ key: 'lastCalledAt', op: 'within_last_days', value: -1 }] })
+        .problems[0]?.path,
+    ).toBe('conditions.0.value');
+    // within_last_days is only for call history
+    expect(
+      problemOf({ conditions: [{ key: 'due_date', op: 'within_last_days', value: 3 }] }).problems[0]
+        ?.path,
+    ).toBe('conditions.0.op');
+  });
+});

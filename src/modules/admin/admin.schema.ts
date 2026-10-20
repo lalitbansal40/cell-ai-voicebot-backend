@@ -1,3 +1,4 @@
+import { ACCOUNT_LIMIT_RANGES } from '../../config/limits';
 import { OffsetPageMetaSchema } from '../../shared/openapi/common.schemas';
 import { registry } from '../../shared/openapi/registry';
 import { bearer, errors, noContentResponse, ok } from '../../shared/openapi/responses';
@@ -14,6 +15,27 @@ export const ListAccountsQuery = z.strictObject({
 
 export const AccountIdParams = z.strictObject({ id: ObjectIdSchema });
 export const SuspendBody = z.strictObject({ reason: z.string().trim().min(3).max(200) });
+export const AccountCampaignParams = z.strictObject({
+  id: ObjectIdSchema,
+  campaignId: ObjectIdSchema,
+});
+
+const limit = (r: { min: number; max: number }) => z.number().int().min(r.min).max(r.max);
+
+/** Dialing limits of an account (Phase 8, superadmin). */
+export const AccountLimitsBody = z
+  .strictObject({
+    maxConcurrentCalls: limit(ACCOUNT_LIMIT_RANGES.maxConcurrentCalls).optional(),
+    dialsPerMinute: limit(ACCOUNT_LIMIT_RANGES.dialsPerMinute).optional(),
+  })
+  .refine((b) => b.maxConcurrentCalls !== undefined || b.dialsPerMinute !== undefined, {
+    message: 'Change at least one limit',
+  });
+
+export const AccountLimitsSchema = registry.register(
+  'AccountLimits',
+  z.object({ maxConcurrentCalls: z.number().int(), dialsPerMinute: z.number().int() }),
+);
 
 export const AdminAccountRowSchema = registry.register(
   'AdminAccountRow',
@@ -35,6 +57,8 @@ export const AdminAccountDetailSchema = registry.register(
     owner: PublicUserSchema.nullable(),
     usersCount: z.number().int(),
     usersByStatus: z.object({ invited: z.number(), active: z.number(), disabled: z.number() }),
+    limits: AccountLimitsSchema,
+    activeCampaigns: z.number().int().openapi({ description: 'Scheduled, running or paused' }),
     recentAudit: z.array(AuditEntrySchema),
   }),
 );
@@ -116,4 +140,44 @@ registry.registerPath({
   summary: 'End an impersonation session (call with the impersonation token)',
   security: bearer,
   responses: { 204: noContentResponse, 401: errors[401], 409: errors[409] },
+});
+
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/admin/accounts/{id}/limits',
+  tags,
+  summary: 'Set the dialing limits of an account (superadmin; audited)',
+  security: bearer,
+  request: { params: AccountIdParams, ...json(AccountLimitsBody) },
+  responses: { 200: ok(AccountLimitsSchema), 403: errors[403], 404: errors[404], 422: errors[422] },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/campaigns/pause',
+  tags,
+  summary: 'Emergency pause of every scheduled / running campaign of an account (superadmin)',
+  description: 'Paused with reason `admin`: only a superadmin can resume them.',
+  security: bearer,
+  request: { params: AccountIdParams },
+  responses: {
+    200: ok(z.object({ paused: z.number().int() })),
+    403: errors[403],
+    404: errors[404],
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/campaigns/{campaignId}/resume',
+  tags,
+  summary: 'Resume a campaign paused by the platform team (superadmin)',
+  security: bearer,
+  request: { params: AccountCampaignParams },
+  responses: {
+    200: ok(z.object({ id: z.string(), status: z.string() })),
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
+  },
 });

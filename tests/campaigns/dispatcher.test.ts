@@ -712,10 +712,12 @@ describe('sweep, jobs and automation', () => {
     expect(moveStats('pending', 'pending')).toEqual({});
   });
 
-  it('queue jobs: start + end replaced at their times; recurring parents get no start job', async () => {
+  it('queue jobs: start + end replaced at their times; recurring parents get a run scheduler', async () => {
     const queue = {
       remove: vi.fn(() => Promise.resolve(1)),
       add: vi.fn(() => Promise.resolve({})),
+      upsertJobScheduler: vi.fn(() => Promise.resolve({})),
+      removeJobScheduler: vi.fn(() => Promise.resolve(true)),
     };
     const jobs = queueCampaignJobs(queue as unknown as Queue, () => 1_000);
     const c = {
@@ -736,11 +738,22 @@ describe('sweep, jobs and automation', () => {
     queue.add.mockClear();
     await jobs.schedule({
       ...c,
-      schedule: { startAt: null, endAt: null, recurrence: { freq: 'daily' } },
+      schedule: {
+        startAt: null,
+        endAt: null,
+        timezone: 'Asia/Kolkata',
+        recurrence: { freq: 'weekly', days: [5, 1], time: '10:30', until: new Date(9e12) },
+      },
     } as unknown as CampaignDoc);
     expect(queue.add).not.toHaveBeenCalled();
+    expect(queue.upsertJobScheduler).toHaveBeenCalledWith(
+      `runs-${c._id.toString()}`,
+      { pattern: '30 10 * * 1,5', tz: 'Asia/Kolkata', endDate: new Date(9e12) },
+      expect.objectContaining({ name: 'campaign.run', data: { campaignId: c._id.toString() } }),
+    );
     await jobs.drop(c);
     expect(queue.remove).toHaveBeenCalledWith(`end-${c._id.toString()}`);
+    expect(queue.removeJobScheduler).toHaveBeenCalledWith(`runs-${c._id.toString()}`);
   });
 
   it('auto-resume only for wallet pauses that the money allows; other pauses have no blocker', async () => {

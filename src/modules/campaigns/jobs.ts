@@ -13,6 +13,8 @@ import {
   startScheduled,
 } from './campaigns.service';
 import { completeCampaign, virtualRoom, type CampaignDispatcher } from './dispatcher';
+import { cronOf } from './recurrence';
+import { runDue, runSchedulerId } from './runs';
 import { sweepCampaigns } from './sweep';
 
 /** Campaign jobs (PHASE_8_PROMPT §1 "Queue + jobs"); job data = ids only. */
@@ -20,6 +22,8 @@ export interface CampaignJobData {
   'campaign.start': { campaignId: string };
   'campaign.end': { campaignId: string };
   'campaign.wake': { accountId: string };
+  /** One occurrence of a recurring parent (job scheduler `runs-<id>`). */
+  'campaign.run': { campaignId: string };
   'campaigns.sweep': Record<string, never>;
 }
 export type CampaignJobName = keyof CampaignJobData;
@@ -28,6 +32,7 @@ export const CAMPAIGN_JOB_NAMES = [
   'campaign.start',
   'campaign.end',
   'campaign.wake',
+  'campaign.run',
   'campaigns.sweep',
 ] as const satisfies readonly CampaignJobName[];
 
@@ -41,6 +46,7 @@ const OPTIONS: JobsOptions = {
   removeOnComplete: true,
   removeOnFail: { age: 7 * 24 * 3600 },
 };
+const RUN_OPTIONS = { ...OPTIONS, attempts: 1 } as const;
 
 /** BullMQ custom job ids may not contain ':' — ids use '-'. */
 export const startJobId = (campaignId: string) => `start-${campaignId}`;
@@ -70,7 +76,20 @@ export const queueCampaignJobs = (queue: Queue, now: () => number = Date.now): C
     );
   return {
     async schedule(c) {
-      const startAt = c.schedule.recurrence ? null : c.schedule.startAt;
+      const recurrence = c.schedule.recurrence;
+      if (recurrence) {
+        // cron in the campaign timezone; the sweep is the safety net (`nextRunAt`)
+        await queue.upsertJobScheduler(
+          runSchedulerId(c._id.toString()),
+          {
+            pattern: cronOf(recurrence),
+            tz: c.schedule.timezone,
+            ...(recurrence.until ? { endDate: recurrence.until } : {}),
+          },
+          { name: 'campaign.run', data: { campaignId: c._id.toString() }, opts: RUN_OPTIONS },
+        );
+      }
+      const startAt = recurrence ? null : c.schedule.startAt;
       await replace(
         startJobId(c._id.toString()),
         'campaign.start',
@@ -83,6 +102,7 @@ export const queueCampaignJobs = (queue: Queue, now: () => number = Date.now): C
     async drop(c) {
       await queue.remove(startJobId(c._id.toString()));
       await queue.remove(endJobId(c._id.toString()));
+      await queue.removeJobScheduler(runSchedulerId(c._id.toString()));
     },
   };
 };
@@ -109,6 +129,10 @@ export const processCampaignJob =
           await completeCampaign(campaign, 'campaign_ended');
         }
         return null;
+      }
+      case 'campaign.run': {
+        const { campaignId } = job.data as CampaignJobData['campaign.run'];
+        return runDue(campaignId, new Date(), ctx.logger);
       }
       case 'campaign.wake':
         ctx.dispatcher.wake((job.data as CampaignJobData['campaign.wake']).accountId);

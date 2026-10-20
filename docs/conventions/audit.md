@@ -12,91 +12,91 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 
 ## Actions
 
-| Action                          | Actor            | Target             | Meta                                                                                                     |
-| ------------------------------- | ---------------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `account.created`               | user (owner)     | account            | —                                                                                                        |
-| `account.updated`               | user             | account            | `fields`                                                                                                 |
-| `account.ownership_transferred` | user (old owner) | user (new owner)   | `from`, `to` (user ids)                                                                                  |
-| `account.suspended`             | user (platform)  | account            | `reason`                                                                                                 |
-| `account.enabled`               | user (platform)  | account            | —                                                                                                        |
-| `auth.email_verified`           | user             | user               | —                                                                                                        |
-| `auth.login`                    | user             | —                  | —                                                                                                        |
-| `auth.login_failed`             | user             | —                  | `reason` (`bad_password`)                                                                                |
-| `auth.logout`                   | user             | —                  | —                                                                                                        |
-| `auth.logout_all`               | user             | —                  | —                                                                                                        |
-| `auth.session_revoked`          | user             | session            | —                                                                                                        |
-| `auth.refresh_reuse_detected`   | user             | session            | —                                                                                                        |
-| `auth.password_reset_requested` | user             | —                  | —                                                                                                        |
-| `auth.password_reset`           | user             | —                  | —                                                                                                        |
-| `auth.password_changed`         | user             | —                  | —                                                                                                        |
-| `team.invited`                  | user             | user (invitee)     | `roleKey`                                                                                                |
-| `team.invite_resent`            | user             | user               | —                                                                                                        |
-| `team.invite_revoked`           | user             | user               | `email` (masked)                                                                                         |
-| `team.invite_accepted`          | user (invitee)   | user               | —                                                                                                        |
-| `team.role_changed`             | user             | user               | `from`, `to` (role keys)                                                                                 |
-| `team.disabled`                 | user             | user               | —                                                                                                        |
-| `team.enabled`                  | user             | user               | —                                                                                                        |
-| `team.removed`                  | user             | user               | `email` (masked)                                                                                         |
-| `apikey.created`                | user             | api_key            | `name`, `scopes`, `prefix`                                                                               |
-| `apikey.revoked`                | user             | api_key            | `name`, `prefix`                                                                                         |
-| `admin.impersonation_started`   | user (platform)  | account            | `ownerId`, `expiresAt`                                                                                   |
-| `admin.impersonation_stopped`   | user (platform)  | account            | —                                                                                                        |
-| `contacts.import_started`       | user             | import_job         | `kind`, `rows`                                                                                           |
-| `contacts.import_completed`     | user / system    | import_job         | `kind`, totals (`created`, `updated`, …)                                                                 |
-| `contacts.import_canceled`      | user             | import_job         | `processed`                                                                                              |
-| `contacts.exported`             | user             | export_job         | `scope`, `rows`                                                                                          |
-| `contacts.deleted`              | user             | contact (single)   | `count`, `mode` (`single` / `ids` / `filter`)                                                            |
-| `contacts.bulk_updated`         | user             | —                  | `action`, `count`, `mode`                                                                                |
-| `contact.opted_out`             | user             | contact            | —                                                                                                        |
-| `dnd.added`                     | user             | dnd_entry (single) | `count`, `source`                                                                                        |
-| `dnd.removed`                   | user             | dnd_entry          | `optOutCleared`                                                                                          |
-| `custom_field.created`          | user             | custom_field       | `key`, `type`                                                                                            |
-| `custom_field.updated`          | user             | custom_field       | `key`, `fields`                                                                                          |
-| `custom_field.deleted`          | user             | custom_field       | `key`                                                                                                    |
-| `contact_list.deleted`          | user             | contact_list       | `name`                                                                                                   |
-| `segment.deleted`               | user             | segment            | `name`                                                                                                   |
-| `wallet.topup_paid`             | user / system    | topup_order        | `amountMicros`, `invoiceNumber`                                                                          |
-| `wallet.adjusted`               | user (platform)  | account            | `direction`, `amountMicros`, `reason`                                                                    |
-| `wallet.settings_updated`       | user             | wallet             | `fields`, `from`, `to`                                                                                   |
-| `wallet.credit_limit_updated`   | user (platform)  | wallet             | `from`, `to`                                                                                             |
-| `billing.profile_updated`       | user             | account            | `fields`                                                                                                 |
-| `rate_card.updated`             | user (platform)  | rate_card          | `scope`, `changes`                                                                                       |
-| `agent.created`                 | user             | agent              | `name`, `templateKey`                                                                                    |
-| `agent.updated`                 | user             | agent              | `fields` (names only)                                                                                    |
-| `agent.deleted`                 | user             | agent              | `name`                                                                                                   |
-| `agent.duplicated`              | user             | agent              | `sourceAgentId`, `name`                                                                                  |
-| `agent.activated`               | user             | agent              | —                                                                                                        |
-| `agent.deactivated`             | user             | agent              | —                                                                                                        |
-| `kb.created`                    | user             | knowledge_base     | `name`                                                                                                   |
-| `kb.updated`                    | user             | knowledge_base     | `fields`                                                                                                 |
-| `kb.deleted`                    | user             | knowledge_base     | `name`, `unlinkedAgents`                                                                                 |
-| `kb.source_changed`             | user             | knowledge_base     | `change`, `kind`, `title`                                                                                |
-| `flow.created`                  | user             | flow               | `name`, `source` (`blank` / `template` / `import` / `duplicate`), `templateKey`                          |
-| `flow.updated`                  | user             | flow               | `fields` (`name` / `description`)                                                                        |
-| `flow.published`                | user             | flow               | `version`, `notes`, `nodesAdded`, `nodesRemoved`, `nodesChanged`, `edgesChanged`                         |
-| `flow.restored`                 | user             | flow               | `fromVersion`                                                                                            |
-| `flow.duplicated`               | user             | flow               | `sourceFlowId`, `name`                                                                                   |
-| `flow.imported`                 | user             | flow               | `name`, `warnings` (count)                                                                               |
-| `flow.exported`                 | user             | flow               | `version` (number or `draft`)                                                                            |
-| `flow.archived`                 | user             | flow               | —                                                                                                        |
-| `flow.unarchived`               | user             | flow               | —                                                                                                        |
-| `flow.deleted`                  | user             | flow               | `name`                                                                                                   |
-| `flow_audio.changed`            | user             | flow_audio         | `change` (`uploaded` / `renamed` / `deleted`), `name`, `durationMs`                                      |
-| `call.test_started`             | user             | call               | `source` (`flow` / `agent`), `version` (`draft` / number, flows only)                                    |
-| `call.recording_accessed`       | user             | call               | —                                                                                                        |
-| `call.hung_up_remotely`         | user             | call               | —                                                                                                        |
-| `call.triggered`                | user             | call               | `source` (`flow` / `agent`), `provider` (`dryrun` …) — single "Call now"                                 |
-| `campaign.created`              | user             | campaign           | `mode`, `flowId`                                                                                         |
-| `campaign.updated`              | user             | campaign           | `fields` (names only)                                                                                    |
-| `campaign.scheduled`            | user             | campaign           | `startAt` (ISO)                                                                                          |
-| `campaign.started`              | user / system    | campaign           | `contacts` (snapshot size), `flowVersion`                                                                |
-| `campaign.paused`               | user / system    | campaign           | `reason` (`manual`, `wallet_empty`, `budget_reached`, `account_suspended`, `too_many_failures`, `admin`) |
-| `campaign.resumed`              | user / system    | campaign           | `auto` (true after a top-up)                                                                             |
-| `campaign.canceled`             | user             | campaign           | `hangUpLive`                                                                                             |
-| `campaign.deleted`              | user             | campaign           | —                                                                                                        |
-| `campaign.exported`             | user             | campaign           | `format` (`csv` / `xlsx`), `rows`, `includePhone`                                                        |
-| `campaign.admin_paused`         | superadmin       | account            | `campaigns` (count) — written on the account and on the platform account                                 |
-| `account.limits_updated`        | superadmin       | account            | `fields` (`maxConcurrentCalls`, `dialsPerMinute`)                                                        |
+| Action                          | Actor            | Target             | Meta                                                                                                                          |
+| ------------------------------- | ---------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `account.created`               | user (owner)     | account            | —                                                                                                                             |
+| `account.updated`               | user             | account            | `fields`                                                                                                                      |
+| `account.ownership_transferred` | user (old owner) | user (new owner)   | `from`, `to` (user ids)                                                                                                       |
+| `account.suspended`             | user (platform)  | account            | `reason`                                                                                                                      |
+| `account.enabled`               | user (platform)  | account            | —                                                                                                                             |
+| `auth.email_verified`           | user             | user               | —                                                                                                                             |
+| `auth.login`                    | user             | —                  | —                                                                                                                             |
+| `auth.login_failed`             | user             | —                  | `reason` (`bad_password`)                                                                                                     |
+| `auth.logout`                   | user             | —                  | —                                                                                                                             |
+| `auth.logout_all`               | user             | —                  | —                                                                                                                             |
+| `auth.session_revoked`          | user             | session            | —                                                                                                                             |
+| `auth.refresh_reuse_detected`   | user             | session            | —                                                                                                                             |
+| `auth.password_reset_requested` | user             | —                  | —                                                                                                                             |
+| `auth.password_reset`           | user             | —                  | —                                                                                                                             |
+| `auth.password_changed`         | user             | —                  | —                                                                                                                             |
+| `team.invited`                  | user             | user (invitee)     | `roleKey`                                                                                                                     |
+| `team.invite_resent`            | user             | user               | —                                                                                                                             |
+| `team.invite_revoked`           | user             | user               | `email` (masked)                                                                                                              |
+| `team.invite_accepted`          | user (invitee)   | user               | —                                                                                                                             |
+| `team.role_changed`             | user             | user               | `from`, `to` (role keys)                                                                                                      |
+| `team.disabled`                 | user             | user               | —                                                                                                                             |
+| `team.enabled`                  | user             | user               | —                                                                                                                             |
+| `team.removed`                  | user             | user               | `email` (masked)                                                                                                              |
+| `apikey.created`                | user             | api_key            | `name`, `scopes`, `prefix`                                                                                                    |
+| `apikey.revoked`                | user             | api_key            | `name`, `prefix`                                                                                                              |
+| `admin.impersonation_started`   | user (platform)  | account            | `ownerId`, `expiresAt`                                                                                                        |
+| `admin.impersonation_stopped`   | user (platform)  | account            | —                                                                                                                             |
+| `contacts.import_started`       | user             | import_job         | `kind`, `rows`                                                                                                                |
+| `contacts.import_completed`     | user / system    | import_job         | `kind`, totals (`created`, `updated`, …)                                                                                      |
+| `contacts.import_canceled`      | user             | import_job         | `processed`                                                                                                                   |
+| `contacts.exported`             | user             | export_job         | `scope`, `rows`                                                                                                               |
+| `contacts.deleted`              | user             | contact (single)   | `count`, `mode` (`single` / `ids` / `filter`)                                                                                 |
+| `contacts.bulk_updated`         | user             | —                  | `action`, `count`, `mode`                                                                                                     |
+| `contact.opted_out`             | user             | contact            | —                                                                                                                             |
+| `dnd.added`                     | user             | dnd_entry (single) | `count`, `source`                                                                                                             |
+| `dnd.removed`                   | user             | dnd_entry          | `optOutCleared`                                                                                                               |
+| `custom_field.created`          | user             | custom_field       | `key`, `type`                                                                                                                 |
+| `custom_field.updated`          | user             | custom_field       | `key`, `fields`                                                                                                               |
+| `custom_field.deleted`          | user             | custom_field       | `key`                                                                                                                         |
+| `contact_list.deleted`          | user             | contact_list       | `name`                                                                                                                        |
+| `segment.deleted`               | user             | segment            | `name`                                                                                                                        |
+| `wallet.topup_paid`             | user / system    | topup_order        | `amountMicros`, `invoiceNumber`                                                                                               |
+| `wallet.adjusted`               | user (platform)  | account            | `direction`, `amountMicros`, `reason`                                                                                         |
+| `wallet.settings_updated`       | user             | wallet             | `fields`, `from`, `to`                                                                                                        |
+| `wallet.credit_limit_updated`   | user (platform)  | wallet             | `from`, `to`                                                                                                                  |
+| `billing.profile_updated`       | user             | account            | `fields`                                                                                                                      |
+| `rate_card.updated`             | user (platform)  | rate_card          | `scope`, `changes`                                                                                                            |
+| `agent.created`                 | user             | agent              | `name`, `templateKey`                                                                                                         |
+| `agent.updated`                 | user             | agent              | `fields` (names only)                                                                                                         |
+| `agent.deleted`                 | user             | agent              | `name`                                                                                                                        |
+| `agent.duplicated`              | user             | agent              | `sourceAgentId`, `name`                                                                                                       |
+| `agent.activated`               | user             | agent              | —                                                                                                                             |
+| `agent.deactivated`             | user             | agent              | —                                                                                                                             |
+| `kb.created`                    | user             | knowledge_base     | `name`                                                                                                                        |
+| `kb.updated`                    | user             | knowledge_base     | `fields`                                                                                                                      |
+| `kb.deleted`                    | user             | knowledge_base     | `name`, `unlinkedAgents`                                                                                                      |
+| `kb.source_changed`             | user             | knowledge_base     | `change`, `kind`, `title`                                                                                                     |
+| `flow.created`                  | user             | flow               | `name`, `source` (`blank` / `template` / `import` / `duplicate`), `templateKey`                                               |
+| `flow.updated`                  | user             | flow               | `fields` (`name` / `description`)                                                                                             |
+| `flow.published`                | user             | flow               | `version`, `notes`, `nodesAdded`, `nodesRemoved`, `nodesChanged`, `edgesChanged`                                              |
+| `flow.restored`                 | user             | flow               | `fromVersion`                                                                                                                 |
+| `flow.duplicated`               | user             | flow               | `sourceFlowId`, `name`                                                                                                        |
+| `flow.imported`                 | user             | flow               | `name`, `warnings` (count)                                                                                                    |
+| `flow.exported`                 | user             | flow               | `version` (number or `draft`)                                                                                                 |
+| `flow.archived`                 | user             | flow               | —                                                                                                                             |
+| `flow.unarchived`               | user             | flow               | —                                                                                                                             |
+| `flow.deleted`                  | user             | flow               | `name`                                                                                                                        |
+| `flow_audio.changed`            | user             | flow_audio         | `change` (`uploaded` / `renamed` / `deleted`), `name`, `durationMs`                                                           |
+| `call.test_started`             | user             | call               | `source` (`flow` / `agent`), `version` (`draft` / number, flows only)                                                         |
+| `call.recording_accessed`       | user             | call               | —                                                                                                                             |
+| `call.hung_up_remotely`         | user             | call               | —                                                                                                                             |
+| `call.triggered`                | user             | call               | `source` (`flow` / `agent`), `provider` (`dryrun` …) — single "Call now"                                                      |
+| `campaign.created`              | user             | campaign           | `mode`, `flowId`                                                                                                              |
+| `campaign.updated`              | user             | campaign           | `fields` (names only)                                                                                                         |
+| `campaign.scheduled`            | user             | campaign           | `startAt` (ISO)                                                                                                               |
+| `campaign.started`              | user / system    | campaign           | `contacts` (snapshot size), `flowVersion`                                                                                     |
+| `campaign.paused`               | user / system    | campaign           | `reason` (`manual`, `wallet_empty`, `budget_reached`, `account_suspended`, `too_many_failures`, `admin`)                      |
+| `campaign.resumed`              | user / system    | campaign           | `auto` (true after a top-up); a superadmin lifting an `admin` pause: target account, `campaignId`, `admin: true` (both sides) |
+| `campaign.canceled`             | user             | campaign           | `hangUpLive`                                                                                                                  |
+| `campaign.deleted`              | user             | campaign           | —                                                                                                                             |
+| `campaign.exported`             | user             | campaign           | `format` (`csv` / `xlsx`), `rows`, `includePhone`                                                                             |
+| `campaign.admin_paused`         | superadmin       | account            | `campaigns` (count) — written on the account and on the platform account                                                      |
+| `account.limits_updated`        | superadmin       | account            | `fields` (`maxConcurrentCalls`, `dialsPerMinute`)                                                                             |
 
 Contact actions never carry phone numbers, names or variable values in `meta` — counts, ids, keys and list / segment names only (Phase 3).
 

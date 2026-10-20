@@ -35,21 +35,36 @@ export const FILTER_OPERATORS = [
   'after',
   'within_next_days',
   'overdue_by_days',
+  'within_last_days',
   'exists',
   'not_exists',
 ] as const;
 export type FilterOperator = (typeof FILTER_OPERATORS)[number];
+
+/**
+ * Built-in condition keys over the call history (Phase 8) — camelCase, so they
+ * never collide with custom field keys (`^[a-z][a-z0-9_]*$`).
+ */
+export const CALL_FILTER_OPERATORS = {
+  lastDisposition: ['eq', 'neq', 'exists', 'not_exists'],
+  lastCalledAt: ['before', 'after', 'within_last_days', 'not_exists'],
+} as const satisfies Record<string, readonly FilterOperator[]>;
+export type CallFilterKey = keyof typeof CALL_FILTER_OPERATORS;
 
 const ConditionValue = z.union([z.string().trim().max(200), z.number()]);
 
 export const FilterConditionSchema = registry.register(
   'ContactFilterCondition',
   z.strictObject({
-    key: z.string().min(1).max(40).openapi({ example: 'days_past_due' }),
+    key: z.string().min(1).max(40).openapi({
+      example: 'days_past_due',
+      description:
+        'A custom field key, or `lastDisposition` (eq / neq / exists / not_exists) / `lastCalledAt` (before / after / within_last_days / not_exists = never called)',
+    }),
     op: z.enum(FILTER_OPERATORS),
     value: ConditionValue.optional().openapi({
       description:
-        'Currency in rupees, dates `YYYY-MM-DD`, day counts for within_next_days / overdue_by_days',
+        'Currency in rupees, dates `YYYY-MM-DD`, day counts for within_next_days / overdue_by_days / within_last_days, a disposition for lastDisposition',
     }),
     value2: ConditionValue.optional().openapi({ description: 'Upper bound for `between`' }),
   }),

@@ -252,6 +252,22 @@
           "impersonation"
         ]
       },
+      "AccountWithWarning": {
+        "allOf": [
+          { "$ref": "#/components/schemas/PublicAccount" },
+          {
+            "type": "object",
+            "properties": {
+              "callingWindowWarning": {
+                "type": ["string", "null"],
+                "enum": ["outside_trai", "outside_rbi_recovery", null],
+                "description": "outside_trai: starts before 09:00 or ends after 21:00 (live calls are held to it); outside_rbi_recovery: outside 08:00–19:00 (live recovery calls)"
+              }
+            },
+            "required": ["callingWindowWarning"]
+          }
+        ]
+      },
       "AdminAiConfig": {
         "type": "object",
         "properties": {
@@ -413,6 +429,14 @@
         },
         "required": ["id", "action", "actor", "target", "meta", "ip", "at"]
       },
+      "AccountLimits": {
+        "type": "object",
+        "properties": {
+          "maxConcurrentCalls": { "type": "integer" },
+          "dialsPerMinute": { "type": "integer" }
+        },
+        "required": ["maxConcurrentCalls", "dialsPerMinute"]
+      },
       "AdminAccountRow": {
         "type": "object",
         "properties": {
@@ -443,9 +467,19 @@
             },
             "required": ["invited", "active", "disabled"]
           },
+          "limits": { "$ref": "#/components/schemas/AccountLimits" },
+          "activeCampaigns": { "type": "integer", "description": "Scheduled, running or paused" },
           "recentAudit": { "type": "array", "items": { "$ref": "#/components/schemas/AuditEntry" } }
         },
-        "required": ["account", "owner", "usersCount", "usersByStatus", "recentAudit"]
+        "required": [
+          "account",
+          "owner",
+          "usersCount",
+          "usersByStatus",
+          "limits",
+          "activeCampaigns",
+          "recentAudit"
+        ]
       },
       "AgentFunction": {
         "type": "object",
@@ -1256,7 +1290,13 @@
       "ContactFilterCondition": {
         "type": "object",
         "properties": {
-          "key": { "type": "string", "minLength": 1, "maxLength": 40, "example": "days_past_due" },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "example": "days_past_due",
+            "description": "A custom field key, or `lastDisposition` (eq / neq / exists / not_exists) / `lastCalledAt` (before / after / within_last_days / not_exists = never called)"
+          },
           "op": {
             "type": "string",
             "enum": [
@@ -1273,13 +1313,14 @@
               "after",
               "within_next_days",
               "overdue_by_days",
+              "within_last_days",
               "exists",
               "not_exists"
             ]
           },
           "value": {
             "anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "number" }],
-            "description": "Currency in rupees, dates `YYYY-MM-DD`, day counts for within_next_days / overdue_by_days"
+            "description": "Currency in rupees, dates `YYYY-MM-DD`, day counts for within_next_days / overdue_by_days / within_last_days, a disposition for lastDisposition"
           },
           "value2": {
             "anyOf": [{ "type": "string", "maxLength": 200 }, { "type": "number" }],
@@ -1668,6 +1709,7 @@
           },
           "lastCalledAt": { "type": ["string", "null"] },
           "callCount": { "type": "number" },
+          "lastDisposition": { "type": ["string", "null"] },
           "createdAt": { "type": "string" },
           "updatedAt": { "type": "string" },
           "lists": {
@@ -1695,6 +1737,7 @@
           "source",
           "lastCalledAt",
           "callCount",
+          "lastDisposition",
           "createdAt",
           "updatedAt"
         ]
@@ -4957,7 +5000,7 @@
                   "type": "object",
                   "properties": {
                     "success": { "type": "boolean", "enum": [true] },
-                    "data": { "$ref": "#/components/schemas/PublicAccount" }
+                    "data": { "$ref": "#/components/schemas/AccountWithWarning" }
                   },
                   "required": ["success", "data"]
                 }
@@ -5011,6 +5054,18 @@
                         "additionalProperties": false,
                         "example": { "start": "09:00", "end": "19:00", "days": [1, 2, 3, 4, 5, 6] }
                       },
+                      "callCaps": {
+                        "type": "object",
+                        "properties": {
+                          "perDay": { "type": "integer", "minimum": 1, "maximum": 10 },
+                          "perWeek": { "type": "integer", "minimum": 1, "maximum": 50 },
+                          "minGapMinutes": { "type": "integer", "minimum": 0, "maximum": 1440 }
+                        },
+                        "required": ["perDay", "perWeek", "minGapMinutes"],
+                        "additionalProperties": false,
+                        "example": { "perDay": 3, "perWeek": 10, "minGapMinutes": 30 },
+                        "description": "Owner / admin only"
+                      },
                       "recordingEnabled": { "type": "boolean" },
                       "recordingNotice": { "type": "string", "minLength": 1, "maxLength": 200 },
                       "aiDisclosureEnabled": { "type": "boolean" }
@@ -5032,7 +5087,7 @@
                   "type": "object",
                   "properties": {
                     "success": { "type": "boolean", "enum": [true] },
-                    "data": { "$ref": "#/components/schemas/PublicAccount" }
+                    "data": { "$ref": "#/components/schemas/AccountWithWarning" }
                   },
                   "required": ["success", "data"]
                 }
@@ -5467,6 +5522,179 @@
           "204": { "description": "No content" },
           "401": {
             "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/limits": {
+      "patch": {
+        "tags": ["Superadmin"],
+        "summary": "Set the dialing limits of an account (superadmin; audited)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "maxConcurrentCalls": { "type": "integer", "minimum": 1, "maximum": 200 },
+                  "dialsPerMinute": { "type": "integer", "minimum": 1, "maximum": 600 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AccountLimits" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/campaigns/pause": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "Emergency pause of every scheduled / running campaign of an account (superadmin)",
+        "description": "Paused with reason `admin`: only a superadmin can resume them.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "paused": { "type": "integer" } },
+                      "required": ["paused"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/campaigns/{campaignId}/resume": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "Resume a campaign paused by the platform team (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "campaignId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "id": { "type": "string" }, "status": { "type": "string" } },
+                      "required": ["id", "status"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

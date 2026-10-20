@@ -1,6 +1,8 @@
+import { TZDate } from '@date-fns/tz';
 import type { CountryCode } from 'libphonenumber-js';
 import { Types } from 'mongoose';
 
+import { DISPOSITIONS } from '../../../db/models/ai-agent.model';
 import type { FieldType } from '../../../db/models/custom-field.model';
 import type { ErrorDetail } from '../../../shared/errors/app-error';
 import { ValidationError } from '../../../shared/errors/app-error';
@@ -10,7 +12,9 @@ import { normalizeTag } from '../normalize/tags';
 import { cleanDecimal, parseDate, toMicros } from '../normalize/values';
 
 import {
+  CALL_FILTER_OPERATORS,
   OPERATORS_BY_TYPE,
+  type CallFilterKey,
   type ContactFilter,
   type FilterCondition,
   type FilterOperator,
@@ -91,13 +95,62 @@ const parseDays = (raw: unknown): Parsed => {
     : { ok: false, message: `Must be a whole number of days (0–${MAX_DAYS})` };
 };
 
-/** One condition → Mongo clause, or a problem message. */
-const compileCondition = (
+type ConditionResult =
+  | { clause: Record<string, unknown> }
+  | { problem: { field: 'key' | 'op' | 'value' | 'value2'; message: string } };
+
+/** Midnight of `YYYY-MM-DD` (+ `days`) in `timezone`. */
+const dayStart = (ymd: string, timezone: string, days = 0): Date => {
+  const [y, m, d] = ymd.split('-').map(Number) as [number, number, number];
+  return new Date(new TZDate(y, m - 1, d + days, timezone).getTime());
+};
+
+/** `lastDisposition` / `lastCalledAt` — the call history written by campaign results. */
+const compileCallCondition = (
+  key: CallFilterKey,
   cond: FilterCondition,
   ctx: CompileContext,
-):
-  | { clause: Record<string, unknown> }
-  | { problem: { field: 'key' | 'op' | 'value' | 'value2'; message: string } } => {
+): ConditionResult => {
+  const allowed = CALL_FILTER_OPERATORS[key] as readonly FilterOperator[];
+  if (!allowed.includes(cond.op)) {
+    return { problem: { field: 'op', message: `"${cond.op}" can't be used with ${key}` } };
+  }
+  if (cond.op === 'not_exists') return { clause: { [key]: null } };
+  if (cond.op === 'exists') return { clause: { [key]: { $ne: null } } };
+  if (key === 'lastDisposition') {
+    const value = String(cond.value ?? '');
+    if (!(DISPOSITIONS as readonly string[]).includes(value)) {
+      return { problem: { field: 'value', message: `Must be one of ${DISPOSITIONS.join(', ')}` } };
+    }
+    return { clause: { lastDisposition: cond.op === 'eq' ? value : { $ne: value } } };
+  }
+  const now = ctx.now ?? new Date();
+  if (cond.op === 'within_last_days') {
+    const days = parseDays(cond.value);
+    if (!days.ok) return { problem: { field: 'value', message: days.message } };
+    const from = dayStart(isoDay(now, ctx.timezone, -(days.value as number)), ctx.timezone);
+    return { clause: { lastCalledAt: { $gte: from } } };
+  }
+  const iso = parseDate(cond.value ?? '', 'DMY');
+  if (iso === undefined) {
+    return { problem: { field: 'value', message: 'Must be a date (YYYY-MM-DD)' } };
+  }
+  // the day in the account timezone: before = earlier days, after = later days
+  return {
+    clause: {
+      lastCalledAt:
+        cond.op === 'before'
+          ? { $lt: dayStart(iso, ctx.timezone) }
+          : { $gte: dayStart(iso, ctx.timezone, 1) },
+    },
+  };
+};
+
+/** One condition → Mongo clause, or a problem message. */
+const compileCondition = (cond: FilterCondition, ctx: CompileContext): ConditionResult => {
+  if (Object.hasOwn(CALL_FILTER_OPERATORS, cond.key)) {
+    return compileCallCondition(cond.key as CallFilterKey, cond, ctx);
+  }
   const field = ctx.fields.get(cond.key);
   if (!field) return { problem: { field: 'key', message: `Unknown field "${cond.key}"` } };
   const allowed = OPERATORS_BY_TYPE[field.type] as readonly FilterOperator[];

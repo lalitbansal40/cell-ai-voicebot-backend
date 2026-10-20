@@ -52,6 +52,8 @@ export interface PublicContact {
   source: { type: 'manual' | 'import' | 'api'; importJobId: string | null };
   lastCalledAt: string | null;
   callCount: number;
+  /** Disposition of the last answered campaign call with an outcome (Phase 8). */
+  lastDisposition: string | null;
   createdAt: string;
   updatedAt: string;
   lists?: { id: string; name: string }[];
@@ -80,6 +82,7 @@ export const toPublicContact = (c: ContactDoc): PublicContact => ({
   },
   lastCalledAt: iso(c.lastCalledAt),
   callCount: c.callCount,
+  lastDisposition: c.lastDisposition ?? null,
   createdAt: c.createdAt.toISOString(),
   updatedAt: c.updatedAt.toISOString(),
 });

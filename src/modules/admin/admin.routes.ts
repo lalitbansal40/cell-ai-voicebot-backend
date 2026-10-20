@@ -9,12 +9,21 @@ import { handle } from '../../shared/middlewares/validate';
 
 import { createAdminAiRouter } from './admin-ai.routes';
 import { createAdminBillingRouter } from './admin-billing.routes';
-import { AccountIdParams, ListAccountsQuery, SuspendBody } from './admin.schema';
+import {
+  AccountCampaignParams,
+  AccountIdParams,
+  AccountLimitsBody,
+  ListAccountsQuery,
+  SuspendBody,
+} from './admin.schema';
 import {
   accountDetail,
   enableAccount,
   impersonate,
   listAccounts,
+  pauseAllCampaigns,
+  resumeAdminPaused,
+  setAccountLimits,
   stopImpersonation,
   suspendAccount,
 } from './admin.service';
@@ -64,6 +73,27 @@ export const createAdminRouter = ({
     '/accounts/:id/enable',
     ...handle({ params: AccountIdParams }, async ({ params, req, res }) => {
       ok(res, await enableAccount(req, params.id));
+    }),
+  );
+  router.patch(
+    '/accounts/:id/limits',
+    ...handle(
+      { params: AccountIdParams, body: AccountLimitsBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await setAccountLimits(req, params.id, body));
+      },
+    ),
+  );
+  router.post(
+    '/accounts/:id/campaigns/pause',
+    ...handle({ params: AccountIdParams }, async ({ params, req, res }) => {
+      ok(res, await pauseAllCampaigns(req, params.id));
+    }),
+  );
+  router.post(
+    '/accounts/:id/campaigns/:campaignId/resume',
+    ...handle({ params: AccountCampaignParams }, async ({ params, req, res }) => {
+      ok(res, await resumeAdminPaused(req, params.id, params.campaignId));
     }),
   );
   router.post(

@@ -109,6 +109,7 @@ export const ContactSchema = registry.register(
     }),
     lastCalledAt: z.string().nullable(),
     callCount: z.number(),
+    lastDisposition: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
     lists: z

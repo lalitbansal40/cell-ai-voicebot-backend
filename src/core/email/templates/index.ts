@@ -8,6 +8,7 @@ import {
   type ResetPasswordVars,
   type VerifyEmailVars,
 } from './auth';
+import { campaignPaused, type CampaignPausedVars } from './campaign';
 import { systemTest, type SystemTestVars } from './system-test';
 import { teamInvite, type TeamInviteVars } from './team';
 import type { RenderedEmail } from './types';
@@ -35,6 +36,7 @@ export interface EmailTemplateVars {
   'team.invite': TeamInviteVars;
   'wallet.low_balance': WalletLowBalanceVars;
   'wallet.receipt': WalletReceiptVars;
+  'campaign.paused': CampaignPausedVars;
 }
 
 export type EmailTemplateKey = keyof EmailTemplateVars;
@@ -48,6 +50,7 @@ const TEMPLATES: { [K in EmailTemplateKey]: (vars: EmailTemplateVars[K]) => Rend
   'team.invite': teamInvite,
   'wallet.low_balance': walletLowBalance,
   'wallet.receipt': walletReceipt,
+  'campaign.paused': campaignPaused,
 };
 
 export const isEmailTemplateKey = (key: string): key is EmailTemplateKey =>

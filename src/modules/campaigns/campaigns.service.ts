@@ -61,6 +61,8 @@ import type {
 } from './campaigns.schema';
 import { estimateCost } from './estimate';
 import { canMoveCampaign, DELETABLE, editRule, LIVE_EDITABLE } from './lifecycle';
+import { notifyCampaignStatus } from './notifications';
+import { firstRunAt } from './recurrence';
 import { takeSnapshot } from './snapshot';
 import { intersect } from './window';
 
@@ -441,7 +443,11 @@ const duplicateName = () =>
     { path: 'name', message: 'Already exists' },
   ]);
 
-const nameTaken = async (accountId: Types.ObjectId, name: string, exceptId?: Types.ObjectId) =>
+export const nameTaken = async (
+  accountId: Types.ObjectId,
+  name: string,
+  exceptId?: Types.ObjectId,
+) =>
   Boolean(
     await CampaignModel.findOne({
       accountId,
@@ -683,6 +689,18 @@ export const duplicateCampaign = async (req: Request, id: string) => {
   return view(copy);
 };
 
+/** Runs of a recurring campaign, newest first (`GET /campaigns/:id/runs`). */
+export const listCampaignRuns = async (req: Request, id: string) => {
+  const { accountId } = tenantFilter(req);
+  const parent = await findCampaign(accountId, id);
+  const runs = await CampaignModel.find({ accountId, parentId: parent._id })
+    .sort({ runNumber: -1 })
+    .limit(CAMPAIGN_LIMITS.runsListMax)
+    .lean<CampaignDoc[]>();
+  const names = await loadNames(accountId, runs);
+  return { items: runs.map((c) => toCampaignListItem(c, names)) };
+};
+
 export const deleteCampaign = async (req: Request, id: string): Promise<void> => {
   const { accountId } = tenantFilter(req);
   const campaign = await findCampaign(accountId, id);
@@ -856,6 +874,7 @@ export const setStatus = async (
     status: to,
     ...(pauseReason ? { pauseReason } : {}),
   });
+  if (to === 'paused' || to === 'completed') await notifyCampaignStatus(updated, change.by ?? null);
   return updated;
 };
 
@@ -924,7 +943,18 @@ export const startCampaign = async (req: Request, id: string) => {
     campaign.schedule.recurrence !== null ||
     (campaign.schedule.startAt !== null && campaign.schedule.startAt.getTime() > Date.now());
   if (later) {
-    const scheduled = await setStatus(campaign, 'scheduled', { by, set: { startedBy: by } });
+    const recurring = campaign.schedule.recurrence
+      ? {
+          // the parent pins its version now (runs use it with versionPolicy "pinned")
+          flowVersionId: pinned.version._id,
+          flowVersion: pinned.version.version,
+          nextRunAt: firstRunAt(campaign.schedule, new Date()),
+        }
+      : {};
+    const scheduled = await setStatus(campaign, 'scheduled', {
+      by,
+      set: { startedBy: by, ...recurring },
+    });
     await hooks.scheduled(scheduled);
     await auditRequest(req, 'campaign.scheduled', {
       target: target(scheduled),
@@ -952,7 +982,7 @@ export const unscheduleCampaign = async (req: Request, id: string) => {
       'Only a scheduled campaign can go back to draft.',
     );
   }
-  const draft = await setStatus(campaign, 'draft', { by: userOf(req) });
+  const draft = await setStatus(campaign, 'draft', { by: userOf(req), set: { nextRunAt: null } });
   await hooks.unscheduled(draft);
   await auditRequest(req, 'campaign.updated', {
     target: target(draft),
@@ -997,7 +1027,13 @@ export const resumeCampaignDoc = async (
   const blocker = await hooks.resumeBlocker(campaign);
   if (blocker) throw new ConflictError('CONFLICT_INVALID_STATE', blocker);
   if (!campaign.startedAt) {
-    const scheduled = await setStatus(campaign, 'scheduled', { by });
+    // a recurring parent continues with the next occurrence from now (missed ones are skipped)
+    const scheduled = await setStatus(campaign, 'scheduled', {
+      by,
+      set: campaign.schedule.recurrence
+        ? { nextRunAt: firstRunAt(campaign.schedule, new Date()) }
+        : {},
+    });
     await hooks.scheduled(scheduled);
     return scheduled;
   }
@@ -1037,7 +1073,7 @@ export const cancelCampaign = async (req: Request, id: string, hangUpLive: boole
   }
   const canceled = await setStatus(campaign, 'canceled', {
     by: userOf(req),
-    set: { canceledAt: new Date() },
+    set: { canceledAt: new Date(), nextRunAt: null },
   });
   const waiting = await CampaignContactModel.updateMany(
     { campaignId: campaign._id, status: { $in: CLAIMABLE_STATUSES } },
@@ -1059,6 +1095,14 @@ export const cancelCampaign = async (req: Request, id: string, hangUpLive: boole
   return view(await findCampaign(accountId, id));
 };
 
+/**
+ * Errors that mean "this campaign can't start" (runnable checks, or a flow /
+ * version that can no longer be loaded) — the campaign ends `failed`, no retry.
+ */
+export const isNotRunnableError = (err: unknown): err is AppError =>
+  err instanceof AppError &&
+  (err.code === 'CAMPAIGN_NOT_RUNNABLE' || err.code === 'VALIDATION_FAILED');
+
 /** Starts a scheduled campaign (job / sweep); an unrunnable one ends `failed` with its code. */
 export const startScheduled = async (
   campaign: CampaignDoc,
@@ -1068,8 +1112,8 @@ export const startScheduled = async (
   try {
     await beginRun(campaign, campaign.startedBy);
   } catch (err) {
-    if (!(err instanceof AppError) || err.code !== 'CAMPAIGN_NOT_RUNNABLE') throw err;
+    if (!isNotRunnableError(err)) throw err;
     logger.warn({ campaignId: campaign._id.toString(), code: err.code }, 'campaign: start failed');
-    await setStatus(campaign, 'failed', { set: { error: { code: err.code } } });
+    await setStatus(campaign, 'failed', { set: { error: { code: 'CAMPAIGN_NOT_RUNNABLE' } } });
   }
 };

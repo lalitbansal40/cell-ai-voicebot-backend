@@ -210,6 +210,8 @@ export interface CampaignDoc {
   snapshot: { cursor: string | null; done: boolean; counts: Record<string, number> };
   parentId: Types.ObjectId | null;
   runNumber: number | null;
+  /** Recurring parent: the next occurrence (claimed with compare-and-set by the job / sweep). */
+  nextRunAt: Date | null;
   startedAt: Date | null;
   completedAt: Date | null;
   canceledAt: Date | null;
@@ -328,6 +330,7 @@ const schema = new Schema<CampaignDoc>(
     },
     parentId: { type: Schema.Types.ObjectId, default: null },
     runNumber: { type: Number, default: null },
+    nextRunAt: { type: Date, default: null },
     startedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
     canceledAt: { type: Date, default: null },

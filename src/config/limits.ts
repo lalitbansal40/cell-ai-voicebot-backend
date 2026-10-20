@@ -313,6 +313,9 @@ export const CAMPAIGN_LIMITS = {
   previewSampleRows: 20,
   etaWindowMinutes: 10,
   historyMax: 100,
+  /** Recurring parents handled per sweep; runs shown per parent. */
+  sweepBatch: 100,
+  runsListMax: 100,
   /** Average answered call when the flow has no history yet. */
   defaultAvgDurationSec: 60,
   estimateSampleCalls: 100,

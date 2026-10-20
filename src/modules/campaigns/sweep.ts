@@ -7,10 +7,12 @@ import type { Logger } from '../../shared/logger';
 import { usedFields } from './audience';
 import { loadFlowVersion, resumeCampaignDoc, startScheduled } from './campaigns.service';
 import { applyResult, completeCampaign, moveStats, type CampaignDispatcher } from './dispatcher';
+import { dueParents, runDue } from './runs';
 import { contactCounts, countsToStats, takeSnapshot } from './snapshot';
 
 export interface SweepResult {
   started: number;
+  runs: number;
   snapshots: number;
   ended: number;
   released: number;
@@ -33,7 +35,7 @@ const COUNTED = [
 
 /**
  * Every minute (PHASE_8_PLAN §1k): starts scheduled campaigns whose time passed
- * (lost jobs, restarts), finishes interrupted snapshots, keeps the dispatcher
+ * (lost jobs, restarts), runs due recurring occurrences, finishes interrupted snapshots, keeps the dispatcher
  * loops alive, ends campaigns past `endAt`, gives back stale claims, applies
  * results of campaign calls that ended while nobody listened, recounts drifted
  * stats and lifts budget pauses when the budget allows again.
@@ -46,6 +48,7 @@ export const sweepCampaigns = async (deps: {
   const now = deps.now ?? new Date();
   const result: SweepResult = {
     started: 0,
+    runs: 0,
     snapshots: 0,
     ended: 0,
     released: 0,
@@ -64,6 +67,15 @@ export const sweepCampaigns = async (deps: {
       deps.logger.error({ err, campaignId: c._id.toString() }, 'campaign: sweep start failed'),
     );
     result.started += 1;
+  }
+
+  // recurring occurrences whose scheduler job got lost (restart, Redis flush)
+  for (const parentId of await dueParents(now)) {
+    const r = await runDue(parentId, now, deps.logger).catch((err: unknown) => {
+      deps.logger.error({ err, campaignId: parentId.toString() }, 'campaign: sweep run failed');
+      return 'not_due' as const;
+    });
+    if (r !== 'not_due') result.runs += 1;
   }
 
   const unfinished = await CampaignModel.find({ status: 'running', 'snapshot.done': false }).lean<

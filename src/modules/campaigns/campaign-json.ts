@@ -67,7 +67,9 @@ export const toCampaignListItem = (
   progressPct: progressPct(c.stats),
   spentMicros: c.stats.spentMicros,
   virtualCostMicros: c.stats.virtualCostMicros,
-  nextRunAt: iso(nextRunAt ?? (c.status === 'scheduled' ? c.schedule.startAt : null)),
+  nextRunAt: iso(
+    nextRunAt ?? c.nextRunAt ?? (c.status === 'scheduled' ? c.schedule.startAt : null),
+  ),
   parentId: c.parentId ? c.parentId.toString() : null,
   runNumber: c.runNumber,
   recurring: c.schedule.recurrence !== null,
