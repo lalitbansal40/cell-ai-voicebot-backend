@@ -14,7 +14,11 @@ import {
   type CampaignContactDoc,
   type CampaignContactStatus,
 } from '../../db/models/campaign-contact.model';
-import { CampaignModel, type CampaignDoc } from '../../db/models/campaign.model';
+import {
+  CAMPAIGN_PRIORITIES,
+  CampaignModel,
+  type CampaignDoc,
+} from '../../db/models/campaign.model';
 import { ContactModel } from '../../db/models/contact.model';
 import { FlowModel } from '../../db/models/flow.model';
 import { AppError } from '../../shared/errors/app-error';
@@ -175,17 +179,21 @@ export class CampaignDispatcher {
         .lean<{ templateKey: string | null }>();
       ready.push({ campaign, window, templateKey: flow?.templateKey ?? null });
     }
-    // round robin by priority: one dial per campaign per turn
-    let progress = true;
-    const blocked = new Set<string>();
-    while (progress) {
-      progress = false;
-      for (const item of ready) {
-        const id = item.campaign._id.toString();
-        if (blocked.has(id)) continue;
-        const r = await this.dialOne(item.campaign, item.window, item.templateKey, account, now);
-        if (r === 'dialed' || r === 'handled') progress = true;
-        else blocked.add(id);
+    // high → normal → low: a priority fills the slots before the next one gets a turn;
+    // equal priority round robin (one dial per campaign per turn)
+    for (const priority of CAMPAIGN_PRIORITIES) {
+      const group = ready.filter((item) => item.campaign.pacing.priority === priority);
+      let progress = true;
+      const blocked = new Set<string>();
+      while (progress) {
+        progress = false;
+        for (const item of group) {
+          const id = item.campaign._id.toString();
+          if (blocked.has(id)) continue;
+          const r = await this.dialOne(item.campaign, item.window, item.templateKey, account, now);
+          if (r === 'dialed' || r === 'handled') progress = true;
+          else blocked.add(id);
+        }
       }
     }
     return true;

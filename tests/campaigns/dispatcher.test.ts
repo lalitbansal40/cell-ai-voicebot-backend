@@ -367,6 +367,63 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
     expect((await docOf(id)).waitingUntil).toBeNull();
   });
 
+  /** Two campaigns at ×1 on an account with 2 slots; the first tick's calls per campaign. */
+  const firstTick = async (a: string, b: string) => {
+    const w = await world();
+    await AccountModel.updateOne({ _id: w.t.account._id }, { 'limits.maxConcurrentCalls': 2 });
+    const ids = [
+      await w.campaign({
+        audience: { listIds: [await w.listOf(3)] },
+        pacing: { concurrency: 2, priority: a },
+        dryRun: { speed: 1 },
+      }),
+      await w.campaign({
+        audience: { listIds: [await w.listOf(3)] },
+        pacing: { concurrency: 2, priority: b },
+        dryRun: { speed: 1 },
+      }),
+    ];
+    // the later-started campaign first: priority, not start order, decides
+    await startCampaign(w.req, ids[1] as string);
+    await startCampaign(w.req, ids[0] as string);
+    w.clock.advance(Math.max(0, Date.now() - w.clock.now()));
+    await w.dispatcher.tick(w.t.account._id.toString());
+    const counts = [
+      await CallModel.countDocuments({ campaignId: ids[0] }),
+      await CallModel.countDocuments({ campaignId: ids[1] }),
+    ];
+    // hooks only now (their wake would race the tick above): cancel hangs the calls up
+    const unwire = wireCampaigns({
+      jobs: {
+        schedule: () => Promise.resolve(),
+        scheduleEnd: () => Promise.resolve(),
+        drop: () => Promise.resolve(),
+      },
+      dispatcher: w.dispatcher,
+      calls,
+      logger,
+    });
+    for (const id of ids) await cancelCampaign(w.req, id, true);
+    await drive(
+      w,
+      async () =>
+        (await CallModel.countDocuments({
+          campaignId: { $in: ids },
+          status: { $in: ['queued', 'ringing', 'in_progress'] },
+        })) === 0,
+    );
+    unwire();
+    return counts;
+  };
+
+  it('priority: a high campaign fills the account slots before a normal one', async () => {
+    expect(await firstTick('high', 'normal')).toEqual([2, 0]);
+  });
+
+  it('fairness: two campaigns of the same priority take turns', async () => {
+    expect(await firstTick('normal', 'normal')).toEqual([1, 1]);
+  });
+
   it('per-contact caps: a second campaign over the same contact waits for tomorrow', async () => {
     const w = await world();
     await AccountModel.updateOne(
