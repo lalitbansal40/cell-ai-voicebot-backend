@@ -242,12 +242,14 @@ export class CampaignDispatcher {
       status: { $in: ['queued', 'ringing', 'in_progress'] },
     });
     if (live >= campaign.pacing.concurrency) return 'blocked';
+    // dry runs pace in virtual time: N per (virtual) minute = N × speed per real minute
+    const scale = campaign.mode === 'dry_run' ? (campaign.dryRun?.speed ?? 1) : 1;
     const wait = await this.deps.rate.take({
       accountId: campaign.accountId.toString(),
       campaignId: campaign._id.toString(),
       perMinute: {
-        account: account.limits.dialsPerMinute,
-        campaign: campaign.pacing.dialsPerMinute,
+        account: account.limits.dialsPerMinute * scale,
+        campaign: campaign.pacing.dialsPerMinute * scale,
       },
     });
     if (wait > 0) {

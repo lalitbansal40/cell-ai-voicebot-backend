@@ -349,6 +349,34 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
     expect((await docOf(id)).stats).toMatchObject({ failed: 2, attempts: 4, answered: 0 });
   });
 
+  it('dry runs pace dials in virtual time: dials per minute × speed', async () => {
+    const w = await world();
+    await AccountModel.updateOne(
+      { _id: w.t.account._id },
+      { 'limits.maxConcurrentCalls': 20, 'limits.dialsPerMinute': 10 },
+    );
+    const id = await w.campaign({
+      audience: { listIds: [await w.listOf(15)] },
+      pacing: { concurrency: 20, dialsPerMinute: 10 },
+      dryRun: { speed: 50 },
+    });
+    await startCampaign(w.req, id);
+    // 10 / min real would allow 10 now; 10 / min virtual at ×50 = 500 / min real
+    w.clock.advance(Math.max(0, Date.now() - w.clock.now()));
+    await w.dispatcher.tick(w.t.account._id.toString());
+    expect(await CallModel.countDocuments({ campaignId: id })).toBe(15);
+    expect(
+      await drive(
+        w,
+        async () =>
+          (await CallModel.countDocuments({
+            campaignId: id,
+            status: { $in: ['queued', 'ringing', 'in_progress'] },
+          })) === 0,
+      ),
+    ).toBe(true);
+  });
+
   it('outside the window: waits (waitingUntil, no calls); widened → dials', async () => {
     const w = await world();
     const today = new Date(w.clock.now()).getDay();
