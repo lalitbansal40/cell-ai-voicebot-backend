@@ -377,6 +377,48 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
     ).toBe(true);
   });
 
+  it('a call that ended without counting (shutdown) is dialed again with the next attempt number', async () => {
+    const w = await world();
+    // the killed call counts for the minimum gap; without one the retry is due now
+    await AccountModel.updateOne(
+      { _id: w.t.account._id },
+      { 'settings.callCaps': { perDay: 3, perWeek: 10, minGapMinutes: 0 } },
+    );
+    const id = await w.campaign({ audience: { listIds: [await w.listOf(1)] } });
+    await startCampaign(w.req, id);
+    const cc = await CampaignContactModel.findOne({ campaignId: id }).lean();
+    // the first dial ended with the server (not counted: attempts back to 0)
+    const killed = await CallModel.create({
+      accountId: w.t.account._id,
+      direction: 'outbound',
+      provider: 'dryrun',
+      from: 'dryrun',
+      to: cc?.phoneE164 ?? '',
+      isTest: true,
+      charged: false,
+      source: { kind: 'flow', flowId: new Types.ObjectId(flowId) },
+      contactId: cc?.contactId,
+      campaignId: new Types.ObjectId(id),
+      campaignContactId: cc?._id,
+      attempt: 1,
+      status: 'failed',
+      endReason: 'server_shutdown',
+      timestamps: { queuedAt: new Date() },
+    });
+    await CampaignContactModel.updateOne(
+      { _id: cc?._id },
+      { status: 'retry_wait', attempts: 0, dials: 1, lastCallId: killed._id, dueRank: 1 },
+    );
+    expect(await drive(w, statusIs(id, 'completed'))).toBe(true);
+    const calls = await CallModel.find({ campaignContactId: cc?._id }).sort({ attempt: 1 }).lean();
+    expect(calls.map((c) => c.attempt)).toEqual([1, 2]);
+    expect(await CampaignContactModel.findById(cc?._id).lean()).toMatchObject({
+      status: 'completed',
+      attempts: 1,
+      dials: 2,
+    });
+  });
+
   it('outside the window: waits (waitingUntil, no calls); widened → dials', async () => {
     const w = await world();
     const today = new Date(w.clock.now()).getDay();

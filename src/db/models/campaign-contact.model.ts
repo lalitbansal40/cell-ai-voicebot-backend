@@ -53,7 +53,10 @@ export interface CampaignContactDoc {
   variables: Record<string, string>;
   status: CampaignContactStatus;
   dueRank: DueRank;
+  /** Counted attempts (retry limit); a not-counted end (shutdown, wallet) gives one back. */
   attempts: number;
+  /** Every dial so far — the next call's `attempt` number (unique per contact). */
+  dials: number;
   nextAttemptAt: Date | null;
   lastCallId: Types.ObjectId | null;
   lastResult: CallResult | null;
@@ -81,6 +84,7 @@ const schema = new Schema<CampaignContactDoc>(
     status: { type: String, enum: CAMPAIGN_CONTACT_STATUSES, default: 'pending' },
     dueRank: { type: Number, enum: Object.values(DUE_RANK), default: DUE_RANK.fresh },
     attempts: { type: Number, default: 0, min: 0 },
+    dials: { type: Number, default: 0, min: 0 },
     nextAttemptAt: { type: Date, default: null },
     lastCallId: { type: Schema.Types.ObjectId, default: null },
     lastResult: { type: String, enum: [...CALL_RESULTS, null], default: null },

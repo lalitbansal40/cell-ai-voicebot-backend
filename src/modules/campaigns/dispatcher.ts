@@ -307,7 +307,8 @@ export class CampaignDispatcher {
         await pauseCampaignDoc(campaign, decision.reason, null).catch(() => undefined);
       return 'blocked';
     }
-    const attempt = cc.attempts + 1;
+    // the call's number: every dial counts here, also the ones a shutdown gave back
+    const attempt = Math.max(cc.dials ?? 0, cc.attempts) + 1;
     try {
       const out = await this.deps.calls.startOutboundCall({
         accountId: campaign.accountId.toString(),
@@ -348,6 +349,7 @@ export class CampaignDispatcher {
             status: 'calling',
             lastCallId: new Types.ObjectId(out.callId),
             lastAttemptAt: now,
+            dials: attempt,
           },
           $inc: { attempts: 1 },
         },
