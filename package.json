@@ -44,6 +44,7 @@
     "fixtures:audio": "tsx scripts/make-audio-fixtures.ts",
     "bench:flow": "tsx scripts/bench-flow.ts",
     "bench:voice": "tsx --env-file-if-exists=.env scripts/bench-voice.ts",
+    "bench:campaign": "tsx --env-file-if-exists=.env scripts/bench-campaign.ts",
     "samples:knowledge": "tsx scripts/make-knowledge-samples.ts",
     "bench:contacts": "tsx --env-file-if-exists=.env scripts/bench-contacts.ts",
     "bench:wallet": "tsx --env-file-if-exists=.env scripts/bench-wallet.ts",
