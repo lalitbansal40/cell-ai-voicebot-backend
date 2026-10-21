@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import request from 'supertest';
@@ -150,5 +150,41 @@ describe('Swagger UI (/api/docs)', () => {
   it('keeps CSP off on JSON API routes', async () => {
     const res = await request(app).get('/api/v1/system/info');
     expect(res.headers['content-security-policy']).toBeUndefined();
+  });
+});
+
+describe('OpenAPI coverage', () => {
+  const src = path.resolve(__dirname, '..', '..', 'src');
+  const schemaFiles = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory()
+        ? schemaFiles(path.join(dir, e.name))
+        : e.name.endsWith('.schema.ts')
+          ? [path.join(dir, e.name)]
+          : [],
+    );
+
+  it('every module schema that registers paths is imported by src/openapi.ts', () => {
+    const index = readFileSync(path.join(src, 'openapi.ts'), 'utf8');
+    const missing = schemaFiles(path.join(src, 'modules'))
+      .filter((f) => readFileSync(f, 'utf8').includes('registry.registerPath('))
+      .map((f) => `./${path.relative(src, f).replace(/\.ts$/, '')}`)
+      .filter((rel) => !index.includes(`import '${rel}';`));
+    expect(missing).toEqual([]);
+  });
+
+  it('documents the Phase 8 routes', () => {
+    const paths = Object.keys(buildOpenApiDocument().paths ?? {});
+    for (const p of [
+      '/api/v1/campaigns',
+      '/api/v1/campaigns/{id}',
+      '/api/v1/campaigns/{id}/start',
+      '/api/v1/campaigns/{id}/export',
+      '/api/v1/campaigns/audience/preview',
+      '/api/v1/calls',
+      '/api/v1/admin/accounts/{id}/limits',
+    ]) {
+      expect(paths, p).toContain(p);
+    }
   });
 });

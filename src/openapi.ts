@@ -32,12 +32,14 @@ import './modules/realtime-tickets/tickets.schema';
 import './modules/team/team.schema';
 import './modules/system/system.schema';
 import './modules/wallet/wallet.schema';
+import './modules/wallet/topups.schema';
 import './modules/billing/billing.schema';
 import './modules/billing/invoices.schema';
 import './modules/admin/admin-billing.schema';
 import './modules/notifications/notifications.schema';
 import './modules/payments/webhooks.schema';
 import './modules/calls/calls.schema';
+import './modules/campaigns/campaigns.schema';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;
 
