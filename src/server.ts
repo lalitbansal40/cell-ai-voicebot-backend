@@ -53,6 +53,7 @@ import { createScriptFactory } from './modules/calls/scripts';
 import { authorizeTopic } from './modules/calls/topic-auth';
 import { CampaignDispatcher } from './modules/campaigns/dispatcher';
 import { queueCampaignExports, queueCampaignJobs, wireCampaigns } from './modules/campaigns/jobs';
+import { resetProgressThrottle } from './modules/campaigns/progress';
 import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { getLogger, type Logger } from './shared/logger';
@@ -251,6 +252,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
         async () => {
           await dispatcher.stop();
           unwire();
+          resetProgressThrottle();
         },
         4,
       );

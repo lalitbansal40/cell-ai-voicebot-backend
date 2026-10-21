@@ -49,3 +49,28 @@ describe('campaign.progress throttle', () => {
     expect(pushToTopic).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('campaign.progress failures', () => {
+  it('a database error (e.g. Mongo already closed at shutdown) is caught, never an unhandled rejection', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (err: unknown) => unhandled.push(err);
+    process.on('unhandledRejection', onUnhandled);
+    const findById = vi.spyOn(CampaignModel, 'findById').mockImplementation(
+      () =>
+        ({
+          select: () => ({ lean: () => Promise.reject(new Error('client is not connected')) }),
+        }) as never,
+    );
+    try {
+      const id = new Types.ObjectId().toString();
+      publishProgress(id); // sent now
+      publishProgress(id); // trailing send ≤ 1 s later
+      await new Promise((r) => setTimeout(r, 1_200));
+      expect(findById).toHaveBeenCalledTimes(2);
+      expect(unhandled).toEqual([]);
+    } finally {
+      findById.mockRestore();
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+});
