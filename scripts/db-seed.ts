@@ -29,6 +29,7 @@ import { getLogger } from '../src/shared/logger';
 import { SEED_KB_NAME, seedAi } from './seed-ai';
 import { seedBilling } from './seed-billing';
 import { SEED_CALL_MARKS, seedCalls } from './seed-calls';
+import { SEED_CAMPAIGN_NAMES, SEED_CAMPAIGN_SEGMENT, seedCampaigns } from './seed-campaigns';
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
 import { SEED_FLOW_NAMES, seedFlows } from './seed-flows';
 
@@ -112,6 +113,17 @@ const main = async (): Promise<void> => {
     });
     console.info(
       `Calls: ${demoCalls.calls} new demo calls (${Object.values(SEED_CALL_MARKS).join(', ')}) — fake voice, real runtime`,
+    );
+
+    const demoCampaigns = await seedCampaigns(account._id, {
+      env,
+      ownerId: owner?._id ?? account._id,
+      storage: createStorage(env, logger),
+      redis: getAppRedis(env.REDIS_URL, logger),
+      logger,
+    });
+    console.info(
+      `Campaigns: ${String(demoCampaigns.campaigns)} new ("${SEED_CAMPAIGN_NAMES.done}" ${String(demoCampaigns.calls)} dry-run calls, ${String(demoCampaigns.waiting)} callback(s) waiting; "${SEED_CAMPAIGN_NAMES.draft}"; "${SEED_CAMPAIGN_NAMES.recurring}" paused), segment "${SEED_CAMPAIGN_SEGMENT}" — dry run, never charged`,
     );
 
     console.info(

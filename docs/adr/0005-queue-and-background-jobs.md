@@ -21,4 +21,4 @@ Bulk campaigns need concurrency limits, retries with backoff, scheduling, rate l
 
 - **Positive:** reliable, observable job processing.
 - **Negative / trade-offs:** one more service to run and monitor.
-- **Follow-ups:** queue design in Phase 8.
+- **Follow-ups:** queue design in Phase 8 — done: [ADR 0036](0036-campaign-scheduler-dialer.md) (BullMQ for timing only; campaign state in Mongo, dial slots / rate buckets in Redis).

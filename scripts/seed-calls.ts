@@ -55,7 +55,7 @@ export interface CallSeedDeps {
  * The flow's payment check calls `APP_URL/api/v1/mock/…`: serve the mock API
  * there while the seed runs (a running dev server answers instead).
  */
-const withMockApi = async <T>(env: Env, work: () => Promise<T>): Promise<T> => {
+export const withMockApi = async <T>(env: Env, work: () => Promise<T>): Promise<T> => {
   const port = Number(new URL(env.APP_URL).port || 80);
   const app = express();
   app.use('/api/v1/mock', createMockApisRouter());

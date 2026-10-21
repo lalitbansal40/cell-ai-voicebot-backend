@@ -64,3 +64,12 @@ Never log prompts, persona text, user / assistant messages, knowledge text, func
 - **What never leaves the server / never appears:** the tester's test phone (stored hidden, used only by API steps and functions), full phone numbers in call views and events, DTMF digits in events (`call.dtmf` carries the call id only), spoken texts and digits in logs (tested), recording file keys in responses.
 - **Live AI tools** run through the same secure executor as the playground (SSRF guard, argument validation, redacted tool log); at most 5 tool calls per reply; `search_knowledge` only searches the agent's own knowledge bases.
 - **Hang up from another tab** (`POST /calls/:id/hangup`) needs `calls.trigger`, works only inside the account and is audited (`call.hung_up_remotely`).
+
+## 9. Campaigns (Phase 8)
+
+- **Tenant scope:** campaigns, campaign contacts, runs and exports of another account are **404** (never 403); the `campaign:<id>` WS topic is open only to users of the campaign's account whose role has `campaigns.read` (and superadmins viewing the account).
+- **Phones:** campaign views, contact rows, previews, WS payloads and events show **names + the last 4 digits**; full phones are only in result exports **and only for callers with `contacts.export`** (others get `+91******1234`). Logs never carry phones, names or customer words (tested on every dispatcher / API suite).
+- **Data minimisation:** the audience snapshot keeps the phone, the name and only the fields the pinned flow version uses; it is purged with the campaign.
+- **Exports:** CSV / XLSX with formula-safe cells (`'` before `= + - @`), a 15-minute signed link and a 24 h file (purged); `GET /contact-exports/:id` checks the permission of the export's kind (`campaigns.export` for campaign results) and answers 404 without it; every export is audited (`campaign.exported`).
+- **Writes:** `campaigns.write` / `campaigns.run` / `campaigns.export`, never while impersonating, refused for suspended accounts, rate-limited (`rl:campaign:` 60 / min / user; single calls `rl:callout:` 10 / min / user); start and single calls need an `Idempotency-Key`.
+- **Dial guard at dial time:** DND on the snapshot and the current phone, opt-out, deleted contact, per-contact caps per day / week + minimum gap, the calling window with the TRAI / RBI bounds for live calls; a superadmin can pause every campaign of an account (`admin`, audited) and only a superadmin resumes those.

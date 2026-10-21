@@ -114,3 +114,9 @@ Every call stores what it used and what it cost:
 - **`metrics.aiSeconds`** — seconds an AI session owned the call (flow AI steps or the whole agent-only call); billed per started minute like other AI usage.
 - **`metrics.realtime`** — raw OpenAI Realtime usage: `inputAudioTokens`, `outputAudioTokens`, `inputTextTokens`, `outputTextTokens`, `cachedTokens`. Our cost ≈ input audio × $10 / 1M + output audio × $20 / 1M + text tokens at the text price (mini model, §1). Compare it with what the rate card charged (`cost.aiMicros`) to check the margin per call; these numbers replace the **low-confidence estimates in §1** once live calls run.
 - **`metrics.ttsChars` / `ttsCachedChars`** — speak-step characters synthesised vs served from the TTS cache (cached lines cost nothing again).
+
+## 8. Campaign estimates and dry-run cost (Phase 8)
+
+- **Estimate** (`POST /campaigns/:id/estimate`, shown in the wizard): contacts × expected attempts (from the retry settings and an assumed answer rate) × the flow's average answered duration (its last 100 calls, else 60 s), priced with the current rate card (telephony + AI share + TTS + commission) — total with a **±25 %** range and the wallet balance next to it. It is a planning number, never a hold: every call holds and settles on its own (ADR 0032).
+- **Dry runs** price every simulated call like a phone call (`cost` on the call, `stats.virtualCostMicros` on the campaign) but **never charge** (`charged: false`, no ledger rows). The money gate of a dry run uses a virtual balance (wallet available − virtual cost so far), so a dry run also shows when a real run would pause for money.
+- **Live campaigns** (Phase 13) spend through the billing engine per call: wallet empty → the campaign auto-pauses; a top-up resumes it when `autoResume` is on.

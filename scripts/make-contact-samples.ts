@@ -3,6 +3,7 @@
  *   contacts-sample-100.csv / .xlsx — 100 rows with a known mix of problems
  *                                     (.xlsx: sheet "Borrowers" + a 2-row "Old loans")
  *   dnd-sample.csv                  — 5 do-not-call numbers
+ *   campaign-100.csv                — 100 valid contacts for a dry-run campaign (Phase 8)
  * Run: npm run samples:contacts   (expected totals: docs/samples/README.md)
  */
 import { writeFileSync } from 'node:fs';
@@ -80,7 +81,27 @@ export const sampleRows = (): string[][] => {
 const csv = (rows: string[][]) =>
   `\uFEFF${rows.map((r) => r.map((c) => (/[",\r\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\r\n')}\r\n`;
 
+/**
+ * 100 valid contacts for a campaign (Phase 8): unique 10-digit phones
+ * `90005000NN`…, even / odd last digit → paid / unpaid on the mock payment API,
+ * amounts ₹1,000–20,000, due dates 22 Sep – 21 Oct 2026 (fixed — deterministic).
+ */
+export const campaignRows = (): string[][] => {
+  const rows = [['name', 'phone', 'amount', 'due_date', 'loan_id']];
+  for (let i = 1; i <= 100; i += 1) {
+    rows.push([
+      `Campaign Customer ${pad(i)}`,
+      `90005${pad(i, 5)}`,
+      String(1_000 + ((i * 1_919) % 19_001)),
+      new Date(Date.UTC(2026, 8, 22 + ((i * 7) % 30))).toISOString().slice(0, 10),
+      `CMP-${pad(i, 4)}`,
+    ]);
+  }
+  return rows;
+};
+
 const main = async () => {
+  writeFileSync(path.join(OUT, 'campaign-100.csv'), csv(campaignRows()));
   const rows = sampleRows();
   writeFileSync(path.join(OUT, 'contacts-sample-100.csv'), csv(rows));
   const xlsx = writeXlsxFile([

@@ -39,3 +39,4 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0033 | [AI agents, knowledge retrieval & tool security](0033-ai-agents-knowledge-tools.md) | accepted |
 | 0034 | [Call flow engine, versions and validation](0034-call-flow-engine.md)               | accepted |
 | 0035 | [Voice runtime](0035-voice-runtime.md)                                              | accepted |
+| 0036 | [Campaign scheduler & dialer](0036-campaign-scheduler-dialer.md)                    | accepted |

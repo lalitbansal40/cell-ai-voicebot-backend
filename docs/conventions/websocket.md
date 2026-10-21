@@ -137,7 +137,7 @@ New events must be added to this table in the same PR that emits them.
 - **Fan-out**: `pushToAccount` / `pushToTopic` publish `{ target, event }` to Redis channel **`ws:fanout`**; every API instance subscribes on a dedicated connection and delivers to its local sockets.
 - **Liveness vs idle**: ws-level ping/pong every 30 s detects dead TCP (no pong → terminate); the **60 s idle timeout** counts only application messages (clients send `ping` every 25 s) → close **4008** `idle timeout`.
 - **Limits** (defaults): 5 connections per user, 50 per account (**4009**), 20 client messages/s (**4008** `rate limit`), 64 KB max payload (**1009**), 20 topics per connection.
-- **Topics**: only `call:<id>` / `campaign:<id>`; ownership check is a hook — **TODO(P7/P8)**: verify the resource belongs to the account.
+- **Topics**: only `call:<id>` / `campaign:<id>`; `authorizeTopic` (`src/modules/calls/topic-auth.ts`) admits a call / campaign of the socket's account to users whose role has `calls.read` / `campaigns.read`, and superadmins viewing the account (Phase 7 / 8 — tested).
 - **Shutdown**: hook `ws` (20) closes every client with **1001** `server shutting down`.
 
 ## 11. Frontend client (`src/services/realtime/` in the frontend repo)
