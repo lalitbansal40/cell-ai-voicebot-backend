@@ -469,6 +469,15 @@
           },
           "limits": { "$ref": "#/components/schemas/AccountLimits" },
           "activeCampaigns": { "type": "integer", "description": "Scheduled, running or paused" },
+          "adminPausedCampaigns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+              "required": ["id", "name"]
+            },
+            "description": "Paused by the platform team — only a superadmin resumes them (≤ 100)"
+          },
           "recentAudit": { "type": "array", "items": { "$ref": "#/components/schemas/AuditEntry" } }
         },
         "required": [
@@ -478,6 +487,7 @@
           "usersByStatus",
           "limits",
           "activeCampaigns",
+          "adminPausedCampaigns",
           "recentAudit"
         ]
       },

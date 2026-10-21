@@ -173,6 +173,12 @@ describe('admin limits + emergency pause (T8.6)', () => {
       expect(await docOf(id)).toMatchObject({ status: 'paused', pauseReason: 'admin' });
     }
     expect((await docOf(draft)).status).toBe('draft');
+    // the account detail lists what only a superadmin can resume
+    const paused = (
+      await request(app).get(`${ADMIN}/${t.account._id.toString()}`).set(auth(superadmin))
+    ).body.data.adminPausedCampaigns as { id: string; name: string }[];
+    expect(paused.map((c) => c.id).sort()).toEqual([running, scheduled].sort());
+    expect(paused[0]?.name).toEqual(expect.any(String));
     expect(
       await AuditLogModel.countDocuments({
         action: 'campaign.admin_paused',
@@ -191,6 +197,10 @@ describe('admin limits + emergency pause (T8.6)', () => {
     expect(lifted.status, JSON.stringify(lifted.body)).toBe(200);
     expect(lifted.body.data).toEqual({ id: running, status: 'running' });
     expect((await resume(scheduled)).body.data.status).toBe('scheduled');
+    expect(
+      (await request(app).get(`${ADMIN}/${t.account._id.toString()}`).set(auth(superadmin))).body
+        .data.adminPausedCampaigns,
+    ).toEqual([]);
     expect((await resume(draft)).status).toBe(409);
     expect((await resume(new Types.ObjectId().toString())).status).toBe(404);
     expect(

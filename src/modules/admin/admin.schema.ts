@@ -59,6 +59,9 @@ export const AdminAccountDetailSchema = registry.register(
     usersByStatus: z.object({ invited: z.number(), active: z.number(), disabled: z.number() }),
     limits: AccountLimitsSchema,
     activeCampaigns: z.number().int().openapi({ description: 'Scheduled, running or paused' }),
+    adminPausedCampaigns: z.array(z.object({ id: z.string(), name: z.string() })).openapi({
+      description: 'Paused by the platform team — only a superadmin resumes them (≤ 100)',
+    }),
     recentAudit: z.array(AuditEntrySchema),
   }),
 );

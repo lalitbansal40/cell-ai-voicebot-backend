@@ -115,9 +115,12 @@ export const listAccounts = async (query: z.infer<typeof ListAccountsQuery>) => 
   };
 };
 
+/** Campaigns paused by the platform team, listed on the account detail (newest first). */
+const ADMIN_PAUSED_LIST_MAX = 100;
+
 export const accountDetail = async (id: string) => {
   const account = await findCustomerAccount(id);
-  const [owner, byStatus, recent, activeCampaigns] = await Promise.all([
+  const [owner, byStatus, recent, activeCampaigns, adminPaused] = await Promise.all([
     account.ownerId ? UserModel.findById(account.ownerId).lean<UserDoc>() : null,
     UserModel.aggregate<{ _id: UserDoc['status']; n: number }>([
       { $match: { accountId: account._id } },
@@ -132,6 +135,14 @@ export const accountDetail = async (id: string) => {
       parentId: null,
       status: { $in: ACTIVE_CAMPAIGN_STATUSES },
     }),
+    // runs of a repeating campaign pause too, so no parentId filter here
+    CampaignModel.find(
+      { accountId: account._id, status: 'paused', pauseReason: 'admin', deletedAt: null },
+      { name: 1 },
+    )
+      .sort({ _id: -1 })
+      .limit(ADMIN_PAUSED_LIST_MAX)
+      .lean<Pick<CampaignDoc, '_id' | 'name'>[]>(),
   ]);
   const usersByStatus = { invited: 0, active: 0, disabled: 0 };
   for (const s of byStatus) usersByStatus[s._id] = s.n;
@@ -145,6 +156,7 @@ export const accountDetail = async (id: string) => {
       dialsPerMinute: account.limits.dialsPerMinute,
     },
     activeCampaigns,
+    adminPausedCampaigns: adminPaused.map((c) => ({ id: c._id.toString(), name: c.name })),
     recentAudit: recent.map((r) => ({
       id: r._id.toString(),
       action: r.action,
