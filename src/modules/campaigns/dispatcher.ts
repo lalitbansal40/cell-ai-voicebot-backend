@@ -36,6 +36,7 @@ import { canDialAt, effectiveWindow, nextWindowStart } from './window';
 
 const PRIORITY_RANK = { high: 0, normal: 1, low: 2 } as const;
 const RUNNABLE_CHECK_MS = 30_000;
+const WINDOW_RECHECK_MS = 60_000;
 const OPEN: readonly CampaignContactStatus[] = [
   'pending',
   'queued',
@@ -189,7 +190,14 @@ export class CampaignDispatcher {
       if (!canDialAt(now, window, campaign.schedule.timezone)) {
         const next = nextWindowStart(now, window, campaign.schedule.timezone);
         await this.waiting(campaign, next);
-        if (next) this.schedule(accountId, Math.max(1_000, next.getTime() - now.getTime()));
+        // wake at the window start, and at least every minute: an edit made in
+        // another process (or a sweep) must not wait for that start
+        if (next) {
+          this.schedule(
+            accountId,
+            Math.min(WINDOW_RECHECK_MS, Math.max(1_000, next.getTime() - now.getTime())),
+          );
+        }
         continue;
       }
       if (campaign.waitingUntil) await this.waiting(campaign, null);

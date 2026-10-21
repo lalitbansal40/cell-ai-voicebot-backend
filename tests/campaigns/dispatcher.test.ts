@@ -34,6 +34,7 @@ import {
   resumeCampaign,
   setCampaignHooks,
   startCampaign,
+  updateCampaign,
 } from '../../src/modules/campaigns/campaigns.service';
 import { CampaignDispatcher, applyResult, moveStats } from '../../src/modules/campaigns/dispatcher';
 import {
@@ -493,6 +494,67 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
 
   it('fairness: two campaigns of the same priority take turns', async () => {
     expect(await firstTick('normal', 'normal')).toEqual([1, 1]);
+  });
+
+  it('a campaign waiting for its window notices a widened window (edit wakes; waits re-check every minute)', async () => {
+    const w = await world();
+    const other = (new Date(w.clock.now()).getDay() + 3) % 7;
+    /** Lets the dispatcher's own (fake-clock) ticks run until `done`. */
+    const settle = async (done: () => Promise<boolean>) => {
+      for (let i = 0; i < 40 && !(await done()); i += 1) {
+        w.clock.advance(200);
+        await sleep(25);
+      }
+    };
+    const unwire = wireCampaigns({
+      jobs: {
+        schedule: () => Promise.resolve(),
+        scheduleEnd: () => Promise.resolve(),
+        drop: () => Promise.resolve(),
+      },
+      dispatcher: w.dispatcher,
+      calls,
+      logger,
+    });
+    try {
+      const edited = await w.campaign({
+        audience: { listIds: [await w.listOf(1)] },
+        window: { start: '00:00', end: '23:59', days: [other] },
+      });
+      await startCampaign(w.req, edited);
+      // the start's own wake runs first (it finds the window closed and waits)
+      w.clock.advance(Math.max(0, Date.now() - w.clock.now()));
+      await settle(async () => Boolean((await docOf(edited)).waitingUntil));
+      const waiting = await docOf(edited);
+      expect(waiting.waitingUntil).toBeInstanceOf(Date);
+      // the edit through the service wakes the dispatcher at once
+      await updateCampaign(w.req, edited, {
+        revision: waiting.revision,
+        window: { start: '00:00', end: '23:59', days: [0, 1, 2, 3, 4, 5, 6] },
+      });
+      w.clock.advance(200);
+      for (let i = 0; i < 120 && !(await CallModel.exists({ campaignId: edited })); i += 1) {
+        await sleep(25);
+      }
+      expect(await CallModel.countDocuments({ campaignId: edited })).toBe(1);
+    } finally {
+      unwire();
+    }
+    // a change the dispatcher is not told about (another process): seen within a minute
+    const silent = await w.campaign({
+      audience: { listIds: [await w.listOf(1)] },
+      window: { start: '00:00', end: '23:59', days: [other] },
+    });
+    await startCampaign(w.req, silent);
+    await settle(async () => Boolean((await docOf(silent)).waitingUntil));
+    expect((await docOf(silent)).waitingUntil).toBeInstanceOf(Date);
+    await CampaignModel.updateOne({ _id: silent }, { 'window.days': [0, 1, 2, 3, 4, 5, 6] });
+    w.clock.advance(60_000);
+    for (let i = 0; i < 120 && !(await CallModel.exists({ campaignId: silent })); i += 1) {
+      await sleep(25);
+    }
+    expect(await CallModel.countDocuments({ campaignId: silent })).toBe(1);
+    expect(await drive(w, statusIs(silent, 'completed'))).toBe(true);
   });
 
   it('per-contact caps: a second campaign over the same contact waits for tomorrow', async () => {

@@ -647,6 +647,8 @@ export const updateCampaign = async (
   // a new start time moves the delayed start job
   if (updated.status === 'scheduled' && input.schedule !== undefined)
     await hooks.scheduled(updated);
+  // a running campaign picks up its new window / pacing / end at once
+  if (updated.status === 'running') await hooks.running(updated);
   notifyAccount(accountId.toString(), 'campaign.status', {
     campaignId: updated._id.toString(),
     status: updated.status,
