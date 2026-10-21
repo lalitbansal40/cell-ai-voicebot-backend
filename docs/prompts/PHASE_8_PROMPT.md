@@ -323,11 +323,11 @@ Full backend verify; `bench:campaign` numbers; PHASE_8_TASKS T8.6–T8.9 `[x]`; 
 
 **Batch 2**
 
-- [ ] T8.6 recurring runs, notifications, contact filters, admin limits + emergency pause, call caps settings
-- [ ] T8.7 campaigns API, `POST /calls`, export, topic auth, OpenAPI
-- [ ] T8.8 100-contact dry run, restart / Redis flush / two dispatchers, failure paths, `bench:campaign`
-- [ ] T8.9 `campaign-100.csv`, seed, ADR 0036, docs, manual API dry run
-- [ ] P8-B2-DONE
+- [x] T8.6 recurring runs, notifications, contact filters, admin limits + emergency pause, call caps settings
+- [x] T8.7 campaigns API, `POST /calls`, export, topic auth, OpenAPI
+- [x] T8.8 100-contact dry run, restart / Redis flush / two dispatchers, failure paths, `bench:campaign`
+- [x] T8.9 `campaign-100.csv`, seed, ADR 0036, docs, manual API dry run
+- [x] P8-B2-DONE
 
 **Batch 3**
 

@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 8 · Batch 2 (T8.6–T8.9)** — 2026-10-21
+  - Recurring campaigns (daily / weekly in the campaign timezone): one run per occurrence (job scheduler + sweep safety net), skipped while the previous run is active, parent completes after `until`.
+  - Notifications: campaign finished / paused / run skipped to the starter + owners + admins; `campaign.paused` email once per automatic pause.
+  - Contact filters `lastDisposition` / `lastCalledAt`; contact JSON `lastDisposition`; Settings call caps + calling-window warning; superadmin account limits, emergency pause and admin resume.
+  - Campaigns API (`/campaigns` CRUD, preview, estimate, start with Idempotency-Key, pause / resume / cancel, contacts, runs, export), `POST /calls` single call, results export (CSV / XLSX), `campaign:<id>` topic auth, OpenAPI.
+  - Hardening tests (100-contact dry run with an overnight window gap, crash recovery, Redis flush, repeated jobs, two dispatchers, failure paths), `npm run bench:campaign`, sample `docs/samples/campaign-100.csv`, campaign seed, ADR 0036, docs.
+  - Fixed: dry-run dials paced in virtual time; a contact whose call ended without counting is dialed again; a campaign whose flow can no longer run pauses (`flow_not_runnable`); a waiting campaign picks up a changed window; progress updates never crash the process.
+  - Tests: 2132 → 2197.
+
 - **Phase 8 · Batch 1 (T8.1–T8.5)** — 2026-10-20
   - Models: Campaign (mode, pinned flow version, audience, schedule, window, retry, follow-ups, pacing, dry-run settings, stats, history) and CampaignContact (audience snapshot), Call `campaignContactId` / `attempt` / `charged` / provider `dryrun`, busy / no-answer statuses, Contact `lastDisposition`, Account `limits` + `settings.callCaps`; migration 0009, `CAMPAIGN_LIMITS`, env (`TELEPHONY_PROVIDER`, `DRY_RUN_MAX_SPEED`, `CAMPAIGNS_ENABLED`), error codes 44 → 47, audit 71 → 83, `campaign.*` WS events, permission `campaigns.export`, notification types.
   - Calling-window math (`date-fns` 4.4.0 + `@date-fns/tz` 1.5.0, MIT), dial guard (DND, opt-out, per-contact caps, min gap, money, compliance bounds), atomic Redis dial slots (Lua) + rate buckets; web test calls use the slots.

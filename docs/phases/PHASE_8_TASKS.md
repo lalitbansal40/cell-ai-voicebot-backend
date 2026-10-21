@@ -9,10 +9,10 @@ Source plan: [PHASE_8_PLAN.md](PHASE_8_PLAN.md) — Batch 1 = T8.1–T8.5, Batch
 | [x]  | T8.3  | Outbound call path (`startOutboundCall`), busy / no-answer lifecycle, dry-run provider, simulated customer, scaled clock, virtual billing                                  | BE   | L    |
 | [x]  | T8.4  | Campaign service: CRUD, audience preview + snapshot, estimate, lifecycle actions, `isFlowInUse`                                                                            | BE   | L    |
 | [x]  | T8.5  | Scheduler + dispatcher + results: retries, callbacks, completion, auto-pause / resume, recover / sweep, shutdown                                                           | BE   | L    |
-| [ ]  | T8.6  | Recurring runs, notifications, contact `lastDisposition` + segment filter, admin limits + emergency pause, Settings call caps                                              | BE   | M    |
-| [ ]  | T8.7  | Campaigns API + single call API + results export + topic auth + OpenAPI                                                                                                    | BE   | M    |
-| [ ]  | T8.8  | Hardening: 100-contact dry run, restart / double-dial tests, circuit breaker, `bench:campaign`                                                                             | BE   | M    |
-| [ ]  | T8.9  | Sample CSV, seed, ADR 0036, docs, manual dry run                                                                                                                           | BE   | S    |
+| [x]  | T8.6  | Recurring runs, notifications, contact `lastDisposition` + segment filter, admin limits + emergency pause, Settings call caps                                              | BE   | M    |
+| [x]  | T8.7  | Campaigns API + single call API + results export + topic auth + OpenAPI                                                                                                    | BE   | M    |
+| [x]  | T8.8  | Hardening: 100-contact dry run, restart / double-dial tests, circuit breaker, `bench:campaign`                                                                             | BE   | M    |
+| [x]  | T8.9  | Sample CSV, seed, ADR 0036, docs, manual dry run                                                                                                                           | BE   | S    |
 | [ ]  | T8.10 | FE foundation: clients, routes, `LIVE_PHASE = 8`, WS events, window / schedule fields                                                                                      | FE   | M    |
 | [ ]  | T8.11 | Campaigns list + 5-step wizard (preview, estimate)                                                                                                                         | FE   | L    |
 | [ ]  | T8.12 | Campaign detail: live dashboard, controls, results table, runs, export                                                                                                     | FE   | L    |
