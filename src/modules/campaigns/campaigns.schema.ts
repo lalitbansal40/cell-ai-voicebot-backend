@@ -392,6 +392,26 @@ registry.registerPath({
   request: json(CreateCampaignBody),
   responses: { 201: ok(CampaignSchema), ...writes },
 });
+export const CampaignSummarySchema = registry.register(
+  'CampaignSummary',
+  z.object({
+    running: z.number().int(),
+    scheduled: z.number().int(),
+    paused: z.number().int(),
+    callsToday: z
+      .number()
+      .int()
+      .openapi({ description: "Campaign calls since midnight in the account's time zone" }),
+  }),
+);
+registry.registerPath({
+  method: 'get',
+  path: `${base}/summary`,
+  tags,
+  summary: 'Dashboard card: campaigns by live status and today’s campaign calls (campaigns.read)',
+  security: bearer,
+  responses: { 200: ok(CampaignSummarySchema), ...common },
+});
 registry.registerPath({
   method: 'post',
   path: `${base}/audience/preview`,

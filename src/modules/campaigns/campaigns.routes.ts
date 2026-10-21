@@ -44,6 +44,7 @@ import {
   unavailableCampaignExports,
   type CampaignExportJobs,
 } from './export';
+import { campaignSummary } from './summary';
 
 export interface CampaignsRouterDeps {
   exports?: CampaignExportJobs;
@@ -70,6 +71,14 @@ export const createCampaignsRouter = ({
     [requirePermission(permission), blockWhenImpersonating(), writes] as RequestHandler[];
   const accountScope = (req: { auth?: { accountId: string } }) => req.auth?.accountId;
 
+  // before `/:id`
+  router.get(
+    '/summary',
+    read,
+    ...handle({}, async ({ req, res }) => {
+      ok(res, await campaignSummary(req));
+    }),
+  );
   router.get(
     '/',
     read,

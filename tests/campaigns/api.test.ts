@@ -637,6 +637,55 @@ describe('GET /calls campaign view + filters', () => {
   });
 });
 
+describe('GET /campaigns/summary (dashboard card)', () => {
+  it('counts live campaigns and today’s campaign calls of the own account only', async () => {
+    const summary = async (user: TestUser) => {
+      const res = await request(app).get(`${BASE}/summary`).set(auth(user));
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      return res.body.data as Record<'running' | 'scheduled' | 'paused' | 'callsToday', number>;
+    };
+    const before = await summary(viewer);
+    const later = await draft(manager_, {
+      schedule: { startAt: new Date(Date.now() + 3600_000).toISOString() },
+    });
+    const id = later.body.data.id as string;
+    expect((await start(manager_, id)).body.data.status).toBe('scheduled');
+    const call = (campaignId: string | null) =>
+      CallModel.create({
+        accountId: t.account._id,
+        direction: 'outbound',
+        provider: 'dryrun',
+        from: 'dryrun',
+        to: '+910000000001',
+        isTest: true,
+        charged: false,
+        source: { kind: 'flow', flowId: new Types.ObjectId(flowId), flowVersionRef: 1 },
+        campaignId: campaignId ? new Types.ObjectId(campaignId) : null,
+        status: 'completed',
+        timestamps: { queuedAt: new Date() },
+      });
+    await call(id);
+    await call(null); // not a campaign call
+    const old = await call(id);
+    await CallModel.collection.updateOne(
+      { _id: old._id },
+      { $set: { createdAt: new Date(Date.now() - 2 * 86_400_000) } },
+    );
+    expect(await summary(viewer)).toEqual({
+      ...before,
+      scheduled: before.scheduled + 1,
+      callsToday: before.callsToday + 1,
+    });
+    expect(await summary(otherOwner)).toEqual({
+      running: 0,
+      scheduled: 0,
+      paused: 0,
+      callsToday: 0,
+    });
+    expect((await request(app).get(`${BASE}/summary`)).status).toBe(401);
+  });
+});
+
 describe('campaign:<id> topic (PHASE_8_PROMPT §1 "WS")', () => {
   it('own account with campaigns.read ✓, other account ✗, no permission ✗, superadmin viewing ✓', async () => {
     const id = (await draft()).body.data.id as string;
