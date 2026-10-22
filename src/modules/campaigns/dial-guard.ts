@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 
 import type { CallCaps } from '../../db/models/account.model';
 import { CallModel } from '../../db/models/call.model';
+import type { WaitReason } from '../../db/models/campaign-contact.model';
 import type {
   CampaignStatus,
   CampaignWindow,
@@ -15,7 +16,7 @@ import { isPhoneOnDnd } from '../contacts/contacts.service';
 import { capBounds } from './caps';
 import { canDialAt, nextWindowStart, windowStartFromDay } from './window';
 
-export type WaitReason = 'window' | 'cap_reached' | 'min_gap';
+export type { WaitReason };
 
 export type DialDecision =
   | { kind: 'dial' }
@@ -75,11 +76,11 @@ export const decideDial = (facts: DialFacts): DialDecision => {
   if (!facts.phoneValid) return { kind: 'skip', reason: 'invalid_phone' };
   if (facts.counts.week >= facts.caps.perWeek) {
     const next = windowStartFromDay(capBounds(now, tz).nextWeekStart, 0, w, tz);
-    return waitOrSkip(facts, next, 'cap_reached', 'cap_reached');
+    return waitOrSkip(facts, next, 'weekly_cap', 'cap_reached');
   }
   if (facts.counts.today >= facts.caps.perDay) {
     const next = windowStartFromDay(now, 1, w, tz);
-    return waitOrSkip(facts, next, 'cap_reached', 'cap_reached');
+    return waitOrSkip(facts, next, 'daily_cap', 'cap_reached');
   }
   if (facts.counts.lastCallAt && facts.caps.minGapMinutes > 0) {
     const gapEnds = new Date(facts.counts.lastCallAt.getTime() + facts.caps.minGapMinutes * 60_000);

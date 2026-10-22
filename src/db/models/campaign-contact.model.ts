@@ -5,6 +5,10 @@ import { tenantPlugin } from '../plugins/tenant';
 
 import { SKIP_REASONS, type SkipReason } from './campaign.model';
 
+/** Why a contact waits: the calling window, the per-contact caps, the minimum gap. */
+export const WAIT_REASONS = ['window', 'daily_cap', 'weekly_cap', 'min_gap'] as const;
+export type WaitReason = (typeof WAIT_REASONS)[number];
+
 export const CAMPAIGN_CONTACT_STATUSES = [
   'pending',
   'queued',
@@ -65,6 +69,8 @@ export interface CampaignContactDoc {
   promiseToPay: { date: string; amountMicros: number | null } | null;
   callback: { date: string; time: string | null } | null;
   skipReason: SkipReason | null;
+  /** Why a pending / retrying contact waits for `nextAttemptAt` (dispatcher's dial guard). */
+  waitReason: WaitReason | null;
   claimToken: string | null;
   claimedAt: Date | null;
   /** Sum of this contact's call costs (real, or virtual for dry runs). */
@@ -93,6 +99,7 @@ const schema = new Schema<CampaignContactDoc>(
     promiseToPay: { type: Schema.Types.Mixed, default: null },
     callback: { type: Schema.Types.Mixed, default: null },
     skipReason: { type: String, enum: [...SKIP_REASONS, null], default: null },
+    waitReason: { type: String, enum: [...WAIT_REASONS, null], default: null },
     claimToken: { type: String, default: null },
     claimedAt: { type: Date, default: null },
     costMicros: { type: Number, default: 0, min: 0 },

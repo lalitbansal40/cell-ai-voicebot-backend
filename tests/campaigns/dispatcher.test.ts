@@ -28,6 +28,7 @@ import { CustomFieldModel } from '../../src/db/models/custom-field.model';
 import { CallManager } from '../../src/modules/calls/call.service';
 import { createDryRunPrograms } from '../../src/modules/calls/dry-run';
 import { CallRegistry } from '../../src/modules/calls/registry';
+import { toContactRow } from '../../src/modules/campaigns/campaign-json';
 import {
   cancelCampaign,
   createCampaign,
@@ -571,11 +572,18 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
       audience: { listIds: [list], excludeActiveCampaigns: false },
     });
     await startCampaign(w.req, second);
-    await w.dispatcher.tick(w.t.account._id.toString());
+    // ticks until the dispatcher looked at the contact (the snapshot uses real dates)
+    const handled = async () =>
+      Boolean((await CampaignContactModel.findOne({ campaignId: second }).lean())?.waitReason);
+    expect(await drive(w, handled)).toBe(true);
     const row = await CampaignContactModel.findOne({ campaignId: second }).lean();
     expect(row?.status).toBe('pending');
     expect(row?.nextAttemptAt?.getTime()).toBeGreaterThan(w.clock.now());
     expect(await CallModel.countDocuments({ campaignId: second })).toBe(0);
+    // the results say why it waits; a dialed contact has no wait reason
+    expect(row && toContactRow(row).waitReason).toBe('daily_cap');
+    const dialed = await CampaignContactModel.findOne({ campaignId: first }).lean();
+    expect(dialed && toContactRow(dialed).waitReason).toBeNull();
   });
 
   it('virtual wallet: runs out → paused (wallet_empty); a credit resumes it (auto-resume)', async () => {

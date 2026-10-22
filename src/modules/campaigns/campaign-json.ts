@@ -138,6 +138,7 @@ export const toContactRow = (cc: CampaignContactDoc) => ({
   promiseToPay: cc.promiseToPay,
   callback: cc.callback,
   skipReason: cc.skipReason,
+  waitReason: cc.waitReason ?? null,
   nextAttemptAt: iso(cc.nextAttemptAt),
   lastCallId: cc.lastCallId ? cc.lastCallId.toString() : null,
   lastAttemptAt: iso(cc.lastAttemptAt),

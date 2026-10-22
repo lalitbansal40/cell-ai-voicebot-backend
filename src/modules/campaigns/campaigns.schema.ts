@@ -1,6 +1,10 @@
 import { CAMPAIGN_LIMITS } from '../../config/limits';
 import { DISPOSITIONS } from '../../db/models/ai-agent.model';
-import { CALL_RESULTS, CAMPAIGN_CONTACT_STATUSES } from '../../db/models/campaign-contact.model';
+import {
+  CALL_RESULTS,
+  CAMPAIGN_CONTACT_STATUSES,
+  WAIT_REASONS,
+} from '../../db/models/campaign-contact.model';
 import {
   CAMPAIGN_MODES,
   CAMPAIGN_PRIORITIES,
@@ -309,6 +313,9 @@ export const CampaignContactRowSchema = registry.register(
     promiseToPay: z.object({ date: z.string(), amountMicros: z.number().nullable() }).nullable(),
     callback: z.object({ date: z.string(), time: z.string().nullable() }).nullable(),
     skipReason: z.enum(SKIP_REASONS).nullable(),
+    waitReason: z.enum(WAIT_REASONS).nullable().openapi({
+      description: 'Why it waits for nextAttemptAt: window, daily_cap, weekly_cap or min_gap',
+    }),
     nextAttemptAt: z.string().nullable(),
     lastCallId: z.string().nullable(),
     lastAttemptAt: z.string().nullable(),

@@ -43,7 +43,7 @@ const refuse = (
   }
   if (decision.kind === 'wait') {
     return notAllowed(
-      facts.week >= facts.perWeek ? 'Weekly call limit reached' : 'Daily call limit reached',
+      decision.reason === 'weekly_cap' ? 'Weekly call limit reached' : 'Daily call limit reached',
     );
   }
   if (decision.kind === 'skip') {

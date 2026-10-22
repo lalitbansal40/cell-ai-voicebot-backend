@@ -93,19 +93,19 @@ describe('decideDial (PHASE_8_PLAN §1d)', () => {
     expect(decideDial(facts({ counts: { today: 3, week: 10, lastCallAt: null } }))).toEqual({
       kind: 'wait',
       until: ist('2026-10-26', '09:00'),
-      reason: 'cap_reached',
+      reason: 'weekly_cap',
     });
     expect(decideDial(facts({ counts: { today: 3, week: 3, lastCallAt: null } }))).toEqual({
       kind: 'wait',
       until: ist('2026-10-20', '09:00'),
-      reason: 'cap_reached',
+      reason: 'daily_cap',
     });
     // Saturday's daily cap → Monday
     expect(
       decideDial(
         facts({ now: ist('2026-10-24', '12:00'), counts: { today: 3, week: 4, lastCallAt: null } }),
       ),
-    ).toEqual({ kind: 'wait', until: ist('2026-10-26', '09:00'), reason: 'cap_reached' });
+    ).toEqual({ kind: 'wait', until: ist('2026-10-26', '09:00'), reason: 'daily_cap' });
     expect(
       decideDial(facts({ counts: { today: 1, week: 1, lastCallAt: ist('2026-10-19', '09:45') } })),
     ).toEqual({ kind: 'wait', until: ist('2026-10-19', '10:15'), reason: 'min_gap' });

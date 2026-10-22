@@ -326,7 +326,10 @@ export class CampaignDispatcher {
       return 'handled';
     }
     if (decision.kind === 'wait') {
-      await this.settleContact(campaign, cc, cc.status, { nextAttemptAt: decision.until });
+      await this.settleContact(campaign, cc, cc.status, {
+        nextAttemptAt: decision.until,
+        waitReason: decision.reason,
+      });
       return 'handled';
     }
     if (decision.kind !== 'dial') {
@@ -378,6 +381,7 @@ export class CampaignDispatcher {
             lastCallId: new Types.ObjectId(out.callId),
             lastAttemptAt: now,
             dials: attempt,
+            waitReason: null,
           },
           $inc: { attempts: 1 },
         },

@@ -4801,6 +4801,11 @@
               null
             ]
           },
+          "waitReason": {
+            "type": ["string", "null"],
+            "enum": ["window", "daily_cap", "weekly_cap", "min_gap", null],
+            "description": "Why it waits for nextAttemptAt: window, daily_cap, weekly_cap or min_gap"
+          },
           "nextAttemptAt": { "type": ["string", "null"] },
           "lastCallId": { "type": ["string", "null"] },
           "lastAttemptAt": { "type": ["string", "null"] },
@@ -4817,6 +4822,7 @@
           "promiseToPay",
           "callback",
           "skipReason",
+          "waitReason",
           "nextAttemptAt",
           "lastCallId",
           "lastAttemptAt",
