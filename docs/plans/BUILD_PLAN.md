@@ -278,6 +278,8 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ### Phase 9 — Call Records, Transcripts & Analytics 🟢
 
+> **Superseded — see [BUILD_PLAN_V2.md](BUILD_PLAN_V2.md)** (Phase 9 = WhatsApp Connect; call records & analytics moved to Phase 14).
+
 - Call logs list: filters (date, campaign, flow, status, disposition, agent), search by phone
 - Call detail: audio player (seek), chat-style transcript, timeline (nodes, DTMF, function calls + results), cost breakdown
 - **Post-call AI:** summary, disposition auto-tag, sentiment (customer ka mood), key info extract (promise date, amount)
@@ -461,3 +463,4 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 - 2026-10-16: Phase 7 complete (voice runtime: web call leg over `/ws/media`, call sessions with recording and hold / extend / settle billing, flows and agents live on calls, OpenAI Realtime / TTS / transcription behind interfaces with a deterministic fake voice, Calls API, web call tester, calls list and detail, Playwright with Chromium's fake mic) — [PHASE_7_SIGNOFF.md](../phases/PHASE_7_SIGNOFF.md). Live OpenAI voice run, SIP and client scripts pending. Next: Phase 8 (campaigns & call scheduler).
 - 2026-10-16: Phase 8 detailed plan — [PHASE_8_PLAN.md](../phases/PHASE_8_PLAN.md): campaigns pin a flow version and snapshot their audience at start, a per-account dispatcher in the call-owning process (BullMQ jobs + Mongo state + atomic Redis slots), dial guard (calling window with compliance bounds, DND / opt-out, per-contact caps), retries / callbacks / auto-pause on money, a dry-run telephony provider with simulated customers, virtual time and virtual cost until SIP (Phase 13), live dashboard, CSV / XLSX export, single "Call now".
 - 2026-10-22: Phase 8 complete (campaigns & call scheduler: campaigns pin a flow version and snapshot their audience, a per-account dispatcher with the dial guard (calling window + TRAI / RBI bounds, DND / opt-out, per-contact caps, money), atomic Redis slots + dial rates, retries / callbacks / promise follow-ups, auto-pause / resume, recurring runs, a dry-run line with simulated customers, virtual time and virtual money, live dashboard, CSV / XLSX export, Call now, superadmin limits + emergency pause, Playwright on a 100-contact dry run) — [PHASE_8_SIGNOFF.md](../phases/PHASE_8_SIGNOFF.md). Live calls wait for SIP (Phase 13). Next: Phase 9 (call records, transcripts & analytics).
+- 2026-10-22: Phases 9–15 superseded by [BUILD_PLAN_V2.md](BUILD_PLAN_V2.md) (voice + WhatsApp in one order; Phase 9 = WhatsApp Connect).
