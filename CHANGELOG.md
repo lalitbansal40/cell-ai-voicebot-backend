@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 9 · Batch 3 (T9.8–T9.12) — Phase 9 complete** — 2026-10-22
+  - Frontend WhatsApp → Numbers, connect wizard, superadmin tools, notifications, dashboard card, `/data-deletion` — see the frontend CHANGELOG.
+  - Simulator kind `phone_number_added` (only-WABA numbers get their number through the pipeline).
+  - Fixed: simulated account updates for a number without a display number sent `phone_number: ""` (schema failure; the effect never happened).
+  - Playwright: 16 WhatsApp tests (4 specs, 77 total, green twice); backend logs of the run free of tokens, codes, PINs, test numbers, payload texts, `Bearer`, `sk-` and the E2E passwords.
+  - Sign-off: [PHASE_9_SIGNOFF.md](docs/phases/PHASE_9_SIGNOFF.md).
+  - Tests: 2203 → 2463 (frontend 737 → 803).
+
 - **Phase 9 · Batch 2 (T9.5–T9.7) — WhatsApp health, Meta callbacks, admin, API, hardening** — 2026-10-22
   - Daily `whatsapp-health` job; Meta deauthorize + data deletion callbacks with a public status lookup; superadmin WhatsApp status / events + replay / billing mode / force disconnect / manual connect / account summary; dev webhook simulator (15 kinds through the real pipeline).
   - `/api/v1/whatsapp` API (config, numbers, Embedded Signup connect, rename, sync, retry setup, PIN, coexistence sync, disconnect) with roles, impersonation block, suspended read-only, 503 when off, `rl:wa-connect:`; OpenAPI for every WhatsApp / Meta / admin / dev path.

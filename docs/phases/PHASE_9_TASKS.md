@@ -11,10 +11,10 @@ Plan: [PHASE_9_PLAN.md](PHASE_9_PLAN.md) · Overview: [BUILD_PLAN_V2.md](../plan
 | [x] | T9.5  | Health job + notifications, deauthorize / data deletion callbacks, superadmin (status, events + replay, force disconnect, manual connect), simulator                     | BE   | M    |
 | [x] | T9.6  | API routes + OpenAPI + rate limits, seed, `dev:whatsapp`                                                                                                                 | BE   | M    |
 | [x] | T9.7  | Hardening, ADR 0037, `docs/setup/meta-whatsapp.md`, docs                                                                                                                 | BE   | M    |
-| [ ] | T9.8  | FE foundation: clients, hooks, WS, nav (`LIVE_PHASE = 9`, renumber), routes, Meta SDK loader + session listener, Test signup dialog                                      | FE   | M    |
-| [ ] | T9.9  | WhatsApp → Numbers: empty state, connect wizard, cards, drawer, actions, live updates, roles                                                                             | FE   | L    |
-| [ ] | T9.10 | Superadmin pieces, Admin WhatsApp status, notifications, dashboard card, `/data-deletion` page, bundle check                                                             | FE   | M    |
-| [ ] | T9.11 | Playwright E2E (connect, outcomes, roles, Meta endpoints) — twice                                                                                                        | FE   | M    |
-| [ ] | T9.12 | Gap audit, security checklist, docs, Phase 9 sign-off                                                                                                                    | both | M    |
+| [x] | T9.8  | FE foundation: clients, hooks, WS, nav (`LIVE_PHASE = 9`, renumber), routes, Meta SDK loader + session listener, Test signup dialog                                      | FE   | M    |
+| [x] | T9.9  | WhatsApp → Numbers: empty state, connect wizard, cards, drawer, actions, live updates, roles                                                                             | FE   | L    |
+| [x] | T9.10 | Superadmin pieces, Admin WhatsApp status, notifications, dashboard card, `/data-deletion` page, bundle check                                                             | FE   | M    |
+| [x] | T9.11 | Playwright E2E (connect, outcomes, roles, Meta endpoints) — twice                                                                                                        | FE   | M    |
+| [x] | T9.12 | Gap audit, security checklist, docs, Phase 9 sign-off                                                                                                                    | both | M    |
 
 **Done when:** Owner test mode me Connect WhatsApp se number connect kare → Connected + quality + limit + display name; signed webhook events live card update karen + bell; token invalid → Needs reconnect → reconnect; disconnect; roles — Playwright se proven; real Meta ke liye setup doc + env rules ready.

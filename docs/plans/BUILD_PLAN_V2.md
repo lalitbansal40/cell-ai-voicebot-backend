@@ -16,17 +16,18 @@ Ye plan bache hue saare kaam ko **ek hi product** maan ke dobara order karta hai
 
 ---
 
-## 1. Ab tak (Phase 0–8) ✅
+## 1. Ab tak (Phase 0–9) ✅
 
-| #   | Phase                            | Status  |
-| --- | -------------------------------- | ------- |
-| 0–2 | Setup, foundation, auth / RBAC   | ✅ Done |
-| 3   | Contacts, lists, custom fields   | ✅ Done |
-| 4   | Wallet & billing (holds, ledger) | ✅ Done |
-| 5   | AI agents & knowledge            | ✅ Done |
-| 6   | Call flow engine & builder       | ✅ Done |
-| 7   | Voice runtime + web call tester  | ✅ Done |
-| 8   | Campaigns & call scheduler       | ✅ Done |
+| #   | Phase                                                     | Status                                             |
+| --- | --------------------------------------------------------- | -------------------------------------------------- |
+| 0–2 | Setup, foundation, auth / RBAC                            | ✅ Done                                            |
+| 3   | Contacts, lists, custom fields                            | ✅ Done                                            |
+| 4   | Wallet & billing (holds, ledger)                          | ✅ Done                                            |
+| 5   | AI agents & knowledge                                     | ✅ Done                                            |
+| 6   | Call flow engine & builder                                | ✅ Done                                            |
+| 7   | Voice runtime + web call tester                           | ✅ Done                                            |
+| 8   | Campaigns & call scheduler                                | ✅ Done                                            |
+| 9   | WhatsApp Connect (Embedded Signup, fake Meta until setup) | ✅ Done ([sign-off](../phases/PHASE_9_SIGNOFF.md)) |
 
 ---
 
@@ -102,7 +103,7 @@ Size: S ≈ 3–5 din, M ≈ 1–2 hafte, L ≈ 2–3 hafte (ek developer, tests
 
 ## 4. Phases — detail
 
-### Phase 9 — WhatsApp Connect: Meta app + Embedded Signup (M)
+### Phase 9 — WhatsApp Connect: Meta app + Embedded Signup (M) ✅
 
 **Goal:** Customer apne account se "Connect WhatsApp" dabaye, Meta ka Embedded Signup popup khule, WABA + number connect ho, aur hamare paas messages / calls ke webhooks aane lagen.
 
@@ -375,3 +376,4 @@ Bulk WhatsApp calling (client promise "Bulk calling"):
 
 - 2026-10-22: v2 banaya — Phase 8 complete hone ke baad bache phases + WhatsApp extension (Embedded Signup, inbox, templates + billing, calling + permission, App Review, bulk campaigns) ek order me; App Review ke liye WhatsApp pehle, bulk campaigns last.
 - 2026-10-22: Owner decisions — Meta billing both ways per account (platform credit line default / customer pays), coexistence numbers fully supported (echoes, history, contacts), connect owner / admin only. Phase 9 detailed plan: [PHASE_9_PLAN.md](../phases/PHASE_9_PLAN.md).
+- 2026-10-22: **Phase 9 done** ([sign-off](../phases/PHASE_9_SIGNOFF.md)) — built and tested on the fake Meta provider; the real Meta app is an env-only switch ([setup guide](../setup/meta-whatsapp.md)). **Next: Phase 10 (WhatsApp Inbox).**

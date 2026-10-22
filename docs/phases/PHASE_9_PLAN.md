@@ -439,54 +439,54 @@ Batches: **Batch 1 = T9.1–T9.4** (`[P9-B1-DONE]`), **Batch 2 = T9.5–T9.7** (
 
 ### T9.8 — FE foundation
 
-- [ ] `npm run gen:api`; `whatsappApi` (config, channels, signup, actions), `adminWhatsappApi`, `metaPublicApi` (data deletion status); types aliases.
-- [ ] Query keys / hooks (`useWhatsAppConfig`, `useChannels`, `useChannel`, mutations), WS `whatsapp.channel.updated` → cache updates.
-- [ ] Nav: WhatsApp item (`phase: 9`), Reports `phase: 14`, Integrations `phase: 15`, `LIVE_PHASE = 9`; layout test updated.
-- [ ] Routes: `/whatsapp` (lazy), `/whatsapp/numbers`, public `/data-deletion`.
-- [ ] `meta-sdk.ts` loader + `useEmbeddedSignup()` hook (FB.login options per mode, session listener with origin check, 3 s wait, outcomes), `TestSignupDialog` (fake mode).
-- [ ] Tests: loader with fake `window.FB`, listener events, hook outcomes, nav.
+- [x] `npm run gen:api`; `whatsappApi` (config, channels, signup, actions), `adminWhatsappApi`, `metaPublicApi` (data deletion status); types aliases.
+- [x] Query keys / hooks (`useWhatsAppConfig`, `useChannels`, `useChannel`, mutations), WS `whatsapp.channel.updated` → cache updates.
+- [x] Nav: WhatsApp item (`phase: 9`), Reports `phase: 14`, Integrations `phase: 15`, `LIVE_PHASE = 9`; layout test updated.
+- [x] Routes: `/whatsapp` (lazy), `/whatsapp/numbers`, public `/data-deletion`.
+- [x] `meta-sdk.ts` loader + `useEmbeddedSignup()` hook (FB.login options per mode, session listener with origin check, 3 s wait, outcomes), `TestSignupDialog` (fake mode).
+- [x] Tests: loader with fake `window.FB`, listener events, hook outcomes, nav.
 
 ### T9.9 — Numbers page
 
-- [ ] Empty state + requirements; Connect wizard (mode choice, popup / test dialog, progress, results, error texts per code); cards / table; detail drawer; rename; sync; retry setup; Enter PIN dialog (6 digits); reconnect; disconnect confirm; dev "Send test event" menu; roles + impersonation read-only; live updates.
-- [ ] Tests for every state, action and role.
+- [x] Empty state + requirements; Connect wizard (mode choice, popup / test dialog, progress, results, error texts per code); cards / table; detail drawer; rename; sync; retry setup; Enter PIN dialog (6 digits); reconnect; disconnect confirm; dev "Send test event" menu; roles + impersonation read-only; live updates.
+- [x] Tests for every state, action and role.
 
 ### T9.10 — Entry points
 
-- [ ] Superadmin account detail WhatsApp card (force disconnect with reason, manual connect dialog), Admin WhatsApp status page (webhook URL copy, configured flags, failed events + replay), notifications icons / texts / links, dashboard WhatsApp card, `/data-deletion` page.
-- [ ] Bundle check vs `main` (same script as Phase 8).
-- [ ] Tests.
+- [x] Superadmin account detail WhatsApp card (force disconnect with reason, manual connect dialog), Admin WhatsApp status page (webhook URL copy, configured flags, failed events + replay), notifications icons / texts / links, dashboard WhatsApp card, `/data-deletion` page.
+- [x] Bundle check vs `main` (same script as Phase 8).
+- [x] Tests.
 
 ### T9.11 — Playwright E2E
 
-- [ ] Helpers `e2e/whatsapp.ts` (`connectFakeNumber(page, opts)`, `simulateEvent(page, kind)`, `numberCard(page, label)`).
-- [ ] Scenarios (one account per spec, serial, short tests):
+- [x] Helpers `e2e/whatsapp.ts` (`connectFakeNumber(page, opts)`, `simulateEvent(page, kind)`, `numberCard(page, label)`).
+- [x] Scenarios (one account per spec, serial, short tests):
   1. **`whatsapp-connect.spec.ts` (Done when):** empty state → Connect → Cloud API → test signup Finish → progress → **Connected** card (number, verified name, GREEN, 1K / day, Cloud API) → drawer ids + history → rename → simulated `quality_downgrade` → card YELLOW live + bell → `token_revoked` → Needs reconnect → Reconnect → Connected → Disconnect → Disconnected.
   2. **`whatsapp-outcomes.spec.ts`:** coexistence connect → "Messages from your phone appear in this app" + sync statuses → simulated `echo_text` counted in the drawer; platform credit line ✓ on the card; superadmin switches the account to customer → next number shows "Add a payment method" → `payment_method_added` → ok; cancel at a step (nothing saved, message), error outcome, coexistence → warning + badge, only-WABA → Action needed → (simulate number added) Sync → Connected, PIN-needed number → Enter PIN → Connected.
   3. **`whatsapp-roles.spec.ts`:** viewer sees numbers read only, manager no Connect / Disconnect, second account same number → "already connected to another account", impersonating superadmin read only, superadmin force disconnect → owner bell + Disconnected, Admin status page shows the webhook URL.
   4. **`whatsapp-meta-endpoints.spec.ts`:** `GET /webhooks/meta` challenge (right / wrong token), signed vs unsigned POST (200 / 401), data deletion status page.
-- [ ] All earlier 61 tests stay green; whole suite **twice** (2nd with `E2E_BACKEND_LOGS=1` + log grep for tokens / codes / PINs / phones / payload text); `E2E_FRONTEND_PORT=3150`.
+- [x] All earlier 61 tests stay green; whole suite **twice** (2nd with `E2E_BACKEND_LOGS=1` + log grep for tokens / codes / PINs / phones / payload text); `E2E_FRONTEND_PORT=3150`.
 
 ### T9.12 — Gap audit, security, docs, sign-off
 
-- [ ] Requirement → test table for §0 / §1 / every task; missing tests added.
-- [ ] Security checklist: tokens / PINs never in API / WS / logs / audit (grep + tests), signatures constant-time, raw body only on the webhook path, browser IDs verified, isolation, impersonation read only, webhook payloads sealed, gitleaks both repos, `console.log` 0.
-- [ ] Coverage re-measured (gates never lowered), bundle numbers, burst numbers.
-- [ ] Docs both repos (READMEs, CHANGELOGs), BUILD_PLAN_V2 Phase 9 ✅, PHASE_9_TASKS all `[x]`, this plan ticked + changelog, **PHASE_9_SIGNOFF.md**; `[P9-B3-DONE]` (full verify both repos, E2E twice, fresh clones without `.env`, actionlint, gitleaks, `infra:down`).
+- [x] Requirement → test table for §0 / §1 / every task; missing tests added.
+- [x] Security checklist: tokens / PINs never in API / WS / logs / audit (grep + tests), signatures constant-time, raw body only on the webhook path, browser IDs verified, isolation, impersonation read only, webhook payloads sealed, gitleaks both repos, `console.log` 0.
+- [x] Coverage re-measured (gates never lowered), bundle numbers, burst numbers.
+- [x] Docs both repos (READMEs, CHANGELOGs), BUILD_PLAN_V2 Phase 9 ✅, PHASE_9_TASKS all `[x]`, this plan ticked + changelog, **PHASE_9_SIGNOFF.md**; `[P9-B3-DONE]` (full verify both repos, E2E twice, fresh clones without `.env`, actionlint, gitleaks, `infra:down`).
 
 ---
 
 ## 4. Deliverables checklist
 
-- [ ] WhatsAppChannel / MetaWebhookEvent / MetaDeletionRequest models, migration 0010, limits, env + production rules, codes, audit, WS, notifications, permissions.
-- [ ] `MetaClient` (Graph + fake), signatures, schemas + fixtures.
-- [ ] Embedded Signup connect (both modes) with verification, discovery fallback, subscribe, register, partial-failure recovery, reconnect, PIN, sync, rename, disconnect.
-- [ ] Webhook pipeline (verify, signature, store, queue, worker, routing, Phase 9 handlers, deferred fields, retries, replay).
-- [ ] Health job + notifications / emails; deauthorize + data deletion callbacks + status page.
-- [ ] Superadmin status / events / force disconnect / manual connect; dev webhook simulator; seed; `dev:whatsapp`.
-- [ ] UI: WhatsApp → Numbers (empty state, connect wizard, cards, drawer, actions), superadmin pieces, notifications, dashboard card, `/data-deletion`.
-- [ ] Playwright: connect (Done when), outcomes, roles, Meta endpoints.
-- [ ] Docs: ADR 0037, setup guide for the real Meta app, data-model, security, compliance, READMEs, CHANGELOGs, sign-off.
+- [x] WhatsAppChannel / MetaWebhookEvent / MetaDeletionRequest models, migration 0010, limits, env + production rules, codes, audit, WS, notifications, permissions.
+- [x] `MetaClient` (Graph + fake), signatures, schemas + fixtures.
+- [x] Embedded Signup connect (both modes) with verification, discovery fallback, subscribe, register, partial-failure recovery, reconnect, PIN, sync, rename, disconnect.
+- [x] Webhook pipeline (verify, signature, store, queue, worker, routing, Phase 9 handlers, deferred fields, retries, replay).
+- [x] Health job + notifications / emails; deauthorize + data deletion callbacks + status page.
+- [x] Superadmin status / events / force disconnect / manual connect; dev webhook simulator; seed; `dev:whatsapp`.
+- [x] UI: WhatsApp → Numbers (empty state, connect wizard, cards, drawer, actions), superadmin pieces, notifications, dashboard card, `/data-deletion`.
+- [x] Playwright: connect (Done when), outcomes, roles, Meta endpoints.
+- [x] Docs: ADR 0037, setup guide for the real Meta app, data-model, security, compliance, READMEs, CHANGELOGs, sign-off.
 
 ## 5. Risks
 
@@ -547,3 +547,4 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T9.1–T9.4
 - 2026-10-22 (T9.1): `WHATSAPP_ENABLED` defaults to `true` outside production and to `Boolean(META_APP_ID)` in production (a production deploy without a Meta app keeps WhatsApp off instead of failing to boot). The baseline had **11** notification types (not 13) → **17** after Phase 9 (+6).
 - 2026-10-22: **Batch 1 done** (T9.1–T9.4, `[P9-B1-DONE]`). Deviations: (1) `WHATSAPP_ENABLED` production default = `Boolean(META_APP_ID)` (above); (2) notification types 11 → 17 (the prompt's 13 → 19 counted wrong); (3) fake signup codes carry a random `nonce` (same business + phone twice → two valid codes, like Meta); (4) the webhook 503 uses `PROVIDER_UNAVAILABLE` (no new error code — the catalogue stays at 54); (5) `account_update` events without their own effect (`ACCOUNT_UPDATE`, `VERIFIED_ACCOUNT`, …) run a channel sync, so the simulator's `token_revoked` / `payment_method_added` kinds go through the real pipeline; (6) a billing retry re-reads the account's Meta payer until a credit line is attached (superadmin can switch a failing account to "customer pays Meta"); (7) the simulator payload builders (`simulator.ts`) were added with Batch 1 because `npm run dev:whatsapp` needs them — the simulator route stays in T9.5; (8) `ErrorDetail` gained `metaCode` / `metaSubcode` / `fbtraceId` for `META_API_ERROR`; (9) `setLogger()` test hook in `shared/logger.ts`.
 - 2026-10-22: **Batch 2 done** (T9.5–T9.7, `[P9-B2-DONE]`). Manual check on the dev server through the HTTP API (config, Cloud API + coexistence connect, verify challenge, unsigned POST 401, simulated quality downgrade + flag → red / `TIER_250` + one notification per recipient, `token_revoked` → needs reconnect, data deletion + status, superadmin status with the webhook URL, owner 403) and logs free of tokens, codes, `Bearer`, payload texts and the numbers. Deviations: (1) the manual sync limit (1 / min / number) is a Redis key in the service (`wa-rl-sync-<id>`, also used by coexistence retries) instead of an `rl:wa-sync:` express limiter — same effect in every process; (2) `GET /whatsapp/config` also answers 503 when WhatsApp is off (every `/whatsapp/*` route does); (3) Meta callbacks answer `422` (the project's validation status) instead of `400` for stale / malformed `signed_request`; (4) a restriction taken from the phone status ends when Meta reports the number `CONNECTED` again, webhook restrictions last until their end date or a lifting event (found by the health tests before commit); (5) quality-red / name approved / rejected notifications moved into the sync, so a webhook plus its re-check notify once; (6) replay also accepts `ignored` events; (7) a Phase 8 dispatcher test raced its own wake on a loaded machine (also on `main`) — fixed test-only (`b57e192`).
+- 2026-10-22: **Batch 3 done — Phase 9 complete** (T9.8–T9.12, `[P9-B3-DONE]`, [sign-off](PHASE_9_SIGNOFF.md)). Deviations: the WhatsApp page shell and `/data-deletion` page came with T9.8 (the routes need them); an only-WABA number keeps the default label "WhatsApp number"; the E2E backend uses its own fake app secret and verify token (`e2e/env.ts`); the data deletion page shows "completed" right away (deletion runs inside the callback); a 16th simulator kind `phone_number_added` (`7ec1f45`) covers "only WABA → number added → Connected" end to end, and building it exposed a real simulator bug fixed in `175f6c5`. Bundle +3.0 KB (target ≤ 3 KB). Coverage gates unchanged (new values round down to the current gates).
