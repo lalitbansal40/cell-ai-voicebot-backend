@@ -18,6 +18,8 @@ export interface ContactWhatsApp {
   syncRemovedAt: Date | null;
   /** A person changed `name`: WhatsApp syncs never overwrite it afterwards. */
   nameEditedAt: Date | null;
+  /** Time of the customer message whose opt-out / opt-in keyword set the current state (ordering). */
+  keywordAt: Date | null;
 }
 
 export const EMPTY_CONTACT_WHATSAPP: ContactWhatsApp = {
@@ -27,6 +29,7 @@ export const EMPTY_CONTACT_WHATSAPP: ContactWhatsApp = {
   blocked: false,
   syncRemovedAt: null,
   nameEditedAt: null,
+  keywordAt: null,
 };
 
 /** Stored variable value: text / date (`YYYY-MM-DD`) / phone as string, number / currency (micros) as number. */
@@ -100,6 +103,7 @@ const schema = new Schema<ContactDoc>({
         blocked: { type: Boolean, default: false },
         syncRemovedAt: { type: Date, default: null },
         nameEditedAt: { type: Date, default: null },
+        keywordAt: { type: Date, default: null },
       },
       { _id: false },
     ),

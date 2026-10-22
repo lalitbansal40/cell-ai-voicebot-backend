@@ -689,6 +689,26 @@ describe('inbound — opt-out / opt-in keywords', () => {
     expect((await world.messagesOf({ origin: 'system', type: 'text' })).length).toBe(2);
   });
 
+  it('keywords follow message time, not processing order (START after STOP wins even if processed first)', async () => {
+    const from = customer(156);
+    const t = Math.floor(Date.now() / 1000);
+    await world.deliver(customerText(state.channel, { from, text: 'START', at: t + 5 }));
+    await world.deliver(customerText(state.channel, { from, text: 'STOP', at: t }));
+    expect((await contactOf(from))?.optedOutAt).toBeNull();
+    // and the other way round: an older START processed after a newer STOP is ignored
+    const from2 = customer(157);
+    await world.deliver(customerText(state.channel, { from: from2, text: 'STOP', at: t + 5 }));
+    await world.deliver(customerText(state.channel, { from: from2, text: 'START', at: t }));
+    expect((await contactOf(from2))?.optedOutAt).toBeInstanceOf(Date);
+    // STOP and START at once (parallel workers) end in the later one's state
+    const from3 = customer(158);
+    await Promise.all([
+      world.deliver(customerText(state.channel, { from: from3, text: 'STOP', at: t })),
+      world.deliver(customerText(state.channel, { from: from3, text: 'START', at: t + 1 })),
+    ]);
+    expect((await contactOf(from3))?.optedOutAt).toBeNull();
+  });
+
   it('a person-added DND entry stays on opt-in; sentences never match; button replies count; settings respected', async () => {
     const from = customer(151);
     await DndEntryModel.create({

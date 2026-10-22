@@ -876,7 +876,7 @@ A file uploaded from the composer, waiting to be sent. Tenant-scoped. Its id is 
 
 Indexes: `{ expiresAt: 1 }`.
 
-**Additions (Phase 10):** Contact `whatsapp: { waId, profileName, lastInboundAt, blocked, syncRemovedAt, nameEditedAt } | null` (`nameEditedAt` — a person renamed the contact, WhatsApp syncs keep that name) and `source.type` + `whatsapp`; DndEntry `source` + `whatsapp` (a WhatsApp opt-out keyword — an opt-in keyword removes only these); Account `settings.inbox: { sendReadReceipts, optOutKeywords, optInKeywords, optOutReply, optOutReplyText, optInReply, optInReplyText, notifyOnNewMessage: assigned_or_all \| assigned_only \| off }` (defaults: owner decisions of 23 Oct 2026 — English + Hinglish + Hindi keywords, confirmations on, read receipts on).
+**Additions (Phase 10):** Contact `whatsapp: { waId, profileName, lastInboundAt, blocked, syncRemovedAt, nameEditedAt, keywordAt } | null` (`nameEditedAt` — a person renamed the contact, WhatsApp syncs keep that name; `keywordAt` — time of the message whose opt-out / opt-in keyword set the current state, so keywords apply in message order) and `source.type` + `whatsapp`; DndEntry `source` + `whatsapp` (a WhatsApp opt-out keyword — an opt-in keyword removes only these); Account `settings.inbox: { sendReadReceipts, optOutKeywords, optInKeywords, optOutReply, optOutReplyText, optInReply, optInReplyText, notifyOnNewMessage: assigned_or_all \| assigned_only \| off }` (defaults: owner decisions of 23 Oct 2026 — English + Hinglish + Hindi keywords, confirmations on, read receipts on).
 
 ---
 

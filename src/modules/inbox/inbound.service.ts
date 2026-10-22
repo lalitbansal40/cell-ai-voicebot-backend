@@ -143,7 +143,7 @@ export const processCustomerMessage = async (
       : type === 'interactive'
         ? (stored.interactive?.reply?.title ?? null)
         : null;
-  await handleKeywords(ix, { settings, conversation, contact, text: keywordText });
+  await handleKeywords(ix, { settings, conversation, contact, text: keywordText, at });
   if (countUnread) {
     await notifyNewMessage(ix, { conversation, contact, mode: settings.notifyOnNewMessage });
   }

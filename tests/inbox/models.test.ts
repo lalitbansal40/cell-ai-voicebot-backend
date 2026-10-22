@@ -327,6 +327,7 @@ describe('Contact / account additions', () => {
       blocked: false,
       syncRemovedAt: null,
       nameEditedAt: null,
+      keywordAt: null,
     });
     const plain = await ContactModel.create({
       accountId,

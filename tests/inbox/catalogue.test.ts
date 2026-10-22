@@ -169,6 +169,7 @@ describe('Phase 10 catalogue', () => {
       blocked: false,
       syncRemovedAt: null,
       nameEditedAt: null,
+      keywordAt: null,
     });
     expect(INBOX_NOTIFY_MODES).toEqual(['assigned_or_all', 'assigned_only', 'off']);
     // owner decisions 23 Oct 2026

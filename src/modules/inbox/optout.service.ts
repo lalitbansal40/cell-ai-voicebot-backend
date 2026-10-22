@@ -62,23 +62,45 @@ export const handleKeywords = async (
     conversation: ConversationDoc;
     contact: ContactDoc;
     text: string | null;
+    /** The customer message's time — keywords apply in message order, not processing order. */
+    at: Date;
   },
 ): Promise<KeywordMatch> => {
   const { settings, conversation, contact } = input;
   const kind = matchKeyword(input.text, settings);
   if (!kind) return null;
   const now = inboxNow(ix);
+  // one atomic step: only a keyword not older than the last one counts (parallel workers,
+  // out-of-order deliveries); the document before tells whether the state changed
+  const before = await ContactModel.findOneAndUpdate(
+    {
+      _id: contact._id,
+      accountId: contact.accountId,
+      $or: [{ 'whatsapp.keywordAt': null }, { 'whatsapp.keywordAt': { $lte: input.at } }],
+    },
+    {
+      $set: {
+        'whatsapp.keywordAt': input.at,
+        ...(kind === 'opt_out' ? { optedOutAt: now, dnd: true } : { optedOutAt: null }),
+      },
+    },
+    { returnDocument: 'before' },
+  ).lean<ContactDoc>();
+  if (!before) return null; // an older keyword than the current state
   if (kind === 'opt_out') {
-    if (contact.optedOutAt) return null;
+    if (before.optedOutAt) {
+      // already opted out: keep the original time
+      await ContactModel.updateOne(
+        { _id: contact._id },
+        { $set: { optedOutAt: before.optedOutAt } },
+      );
+      return null;
+    }
     await addDndEntries(
       contact.accountId,
       [{ phoneE164: contact.phoneE164, reason: WHATSAPP_DND_REASON }],
       'whatsapp',
       null,
-    );
-    await ContactModel.updateOne(
-      { _id: contact._id, accountId: contact.accountId },
-      { $set: { optedOutAt: now, dnd: true } },
     );
     emitMessageCreated(await insertSystemLine(conversation, 'opted_out', now));
     await audit(conversation, contact, 'inbox.contact_opted_out', { kind });
@@ -86,7 +108,7 @@ export const handleKeywords = async (
       await confirm(ix, conversation, contact, kind, settings.optOutReplyText);
     return kind;
   }
-  if (!contact.optedOutAt) return null;
+  if (!before.optedOutAt) return null; // START while not opted out: nothing to undo
   await DndEntryModel.deleteOne({
     accountId: contact.accountId,
     phoneE164: contact.phoneE164,
@@ -102,10 +124,6 @@ export const handleKeywords = async (
       { withDeleted: true } as never,
     );
   }
-  await ContactModel.updateOne(
-    { _id: contact._id, accountId: contact.accountId },
-    { $set: { optedOutAt: null, dnd: dndKept } },
-  );
   emitMessageCreated(
     await insertSystemLine(conversation, dndKept ? 'opted_in_dnd_kept' : 'opted_in', now),
   );
