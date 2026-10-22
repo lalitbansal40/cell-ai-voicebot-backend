@@ -88,23 +88,24 @@ erDiagram
 
 Not tenant-scoped (it **is** the tenant): no `accountId`.
 
-| Field                        | Type                                               | R   | Notes                                                                                                    |
-| ---------------------------- | -------------------------------------------------- | --- | -------------------------------------------------------------------------------------------------------- |
-| name                         | string                                             | ✓   | Business name                                                                                            |
-| slug                         | string                                             | ✓   | Unique, URL-safe                                                                                         |
-| status                       | `active \| suspended`                              | ✓   | Suspended → no calls, read-only                                                                          |
-| timezone                     | string                                             | ✓   | IANA, default `Asia/Kolkata`                                                                             |
-| country                      | string                                             | ✓   | ISO-3166 alpha-2, default `IN`                                                                           |
-| defaultLanguage              | `hi \| en \| hinglish`                             | ✓   | Default for flows/agents                                                                                 |
-| settings.callingWindow       | `{ start: "09:00", end: "19:00", days: number[] }` | ✓   | Account default; campaigns may narrow it                                                                 |
-| settings.recordingEnabled    | boolean                                            | ✓   | Default true                                                                                             |
-| settings.recordingNotice     | string (≤ 200)                                     | ✓   | Said at the start of recorded calls (Phase 7); default "Yeh call quality ke liye record ki ja rahi hai." |
-| settings.aiDisclosureEnabled | boolean                                            | ✓   | Default true (compliance)                                                                                |
-| settings.callCaps            | `{ perDay, perWeek, minGapMinutes }`               | ✓   | Per-contact call caps across campaigns + single calls (Phase 8); default 3 / 10 / 30                     |
-| limits                       | `{ maxConcurrentCalls, dialsPerMinute }`           | ✓   | Dialing limits set by a superadmin (Phase 8); default 10 / 60                                            |
-| ownerId                      | ObjectId → users                                   |     | The single owner (set at signup)                                                                         |
-| suspendedAt, suspendReason   | Date, string                                       |     | Set by a superadmin                                                                                      |
-| isPlatform                   | boolean                                            | ✓   | `true` only for the internal `platform` account (holds superadmins; migration 0002)                      |
+| Field                        | Type                                               | R   | Notes                                                                                                                     |
+| ---------------------------- | -------------------------------------------------- | --- | ------------------------------------------------------------------------------------------------------------------------- |
+| name                         | string                                             | ✓   | Business name                                                                                                             |
+| slug                         | string                                             | ✓   | Unique, URL-safe                                                                                                          |
+| status                       | `active \| suspended`                              | ✓   | Suspended → no calls, read-only                                                                                           |
+| timezone                     | string                                             | ✓   | IANA, default `Asia/Kolkata`                                                                                              |
+| country                      | string                                             | ✓   | ISO-3166 alpha-2, default `IN`                                                                                            |
+| defaultLanguage              | `hi \| en \| hinglish`                             | ✓   | Default for flows/agents                                                                                                  |
+| settings.callingWindow       | `{ start: "09:00", end: "19:00", days: number[] }` | ✓   | Account default; campaigns may narrow it                                                                                  |
+| settings.recordingEnabled    | boolean                                            | ✓   | Default true                                                                                                              |
+| settings.recordingNotice     | string (≤ 200)                                     | ✓   | Said at the start of recorded calls (Phase 7); default "Yeh call quality ke liye record ki ja rahi hai."                  |
+| settings.aiDisclosureEnabled | boolean                                            | ✓   | Default true (compliance)                                                                                                 |
+| settings.callCaps            | `{ perDay, perWeek, minGapMinutes }`               | ✓   | Per-contact call caps across campaigns + single calls (Phase 8); default 3 / 10 / 30                                      |
+| limits                       | `{ maxConcurrentCalls, dialsPerMinute }`           | ✓   | Dialing limits set by a superadmin (Phase 8); default 10 / 60                                                             |
+| whatsapp.metaPayer           | `platform \| customer`                             | ✓   | Who pays Meta for WhatsApp (Phase 9, set by a superadmin): our credit line (default) or the customer's own payment method |
+| ownerId                      | ObjectId → users                                   |     | The single owner (set at signup)                                                                                          |
+| suspendedAt, suspendReason   | Date, string                                       |     | Set by a superadmin                                                                                                       |
+| isPlatform                   | boolean                                            | ✓   | `true` only for the internal `platform` account (holds superadmins; migration 0002)                                       |
 
 Indexes: `{ slug: 1 }` unique, `{ status: 1 }`. Slugs `platform`, `admin`, `api`, `www`, `app`, `support` are reserved. Defaults: timezone `Asia/Kolkata`, country `IN`, language `hinglish`, calling window 09:00–19:00 Mon–Sat. PII: none. Retention: life of contract.
 
@@ -731,21 +732,94 @@ Indexes: `{ accountId: 1, active: 1 }`.
 
 Indexes: `{ webhookId: 1, createdAt: -1 }`, `{ status: 1, nextAttemptAt: 1 }`, `{ expiresAt: 1 }` TTL.
 
+### 2.7 WhatsApp
+
+#### WhatsAppChannel (`whatsappChannels`) — Phase 9
+
+One connected WhatsApp Business number (Embedded Signup). Tenant-scoped.
+
+| Field                                                                           | Type                                                                                                                      | R   | Notes                                                                                      |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------------------------------------------ |
+| label                                                                           | string (≤ 60)                                                                                                             | ✓   | Name shown in the app                                                                      |
+| provider                                                                        | `meta \| fake`                                                                                                            | ✓   | `fake` only outside production                                                             |
+| mode                                                                            | `cloud_api \| coexistence`                                                                                                | ✓   | `coexistence` = WhatsApp Business app number (messages also sent from the phone)           |
+| wabaId, wabaName, businessId, businessName                                      | string                                                                                                                    | ✓   | WhatsApp Business Account + Meta business                                                  |
+| wabaCurrency, wabaTimezoneId, templateNamespace, wabaReviewStatus               | string \| null                                                                                                            |     | From Graph                                                                                 |
+| businessVerificationStatus                                                      | string \| null                                                                                                            |     |                                                                                            |
+| phoneNumberId                                                                   | string \| null                                                                                                            |     | Null while the WABA has no number yet; one **active** channel per number                   |
+| phoneE164, displayPhoneNumber, verifiedName, nameStatus, newNameStatus          | string \| null                                                                                                            |     | The business number (not customer PII)                                                     |
+| qualityRating                                                                   | `GREEN \| YELLOW \| RED \| UNKNOWN`                                                                                       | ✓   | Default `UNKNOWN`                                                                          |
+| messagingLimitTier                                                              | `TIER_50 … TIER_UNLIMITED` \| null                                                                                        |     |                                                                                            |
+| throughputLevel, accountMode, platformType, codeVerificationStatus, phoneStatus | string \| null                                                                                                            |     | From Graph                                                                                 |
+| isOfficialBusinessAccount, isOnBizApp                                           | boolean                                                                                                                   | ✓   | `isOnBizApp` → coexistence (no calling)                                                    |
+| capabilities                                                                    | object \| null                                                                                                            |     | Raw capability flags                                                                       |
+| tokenSealed                                                                     | string                                                                                                                    |     | **Business token, sealed** (AES-256-GCM, `ENCRYPTION_KEY`); `select: false`, never in JSON |
+| tokenType, tokenScopes, tokenExpiresAt, tokenCheckedAt                          | string, string[], Date                                                                                                    |     | From `debug_token`                                                                         |
+| metaUserId                                                                      | string \| null                                                                                                            |     | Meta user that granted access (deauthorize / data deletion)                                |
+| registration                                                                    | `{ status: not_needed \| pending \| registered \| failed, pinSealed, error, at }`                                         | ✓   | Cloud API registration; `pinSealed` `select: false`                                        |
+| subscription                                                                    | `{ status: subscribed \| failed \| null, error, at }`                                                                     | ✓   | App subscribed to the WABA webhooks                                                        |
+| metaPayer                                                                       | `platform \| customer`                                                                                                    | ✓   | Copied from the account at connect                                                         |
+| creditLine                                                                      | `{ status: not_needed \| attached \| failed, allocationConfigId, error, at }`                                             | ✓   | Platform credit line (Solution Partner)                                                    |
+| paymentMethodOk                                                                 | boolean \| null                                                                                                           |     | Customer pays Meta: payment method present                                                 |
+| coexistence                                                                     | `{ contactsSync, historySync (not_requested \| requested \| received \| declined \| failed), historyProgress, echoesAt }` | ✓   |                                                                                            |
+| status                                                                          | `connecting \| connected \| action_needed \| needs_reconnect \| restricted \| disconnected`                               | ✓   |                                                                                            |
+| statusReason                                                                    | `{ code, message, step }` \| null                                                                                         |     | `step` ∈ phone, details, subscribe, billing, register (retry resumes there)                |
+| restriction                                                                     | `{ type, until }` \| null                                                                                                 |     | From `account_update`                                                                      |
+| webhook                                                                         | `{ lastEventAt, lastField }`                                                                                              | ✓   | Throttled to one write per minute                                                          |
+| history                                                                         | `{ status, reason, at, by }[]`                                                                                            | ✓   | Last 50 status changes                                                                     |
+| connectedBy/At, syncedAt, disconnectedBy/At                                     | ObjectId, Date                                                                                                            |     |                                                                                            |
+
+Indexes: `{ phoneNumberId: 1 }` unique **partial** (status not `disconnected`, `phoneNumberId` a string), `{ accountId: 1, status: 1 }`, `{ wabaId: 1 }`, `{ metaUserId: 1 }`. Disconnect clears the token and PIN and keeps the row (history). PII: none of customers. Retention: life of contract.
+
+#### MetaWebhookEvent (`metaWebhookEvents`) — Phase 9
+
+Not tenant-scoped (stored before routing). One row per `entry × change` of a signed Meta webhook.
+
+| Field                               | Type                                                     | R   | Notes                                                                |
+| ----------------------------------- | -------------------------------------------------------- | --- | -------------------------------------------------------------------- |
+| key                                 | string                                                   | ✓   | sha256 idempotency key (object, entry id, field, value) — **unique** |
+| object, field                       | string                                                   | ✓   | `whatsapp_business_account`, `messages`, …                           |
+| wabaId, phoneNumberId               | string \| null                                           |     | Routing                                                              |
+| accountId, channelId                | ObjectId \| null                                         |     | Set once routed                                                      |
+| payloadSealed                       | string                                                   | ✓   | **Sealed** change value; `select: false`                             |
+| status                              | `received \| processed \| ignored \| deferred \| failed` | ✓   | `deferred` = kept for a later phase (messages, templates, calls)     |
+| attempts, error                     | number, string \| null                                   |     |                                                                      |
+| receivedAt, processedAt, consumedAt | Date                                                     |     |                                                                      |
+| expiresAt                           | Date                                                     | ✓   | **TTL** 7 days (deferred 30)                                         |
+
+Indexes: `{ key: 1 }` unique, `{ status: 1, receivedAt: 1 }`, `{ channelId: 1, field: 1, receivedAt: -1 }`, `{ field: 1, status: 1, receivedAt: 1 }`, `{ expiresAt: 1 }` TTL.
+
+#### MetaDeletionRequest (`metaDeletionRequests`) — Phase 9
+
+Not tenant-scoped. Meta data-deletion callback (`signed_request`); the status page reads it by code.
+
+| Field                   | Type                    | R   | Notes              |
+| ----------------------- | ----------------------- | --- | ------------------ |
+| confirmationCode        | string                  | ✓   | Random, **unique** |
+| metaUserId              | string                  | ✓   |                    |
+| status                  | `received \| completed` | ✓   |                    |
+| channelsAffected        | number                  | ✓   |                    |
+| receivedAt, completedAt | Date                    |     |                    |
+| expiresAt               | Date                    | ✓   | **TTL** 365 days   |
+
+Indexes: `{ confirmationCode: 1 }` unique, `{ expiresAt: 1 }` TTL.
+
 ---
 
 ## 3. Embedded vs separate collection
 
-| Data               | Decision                    | Why                                            |
-| ------------------ | --------------------------- | ---------------------------------------------- |
-| Agent functions    | Embedded in `aiAgents`      | Small, always edited together                  |
-| Recording metadata | Embedded in `calls`         | One per call                                   |
-| Transcript turns   | Separate `transcriptTurns`  | Unbounded; streamed live                       |
-| Call events        | Separate `callEvents`       | Unbounded; append-only                         |
-| Campaign audience  | Separate `campaignContacts` | Thousands per campaign; per-row status updates |
-| Tags               | Strings on `contacts`       | No metadata needed                             |
-| Flow versions      | Separate `flowVersions`     | Immutable history; campaigns pin a version     |
-| Flow nodes/edges   | Embedded in a version       | Bounded graph, loaded together                 |
-| Wallet budgets     | Embedded in `wallets`       | One wallet per account                         |
+| Data                    | Decision                       | Why                                            |
+| ----------------------- | ------------------------------ | ---------------------------------------------- |
+| Agent functions         | Embedded in `aiAgents`         | Small, always edited together                  |
+| Recording metadata      | Embedded in `calls`            | One per call                                   |
+| Transcript turns        | Separate `transcriptTurns`     | Unbounded; streamed live                       |
+| Call events             | Separate `callEvents`          | Unbounded; append-only                         |
+| Campaign audience       | Separate `campaignContacts`    | Thousands per campaign; per-row status updates |
+| Tags                    | Strings on `contacts`          | No metadata needed                             |
+| Flow versions           | Separate `flowVersions`        | Immutable history; campaigns pin a version     |
+| Flow nodes/edges        | Embedded in a version          | Bounded graph, loaded together                 |
+| Wallet budgets          | Embedded in `wallets`          | One wallet per account                         |
+| WhatsApp status history | Embedded in `whatsappChannels` | Last 50, shown with the channel                |
 
 ## 4. Open questions
 

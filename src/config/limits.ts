@@ -351,3 +351,33 @@ export const CALL_CAP_RANGES = {
   perWeek: { min: 1, max: 50 },
   minGapMinutes: { min: 0, max: 1_440 },
 } as const;
+
+/** WhatsApp channels + Meta webhooks (PHASE_9_PLAN §1k). */
+export const WHATSAPP_LIMITS = {
+  /** Non-disconnected numbers per account. */
+  maxChannelsPerAccount: 10,
+  labelMax: 60,
+  webhookMaxBytes: 3 * 1024 * 1024,
+  /** Processed / ignored / failed events. */
+  webhookEventTtlDays: 7,
+  /** Events a later phase consumes (messages, calls, coexistence history …). */
+  deferredEventTtlDays: 30,
+  webhookProcessAttempts: 5,
+  webhookRetryBaseMs: 30_000,
+  graphTimeoutMs: 10_000,
+  graphRetries: 3,
+  graphRetryBaseMs: 500,
+  connectPerHourPerAccount: 10,
+  syncPerMinutePerChannel: 1,
+  historyMax: 50,
+  deletionStatusTtlDays: 365,
+  signedRequestMaxAgeSec: 86_400,
+  fakeCodeTtlSec: 600,
+  lastEventThrottleMs: 60_000,
+  workerConcurrency: 10,
+  connectLockTtlMs: 60_000,
+  /** Health job: channels checked at once. */
+  healthConcurrency: 5,
+  /** Two-step verification PIN length (Meta). */
+  pinLength: 6,
+} as const;

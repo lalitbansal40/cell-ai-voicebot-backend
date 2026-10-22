@@ -36,6 +36,8 @@ exports[`system roles > matches the role matrix of PHASE_2_PLAN §1b 1`] = `
     "telephony.manage",
     "wallet.read",
     "wallet.topup",
+    "whatsapp.manage",
+    "whatsapp.read",
   ],
   "agent": [
     "account.read",
@@ -46,6 +48,7 @@ exports[`system roles > matches the role matrix of PHASE_2_PLAN §1b 1`] = `
     "campaigns.read",
     "contacts.read",
     "flows.read",
+    "whatsapp.read",
   ],
   "manager": [
     "account.read",
@@ -70,6 +73,7 @@ exports[`system roles > matches the role matrix of PHASE_2_PLAN §1b 1`] = `
     "reports.read",
     "team.read",
     "wallet.read",
+    "whatsapp.read",
   ],
   "owner": [
     "account.read",
@@ -105,6 +109,8 @@ exports[`system roles > matches the role matrix of PHASE_2_PLAN §1b 1`] = `
     "telephony.manage",
     "wallet.read",
     "wallet.topup",
+    "whatsapp.manage",
+    "whatsapp.read",
   ],
   "viewer": [
     "account.read",
@@ -115,6 +121,7 @@ exports[`system roles > matches the role matrix of PHASE_2_PLAN §1b 1`] = `
     "flows.read",
     "reports.read",
     "wallet.read",
+    "whatsapp.read",
   ],
 }
 `;

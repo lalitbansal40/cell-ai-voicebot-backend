@@ -80,6 +80,8 @@ export interface AccountDoc {
   defaultLanguage: AccountLanguage;
   settings: AccountSettings;
   limits: AccountLimits;
+  /** WhatsApp (Phase 9): who pays Meta for numbers connected from now on (superadmin setting). */
+  whatsapp: AccountWhatsApp;
   billing?: (BillingProfile & { updatedAt: Date }) | null;
   createdAt: Date;
   updatedAt: Date;
@@ -94,6 +96,13 @@ export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
 };
 
 export const DEFAULT_ACCOUNT_LIMITS: AccountLimits = { maxConcurrentCalls: 10, dialsPerMinute: 60 };
+
+export interface AccountWhatsApp {
+  /** `platform` = our credit line on the customer's WABA; `customer` = their own payment method. */
+  metaPayer: 'platform' | 'customer';
+}
+
+export const DEFAULT_ACCOUNT_WHATSAPP: AccountWhatsApp = { metaPayer: 'platform' };
 
 const schema = new Schema<AccountDoc>({
   name: { type: String, required: true, trim: true, maxlength: 80 },
@@ -143,6 +152,13 @@ const schema = new Schema<AccountDoc>({
   limits: {
     maxConcurrentCalls: { type: Number, default: DEFAULT_ACCOUNT_LIMITS.maxConcurrentCalls },
     dialsPerMinute: { type: Number, default: DEFAULT_ACCOUNT_LIMITS.dialsPerMinute },
+  },
+  whatsapp: {
+    metaPayer: {
+      type: String,
+      enum: ['platform', 'customer'],
+      default: DEFAULT_ACCOUNT_WHATSAPP.metaPayer,
+    },
   },
   billing: {
     type: new Schema<BillingProfile & { updatedAt: Date }>(

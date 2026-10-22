@@ -21,7 +21,7 @@
 
 **Untracked files on backend `main` right now** (written by the planning session, not committed): `docs/plans/BUILD_PLAN_V2.md`, `docs/phases/PHASE_9_PLAN.md`, `docs/phases/PHASE_9_TASKS.md`, `docs/prompts/PHASE_9_PROMPT.md` (this file). STEP 0 commits them on the new branch — read them, don't rewrite them.
 
-**Numbers at start:** backend **2203 tests**, gate **95 / 85 / 95 / 95** (`vitest.config.mts`; measured 97.09 / 89.32 / 96.76 / 98.13); frontend **737 tests + 61 Playwright tests**, gate **95 / 90 / 90 / 95** (`vite.config.ts`; measured 95.96 / **90.78** / 93.34 / 96.69). Frontend branches are **0.78 above the gate** → **every new frontend file needs branch-complete tests from the start** (every `if`, `??`, ternary, optional chain, early return, error branch). Catalogues with docs-sync tests: error codes **47**, audit actions **83**, notification types **13**; migrations `0001` … `0009`; queues `system`, `email`, `maintenance`, `contacts`, `billing`, `ai`, `campaigns`.
+**Numbers at start:** backend **2203 tests**, gate **95 / 85 / 95 / 95** (`vitest.config.mts`; measured 97.09 / 89.32 / 96.76 / 98.13); frontend **737 tests + 61 Playwright tests**, gate **95 / 90 / 90 / 95** (`vite.config.ts`; measured 95.96 / **90.78** / 93.34 / 96.69). Frontend branches are **0.78 above the gate** → **every new frontend file needs branch-complete tests from the start** (every `if`, `??`, ternary, optional chain, early return, error branch). Catalogues with docs-sync tests: error codes **47**, audit actions **83**, notification types **11**; migrations `0001` … `0009`; queues `system`, `email`, `maintenance`, `contacts`, `billing`, `ai`, `campaigns`.
 
 **Pehle padho (har batch se pehle):** [PHASE_9_PLAN.md](../phases/PHASE_9_PLAN.md) (**source of truth — scope §0, locked decisions §1a–§1q, tasks §3, open-question defaults §7 incl. the 22 Oct owner answers**), [BUILD_PLAN_V2.md](../plans/BUILD_PLAN_V2.md) §3 (WhatsApp decisions), [src/README.md](../../src/README.md), [ADR 0005](../adr/0005-queue-and-background-jobs.md), [ADR 0032](../adr/0032-wallet-billing-payments.md) (webhook + provider pattern), [ADR 0033](../adr/0033-ai-agents-knowledge-tools.md) (secret-box), [PHASE_8_SIGNOFF.md](../phases/PHASE_8_SIGNOFF.md) §5 (deviations + lessons), conventions [api.md](../conventions/api.md), [security.md](../conventions/security.md), [secrets.md](../conventions/secrets.md), [data-model.md](../conventions/data-model.md) (§2.6 Integrations — add the new collections there), [websocket.md](../conventions/websocket.md), [error-codes.md](../conventions/error-codes.md), [audit.md](../conventions/audit.md), [definition-of-done.md](../conventions/definition-of-done.md).
 
@@ -87,7 +87,7 @@
 
 **Audit actions (+12 → 95):** `whatsapp.channel_connected`, `whatsapp.channel_reconnected`, `whatsapp.channel_setup_failed`, `whatsapp.channel_registered`, `whatsapp.credit_line_attached`, `whatsapp.channel_renamed`, `whatsapp.channel_disconnected`, `whatsapp.channel_status_changed` (system actor), `whatsapp.billing_mode_changed` (superadmin, both sides), `whatsapp.event_replayed` (superadmin), `meta.deauthorized` (system), `meta.data_deletion_requested` (system). Meta: `channelId`, `mode`, `phoneLast4`, `wabaId`, `status`, `reasonCode`, `manual?`, `metaPayer?` — **never** tokens, PINs, codes, customer names / phones.
 
-**Notification types (+6 → 19):** `whatsapp.channel_needs_reconnect` (+ email), `whatsapp.channel_restricted` (+ email), `whatsapp.quality_low`, `whatsapp.name_approved`, `whatsapp.name_rejected`, `whatsapp.channel_disconnected_by_admin` (+ email). Recipients: users with `whatsapp.manage` (owners + admins). Once per transition (not every health run).
+**Notification types (+6 → 17):** `whatsapp.channel_needs_reconnect` (+ email), `whatsapp.channel_restricted` (+ email), `whatsapp.quality_low`, `whatsapp.name_approved`, `whatsapp.name_rejected`, `whatsapp.channel_disconnected_by_admin` (+ email). Recipients: users with `whatsapp.manage` (owners + admins). Once per transition (not every health run).
 
 **Permissions:** `whatsapp.read` (owner, admin, manager, agent, viewer), `whatsapp.manage` (owner, admin). Migration calls `syncSystemRoles()`.
 
@@ -189,7 +189,7 @@ Auth: `Authorization: Bearer <token>` for everything except `oauth/access_token`
 2. Migration **`0010-whatsapp`**: create collections + indexes (incl. the partial unique and TTL indexes), backfill `account.whatsapp.metaPayer = 'platform'` where missing, `syncSystemRoles()` (adds `whatsapp.read` / `whatsapp.manage`); `down` drops the three collections' indexes, unsets `whatsapp`, re-syncs roles without the permissions. Registry + up / down / up test (extend the migrations test like Phase 8).
 3. `WHATSAPP_LIMITS` (§1) in `config/limits.ts`.
 4. Env (§1 table) with defaults + production rules + `env.test.ts` rows (each rule: missing / placeholder / short / wrong provider / `WHATSAPP_ENABLED=false` skips the rules) + `.env.example` + README env table.
-5. Error codes +7 (→ 54), audit actions +12 (→ 95) with meta shapes, `NOTIFICATION_TYPES` +6 (→ 19), email templates (`whatsapp.needs_reconnect`, `whatsapp.restricted`, `whatsapp.admin_disconnected` — plain, no phone numbers of customers, the business number as last 4), WS payload type, queue name `whatsapp` — docs-sync tests green.
+5. Error codes +7 (→ 54), audit actions +12 (→ 95) with meta shapes, `NOTIFICATION_TYPES` +6 (→ 17), email templates (`whatsapp.needs_reconnect`, `whatsapp.restricted`, `whatsapp.admin_disconnected` — plain, no phone numbers of customers, the business number as last 4), WS payload type, queue name `whatsapp` — docs-sync tests green.
 6. Permissions + role lists + snapshot / matrix test; `tenant-scope.test.ts` `NOT_TENANT_SCOPED` entries with reasons.
 7. Docs: data-model.md §2.6 (three collections + Account addition), error-codes.md, audit.md, websocket.md, rbac docs, src/README.md rows.
 8. Tests: models (validation, defaults, `select: false` really hides `tokenSealed` / `pinSealed`, indexes exist incl. the partial unique — two active channels with the same `phoneNumberId` → duplicate key; one disconnected + one active → allowed; TTL index present), migration, env, catalogues, permissions.
@@ -339,7 +339,7 @@ Auth: `Authorization: Bearer <token>` for everything except `oauth/access_token`
 
 **Batch 1**
 
-- [ ] T9.1 models (3) + account `whatsapp.metaPayer`, migration 0010, limits, env + production rules, codes (54), audit (95), notifications (19), WS, permissions, queue name
+- [ ] T9.1 models (3) + account `whatsapp.metaPayer`, migration 0010, limits, env + production rules, codes (54), audit (95), notifications (17), WS, permissions, queue name
 - [ ] T9.2 MetaClient (Graph + fake), signatures, schemas + Meta fixtures
 - [ ] T9.3 connect (verify, discovery, subscribe, billing setup, register / coexistence sync), reconnect, retry, PIN, sync, rename, disconnect, statuses
 - [ ] T9.4 webhook pipeline (verify, signature, store, queue, worker, routing, handlers, deferred API, coexistence effects, retries, purge)

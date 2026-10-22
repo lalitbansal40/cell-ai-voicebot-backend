@@ -53,6 +53,13 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `CALL_NOT_ALLOWED`            | 422  | The contact can't be called now: on the do-not-call list, opted out, or a daily / weekly / gap cap reached (`details[].message` says which)                                        | 8     |
 | `CAMPAIGN_LIMIT_REACHED`      | 429  | Too many active (scheduled / running / paused) campaigns for the account                                                                                                           | 8     |
 | `CAMPAIGN_REVISION_CONFLICT`  | 409  | A campaign edit sent a stale `revision` (someone else saved first)                                                                                                                 | 8     |
+| `WHATSAPP_NOT_CONFIGURED`     | 503  | WhatsApp is turned off / not configured on this server (`WHATSAPP_ENABLED=false`)                                                                                                  | 9     |
+| `WHATSAPP_SIGNUP_FAILED`      | 422  | Embedded Signup could not be completed (code expired / used, no WhatsApp account or permission shared) — `details[0].path = 'step'`                                                | 9     |
+| `WHATSAPP_NUMBER_IN_USE`      | 409  | The number is connected (not disconnected) in another account                                                                                                                      | 9     |
+| `WHATSAPP_CHANNEL_LIMIT`      | 409  | The account already has the maximum number of connected WhatsApp numbers                                                                                                           | 9     |
+| `WHATSAPP_CHANNEL_NOT_READY`  | 409  | The WhatsApp number needs its setup finished or a reconnect before this action                                                                                                     | 9     |
+| `META_API_ERROR`              | 502  | The Meta Graph API returned an error — `details` carry Meta's `code`, `subcode`, `fbtraceId` (never tokens)                                                                        | 9     |
+| `META_SIGNATURE_INVALID`      | 401  | A Meta webhook / `signed_request` signature is missing or wrong                                                                                                                    | 9     |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

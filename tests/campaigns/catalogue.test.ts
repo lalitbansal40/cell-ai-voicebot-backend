@@ -21,8 +21,14 @@ import { AppError } from '../../src/shared/errors/app-error';
 import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 8 catalogue', () => {
-  it('has 47 error codes incl. the three campaign codes', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(47);
+  it('has the three campaign error codes (count: Phase 9 catalogue test)', () => {
+    expect(Object.keys(ERROR_CODES)).toEqual(
+      expect.arrayContaining([
+        'CALL_NOT_ALLOWED',
+        'CAMPAIGN_LIMIT_REACHED',
+        'CAMPAIGN_REVISION_CONFLICT',
+      ]),
+    );
     expect(new AppError('CALL_NOT_ALLOWED')).toMatchObject({
       status: 422,
       message: "This contact can't be called right now.",
@@ -33,8 +39,7 @@ describe('Phase 8 catalogue', () => {
     expect(ERROR_CODES.CALL_OUTSIDE_WINDOW.status).toBe(422);
   });
 
-  it('has 83 audit actions incl. the campaign actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(83);
+  it('has the campaign audit actions (count: Phase 9 catalogue test)', () => {
     expect(AUDIT_ACTIONS.filter((a) => a.startsWith('campaign.'))).toEqual([
       'campaign.created',
       'campaign.updated',

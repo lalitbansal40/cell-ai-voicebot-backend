@@ -487,3 +487,89 @@ describe('loadEnv — campaigns', () => {
     ).toEqual(['DRY_RUN_MAX_SPEED']);
   });
 });
+
+describe('loadEnv — WhatsApp (Phase 9)', () => {
+  const META = {
+    META_PROVIDER: 'meta',
+    META_APP_ID: '1234567890',
+    META_APP_SECRET: 'test-meta-app-secret-0123456789abcdef',
+    META_ES_CONFIG_ID: '987654321',
+    META_WEBHOOK_VERIFY_TOKEN: 'test-meta-verify-token-0123456789',
+  };
+
+  it('defaults: on outside production with the fake provider, dev token and fake secret', () => {
+    const env = loadEnv({});
+    expect(env.WHATSAPP_ENABLED).toBe(true);
+    expect(env.META_PROVIDER).toBe('fake');
+    expect(env.META_WEBHOOK_VERIFY_TOKEN).toBe('dev-meta-verify-token');
+    expect(env.FAKE_META_APP_SECRET).toBe('dev-fake-meta-app-secret');
+    expect(env.META_GRAPH_VERSION).toBe('v23.0');
+    expect(env.META_GRAPH_BASE_URL).toBe('https://graph.facebook.com');
+    expect(loadEnv({ FAKE_META_APP_SECRET: 'x' }).FAKE_META_APP_SECRET).toBe('x');
+    expect(loadEnv({ WHATSAPP_ENABLED: 'false' }).WHATSAPP_ENABLED).toBe(false);
+  });
+
+  it('the meta provider needs app id, secret, config id and verify token (never echoing values)', () => {
+    const err = issuesOf({ META_PROVIDER: 'meta' });
+    expect(err.issues.map((i) => i.variable)).toEqual(
+      expect.arrayContaining([
+        'META_APP_ID',
+        'META_APP_SECRET',
+        'META_ES_CONFIG_ID',
+        'META_WEBHOOK_VERIFY_TOKEN',
+      ]),
+    );
+    const weak = issuesOf({
+      ...META,
+      META_APP_SECRET: 'change-me-0123456789abcdef0123456789',
+      META_WEBHOOK_VERIFY_TOKEN: 'short',
+    });
+    expect(weak.issues.map((i) => i.variable)).toEqual([
+      'META_APP_SECRET',
+      'META_WEBHOOK_VERIFY_TOKEN',
+    ]);
+    expect(weak.message).not.toContain('change-me-0123');
+    const env = loadEnv(META);
+    expect(env.META_PROVIDER).toBe('meta');
+    expect(env.FAKE_META_APP_SECRET).toBeUndefined();
+    expect(env.META_WEBHOOK_VERIFY_TOKEN).toBe(META.META_WEBHOOK_VERIFY_TOKEN);
+    // disabled: nothing is required
+    expect(loadEnv({ META_PROVIDER: 'meta', WHATSAPP_ENABLED: 'false' }).WHATSAPP_ENABLED).toBe(
+      false,
+    );
+  });
+
+  it('validates formats', () => {
+    expect(issuesOf({ META_APP_ID: 'abc' }).issues[0]?.variable).toBe('META_APP_ID');
+    expect(issuesOf({ META_ES_CONFIG_ID: '12a' }).issues[0]?.variable).toBe('META_ES_CONFIG_ID');
+    expect(issuesOf({ META_CREDIT_LINE_ID: 'x1' }).issues[0]?.variable).toBe('META_CREDIT_LINE_ID');
+    expect(issuesOf({ META_GRAPH_VERSION: '23' }).issues[0]?.variable).toBe('META_GRAPH_VERSION');
+    expect(issuesOf({ META_PROVIDER: 'other' }).issues[0]?.variable).toBe('META_PROVIDER');
+    expect(issuesOf({ WHATSAPP_ENABLED: 'yes' }).issues[0]?.variable).toBe('WHATSAPP_ENABLED');
+  });
+
+  it('production: off without Meta config, on with it, meta only, default Graph URL, no fake secret', () => {
+    expect(loadEnv(validProduction).WHATSAPP_ENABLED).toBe(false);
+    const on = loadEnv({ ...validProduction, ...META });
+    expect(on.WHATSAPP_ENABLED).toBe(true);
+    expect(on.META_PROVIDER).toBe('meta');
+    expect(
+      issuesOf({ ...validProduction, WHATSAPP_ENABLED: 'true' }).issues.map((i) => i.variable),
+    ).toEqual(expect.arrayContaining(['META_APP_ID', 'META_APP_SECRET']));
+    expect(
+      issuesOf({ ...validProduction, ...META, META_PROVIDER: 'fake' }).issues.map(
+        (i) => i.variable,
+      ),
+    ).toEqual(['META_PROVIDER']);
+    expect(
+      issuesOf({
+        ...validProduction,
+        ...META,
+        META_GRAPH_BASE_URL: 'http://127.0.0.1:9',
+      }).issues.map((i) => i.variable),
+    ).toEqual(['META_GRAPH_BASE_URL']);
+    expect(
+      issuesOf({ ...validProduction, FAKE_META_APP_SECRET: 'x' }).issues.map((i) => i.variable),
+    ).toEqual(['FAKE_META_APP_SECRET']);
+  });
+});

@@ -24,6 +24,11 @@ const DEV_MAIL_FROM = 'Cell AI Voicebot <no-reply@localhost>';
 
 const optionalString = z.string().optional();
 
+/** Meta Graph API host (tests may point `META_GRAPH_BASE_URL` at a local stub; production may not). */
+export const META_GRAPH_DEFAULT_URL = 'https://graph.facebook.com';
+const DEV_META_VERIFY_TOKEN = 'dev-meta-verify-token';
+const DEV_FAKE_META_APP_SECRET = 'dev-fake-meta-app-secret';
+
 const RawEnvSchema = z.object({
   NODE_ENV: NodeEnvSchema.default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(5100),
@@ -107,6 +112,27 @@ const RawEnvSchema = z.object({
   DRY_RUN_MAX_SPEED: z.coerce.number().int().min(1).max(100).optional(),
   /** `false` stops the campaign dispatchers and worker (maintenance). Default true. */
   CAMPAIGNS_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+
+  /** WhatsApp channels (Phase 9). Default: on outside production; in production on when META_APP_ID is set. */
+  WHATSAPP_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+  /** `fake` (simulated Meta — dev / tests / E2E) or `meta`; production must use meta. */
+  META_PROVIDER: z.enum(['fake', 'meta']).optional(),
+  META_APP_ID: z.string().regex(/^\d+$/, { message: 'must be digits' }).optional(),
+  META_APP_SECRET: optionalString,
+  /** Facebook Login for Business configuration id used by Embedded Signup. */
+  META_ES_CONFIG_ID: z.string().regex(/^\d+$/, { message: 'must be digits' }).optional(),
+  META_WEBHOOK_VERIFY_TOKEN: optionalString,
+  META_GRAPH_VERSION: z
+    .string()
+    .regex(/^v\d+\.\d+$/, { message: 'must look like v23.0' })
+    .default('v23.0'),
+  META_GRAPH_BASE_URL: z.url().default(META_GRAPH_DEFAULT_URL),
+  /** Our Solution Partner credit line (platform pays Meta). Checked when a credit line is attached. */
+  META_CREDIT_LINE_ID: z.string().regex(/^\d+$/, { message: 'must be digits' }).optional(),
+  /** System User token of our business (business_management, Admin / Financial Editor). */
+  META_SYSTEM_USER_TOKEN: optionalString,
+  /** DEV / TEST ONLY — app secret of the fake Meta provider (signs simulated webhooks). */
+  FAKE_META_APP_SECRET: optionalString,
 
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./uploads'),
@@ -195,6 +221,10 @@ export type Env = Readonly<
     | 'CALL_RECORDING_TMP_DIR'
     | 'DRY_RUN_MAX_SPEED'
     | 'CAMPAIGNS_ENABLED'
+    | 'WHATSAPP_ENABLED'
+    | 'META_PROVIDER'
+    | 'META_WEBHOOK_VERIFY_TOKEN'
+    | 'FAKE_META_APP_SECRET'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -224,6 +254,12 @@ export type Env = Readonly<
     CALL_RECORDING_TMP_DIR: string;
     DRY_RUN_MAX_SPEED: number;
     CAMPAIGNS_ENABLED: boolean;
+    WHATSAPP_ENABLED: boolean;
+    META_PROVIDER: 'fake' | 'meta';
+    /** Resolved (dev default with the fake provider). */
+    META_WEBHOOK_VERIFY_TOKEN: string;
+    /** Only with the fake provider (never in production). */
+    FAKE_META_APP_SECRET: string | undefined;
   }
 >;
 
@@ -440,6 +476,47 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     check('MOCK_APIS_ENABLED', 'must be false in production', !mockApis);
   }
 
+  const whatsappEnabled =
+    raw.WHATSAPP_ENABLED !== undefined
+      ? raw.WHATSAPP_ENABLED === 'true'
+      : production
+        ? Boolean(raw.META_APP_ID)
+        : true;
+  const metaProvider = raw.META_PROVIDER ?? (production ? 'meta' : 'fake');
+  if (whatsappEnabled && metaProvider === 'meta') {
+    check('META_APP_ID', 'required when META_PROVIDER=meta', Boolean(raw.META_APP_ID));
+    check(
+      'META_APP_SECRET',
+      'required when META_PROVIDER=meta, min 32 chars, not a placeholder',
+      raw.META_APP_SECRET !== undefined &&
+        raw.META_APP_SECRET.length >= 32 &&
+        !PLACEHOLDER.test(raw.META_APP_SECRET),
+    );
+    check('META_ES_CONFIG_ID', 'required when META_PROVIDER=meta', Boolean(raw.META_ES_CONFIG_ID));
+    check(
+      'META_WEBHOOK_VERIFY_TOKEN',
+      'required when META_PROVIDER=meta, min 24 chars, not a placeholder',
+      raw.META_WEBHOOK_VERIFY_TOKEN !== undefined &&
+        raw.META_WEBHOOK_VERIFY_TOKEN.length >= 24 &&
+        !PLACEHOLDER.test(raw.META_WEBHOOK_VERIFY_TOKEN),
+    );
+  }
+  if (production && whatsappEnabled) {
+    check('META_PROVIDER', 'must be meta in production', metaProvider === 'meta');
+    check(
+      'META_GRAPH_BASE_URL',
+      'must be the default in production',
+      raw.META_GRAPH_BASE_URL === META_GRAPH_DEFAULT_URL,
+    );
+  }
+  if (production) {
+    check(
+      'FAKE_META_APP_SECRET',
+      'must not be set in production',
+      raw.FAKE_META_APP_SECRET === undefined,
+    );
+  }
+
   if (issues.length) throw new EnvValidationError(issues);
 
   const defaultLogLevel: Record<NodeEnv, LogLevel> = {
@@ -485,6 +562,12 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     CALL_RECORDING_TMP_DIR: raw.CALL_RECORDING_TMP_DIR ?? join(tmpdir(), 'cav-rec'),
     DRY_RUN_MAX_SPEED: dryRunMaxSpeed,
     CAMPAIGNS_ENABLED: raw.CAMPAIGNS_ENABLED !== 'false',
+    WHATSAPP_ENABLED: whatsappEnabled,
+    META_PROVIDER: metaProvider,
+    META_WEBHOOK_VERIFY_TOKEN:
+      raw.META_WEBHOOK_VERIFY_TOKEN ?? (metaProvider === 'fake' ? DEV_META_VERIFY_TOKEN : ''),
+    FAKE_META_APP_SECRET:
+      metaProvider === 'fake' ? (raw.FAKE_META_APP_SECRET ?? DEV_FAKE_META_APP_SECRET) : undefined,
   });
 };
 

@@ -409,6 +409,17 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | `TELEPHONY_PROVIDER`               | no                | 8       | Phone line for campaigns / single calls: `dryrun` (simulated, default); `sip` arrives in Phase 13        |
 | `DRY_RUN_MAX_SPEED`                | no                | 8       | Fastest dry-run speed (virtual time ×N; default 50, production 20 and at most 20)                        |
 | `CAMPAIGNS_ENABLED`                | no                | 8       | `false` stops campaign dispatching (maintenance); default `true`                                         |
+| `WHATSAPP_ENABLED`                 | no                | 9       | WhatsApp channels on / off; default on outside production, in production on when `META_APP_ID` is set    |
+| `META_PROVIDER`                    | no                | 9       | `fake` (simulated Meta, dev / tests / E2E) or `meta`; production must be `meta`                          |
+| `META_APP_ID`                      | with `meta`       | 9       | Meta app id                                                                                              |
+| `META_APP_SECRET`                  | with `meta`       | 9       | Meta app secret (≥ 32 chars) — webhook signatures, `signed_request`                                      |
+| `META_ES_CONFIG_ID`                | with `meta`       | 9       | Embedded Signup configuration id (Facebook Login for Business)                                           |
+| `META_WEBHOOK_VERIFY_TOKEN`        | with `meta`       | 9       | Webhook verify token (≥ 24 chars); dev default with the fake provider                                    |
+| `META_GRAPH_VERSION`               | no                | 9       | Graph API version (default `v23.0`)                                                                      |
+| `META_GRAPH_BASE_URL`              | no                | 9       | Graph API host (default; tests only point it at a stub)                                                  |
+| `META_CREDIT_LINE_ID`              | platform billing  | 9       | Our Solution Partner credit line id (platform pays Meta)                                                 |
+| `META_SYSTEM_USER_TOKEN`           | platform billing  | 9       | System User token of our business (credit line sharing)                                                  |
+| `FAKE_META_APP_SECRET`             | no                | 9       | DEV / TEST ONLY — secret of the fake Meta provider; never in production                                  |
 | `STORAGE_DRIVER`                   | no                | 7/9     | `local` or `s3`                                                                                          |
 | `STORAGE_LOCAL_PATH`               | no                | 7/9     | Folder for local uploads/recordings                                                                      |
 | `S3_BUCKET`                        | if s3             | 7/9     | S3 bucket name                                                                                           |

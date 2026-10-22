@@ -42,6 +42,8 @@ const NOT_TENANT_SCOPED: Record<string, string> = {
   'rate-card.model.ts': 'accountId null = platform default card',
   'mock-payment-record.model.ts': 'dev-only mock data; its route is never mounted in production',
   'tts-cache.model.ts': 'text-to-speech audio cache keyed by a text hash, no tenant data',
+  'meta-webhook-event.model.ts': 'Meta webhooks — the account is set after routing (nullable)',
+  'meta-deletion-request.model.ts': 'Meta user-level data deletion request, not an account record',
 };
 
 describe('tenant scoping (models)', () => {

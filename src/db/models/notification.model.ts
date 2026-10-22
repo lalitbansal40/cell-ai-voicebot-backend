@@ -15,6 +15,12 @@ export const NOTIFICATION_TYPES = [
   'campaign.completed',
   'campaign.paused',
   'campaign.run_skipped',
+  'whatsapp.channel_needs_reconnect',
+  'whatsapp.channel_restricted',
+  'whatsapp.quality_low',
+  'whatsapp.name_approved',
+  'whatsapp.name_rejected',
+  'whatsapp.channel_disconnected_by_admin',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

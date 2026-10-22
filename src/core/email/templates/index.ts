@@ -18,6 +18,12 @@ import {
   type WalletLowBalanceVars,
   type WalletReceiptVars,
 } from './wallet';
+import {
+  whatsappAdminDisconnected,
+  whatsappNeedsReconnect,
+  whatsappRestricted,
+  type WhatsAppChannelEmailVars,
+} from './whatsapp';
 
 export { escapeHtml } from './escape';
 export { APP_NAME, renderLayout, renderTextLayout } from './layout';
@@ -37,6 +43,9 @@ export interface EmailTemplateVars {
   'wallet.low_balance': WalletLowBalanceVars;
   'wallet.receipt': WalletReceiptVars;
   'campaign.paused': CampaignPausedVars;
+  'whatsapp.needs_reconnect': WhatsAppChannelEmailVars;
+  'whatsapp.restricted': WhatsAppChannelEmailVars;
+  'whatsapp.admin_disconnected': WhatsAppChannelEmailVars;
 }
 
 export type EmailTemplateKey = keyof EmailTemplateVars;
@@ -51,6 +60,9 @@ const TEMPLATES: { [K in EmailTemplateKey]: (vars: EmailTemplateVars[K]) => Rend
   'wallet.low_balance': walletLowBalance,
   'wallet.receipt': walletReceipt,
   'campaign.paused': campaignPaused,
+  'whatsapp.needs_reconnect': whatsappNeedsReconnect,
+  'whatsapp.restricted': whatsappRestricted,
+  'whatsapp.admin_disconnected': whatsappAdminDisconnected,
 };
 
 export const isEmailTemplateKey = (key: string): key is EmailTemplateKey =>

@@ -7,6 +7,7 @@ export const QUEUES = {
   billing: 'billing',
   ai: 'ai',
   campaigns: 'campaigns',
+  whatsapp: 'whatsapp',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

@@ -49,6 +49,19 @@ export interface WsEventMap {
     waitingUntil?: string;
   };
   'campaign.progress': { campaignId: string; stats: Record<string, number> };
+  'whatsapp.channel.updated': {
+    channelId: string;
+    status:
+      | 'connecting'
+      | 'connected'
+      | 'action_needed'
+      | 'needs_reconnect'
+      | 'restricted'
+      | 'disconnected';
+    qualityRating: string;
+    messagingLimitTier: string | null;
+    nameStatus: string | null;
+  };
   'wallet.updated': {
     balanceMicros: number;
     holdMicros: number;
@@ -95,6 +108,7 @@ export const WS_EVENT_TYPES = [
   'call.ended',
   'campaign.status',
   'campaign.progress',
+  'whatsapp.channel.updated',
   'wallet.updated',
   'wallet.low_balance',
   'wallet.exhausted',

@@ -87,6 +87,22 @@ export const ERROR_CODES = {
     status: 409,
     message: 'This campaign was changed by someone else. Reload to see the latest version.',
   },
+  WHATSAPP_NOT_CONFIGURED: { status: 503, message: "WhatsApp isn't set up on this server." },
+  WHATSAPP_SIGNUP_FAILED: { status: 422, message: 'Connecting the WhatsApp number failed.' },
+  WHATSAPP_NUMBER_IN_USE: {
+    status: 409,
+    message: 'This WhatsApp number is already connected to another account.',
+  },
+  WHATSAPP_CHANNEL_LIMIT: {
+    status: 409,
+    message: 'This account already has the maximum number of WhatsApp numbers.',
+  },
+  WHATSAPP_CHANNEL_NOT_READY: {
+    status: 409,
+    message: 'This WhatsApp number is not ready (finish its setup or reconnect it).',
+  },
+  META_API_ERROR: { status: 502, message: 'Meta returned an error.' },
+  META_SIGNATURE_INVALID: { status: 401, message: 'Invalid Meta signature.' },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

@@ -36,6 +36,11 @@ export const PERMISSION_INFO = {
   'campaigns.write': { group: 'Campaigns', description: 'Create and edit campaigns' },
   'campaigns.run': { group: 'Campaigns', description: 'Start, pause and stop campaigns' },
   'campaigns.export': { group: 'Campaigns', description: 'Export campaign results' },
+  'whatsapp.read': { group: 'WhatsApp', description: 'View connected WhatsApp numbers' },
+  'whatsapp.manage': {
+    group: 'WhatsApp',
+    description: 'Connect, sync and disconnect WhatsApp numbers',
+  },
   'reports.read': { group: 'Reports', description: 'View reports and analytics' },
   'reports.export': { group: 'Reports', description: 'Export reports' },
   'integrations.manage': { group: 'Integrations', description: 'Manage webhooks and integrations' },

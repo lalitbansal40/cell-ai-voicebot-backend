@@ -86,6 +86,18 @@ export const AUDIT_ACTIONS = [
   'campaign.exported',
   'campaign.admin_paused',
   'account.limits_updated',
+  'whatsapp.channel_connected',
+  'whatsapp.channel_reconnected',
+  'whatsapp.channel_setup_failed',
+  'whatsapp.channel_registered',
+  'whatsapp.credit_line_attached',
+  'whatsapp.channel_renamed',
+  'whatsapp.channel_disconnected',
+  'whatsapp.channel_status_changed',
+  'whatsapp.billing_mode_changed',
+  'whatsapp.event_replayed',
+  'meta.deauthorized',
+  'meta.data_deletion_requested',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
