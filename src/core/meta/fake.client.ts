@@ -38,6 +38,8 @@ export const fakeSignupSchema = z.object({
   displayName: z.string().trim().min(1).max(100),
   mode: z.enum(['cloud_api', 'coexistence']),
   outcome: z.enum(['finish', 'only_waba', 'cancel', 'error']),
+  /** Makes every code unique (Meta codes are single use). */
+  nonce: z.string().max(40).optional(),
 });
 export type FakeSignup = z.infer<typeof fakeSignupSchema>;
 
@@ -55,8 +57,9 @@ export const FAKE_CREDIT_LINE_ID = 'fake_ecl_1';
 const CREDIT_CURRENCIES = new Set(['AUD', 'EUR', 'GBP', 'IDR', 'INR', 'USD']);
 const IDENTITY_TTL_SEC = 90 * 24 * 60 * 60;
 
+/** `fake.<base64url JSON>` with a fresh nonce (each code is single use, like Meta's). */
 export const buildFakeCode = (signup: FakeSignup): string =>
-  `fake.${Buffer.from(JSON.stringify(signup)).toString('base64url')}`;
+  `fake.${Buffer.from(JSON.stringify({ nonce: randomBytes(6).toString('hex'), ...signup })).toString('base64url')}`;
 
 const digits = (phone: string) => phone.replace(/\D/g, '');
 
@@ -265,9 +268,10 @@ export const createFakeMetaClient = ({
         throw fail(400, 100, 'This authorization code has been used', META_ERROR_CODES.codeUsed);
       if (signup.outcome === 'error' || signup.outcome === 'cancel') throw invalid();
       const { h } = fakeIds(signup.businessName, signup.phone);
+      const { nonce: _nonce, ...identity } = signup;
       await redis.set(
         key(`identity-${h}`),
-        JSON.stringify({ ...signup, h }),
+        JSON.stringify({ ...identity, h }),
         'EX',
         IDENTITY_TTL_SEC,
       );

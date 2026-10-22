@@ -27,6 +27,13 @@ export const ErrorDetailSchema = registry.register(
       .openapi({ description: 'On FLOW_INVALID: errors block publishing, warnings do not' }),
     nodeId: z.string().optional().openapi({ description: 'On FLOW_INVALID: the node' }),
     edgeId: z.string().optional().openapi({ description: 'On FLOW_INVALID: the edge' }),
+    metaCode: z
+      .number()
+      .int()
+      .optional()
+      .openapi({ description: "On META_API_ERROR: Meta's error code" }),
+    metaSubcode: z.number().int().optional().openapi({ description: 'On META_API_ERROR: subcode' }),
+    fbtraceId: z.string().optional().openapi({ description: 'On META_API_ERROR: Meta trace id' }),
   }),
 );
 

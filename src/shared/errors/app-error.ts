@@ -17,6 +17,10 @@ export interface ErrorDetail {
   /** On `FLOW_INVALID`: the node / edge the issue is about. */
   nodeId?: string;
   edgeId?: string;
+  /** On `META_API_ERROR`: Meta's error code / subcode / trace id (never tokens). */
+  metaCode?: number;
+  metaSubcode?: number;
+  fbtraceId?: string;
 }
 
 /**

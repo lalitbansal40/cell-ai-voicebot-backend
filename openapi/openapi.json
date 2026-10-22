@@ -45,7 +45,10 @@
             "description": "On FLOW_INVALID: errors block publishing, warnings do not"
           },
           "nodeId": { "type": "string", "description": "On FLOW_INVALID: the node" },
-          "edgeId": { "type": "string", "description": "On FLOW_INVALID: the edge" }
+          "edgeId": { "type": "string", "description": "On FLOW_INVALID: the edge" },
+          "metaCode": { "type": "integer", "description": "On META_API_ERROR: Meta's error code" },
+          "metaSubcode": { "type": "integer", "description": "On META_API_ERROR: subcode" },
+          "fbtraceId": { "type": "string", "description": "On META_API_ERROR: Meta trace id" }
         },
         "required": ["path", "message"]
       },

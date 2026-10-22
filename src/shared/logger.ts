@@ -68,3 +68,8 @@ export const getLogger = (): Logger => {
   cached ??= createLogger(getEnv());
   return cached;
 };
+
+/** Tests: replace the process-wide logger (e.g. to capture lines); `undefined` resets it. */
+export const setLogger = (logger: Logger | undefined): void => {
+  cached = logger;
+};
