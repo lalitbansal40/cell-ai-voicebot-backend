@@ -62,6 +62,28 @@ export interface WsEventMap {
     messagingLimitTier: string | null;
     nameStatus: string | null;
   };
+  /** Account level — ids and counts only, never message text. */
+  'inbox.conversation.updated': {
+    conversationId: string;
+    status: 'open' | 'closed';
+    unreadCount: number;
+    assignedTo: string | null;
+    lastMessageAt: string | null;
+    lastMessageDirection: 'in' | 'out' | null;
+  };
+  'inbox.summary.updated': { unreadConversations: number };
+  /** Topic `conversation:<id>` — the full message view (permission-checked subscribers only). */
+  'inbox.message.created': { message: Record<string, unknown> };
+  'inbox.message.updated': {
+    messageId: string;
+    status:
+      'received' | 'queued' | 'accepted' | 'sent' | 'delivered' | 'read' | 'failed' | 'deleted';
+    error: { code: number | null; reason: string } | null;
+    media: { status: 'pending' | 'ready' | 'failed' | 'expired' } | null;
+    reactions: { emoji: string; by: 'customer' | 'agent' }[];
+  };
+  /** Topic — another agent is typing (team only). */
+  'inbox.typing': { conversationId: string; userId: string; name: string };
   'wallet.updated': {
     balanceMicros: number;
     holdMicros: number;
@@ -109,6 +131,11 @@ export const WS_EVENT_TYPES = [
   'campaign.status',
   'campaign.progress',
   'whatsapp.channel.updated',
+  'inbox.conversation.updated',
+  'inbox.summary.updated',
+  'inbox.message.created',
+  'inbox.message.updated',
+  'inbox.typing',
   'wallet.updated',
   'wallet.low_balance',
   'wallet.exhausted',

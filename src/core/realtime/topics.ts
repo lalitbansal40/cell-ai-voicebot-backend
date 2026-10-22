@@ -1,11 +1,11 @@
-export type TopicKind = 'call' | 'campaign';
+export type TopicKind = 'call' | 'campaign' | 'conversation';
 
 export interface ParsedTopic {
   kind: TopicKind;
   id: string;
 }
 
-const TOPIC = /^(call|campaign):([a-f0-9]{24})$/i;
+const TOPIC = /^(call|campaign|conversation):([a-f0-9]{24})$/i;
 
 /** `campaign:<objectId>` → `{ kind, id }`; anything else → undefined. */
 export const parseTopic = (topic: string): ParsedTopic | undefined => {

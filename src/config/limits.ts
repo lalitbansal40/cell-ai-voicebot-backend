@@ -381,3 +381,69 @@ export const WHATSAPP_LIMITS = {
   /** Two-step verification PIN length (Meta). */
   pinLength: 6,
 } as const;
+
+const MB = 1024 * 1024;
+const HOUR_MS = 3_600_000;
+
+/** WhatsApp inbox (PHASE_10_PLAN §1k; media sizes are Meta's). */
+export const INBOX_LIMITS = {
+  textMax: 4096,
+  captionMax: 1024,
+  imageMaxBytes: 5 * MB,
+  videoMaxBytes: 16 * MB,
+  audioMaxBytes: 16 * MB,
+  stickerMaxBytes: 100 * 1024,
+  documentMaxBytes: 100 * MB,
+  inboundMediaMaxBytes: 100 * MB,
+  buttonsMax: 3,
+  buttonTitleMax: 20,
+  buttonIdMax: 256,
+  listRowsMax: 10,
+  listSectionsMax: 10,
+  listButtonMax: 20,
+  rowTitleMax: 24,
+  rowDescriptionMax: 72,
+  sectionTitleMax: 24,
+  headerTextMax: 60,
+  footerMax: 60,
+  bodyMax: 1024,
+  ctaTextMax: 20,
+  contactsMax: 10,
+  conversationsPageMax: 50,
+  messagesPageMax: 100,
+  sendsPerMinutePerUser: 60,
+  uploadsPerMinutePerUser: 20,
+  sendAttempts: 5,
+  sendRetryBaseMs: 2000,
+  mediaDownloadAttempts: 6,
+  mediaDownloadRetryBaseMs: 10_000,
+  typingThrottleMs: 10_000,
+  previewMax: 120,
+  statusHistoryMax: 10,
+  /** New-message bell: at most one per conversation in this window. */
+  notificationThrottleMs: 600_000,
+  orphanUploadTtlMs: 24 * HOUR_MS,
+  /** Customer service window (Meta): free-form replies within 24 h of the customer's last message. */
+  windowMs: 24 * HOUR_MS,
+  voiceNoteMaxSeconds: 600,
+  voiceNoteMinMs: 1000,
+  retentionBatchSize: 1000,
+  optOutKeywordsMax: 30,
+  keywordMaxLength: 30,
+  replyTextMax: 1024,
+  optOutReplyCooldownMs: 24 * HOUR_MS,
+  fileNameMax: 200,
+  nfmResponseMaxBytes: 8 * 1024,
+  reactionTargetMaxAgeMs: 30 * 24 * HOUR_MS,
+  /** Media ids in webhooks stay downloadable for 7 days (Meta). */
+  inboundMediaValidMs: 7 * 24 * HOUR_MS,
+  orderWaitMaxRetries: 20,
+  orderWaitDelayMs: 500,
+  backfillBatchSize: 200,
+  historyImportBatchSize: 500,
+  /** Uploaded media ids stay valid 30 days at Meta; re-upload after 29. */
+  metaMediaReuseMs: 29 * 24 * HOUR_MS,
+  /** Signed media links (inbox bubbles). */
+  mediaLinkTtlSec: 300,
+  readReceiptAttempts: 3,
+} as const;

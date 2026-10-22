@@ -1,3 +1,4 @@
+import { CONTACT_SOURCE_TYPES } from '../../db/models/contact.model';
 import { registry } from '../../shared/openapi/registry';
 import { bearer, errors, noContentResponse, ok, okPage } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
@@ -104,7 +105,7 @@ export const ContactSchema = registry.register(
     optedOutAt: z.string().nullable(),
     consent: z.object({ source: z.string(), at: z.string() }).nullable(),
     source: z.object({
-      type: z.enum(['manual', 'import', 'api']),
+      type: z.enum(CONTACT_SOURCE_TYPES),
       importJobId: z.string().nullable(),
     }),
     lastCalledAt: z.string().nullable(),

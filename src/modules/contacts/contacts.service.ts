@@ -4,7 +4,13 @@ import type { z } from 'zod';
 
 import { isDuplicateKeyError } from '../../db/errors';
 import { ContactListModel } from '../../db/models/contact-list.model';
-import { ContactModel, type ContactDoc, type VariableValue } from '../../db/models/contact.model';
+import {
+  ContactModel,
+  EMPTY_CONTACT_WHATSAPP,
+  type ContactDoc,
+  type ContactSourceType,
+  type VariableValue,
+} from '../../db/models/contact.model';
 import { DndEntryModel } from '../../db/models/dnd-entry.model';
 import { SegmentModel } from '../../db/models/segment.model';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
@@ -49,7 +55,7 @@ export interface PublicContact {
   dnd: boolean;
   optedOutAt: string | null;
   consent: { source: string; at: string } | null;
-  source: { type: 'manual' | 'import' | 'api'; importJobId: string | null };
+  source: { type: ContactSourceType; importJobId: string | null };
   lastCalledAt: string | null;
   callCount: number;
   /** Disposition of the last answered campaign call with an outcome (Phase 8). */
@@ -416,6 +422,12 @@ export const updateContact = async (
   const phoneE164 = input.phoneE164 ?? current.phoneE164;
   const set: Record<string, unknown> = { ...input.set };
   if (input.variables) set.variables = input.variables;
+  if (set.name !== undefined && set.name !== (current.name ?? null)) {
+    // a person named this contact: WhatsApp profile / phone-contact syncs keep it from now on
+    const now = new Date();
+    if (current.whatsapp) set['whatsapp.nameEditedAt'] = now;
+    else set.whatsapp = { ...EMPTY_CONTACT_WHATSAPP, nameEditedAt: now };
+  }
   if (body.listIds !== undefined) set.listIds = await assertOwnLists(ctx.accountId, body.listIds);
   if (input.phoneE164 && input.phoneE164 !== current.phoneE164) {
     set.phoneE164 = phoneE164;

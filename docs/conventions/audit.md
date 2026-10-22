@@ -109,6 +109,17 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `whatsapp.event_replayed`         | superadmin        | meta_webhook_event | `field` (platform account)                                                                                                    |
 | `meta.deauthorized`               | system            | account            | `channels` (count)                                                                                                            |
 | `meta.data_deletion_requested`    | system            | account            | `channels` (count)                                                                                                            |
+| `inbox.conversation_assigned`     | user              | conversation       | `assignedTo` (user id or null), `channelId`                                                                                   |
+| `inbox.conversation_closed`       | user              | conversation       | `channelId`                                                                                                                   |
+| `inbox.conversation_reopened`     | user              | conversation       | `channelId` (a reopen by an inbound message is not audited)                                                                   |
+| `inbox.contact_opted_out`         | system            | contact            | `conversationId`, `channelId`, `kind: 'opt_out'` (never the keyword text)                                                     |
+| `inbox.contact_opted_in`          | system            | contact            | `conversationId`, `channelId`, `kind: 'opt_in'`, `dndKept` (a person-added DND entry stays)                                   |
+| `inbox.contact_blocked`           | user              | conversation       | `channelId`                                                                                                                   |
+| `inbox.contact_unblocked`         | user              | conversation       | `channelId`                                                                                                                   |
+| `inbox.history_imported`          | system            | whatsapp_channel   | `conversations`, `messages`, `skippedOld`, `duplicates` (counts)                                                              |
+| `inbox.messages_purged`           | system            | account            | `messages`, `media`, `uploads` (counts — retention job)                                                                       |
+| `inbox.settings_updated`          | user              | account            | `fields` (names only)                                                                                                         |
+| `whatsapp.profile_updated`        | user              | whatsapp_channel   | `fields` (names only), `photo` (boolean)                                                                                      |
 
 Contact actions never carry phone numbers, names or variable values in `meta` — counts, ids, keys and list / segment names only (Phase 3).
 

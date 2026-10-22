@@ -434,6 +434,8 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | `META_CREDIT_LINE_ID`              | platform billing  | 9       | Our Solution Partner credit line id (platform pays Meta)                                                 |
 | `META_SYSTEM_USER_TOKEN`           | platform billing  | 9       | System User token of our business (credit line sharing)                                                  |
 | `FAKE_META_APP_SECRET`             | no                | 9       | DEV / TEST ONLY — secret of the fake Meta provider; never in production                                  |
+| `INBOX_RETENTION_DAYS`             | no                | 10      | Days WhatsApp messages and their media are kept (default 90; `0` = forever, else ≥ 30)                   |
+| `FAKE_META_STATUS_DELAYS_MS`       | no                | 10      | DEV / E2E ONLY — fake Meta sent / delivered / read delays in ms (`off` disables); never in production    |
 | `STORAGE_DRIVER`                   | no                | 7/9     | `local` or `s3`                                                                                          |
 | `STORAGE_LOCAL_PATH`               | no                | 7/9     | Folder for local uploads/recordings                                                                      |
 | `S3_BUCKET`                        | if s3             | 7/9     | S3 bucket name                                                                                           |

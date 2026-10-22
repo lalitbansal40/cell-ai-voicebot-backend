@@ -308,6 +308,33 @@ describe('GET / PATCH / DELETE /contacts/:id', () => {
     ).toBe(409);
   });
 
+  it('a person renaming a contact marks the name as edited (WhatsApp syncs keep it)', async () => {
+    const c = await create(owner, { phone: '9876500050', variables: { loan_amount: 1 } });
+    const id = c.body.data.id as string;
+    // no name change → nothing marked
+    await request(app).patch(`${URL}/${id}`).set(auth(owner)).send({ externalId: 'P10-RENAME' });
+    expect((await ContactModel.findById(id).lean())?.whatsapp ?? null).toBeNull();
+    await request(app).patch(`${URL}/${id}`).set(auth(owner)).send({ name: 'Asha' });
+    const first = await ContactModel.findById(id).lean();
+    expect(first?.whatsapp).toMatchObject({ waId: null, profileName: null, blocked: false });
+    expect(first?.whatsapp?.nameEditedAt).toBeInstanceOf(Date);
+    // same name again → unchanged marker
+    const markedAt = first?.whatsapp?.nameEditedAt;
+    await request(app).patch(`${URL}/${id}`).set(auth(owner)).send({ name: 'Asha' });
+    expect((await ContactModel.findById(id).lean())?.whatsapp?.nameEditedAt).toEqual(markedAt);
+    // a WhatsApp contact keeps its profile when renamed
+    await ContactModel.updateOne(
+      { _id: id },
+      { $set: { 'whatsapp.waId': '919876500050', 'whatsapp.profileName': 'Profile' } },
+    );
+    await request(app).patch(`${URL}/${id}`).set(auth(owner)).send({ name: 'Asha K' });
+    const second = await ContactModel.findById(id).lean();
+    expect(second?.whatsapp).toMatchObject({ waId: '919876500050', profileName: 'Profile' });
+    expect(second?.whatsapp?.nameEditedAt?.getTime()).toBeGreaterThanOrEqual(
+      markedAt?.getTime() ?? 0,
+    );
+  });
+
   it('soft-deletes (audited) and then 404s', async () => {
     const c = await create(owner, { phone: '9876500040', variables: { loan_amount: 1 } });
     const id = c.body.data.id as string;

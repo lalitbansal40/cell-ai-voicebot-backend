@@ -41,6 +41,15 @@ export const PERMISSION_INFO = {
     group: 'WhatsApp',
     description: 'Connect, sync and disconnect WhatsApp numbers',
   },
+  'inbox.read': { group: 'Inbox', description: 'Read WhatsApp conversations' },
+  'inbox.reply': {
+    group: 'Inbox',
+    description: 'Reply on WhatsApp, write notes, close and reopen conversations',
+  },
+  'inbox.assign': {
+    group: 'Inbox',
+    description: 'Assign conversations to anyone, block customers, retry media',
+  },
   'reports.read': { group: 'Reports', description: 'View reports and analytics' },
   'reports.export': { group: 'Reports', description: 'Export reports' },
   'integrations.manage': { group: 'Integrations', description: 'Manage webhooks and integrations' },

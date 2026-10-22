@@ -133,6 +133,13 @@ const RawEnvSchema = z.object({
   META_SYSTEM_USER_TOKEN: optionalString,
   /** DEV / TEST ONLY — app secret of the fake Meta provider (signs simulated webhooks). */
   FAKE_META_APP_SECRET: optionalString,
+  /** Days WhatsApp messages and their media are kept (Phase 10; `0` = keep forever, else ≥ 30). */
+  INBOX_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(90),
+  /**
+   * DEV / E2E ONLY — fake Meta sends sent / delivered / read status webhooks after these
+   * delays (`sent,delivered,read` ms, or `off`). Default `500,1500,3000` in development, off in tests.
+   */
+  FAKE_META_STATUS_DELAYS_MS: optionalString,
 
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./uploads'),
@@ -225,6 +232,7 @@ export type Env = Readonly<
     | 'META_PROVIDER'
     | 'META_WEBHOOK_VERIFY_TOKEN'
     | 'FAKE_META_APP_SECRET'
+    | 'FAKE_META_STATUS_DELAYS_MS'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -260,6 +268,8 @@ export type Env = Readonly<
     META_WEBHOOK_VERIFY_TOKEN: string;
     /** Only with the fake provider (never in production). */
     FAKE_META_APP_SECRET: string | undefined;
+    /** Fake Meta auto-status delays `[sent, delivered, read]`; null = off. */
+    FAKE_META_STATUS_DELAYS_MS: readonly [number, number, number] | null;
   }
 >;
 
@@ -301,6 +311,16 @@ const parseOrigins = (value: string | undefined): string[] =>
     .split(',')
     .map((o) => o.trim().replace(/\/+$/, ''))
     .filter(Boolean);
+
+/** `off` → null; `a,b,c` (ms, 0–60000) → tuple; anything else → undefined (invalid). */
+const parseStatusDelays = (value: string): readonly [number, number, number] | null | undefined => {
+  if (value.toLowerCase() === 'off') return null;
+  const parts = value.split(',').map((p) => p.trim());
+  if (parts.length !== 3 || parts.some((p) => !/^\d{1,5}$/.test(p))) return undefined;
+  const [sent, delivered, read] = parts.map(Number) as [number, number, number];
+  if ([sent, delivered, read].some((n) => n > 60_000)) return undefined;
+  return Object.freeze([sent, delivered, read] as const);
+};
 
 const isValidUrl = (value: string): boolean => z.url().safeParse(value).success;
 
@@ -517,6 +537,29 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     );
   }
 
+  check(
+    'INBOX_RETENTION_DAYS',
+    'must be 0 (keep forever) or at least 30',
+    raw.INBOX_RETENTION_DAYS === 0 || raw.INBOX_RETENTION_DAYS >= 30,
+  );
+  if (production) {
+    check(
+      'FAKE_META_STATUS_DELAYS_MS',
+      'must not be set in production',
+      raw.FAKE_META_STATUS_DELAYS_MS === undefined,
+    );
+  }
+  const statusDelays = parseStatusDelays(
+    raw.FAKE_META_STATUS_DELAYS_MS ??
+      (raw.NODE_ENV === 'development' && metaProvider === 'fake' ? '500,1500,3000' : 'off'),
+  );
+  if (statusDelays === undefined) {
+    issues.push({
+      variable: 'FAKE_META_STATUS_DELAYS_MS',
+      reason: 'must be off or three delays in ms (sent,delivered,read), each 0–60000',
+    });
+  }
+
   if (issues.length) throw new EnvValidationError(issues);
 
   const defaultLogLevel: Record<NodeEnv, LogLevel> = {
@@ -568,6 +611,8 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       raw.META_WEBHOOK_VERIFY_TOKEN ?? (metaProvider === 'fake' ? DEV_META_VERIFY_TOKEN : ''),
     FAKE_META_APP_SECRET:
       metaProvider === 'fake' ? (raw.FAKE_META_APP_SECRET ?? DEV_FAKE_META_APP_SECRET) : undefined,
+    FAKE_META_STATUS_DELAYS_MS:
+      metaProvider === 'fake' && !production ? (statusDelays ?? null) : null,
   });
 };
 

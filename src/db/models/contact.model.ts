@@ -4,8 +4,30 @@ import { basePlugin } from '../plugins/base';
 import { softDeletePlugin } from '../plugins/soft-delete';
 import { tenantPlugin } from '../plugins/tenant';
 
-export const CONTACT_SOURCE_TYPES = ['manual', 'import', 'api'] as const;
+export const CONTACT_SOURCE_TYPES = ['manual', 'import', 'api', 'whatsapp'] as const;
 export type ContactSourceType = (typeof CONTACT_SOURCE_TYPES)[number];
+
+/** WhatsApp profile of the contact (Phase 10 inbox). */
+export interface ContactWhatsApp {
+  waId: string | null;
+  /** Meta profile name (latest inbound). */
+  profileName: string | null;
+  lastInboundAt: Date | null;
+  blocked: boolean;
+  /** Removed from the phone's contacts (coexistence sync) — nothing is deleted here. */
+  syncRemovedAt: Date | null;
+  /** A person changed `name`: WhatsApp syncs never overwrite it afterwards. */
+  nameEditedAt: Date | null;
+}
+
+export const EMPTY_CONTACT_WHATSAPP: ContactWhatsApp = {
+  waId: null,
+  profileName: null,
+  lastInboundAt: null,
+  blocked: false,
+  syncRemovedAt: null,
+  nameEditedAt: null,
+};
 
 /** Stored variable value: text / date (`YYYY-MM-DD`) / phone as string, number / currency (micros) as number. */
 export type VariableValue = string | number;
@@ -32,6 +54,7 @@ export interface ContactDoc {
   callCount: number;
   /** Disposition of the last answered campaign / single call (Phase 8). */
   lastDisposition?: string | null;
+  whatsapp?: ContactWhatsApp | null;
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -68,6 +91,20 @@ const schema = new Schema<ContactDoc>({
   lastCalledAt: { type: Date, default: null },
   callCount: { type: Number, default: 0 },
   lastDisposition: { type: String, default: null },
+  whatsapp: {
+    type: new Schema<ContactWhatsApp>(
+      {
+        waId: { type: String, default: null, maxlength: 20 },
+        profileName: { type: String, default: null, maxlength: 256 },
+        lastInboundAt: { type: Date, default: null },
+        blocked: { type: Boolean, default: false },
+        syncRemovedAt: { type: Date, default: null },
+        nameEditedAt: { type: Date, default: null },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
 });
 schema.plugin(basePlugin, { hide: ['searchText', 'deletedAt'] });
 schema.plugin(tenantPlugin);

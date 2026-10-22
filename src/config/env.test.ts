@@ -573,3 +573,54 @@ describe('loadEnv — WhatsApp (Phase 9)', () => {
     ).toEqual(['FAKE_META_APP_SECRET']);
   });
 });
+
+describe('loadEnv — WhatsApp inbox (Phase 10)', () => {
+  it('retention: 90 days by default, 0 keeps forever, otherwise at least 30', () => {
+    expect(loadEnv({}).INBOX_RETENTION_DAYS).toBe(90);
+    expect(loadEnv({ INBOX_RETENTION_DAYS: '0' }).INBOX_RETENTION_DAYS).toBe(0);
+    expect(loadEnv({ INBOX_RETENTION_DAYS: '30' }).INBOX_RETENTION_DAYS).toBe(30);
+    for (const bad of ['29', '1', '-5', 'ninety', '1.5']) {
+      expect(issuesOf({ INBOX_RETENTION_DAYS: bad }).issues.map((i) => i.variable)).toEqual([
+        'INBOX_RETENTION_DAYS',
+      ]);
+    }
+    expect(loadEnv({ ...validProduction, INBOX_RETENTION_DAYS: '90' }).INBOX_RETENTION_DAYS).toBe(
+      90,
+    );
+    expect(
+      issuesOf({ ...validProduction, INBOX_RETENTION_DAYS: '7' }).issues.map((i) => i.variable),
+    ).toEqual(['INBOX_RETENTION_DAYS']);
+  });
+
+  it('fake status delays: on in development, off in tests, parsed, never in production', () => {
+    expect(loadEnv({}).FAKE_META_STATUS_DELAYS_MS).toEqual([500, 1500, 3000]);
+    expect(loadEnv({ NODE_ENV: 'test' }).FAKE_META_STATUS_DELAYS_MS).toBeNull();
+    expect(
+      loadEnv({ NODE_ENV: 'test', FAKE_META_STATUS_DELAYS_MS: '200,500,800' })
+        .FAKE_META_STATUS_DELAYS_MS,
+    ).toEqual([200, 500, 800]);
+    expect(loadEnv({ FAKE_META_STATUS_DELAYS_MS: 'OFF' }).FAKE_META_STATUS_DELAYS_MS).toBeNull();
+    expect(loadEnv({ FAKE_META_STATUS_DELAYS_MS: '0, 0, 0' }).FAKE_META_STATUS_DELAYS_MS).toEqual([
+      0, 0, 0,
+    ]);
+    for (const bad of ['1,2', '1,2,3,4', 'a,b,c', '1,-2,3', '1,2,60001', 'soon']) {
+      expect(issuesOf({ FAKE_META_STATUS_DELAYS_MS: bad }).issues.map((i) => i.variable)).toEqual([
+        'FAKE_META_STATUS_DELAYS_MS',
+      ]);
+    }
+    // the real provider never fakes statuses
+    expect(
+      loadEnv({
+        META_PROVIDER: 'meta',
+        WHATSAPP_ENABLED: 'false',
+        FAKE_META_STATUS_DELAYS_MS: '1,2,3',
+      }).FAKE_META_STATUS_DELAYS_MS,
+    ).toBeNull();
+    expect(loadEnv(validProduction).FAKE_META_STATUS_DELAYS_MS).toBeNull();
+    expect(
+      issuesOf({ ...validProduction, FAKE_META_STATUS_DELAYS_MS: '1,2,3' }).issues.map(
+        (i) => i.variable,
+      ),
+    ).toEqual(['FAKE_META_STATUS_DELAYS_MS']);
+  });
+});

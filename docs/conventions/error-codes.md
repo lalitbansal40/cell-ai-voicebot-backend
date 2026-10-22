@@ -60,6 +60,11 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `WHATSAPP_CHANNEL_NOT_READY`  | 409  | The WhatsApp number needs its setup finished or a reconnect before this action                                                                                                     | 9     |
 | `META_API_ERROR`              | 502  | The Meta Graph API returned an error — `details` carry Meta's `code`, `subcode`, `fbtraceId` (never tokens)                                                                        | 9     |
 | `META_SIGNATURE_INVALID`      | 401  | A Meta webhook / `signed_request` signature is missing or wrong                                                                                                                    | 9     |
+| `WHATSAPP_WINDOW_CLOSED`      | 409  | The customer's 24-hour service window is closed — only internal notes (templates arrive in Phase 11); `details[0].path = 'windowExpiresAt'`                                        | 10    |
+| `WHATSAPP_RECIPIENT_BLOCKED`  | 409  | The team blocked this customer on WhatsApp — unblock to reply                                                                                                                      | 10    |
+| `WHATSAPP_MEDIA_INVALID`      | 422  | The file is not allowed for its kind or its content doesn't match (sniffed), a voice note is stereo / corrupt / too long / too short — `details[0].message` names the reason       | 10    |
+| `WHATSAPP_MEDIA_TOO_LARGE`    | 413  | The file is larger than WhatsApp allows for its kind — `details[0].message` carries the limit                                                                                      | 10    |
+| `INBOX_MEDIA_EXPIRED`         | 410  | Media of an inbound message older than 7 days can't be downloaded from Meta any more                                                                                               | 10    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

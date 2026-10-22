@@ -103,6 +103,18 @@ export const ERROR_CODES = {
   },
   META_API_ERROR: { status: 502, message: 'Meta returned an error.' },
   META_SIGNATURE_INVALID: { status: 401, message: 'Invalid Meta signature.' },
+  WHATSAPP_WINDOW_CLOSED: {
+    status: 409,
+    message:
+      'The 24-hour window is closed. You can reply when the customer writes again, or send a template.',
+  },
+  WHATSAPP_RECIPIENT_BLOCKED: { status: 409, message: 'You blocked this customer on WhatsApp.' },
+  WHATSAPP_MEDIA_INVALID: { status: 422, message: "This file can't be sent on WhatsApp." },
+  WHATSAPP_MEDIA_TOO_LARGE: { status: 413, message: 'This file is too large for WhatsApp.' },
+  INBOX_MEDIA_EXPIRED: {
+    status: 410,
+    message: 'This media is no longer available from WhatsApp (older than 7 days).',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

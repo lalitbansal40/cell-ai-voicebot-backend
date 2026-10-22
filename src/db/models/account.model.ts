@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Model, type Types } from 'mongoose';
 
-import { CALL_LIMITS, CALL_LINES } from '../../config/limits';
+import { CALL_LIMITS, CALL_LINES, INBOX_LIMITS } from '../../config/limits';
 import { basePlugin } from '../plugins/base';
 
 export type AccountStatus = 'active' | 'suspended';
@@ -28,6 +28,47 @@ export interface AccountLimits {
   dialsPerMinute: number;
 }
 
+export const INBOX_NOTIFY_MODES = ['assigned_or_all', 'assigned_only', 'off'] as const;
+export type InboxNotifyMode = (typeof INBOX_NOTIFY_MODES)[number];
+
+/** WhatsApp inbox settings (Phase 10; owner decisions 23 Oct 2026 — PHASE_10_PLAN §7). */
+export interface AccountInboxSettings {
+  /** Blue ticks for the customer when the team opens a chat. */
+  sendReadReceipts: boolean;
+  /** Whole-message keywords, stored upper-case + NFC. */
+  optOutKeywords: string[];
+  optInKeywords: string[];
+  optOutReply: boolean;
+  optOutReplyText: string;
+  optInReply: boolean;
+  optInReplyText: string;
+  notifyOnNewMessage: InboxNotifyMode;
+}
+
+export const DEFAULT_INBOX_SETTINGS: AccountInboxSettings = {
+  sendReadReceipts: true,
+  optOutKeywords: [
+    'STOP',
+    'STOP ALL',
+    'UNSUBSCRIBE',
+    'CANCEL',
+    'BAND KARO',
+    'BAND KARDO',
+    'MAT BHEJO',
+    'MESSAGE MAT BHEJO',
+    'बंद करो',
+    'बंद कर दो',
+    'मत भेजो',
+  ],
+  optInKeywords: ['START', 'UNSTOP', 'SHURU', 'SHURU KARO', 'चालू करो', 'शुरू करो'],
+  optOutReply: true,
+  optOutReplyText:
+    "You won't get more messages from us. Reply START to opt in again.\nAb aapko humse messages nahi aayenge. Dobara shuru karne ke liye START bhejein.",
+  optInReply: true,
+  optInReplyText: "You're subscribed again. / Aap dobara subscribe ho gaye hain.",
+  notifyOnNewMessage: 'assigned_or_all',
+};
+
 export interface AccountSettings {
   callingWindow: CallingWindow;
   callCaps: CallCaps;
@@ -35,6 +76,7 @@ export interface AccountSettings {
   /** Said at the start of every recorded call (Phase 7). */
   recordingNotice: string;
   aiDisclosureEnabled: boolean;
+  inbox: AccountInboxSettings;
 }
 
 /** GST billing details (PHASE_4_PLAN §1d) — buyer on invoices. Latin text only (PDF). */
@@ -93,6 +135,7 @@ export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
   recordingEnabled: true,
   recordingNotice: CALL_LINES.recordingNotice,
   aiDisclosureEnabled: true,
+  inbox: DEFAULT_INBOX_SETTINGS,
 };
 
 export const DEFAULT_ACCOUNT_LIMITS: AccountLimits = { maxConcurrentCalls: 10, dialsPerMinute: 60 };
@@ -148,6 +191,34 @@ const schema = new Schema<AccountDoc>({
       maxlength: CALL_LIMITS.recordingNoticeMaxChars,
     },
     aiDisclosureEnabled: { type: Boolean, default: true },
+    inbox: {
+      sendReadReceipts: { type: Boolean, default: DEFAULT_INBOX_SETTINGS.sendReadReceipts },
+      optOutKeywords: {
+        type: [{ type: String, maxlength: INBOX_LIMITS.keywordMaxLength }],
+        default: () => [...DEFAULT_INBOX_SETTINGS.optOutKeywords],
+      },
+      optInKeywords: {
+        type: [{ type: String, maxlength: INBOX_LIMITS.keywordMaxLength }],
+        default: () => [...DEFAULT_INBOX_SETTINGS.optInKeywords],
+      },
+      optOutReply: { type: Boolean, default: DEFAULT_INBOX_SETTINGS.optOutReply },
+      optOutReplyText: {
+        type: String,
+        default: DEFAULT_INBOX_SETTINGS.optOutReplyText,
+        maxlength: INBOX_LIMITS.replyTextMax,
+      },
+      optInReply: { type: Boolean, default: DEFAULT_INBOX_SETTINGS.optInReply },
+      optInReplyText: {
+        type: String,
+        default: DEFAULT_INBOX_SETTINGS.optInReplyText,
+        maxlength: INBOX_LIMITS.replyTextMax,
+      },
+      notifyOnNewMessage: {
+        type: String,
+        enum: INBOX_NOTIFY_MODES,
+        default: DEFAULT_INBOX_SETTINGS.notifyOnNewMessage,
+      },
+    },
   },
   limits: {
     maxConcurrentCalls: { type: Number, default: DEFAULT_ACCOUNT_LIMITS.maxConcurrentCalls },

@@ -39,7 +39,8 @@ export interface PublicAccount {
   timezone: string;
   country: string;
   defaultLanguage: AccountDoc['defaultLanguage'];
-  settings: AccountDoc['settings'];
+  /** Inbox settings have their own endpoint (`/account/inbox-settings`). */
+  settings: Omit<AccountDoc['settings'], 'inbox'>;
   createdAt: string;
 }
 

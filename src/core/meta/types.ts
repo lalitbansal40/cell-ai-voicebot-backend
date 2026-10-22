@@ -10,6 +10,17 @@ export const REQUIRED_META_SCOPES = [
   'whatsapp_business_messaging',
 ] as const;
 
+/**
+ * Hosts a media URL from `GET /{media-id}` may point at (SSRF guard for the
+ * download). Re-check against Meta's media reference when the Graph version changes.
+ */
+export const META_MEDIA_HOST_SUFFIXES = [
+  '.fbsbx.com',
+  '.fbcdn.net',
+  '.whatsapp.net',
+  '.facebook.com',
+] as const;
+
 export interface MetaAccessToken {
   accessToken: string;
   tokenType: string | null;

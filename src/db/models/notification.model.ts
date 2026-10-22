@@ -21,6 +21,8 @@ export const NOTIFICATION_TYPES = [
   'whatsapp.name_approved',
   'whatsapp.name_rejected',
   'whatsapp.channel_disconnected_by_admin',
+  'inbox.message_received',
+  'inbox.conversation_assigned',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

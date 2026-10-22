@@ -20,11 +20,19 @@ import { AppError } from '../../src/shared/errors/app-error';
 import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 9 catalogue', () => {
-  it('has 54 error codes incl. the seven WhatsApp / Meta codes', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(54);
+  it('has the seven WhatsApp / Meta error codes (count: Phase 10 catalogue test)', () => {
+    const phase9 = new Set([
+      'WHATSAPP_NOT_CONFIGURED',
+      'WHATSAPP_SIGNUP_FAILED',
+      'WHATSAPP_NUMBER_IN_USE',
+      'WHATSAPP_CHANNEL_LIMIT',
+      'WHATSAPP_CHANNEL_NOT_READY',
+      'META_API_ERROR',
+      'META_SIGNATURE_INVALID',
+    ]);
     expect(
       Object.entries(ERROR_CODES)
-        .filter(([k]) => k.startsWith('WHATSAPP_') || k.startsWith('META_'))
+        .filter(([k]) => phase9.has(k))
         .map(([k, v]) => [k, v.status]),
     ).toEqual([
       ['WHATSAPP_NOT_CONFIGURED', 503],
@@ -40,28 +48,29 @@ describe('Phase 9 catalogue', () => {
     );
   });
 
-  it('has 95 audit actions incl. the WhatsApp and Meta actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(95);
-    expect(AUDIT_ACTIONS.filter((a) => a.startsWith('whatsapp.') || a.startsWith('meta.'))).toEqual(
-      [
-        'whatsapp.channel_connected',
-        'whatsapp.channel_reconnected',
-        'whatsapp.channel_setup_failed',
-        'whatsapp.channel_registered',
-        'whatsapp.credit_line_attached',
-        'whatsapp.channel_renamed',
-        'whatsapp.channel_disconnected',
-        'whatsapp.channel_status_changed',
-        'whatsapp.billing_mode_changed',
-        'whatsapp.event_replayed',
-        'meta.deauthorized',
-        'meta.data_deletion_requested',
-      ],
-    );
+  it('has the WhatsApp and Meta audit actions (count: Phase 10 catalogue test)', () => {
+    expect(
+      AUDIT_ACTIONS.filter(
+        (a) =>
+          (a.startsWith('whatsapp.') && a !== 'whatsapp.profile_updated') || a.startsWith('meta.'),
+      ),
+    ).toEqual([
+      'whatsapp.channel_connected',
+      'whatsapp.channel_reconnected',
+      'whatsapp.channel_setup_failed',
+      'whatsapp.channel_registered',
+      'whatsapp.credit_line_attached',
+      'whatsapp.channel_renamed',
+      'whatsapp.channel_disconnected',
+      'whatsapp.channel_status_changed',
+      'whatsapp.billing_mode_changed',
+      'whatsapp.event_replayed',
+      'meta.deauthorized',
+      'meta.data_deletion_requested',
+    ]);
   });
 
-  it('has 17 notification types (11 + 6), the WS event, the queue and the permissions per role', () => {
-    expect(NOTIFICATION_TYPES).toHaveLength(17);
+  it('has the six WhatsApp notification types, the WS event, the queue and the permissions per role', () => {
     expect(NOTIFICATION_TYPES.filter((t) => t.startsWith('whatsapp.'))).toEqual([
       'whatsapp.channel_needs_reconnect',
       'whatsapp.channel_restricted',

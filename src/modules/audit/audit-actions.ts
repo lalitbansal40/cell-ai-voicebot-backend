@@ -98,6 +98,17 @@ export const AUDIT_ACTIONS = [
   'whatsapp.event_replayed',
   'meta.deauthorized',
   'meta.data_deletion_requested',
+  'inbox.conversation_assigned',
+  'inbox.conversation_closed',
+  'inbox.conversation_reopened',
+  'inbox.contact_opted_out',
+  'inbox.contact_opted_in',
+  'inbox.contact_blocked',
+  'inbox.contact_unblocked',
+  'inbox.history_imported',
+  'inbox.messages_purged',
+  'inbox.settings_updated',
+  'whatsapp.profile_updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
