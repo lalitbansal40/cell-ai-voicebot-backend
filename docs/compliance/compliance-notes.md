@@ -116,6 +116,14 @@ What the product does today (ADR 0032) — **to be confirmed with the client's C
 5. Does the seller need e-invoicing (IRN / QR) now or at a turnover threshold?
 6. Is a remaining wallet balance at account closure refundable, and how is GST on it reversed?
 
+## 9. Meta / WhatsApp data (Phase 9)
+
+- **What we receive from Meta:** for each connected WhatsApp number a business token (sealed), the Meta user id that granted access, WABA / number ids, names and Meta statuses of the **business**; webhook events (customer numbers, names and texts) sealed at rest — 7 days, or 30 days for fields later phases import (messages, echoes, chat history, contacts) until Phase 10 stores conversations.
+- **Deauthorize callback** (`/api/v1/meta/deauthorize`): the user removed our app in Facebook → that user's numbers need a reconnect; audited (system).
+- **Data deletion callback** (`/api/v1/meta/data-deletion`, Meta Platform Terms): deletes what we hold **from Meta for that user** — tokens, PINs, the Meta user id on their numbers — and answers a confirmation code; `/data-deletion?code=…` (public page) shows the status. Business records of the customer's account stay (they are the customer's data; account deletion is Phase 16). Requests are kept 365 days.
+- **DPDP:** customer phone numbers in WhatsApp events are personal data of the customer's customers; we are a processor for the customer. Purpose limitation: Phase 9 stores them only for the chat features of Phases 10–12; logs never contain them.
+- **Questions for the client's legal team:** (1) Is a 7 / 30-day raw-event retention acceptable before conversations are stored? (2) Which privacy-policy text covers WhatsApp data (Meta App Review checks it)? (3) Should a data deletion request also notify the customer account's owner?
+
 ## Sources
 
 - TRAI Press Release 11/2025 — <https://cms.trai.gov.in/sites/default/files/2025-02/PR_No.11of2025.pdf>
