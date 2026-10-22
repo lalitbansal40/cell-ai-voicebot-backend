@@ -220,4 +220,37 @@ describe('OpenAPI coverage', () => {
       /fake_tok_|dev-fake-meta-app-secret|dev-meta-verify-token/,
     );
   });
+
+  it('documents the Phase 10 routes', () => {
+    const doc = buildOpenApiDocument();
+    const paths = Object.keys(doc.paths ?? {});
+    for (const p of [
+      '/api/v1/inbox/config',
+      '/api/v1/inbox/summary',
+      '/api/v1/inbox/conversations',
+      '/api/v1/inbox/conversations/start',
+      '/api/v1/inbox/conversations/{id}',
+      '/api/v1/inbox/conversations/{id}/messages',
+      '/api/v1/inbox/conversations/{id}/contact',
+      '/api/v1/inbox/conversations/{id}/read',
+      '/api/v1/inbox/conversations/{id}/unread',
+      '/api/v1/inbox/conversations/{id}/typing',
+      '/api/v1/inbox/conversations/{id}/close',
+      '/api/v1/inbox/conversations/{id}/reopen',
+      '/api/v1/inbox/conversations/{id}/block',
+      '/api/v1/inbox/conversations/{id}/unblock',
+      '/api/v1/inbox/media',
+      '/api/v1/inbox/messages/{id}/media',
+      '/api/v1/inbox/messages/{id}/retry',
+      '/api/v1/inbox/messages/{id}/media/retry',
+      '/api/v1/account/inbox-settings',
+      '/api/v1/whatsapp/channels/{id}/profile',
+      '/api/v1/whatsapp/channels/{id}/profile/photo',
+    ]) {
+      expect(paths, p).toContain(p);
+    }
+    const send = doc.paths?.['/api/v1/inbox/conversations/{id}/messages']?.post;
+    expect(JSON.stringify(send)).toContain('InboxSendMessage');
+    expect(JSON.stringify(doc.components?.schemas?.InboxMessage)).not.toContain('storageKey');
+  });
 });

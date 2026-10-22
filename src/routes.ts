@@ -34,6 +34,9 @@ import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
 import { createFlowAudioRouter } from './modules/flow-audio/flow-audio.routes';
 import { createFlowsRouter } from './modules/flows/flows.routes';
+import { createInboxDisabledRouter, createInboxRouter } from './modules/inbox/inbox.routes';
+import { unavailableInboxJobs, type InboxJobs } from './modules/inbox/jobs';
+import { createInboxSettingsRouter } from './modules/inbox/settings.routes';
 import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes';
 import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
@@ -46,6 +49,7 @@ import { createTeamRouter } from './modules/team/team.routes';
 import { createWalletRouter } from './modules/wallet/wallet.routes';
 import { createDevSimulatorRouter } from './modules/whatsapp/dev-simulator.routes';
 import { createMetaCallbacksRouter } from './modules/whatsapp/meta-callbacks.routes';
+import { createBusinessProfileRouter } from './modules/whatsapp/profile.routes';
 import {
   createMetaWebhooksRouter,
   type MetaWebhooksDeps,
@@ -63,6 +67,13 @@ import { createWhatsAppService } from './modules/whatsapp/whatsapp.service';
 export type WhatsAppDeps = MetaWebhooksDeps & {
   /** `rl:wa-connect:` limiter store (MemoryStore when omitted). */
   connectRateLimitStore?: Store;
+  /** Phase 10 inbox: jobs on the `whatsapp` queue (send, media, receipts). */
+  inboxJobs?: InboxJobs;
+  /** Inbox uploads / media (the app's file storage). */
+  storage?: StorageProvider;
+  /** `rl:inbox-send:` / `rl:inbox-upload:` stores. */
+  inboxSendRateLimitStore?: Store;
+  inboxUploadRateLimitStore?: Store;
 };
 
 export interface BillingDeps {
@@ -152,6 +163,12 @@ export const createApiRouter = ({
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));
+  if (whatsapp?.ctx.env.WHATSAPP_ENABLED) {
+    router.use(
+      '/account/inbox-settings',
+      createInboxSettingsRouter({ retentionDays: whatsapp.ctx.env.INBOX_RETENTION_DAYS }),
+    );
+  }
   router.use('/account', createAccountRouter());
   router.use('/team', createTeamRouter());
   router.use('/api-keys', createApiKeysRouter());
@@ -191,9 +208,25 @@ export const createApiRouter = ({
   if (whatsappRuntime) {
     router.use('/webhooks/meta', createMetaWebhooksRouter(whatsappRuntime));
     router.use('/meta', createMetaCallbacksRouter(whatsappRuntime));
+    router.use('/whatsapp', createBusinessProfileRouter(whatsappRuntime.ctx));
     router.use('/whatsapp', createWhatsAppRouter(whatsappRuntime));
+    router.use(
+      '/inbox',
+      createInboxRouter({
+        ctx: whatsappRuntime.ctx,
+        storage: whatsappRuntime.storage ?? contacts.storage,
+        jobs: whatsappRuntime.inboxJobs ?? unavailableInboxJobs,
+        ...(whatsappRuntime.inboxSendRateLimitStore
+          ? { sendRateLimitStore: whatsappRuntime.inboxSendRateLimitStore }
+          : {}),
+        ...(whatsappRuntime.inboxUploadRateLimitStore
+          ? { uploadRateLimitStore: whatsappRuntime.inboxUploadRateLimitStore }
+          : {}),
+      }),
+    );
   } else {
     router.use('/whatsapp', createWhatsAppDisabledRouter());
+    router.use('/inbox', createInboxDisabledRouter());
   }
   router.use(
     '/webhooks',

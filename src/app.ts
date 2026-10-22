@@ -147,7 +147,7 @@ export const createApp = ({
       flows: { rateLimitStores: flowRateLimitStores },
       ...(calls ? { calls } : {}),
       campaigns,
-      ...(whatsapp ? { whatsapp } : {}),
+      ...(whatsapp ? { whatsapp: { ...whatsapp, storage: whatsapp.storage ?? storage } } : {}),
     }),
   );
 

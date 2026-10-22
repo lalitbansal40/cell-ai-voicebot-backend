@@ -60,6 +60,8 @@ export interface PublicContact {
   callCount: number;
   /** Disposition of the last answered campaign call with an outcome (Phase 8). */
   lastDisposition: string | null;
+  /** WhatsApp profile (Phase 10 inbox). */
+  whatsapp: { profileName: string | null; lastInboundAt: string | null; blocked: boolean } | null;
   createdAt: string;
   updatedAt: string;
   lists?: { id: string; name: string }[];
@@ -89,6 +91,13 @@ export const toPublicContact = (c: ContactDoc): PublicContact => ({
   lastCalledAt: iso(c.lastCalledAt),
   callCount: c.callCount,
   lastDisposition: c.lastDisposition ?? null,
+  whatsapp: c.whatsapp?.waId
+    ? {
+        profileName: c.whatsapp.profileName,
+        lastInboundAt: iso(c.whatsapp.lastInboundAt),
+        blocked: c.whatsapp.blocked,
+      }
+    : null,
   createdAt: c.createdAt.toISOString(),
   updatedAt: c.updatedAt.toISOString(),
 });

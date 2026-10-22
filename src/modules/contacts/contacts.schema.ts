@@ -111,6 +111,14 @@ export const ContactSchema = registry.register(
     lastCalledAt: z.string().nullable(),
     callCount: z.number(),
     lastDisposition: z.string().nullable(),
+    whatsapp: z
+      .object({
+        profileName: z.string().nullable(),
+        lastInboundAt: z.string().nullable(),
+        blocked: z.boolean(),
+      })
+      .nullable()
+      .openapi({ description: 'WhatsApp profile (set once the customer wrote on WhatsApp)' }),
     createdAt: z.string(),
     updatedAt: z.string(),
     lists: z

@@ -58,6 +58,7 @@ import { queueCampaignExports, queueCampaignJobs, wireCampaigns } from './module
 import { resetProgressThrottle } from './modules/campaigns/progress';
 import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
+import { queueInboxJobs } from './modules/inbox/jobs';
 import { connectFakeStatusWebhooks } from './modules/whatsapp/fake-statuses';
 import { queueWhatsAppJobs } from './modules/whatsapp/jobs';
 import { getLogger, type Logger } from './shared/logger';
@@ -181,7 +182,8 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     }),
   });
   // Phase 9: WhatsApp (Meta webhooks now; the channel API joins in T9.6)
-  const whatsapp = env.WHATSAPP_ENABLED
+  const whatsappQueue = env.WHATSAPP_ENABLED ? createQueue(QUEUES.whatsapp, queueDeps) : undefined;
+  const whatsapp = whatsappQueue
     ? {
         ctx: {
           env,
@@ -189,8 +191,11 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
           redis,
           key: secretBoxKey(env),
         },
-        jobs: queueWhatsAppJobs(createQueue(QUEUES.whatsapp, queueDeps)),
+        jobs: queueWhatsAppJobs(whatsappQueue),
+        inboxJobs: queueInboxJobs(whatsappQueue),
         connectRateLimitStore: createRedisRateLimitStore(redis, 'rl:wa-connect:'),
+        inboxSendRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-send:'),
+        inboxUploadRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-upload:'),
       }
     : undefined;
   if (whatsapp) {

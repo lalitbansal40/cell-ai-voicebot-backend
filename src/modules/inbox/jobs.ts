@@ -1,6 +1,10 @@
 import type { JobsOptions, Queue } from 'bullmq';
 
 import { INBOX_LIMITS } from '../../config/limits';
+import { AppError } from '../../shared/errors/app-error';
+
+const unavailable = () =>
+  new AppError('PROVIDER_UNAVAILABLE', 'The WhatsApp queue is not running.');
 
 /**
  * Inbox jobs on the `whatsapp` queue (PHASE_10_PLAN §1a). Job data carries ids
@@ -108,4 +112,13 @@ export const recordingInboxJobs = (): InboxJobs & {
       return Promise.resolve();
     },
   };
+};
+
+/** Where no queue runs: queueing fails loudly (503) — the message stays `queued` for a retry. */
+export const unavailableInboxJobs: InboxJobs = {
+  enqueueSend: () => Promise.reject(unavailable()),
+  enqueueMediaDownload: () => Promise.reject(unavailable()),
+  enqueueReadReceipt: () => Promise.reject(unavailable()),
+  enqueueBackfill: () => Promise.reject(unavailable()),
+  enqueueHistoryImport: () => Promise.reject(unavailable()),
 };

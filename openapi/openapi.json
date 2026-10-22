@@ -1806,6 +1806,16 @@
           "lastCalledAt": { "type": ["string", "null"] },
           "callCount": { "type": "number" },
           "lastDisposition": { "type": ["string", "null"] },
+          "whatsapp": {
+            "type": ["object", "null"],
+            "properties": {
+              "profileName": { "type": ["string", "null"] },
+              "lastInboundAt": { "type": ["string", "null"] },
+              "blocked": { "type": "boolean" }
+            },
+            "required": ["profileName", "lastInboundAt", "blocked"],
+            "description": "WhatsApp profile (set once the customer wrote on WhatsApp)"
+          },
           "createdAt": { "type": "string" },
           "updatedAt": { "type": "string" },
           "lists": {
@@ -1834,6 +1844,7 @@
           "lastCalledAt",
           "callCount",
           "lastDisposition",
+          "whatsapp",
           "createdAt",
           "updatedAt"
         ]
@@ -5351,6 +5362,693 @@
           "processedAt"
         ]
       },
+      "InboxMessage": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "conversationId": { "type": "string" },
+          "channelId": { "type": "string" },
+          "direction": { "type": "string", "enum": ["in", "out"] },
+          "origin": {
+            "type": "string",
+            "enum": ["customer", "agent", "business_app", "history", "system"],
+            "description": "`business_app` = sent from the WhatsApp Business app (coexistence); `history` = imported"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image",
+              "video",
+              "audio",
+              "document",
+              "sticker",
+              "location",
+              "contacts",
+              "interactive",
+              "button",
+              "reaction",
+              "order",
+              "system",
+              "unsupported",
+              "note"
+            ],
+            "description": "`note` = internal team note, never sent"
+          },
+          "text": { "type": ["string", "null"], "description": "Body / caption (customer data)" },
+          "media": {
+            "type": ["object", "null"],
+            "properties": {
+              "status": { "type": "string", "enum": ["pending", "ready", "failed", "expired"] },
+              "mimeType": { "type": ["string", "null"] },
+              "size": { "type": ["number", "null"] },
+              "fileName": { "type": ["string", "null"] },
+              "durationSec": { "type": ["number", "null"] },
+              "voice": { "type": "boolean" },
+              "animated": { "type": "boolean" }
+            },
+            "required": [
+              "status",
+              "mimeType",
+              "size",
+              "fileName",
+              "durationSec",
+              "voice",
+              "animated"
+            ],
+            "description": "Fetch the file with GET /inbox/messages/{id}/media"
+          },
+          "location": {
+            "type": ["object", "null"],
+            "properties": {
+              "latitude": { "type": "number" },
+              "longitude": { "type": "number" },
+              "name": { "type": ["string", "null"] },
+              "address": { "type": ["string", "null"] },
+              "url": { "type": ["string", "null"] }
+            },
+            "required": ["latitude", "longitude", "name", "address", "url"]
+          },
+          "contacts": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "phones": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "phone": { "type": "string" },
+                      "type": { "type": ["string", "null"] },
+                      "waId": { "type": ["string", "null"] }
+                    },
+                    "required": ["phone", "type", "waId"]
+                  }
+                },
+                "emails": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "email": { "type": "string" },
+                      "type": { "type": ["string", "null"] }
+                    },
+                    "required": ["email", "type"]
+                  }
+                },
+                "org": { "type": ["string", "null"] }
+              },
+              "required": ["name", "phones", "emails", "org"]
+            }
+          },
+          "interactive": {
+            "type": ["object", "null"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["button", "list", "cta_url", "button_reply", "list_reply", "nfm_reply"]
+              },
+              "header": {
+                "type": ["object", "null"],
+                "properties": {
+                  "type": { "type": "string", "enum": ["text", "image", "video", "document"] },
+                  "text": { "type": ["string", "null"] },
+                  "fileName": { "type": ["string", "null"] }
+                },
+                "required": ["type", "text", "fileName"]
+              },
+              "body": { "type": ["string", "null"] },
+              "footer": { "type": ["string", "null"] },
+              "buttons": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": { "id": { "type": "string" }, "title": { "type": "string" } },
+                  "required": ["id", "title"]
+                }
+              },
+              "listButton": { "type": ["string", "null"] },
+              "sections": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": ["string", "null"] },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "title": { "type": "string" },
+                          "description": { "type": ["string", "null"] }
+                        },
+                        "required": ["id", "title", "description"]
+                      }
+                    }
+                  },
+                  "required": ["title", "rows"]
+                }
+              },
+              "cta": {
+                "type": ["object", "null"],
+                "properties": { "displayText": { "type": "string" }, "url": { "type": "string" } },
+                "required": ["displayText", "url"]
+              },
+              "reply": {
+                "type": ["object", "null"],
+                "properties": {
+                  "id": { "type": ["string", "null"] },
+                  "title": { "type": ["string", "null"] },
+                  "description": { "type": ["string", "null"] }
+                },
+                "required": ["id", "title", "description"]
+              },
+              "nfmResponse": { "type": ["string", "null"] },
+              "nfmTruncated": { "type": "boolean" }
+            },
+            "required": [
+              "kind",
+              "header",
+              "body",
+              "footer",
+              "buttons",
+              "listButton",
+              "sections",
+              "cta",
+              "reply",
+              "nfmResponse",
+              "nfmTruncated"
+            ]
+          },
+          "reaction": {
+            "type": ["object", "null"],
+            "properties": {
+              "targetMessageId": { "type": ["string", "null"] },
+              "emoji": { "type": "string" }
+            },
+            "required": ["targetMessageId", "emoji"]
+          },
+          "context": {
+            "type": ["object", "null"],
+            "properties": {
+              "replyToMessageId": { "type": ["string", "null"] },
+              "forwarded": { "type": "boolean" },
+              "frequentlyForwarded": { "type": "boolean" },
+              "referral": {
+                "type": ["object", "null"],
+                "properties": {
+                  "sourceUrl": { "type": ["string", "null"] },
+                  "sourceType": { "type": ["string", "null"] },
+                  "sourceId": { "type": ["string", "null"] },
+                  "headline": { "type": ["string", "null"] },
+                  "body": { "type": ["string", "null"] },
+                  "ctwaClid": { "type": ["string", "null"] }
+                },
+                "required": ["sourceUrl", "sourceType", "sourceId", "headline", "body", "ctwaClid"]
+              }
+            },
+            "required": ["replyToMessageId", "forwarded", "frequentlyForwarded", "referral"]
+          },
+          "replyTo": {
+            "type": ["object", "null"],
+            "properties": {
+              "id": { "type": "string" },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "image",
+                  "video",
+                  "audio",
+                  "document",
+                  "sticker",
+                  "location",
+                  "contacts",
+                  "interactive",
+                  "button",
+                  "reaction",
+                  "order",
+                  "system",
+                  "unsupported",
+                  "note"
+                ]
+              },
+              "direction": { "type": "string", "enum": ["in", "out"] },
+              "preview": { "type": "string" }
+            },
+            "required": ["id", "type", "direction", "preview"]
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "emoji": { "type": "string" },
+                "by": { "type": "string", "enum": ["customer", "agent"] },
+                "at": { "type": "string" }
+              },
+              "required": ["emoji", "by", "at"]
+            }
+          },
+          "order": {
+            "type": ["object", "null"],
+            "properties": {
+              "catalogId": { "type": ["string", "null"] },
+              "itemsCount": { "type": "number" },
+              "total": { "type": ["number", "null"] },
+              "currency": { "type": ["string", "null"] }
+            },
+            "required": ["catalogId", "itemsCount", "total", "currency"]
+          },
+          "button": {
+            "type": ["object", "null"],
+            "properties": {
+              "payload": { "type": ["string", "null"] },
+              "text": { "type": ["string", "null"] }
+            },
+            "required": ["payload", "text"]
+          },
+          "system": {
+            "type": ["object", "null"],
+            "properties": {
+              "kind": { "type": "string" },
+              "newWaIdLast4": { "type": ["string", "null"] }
+            },
+            "required": ["kind", "newWaIdLast4"]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "received",
+              "queued",
+              "accepted",
+              "sent",
+              "delivered",
+              "read",
+              "failed",
+              "deleted"
+            ]
+          },
+          "statusHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "received",
+                    "queued",
+                    "accepted",
+                    "sent",
+                    "delivered",
+                    "read",
+                    "failed",
+                    "deleted"
+                  ]
+                },
+                "at": { "type": "string" }
+              },
+              "required": ["status", "at"]
+            }
+          },
+          "error": {
+            "type": ["object", "null"],
+            "properties": {
+              "code": { "type": ["number", "null"] },
+              "reason": { "type": "string" }
+            },
+            "required": ["code", "reason"]
+          },
+          "clientId": { "type": ["string", "null"] },
+          "sentBy": {
+            "type": ["object", "null"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id", "name"]
+          },
+          "retryOf": { "type": ["string", "null"] },
+          "at": { "type": "string" },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "channelId",
+          "direction",
+          "origin",
+          "type",
+          "text",
+          "media",
+          "location",
+          "contacts",
+          "interactive",
+          "reaction",
+          "context",
+          "replyTo",
+          "reactions",
+          "order",
+          "button",
+          "system",
+          "status",
+          "statusHistory",
+          "error",
+          "clientId",
+          "sentBy",
+          "retryOf",
+          "at",
+          "createdAt"
+        ]
+      },
+      "InboxConversation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "channelId": { "type": "string" },
+          "contact": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": ["string", "null"] },
+              "phoneE164": { "type": "string" },
+              "deleted": { "type": "boolean" },
+              "optedOut": { "type": "boolean" }
+            },
+            "required": ["id", "name", "phoneE164", "deleted", "optedOut"]
+          },
+          "label": { "type": "string", "description": "Contact name or the masked number" },
+          "phoneE164": { "type": "string" },
+          "profileName": { "type": ["string", "null"] },
+          "status": { "type": "string", "enum": ["open", "closed"] },
+          "assignedTo": {
+            "type": ["object", "null"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id", "name"]
+          },
+          "unreadCount": { "type": "integer" },
+          "lastMessage": {
+            "type": ["object", "null"],
+            "properties": {
+              "id": { "type": "string" },
+              "direction": { "type": "string", "enum": ["in", "out"] },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "image",
+                  "video",
+                  "audio",
+                  "document",
+                  "sticker",
+                  "location",
+                  "contacts",
+                  "interactive",
+                  "button",
+                  "reaction",
+                  "order",
+                  "system",
+                  "unsupported",
+                  "note"
+                ]
+              },
+              "preview": { "type": "string" },
+              "at": { "type": "string" },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "received",
+                  "queued",
+                  "accepted",
+                  "sent",
+                  "delivered",
+                  "read",
+                  "failed",
+                  "deleted"
+                ]
+              }
+            },
+            "required": ["id", "direction", "type", "preview", "at", "status"]
+          },
+          "windowExpiresAt": {
+            "type": ["string", "null"],
+            "description": "24-hour customer service window end"
+          },
+          "windowOpen": { "type": "boolean" },
+          "blocked": { "type": "boolean" },
+          "source": {
+            "type": "string",
+            "enum": ["inbound", "outbound", "business_app", "history"]
+          },
+          "closedAt": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" },
+          "match": {
+            "type": ["object", "null"],
+            "properties": { "messageId": { "type": "string" }, "snippet": { "type": "string" } },
+            "required": ["messageId", "snippet"]
+          }
+        },
+        "required": [
+          "id",
+          "channelId",
+          "contact",
+          "label",
+          "phoneE164",
+          "profileName",
+          "status",
+          "assignedTo",
+          "unreadCount",
+          "lastMessage",
+          "windowExpiresAt",
+          "windowOpen",
+          "blocked",
+          "source",
+          "closedAt",
+          "createdAt"
+        ]
+      },
+      "InboxConversationDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/InboxConversation" },
+          {
+            "type": "object",
+            "properties": {
+              "channel": {
+                "type": ["object", "null"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "label": { "type": "string" },
+                  "displayPhoneNumber": { "type": ["string", "null"] },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "connecting",
+                      "connected",
+                      "action_needed",
+                      "needs_reconnect",
+                      "restricted",
+                      "disconnected"
+                    ]
+                  },
+                  "mode": { "type": "string", "enum": ["cloud_api", "coexistence"] }
+                },
+                "required": ["id", "label", "displayPhoneNumber", "status", "mode"]
+              },
+              "lastReadAt": { "type": ["string", "null"] },
+              "created": { "type": "boolean" }
+            },
+            "required": ["channel", "lastReadAt"]
+          }
+        ]
+      },
+      "InboxContactPanel": {
+        "type": "object",
+        "properties": {
+          "contact": {
+            "type": ["object", "null"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": ["string", "null"] },
+              "phoneE164": { "type": "string" },
+              "email": { "type": ["string", "null"] },
+              "tags": { "type": "array", "items": { "type": "string" } },
+              "lists": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+                  "required": ["id", "name"]
+                }
+              },
+              "variables": { "type": "object", "additionalProperties": {} },
+              "dnd": { "type": "boolean" },
+              "optedOutAt": { "type": ["string", "null"] },
+              "deleted": { "type": "boolean" },
+              "whatsapp": {
+                "type": ["object", "null"],
+                "properties": {
+                  "profileName": { "type": ["string", "null"] },
+                  "lastInboundAt": { "type": ["string", "null"] },
+                  "blocked": { "type": "boolean" }
+                },
+                "required": ["profileName", "lastInboundAt", "blocked"]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "phoneE164",
+              "email",
+              "tags",
+              "lists",
+              "variables",
+              "dnd",
+              "optedOutAt",
+              "deleted",
+              "whatsapp"
+            ]
+          },
+          "recentCalls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "status": { "type": "string" },
+                "at": { "type": "string" },
+                "durationSec": { "type": ["number", "null"] },
+                "disposition": { "type": ["string", "null"] }
+              },
+              "required": ["id", "status", "at", "durationSec", "disposition"]
+            }
+          },
+          "callPermission": {
+            "type": "null",
+            "description": "WhatsApp calling permission (Phase 12)"
+          },
+          "otherConversations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "channelId": { "type": "string" },
+                "channelLabel": { "type": "string" },
+                "lastMessageAt": { "type": ["string", "null"] },
+                "status": { "type": "string", "enum": ["open", "closed"] }
+              },
+              "required": ["id", "channelId", "channelLabel", "lastMessageAt", "status"]
+            }
+          }
+        },
+        "required": ["contact", "recentCalls", "callPermission", "otherConversations"]
+      },
+      "InboxSummary": {
+        "type": "object",
+        "properties": {
+          "unreadConversations": { "type": "integer" },
+          "assignedToMeUnread": { "type": "integer" },
+          "open": { "type": "integer" }
+        },
+        "required": ["unreadConversations", "assignedToMeUnread", "open"]
+      },
+      "InboxUpload": {
+        "type": "object",
+        "properties": {
+          "mediaToken": {
+            "type": "string",
+            "description": "Send it as `mediaToken` (this user, 24 h, once)"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["image", "video", "audio", "voice", "document", "sticker"]
+          },
+          "mimeType": { "type": "string" },
+          "size": { "type": "integer" },
+          "fileName": { "type": ["string", "null"] },
+          "durationSec": { "type": ["number", "null"] },
+          "voice": {
+            "type": "boolean",
+            "description": "A voice note (mono OGG / Opus); false = sent as an audio file"
+          },
+          "expiresAt": { "type": "string" }
+        },
+        "required": [
+          "mediaToken",
+          "kind",
+          "mimeType",
+          "size",
+          "fileName",
+          "durationSec",
+          "voice",
+          "expiresAt"
+        ]
+      },
+      "InboxSettings": {
+        "type": "object",
+        "properties": {
+          "sendReadReceipts": { "type": "boolean" },
+          "optOutKeywords": { "type": "array", "items": { "type": "string" } },
+          "optInKeywords": { "type": "array", "items": { "type": "string" } },
+          "optOutReply": { "type": "boolean" },
+          "optOutReplyText": { "type": "string" },
+          "optInReply": { "type": "boolean" },
+          "optInReplyText": { "type": "string" },
+          "notifyOnNewMessage": {
+            "type": "string",
+            "enum": ["assigned_or_all", "assigned_only", "off"]
+          },
+          "retentionDays": {
+            "type": "integer",
+            "description": "Messages are kept this many days (0 = forever); platform setting"
+          }
+        },
+        "required": [
+          "sendReadReceipts",
+          "optOutKeywords",
+          "optInKeywords",
+          "optOutReply",
+          "optOutReplyText",
+          "optInReply",
+          "optInReplyText",
+          "notifyOnNewMessage",
+          "retentionDays"
+        ]
+      },
+      "WhatsAppBusinessProfile": {
+        "type": "object",
+        "properties": {
+          "about": { "type": ["string", "null"] },
+          "address": { "type": ["string", "null"] },
+          "description": { "type": ["string", "null"] },
+          "email": { "type": ["string", "null"] },
+          "profilePictureUrl": { "type": ["string", "null"] },
+          "websites": { "type": "array", "items": { "type": "string" } },
+          "vertical": {
+            "type": ["string", "null"],
+            "description": "One of UNDEFINED, OTHER, AUTO, BEAUTY, APPAREL, EDU, ENTERTAIN, EVENT_PLAN, FINANCE, GROCERY, GOVT, HOTEL, HEALTH, NONPROFIT, PROF_SERVICES, RETAIL, TRAVEL, RESTAURANT, NOT_A_BIZ"
+          }
+        },
+        "required": [
+          "about",
+          "address",
+          "description",
+          "email",
+          "profilePictureUrl",
+          "websites",
+          "vertical"
+        ]
+      },
+      "InboxConfig": {
+        "type": "object",
+        "properties": {
+          "retentionDays": { "type": "integer" },
+          "fakeProvider": { "type": "boolean" },
+          "limits": { "type": "object", "additionalProperties": { "type": "number" } }
+        },
+        "required": ["retentionDays", "fakeProvider", "limits"]
+      },
       "WhatsAppEmbeddedSignupInput": {
         "type": "object",
         "properties": {
@@ -5461,6 +6159,287 @@
         },
         "required": ["channelId", "kind"],
         "additionalProperties": false
+      },
+      "InboxSendMessage": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["text"] },
+              "text": { "type": "string", "minLength": 1, "maxLength": 4096 },
+              "previewUrl": { "type": "boolean" }
+            },
+            "required": ["clientId", "type", "text"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["image"] },
+              "mediaToken": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "caption": { "type": ["string", "null"], "maxLength": 1024 }
+            },
+            "required": ["clientId", "type", "mediaToken"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["video"] },
+              "mediaToken": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "caption": { "type": ["string", "null"], "maxLength": 1024 }
+            },
+            "required": ["clientId", "type", "mediaToken"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["audio"] },
+              "mediaToken": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+            },
+            "required": ["clientId", "type", "mediaToken"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["voice"] },
+              "mediaToken": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+            },
+            "required": ["clientId", "type", "mediaToken"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["document"] },
+              "mediaToken": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "caption": { "type": ["string", "null"], "maxLength": 1024 },
+              "fileName": { "type": ["string", "null"], "maxLength": 200 }
+            },
+            "required": ["clientId", "type", "mediaToken"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["sticker"] },
+              "mediaToken": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+            },
+            "required": ["clientId", "type", "mediaToken"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["location"] },
+              "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+              "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+              "name": { "type": ["string", "null"], "maxLength": 1000 },
+              "address": { "type": ["string", "null"], "maxLength": 1000 }
+            },
+            "required": ["clientId", "type", "latitude", "longitude"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["contacts"] },
+              "contactIds": {
+                "type": "array",
+                "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                "minItems": 1,
+                "maxItems": 10
+              }
+            },
+            "required": ["clientId", "type", "contactIds"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["buttons"] },
+              "body": { "type": "string", "minLength": 1, "maxLength": 1024 },
+              "header": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string", "enum": ["text"] },
+                      "text": { "type": "string", "minLength": 1, "maxLength": 60 }
+                    },
+                    "required": ["type", "text"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string", "enum": ["image", "video", "document"] },
+                      "mediaToken": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "required": ["type", "mediaToken"]
+                  },
+                  { "type": "null" }
+                ]
+              },
+              "footer": { "type": ["string", "null"], "maxLength": 60 },
+              "buttons": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1, "maxLength": 256 },
+                    "title": { "type": "string", "minLength": 1, "maxLength": 20 }
+                  },
+                  "required": ["id", "title"]
+                },
+                "minItems": 1,
+                "maxItems": 3
+              }
+            },
+            "required": ["clientId", "type", "body", "buttons"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["list"] },
+              "body": { "type": "string", "minLength": 1, "maxLength": 1024 },
+              "header": { "type": ["string", "null"], "maxLength": 60 },
+              "footer": { "type": ["string", "null"], "maxLength": 60 },
+              "button": { "type": "string", "minLength": 1, "maxLength": 20 },
+              "sections": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": { "type": ["string", "null"], "maxLength": 24 },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1, "maxLength": 200 },
+                          "title": { "type": "string", "minLength": 1, "maxLength": 24 },
+                          "description": { "type": ["string", "null"], "maxLength": 72 }
+                        },
+                        "required": ["id", "title"]
+                      },
+                      "minItems": 1
+                    }
+                  },
+                  "required": ["rows"]
+                },
+                "minItems": 1,
+                "maxItems": 10
+              }
+            },
+            "required": ["clientId", "type", "body", "button", "sections"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["cta_url"] },
+              "body": { "type": "string", "minLength": 1, "maxLength": 1024 },
+              "header": { "type": ["string", "null"], "maxLength": 60 },
+              "footer": { "type": ["string", "null"], "maxLength": 60 },
+              "displayText": { "type": "string", "minLength": 1, "maxLength": 20 },
+              "url": { "type": "string", "maxLength": 2000, "pattern": "^https:\\/\\/[^\\s]+$/i" }
+            },
+            "required": ["clientId", "type", "body", "displayText", "url"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["reaction"] },
+              "messageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "emoji": { "type": "string", "maxLength": 32 }
+            },
+            "required": ["clientId", "type", "messageId", "emoji"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["note"] },
+              "text": { "type": "string", "minLength": 1, "maxLength": 4096 }
+            },
+            "required": ["clientId", "type", "text"]
+          }
+        ]
       }
     },
     "parameters": {}
@@ -20315,6 +21294,1689 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           }
+        }
+      }
+    },
+    "/api/v1/inbox/config": {
+      "get": {
+        "tags": ["Inbox"],
+        "summary": "Composer limits, message retention days, fake provider flag (inbox.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxConfig" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/summary": {
+      "get": {
+        "tags": ["Inbox"],
+        "summary": "Unread / mine / open counts for the nav badge and dashboard (inbox.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxSummary" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations": {
+      "get": {
+        "tags": ["Inbox"],
+        "summary": "Conversations, newest first (inbox.read)",
+        "description": "Filters: status (open / closed), filter (unread / mine / unassigned), channelId; `q` (≥ 2 chars) searches contact names / numbers and message text (`match` = the hit). Cursor pagination: pass `meta.nextCursor`.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "enum": ["open", "closed"], "default": "open" },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["all", "unread", "mine", "unassigned"],
+              "default": "all"
+            },
+            "required": false,
+            "name": "filter",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "minLength": 2, "maxLength": 100 },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "maxLength": 200 },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 30 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/InboxConversation" }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": { "nextCursor": { "type": ["string", "null"] } },
+                      "required": ["nextCursor"]
+                    }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/start": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Open (or create) the conversation of a contact on a number (inbox.reply)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                },
+                "required": ["channelId", "contactId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxConversationDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxConversationDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}": {
+      "get": {
+        "tags": ["Inbox"],
+        "summary": "Conversation detail incl. the 24-hour window and the number (inbox.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxConversationDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      },
+      "patch": {
+        "tags": ["Inbox"],
+        "summary": "Assign / unassign (inbox.assign; agents may take or drop it themselves with inbox.reply)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "assignedTo": {
+                    "type": ["string", "null"],
+                    "pattern": "^[a-f0-9]{24}$/i",
+                    "description": "User id, or null to unassign"
+                  }
+                },
+                "required": ["assignedTo"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxConversationDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/messages": {
+      "get": {
+        "tags": ["Inbox"],
+        "summary": "Messages oldest → newest (inbox.read)",
+        "description": "`before` = `meta.olderCursor` of the previous page; `around` = a message id (jump to a quoted message).",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "maxLength": 200 },
+            "required": false,
+            "name": "before",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "around",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/InboxMessage" }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "olderCursor": { "type": ["string", "null"] },
+                        "hasNewer": { "type": "boolean" }
+                      },
+                      "required": ["olderCursor", "hasNewer"]
+                    }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      },
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Send a message or write an internal note (inbox.reply; 60 / min / user)",
+        "description": "Idempotent by `clientId` (a retry returns the same message, 200). Free-form messages need the 24-hour window (409 WHATSAPP_WINDOW_CLOSED); notes never leave the app. Media types reference an upload (`mediaToken`).",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/InboxSendMessage" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Already sent (same clientId)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxMessage" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxMessage" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Window closed / customer blocked / number not ready (WHATSAPP_WINDOW_CLOSED, WHATSAPP_RECIPIENT_BLOCKED, WHATSAPP_CHANNEL_NOT_READY)"
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/contact": {
+      "get": {
+        "tags": ["Inbox"],
+        "summary": "Contact panel: contact, recent calls, other conversations (inbox.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxContactPanel" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/read": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Mark read — unread 0, blue ticks when the account sends read receipts (impersonators: no change) (inbox.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": { "description": "No content" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/unread": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Mark as unread (team only, no Meta call) (inbox.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": { "description": "No content" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/typing": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Typing ping: other agents see it; the customer sees \"typing…\" inside the window (inbox.reply, throttled)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "sent": { "type": "boolean" } },
+                      "required": ["sent"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/close": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Close (inbox.reply)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxConversationDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta returned an error (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/reopen": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Reopen (inbox.reply)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxConversationDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta returned an error (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/block": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Block the customer on WhatsApp (only after a message in the last 24 h) (inbox.assign)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxConversationDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta returned an error (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/unblock": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Unblock the customer on WhatsApp (inbox.assign)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxConversationDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta returned an error (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/media": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Upload a file to send (inbox.reply; 20 / min / user)",
+        "description": "The bytes are checked against the kind (magic bytes) with WhatsApp size caps. `voice`: OGG / Opus as is, WebM / Opus (browser recordings) remuxed to OGG, M4A sent as an audio file.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["image", "video", "audio", "voice", "document", "sticker"]
+                  },
+                  "durationSec": { "type": "number" },
+                  "file": { "type": "string", "format": "binary" }
+                },
+                "required": ["kind", "file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxUpload" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "413": { "description": "Too large for WhatsApp (WHATSAPP_MEDIA_TOO_LARGE)" },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/messages/{id}/media": {
+      "get": {
+        "tags": ["Inbox"],
+        "summary": "Signed link to a message's file (300 s; inbox.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "url": { "type": "string" },
+                        "mimeType": { "type": ["string", "null"] },
+                        "fileName": { "type": ["string", "null"] },
+                        "expiresInSec": { "type": "number" }
+                      },
+                      "required": ["url", "mimeType", "fileName", "expiresInSec"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/messages/{id}/retry": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Send a failed message again as a new message (inbox.reply)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxMessage" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/inbox/messages/{id}/media/retry": {
+      "post": {
+        "tags": ["Inbox"],
+        "summary": "Download an inbound file again (inbox.assign; < 7 days)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": { "description": "No content" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "410": { "description": "Older than 7 days (INBOX_MEDIA_EXPIRED)" },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/account/inbox-settings": {
+      "get": {
+        "tags": ["Inbox"],
+        "summary": "Inbox settings: read receipts, opt-out / opt-in keywords, confirmations, notifications (account.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxSettings" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Inbox"],
+        "summary": "Change inbox settings (account.update)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sendReadReceipts": { "type": "boolean" },
+                  "optOutKeywords": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1, "maxLength": 30 },
+                    "minItems": 1,
+                    "maxItems": 30
+                  },
+                  "optInKeywords": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1, "maxLength": 30 },
+                    "maxItems": 30
+                  },
+                  "optOutReply": { "type": "boolean" },
+                  "optOutReplyText": { "type": "string", "minLength": 1, "maxLength": 1024 },
+                  "optInReply": { "type": "boolean" },
+                  "optInReplyText": { "type": "string", "minLength": 1, "maxLength": 1024 },
+                  "notifyOnNewMessage": {
+                    "type": "string",
+                    "enum": ["assigned_or_all", "assigned_only", "off"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InboxSettings" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/channels/{id}/profile": {
+      "get": {
+        "tags": ["WhatsApp"],
+        "summary": "Business profile of a number (whatsapp.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppBusinessProfile" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "META_API_ERROR" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      },
+      "patch": {
+        "tags": ["WhatsApp"],
+        "summary": "Edit the business profile (whatsapp.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "about": { "type": "string", "minLength": 1, "maxLength": 139 },
+                  "address": { "type": "string", "maxLength": 256 },
+                  "description": { "type": "string", "maxLength": 512 },
+                  "email": {
+                    "anyOf": [
+                      { "type": "string", "maxLength": 128, "format": "email" },
+                      { "type": "string", "enum": [""] }
+                    ]
+                  },
+                  "websites": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 256,
+                      "pattern": "^https?:\\/\\/[^\\s]+$/i"
+                    },
+                    "maxItems": 2
+                  },
+                  "vertical": {
+                    "type": "string",
+                    "enum": [
+                      "UNDEFINED",
+                      "OTHER",
+                      "AUTO",
+                      "BEAUTY",
+                      "APPAREL",
+                      "EDU",
+                      "ENTERTAIN",
+                      "EVENT_PLAN",
+                      "FINANCE",
+                      "GROCERY",
+                      "GOVT",
+                      "HOTEL",
+                      "HEALTH",
+                      "NONPROFIT",
+                      "PROF_SERVICES",
+                      "RETAIL",
+                      "TRAVEL",
+                      "RESTAURANT",
+                      "NOT_A_BIZ"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppBusinessProfile" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "META_API_ERROR" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/channels/{id}/profile/photo": {
+      "post": {
+        "tags": ["WhatsApp"],
+        "summary": "New profile photo — JPEG / PNG, square 192–640 px, ≤ 5 MB (whatsapp.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": { "file": { "type": "string", "format": "binary" } },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppBusinessProfile" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "413": { "description": "WHATSAPP_MEDIA_TOO_LARGE" },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "META_API_ERROR" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
         }
       }
     }
