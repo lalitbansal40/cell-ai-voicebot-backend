@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 9 · Batch 2 (T9.5–T9.7) — WhatsApp health, Meta callbacks, admin, API, hardening** — 2026-10-22
+  - Daily `whatsapp-health` job; Meta deauthorize + data deletion callbacks with a public status lookup; superadmin WhatsApp status / events + replay / billing mode / force disconnect / manual connect / account summary; dev webhook simulator (15 kinds through the real pipeline).
+  - `/api/v1/whatsapp` API (config, numbers, Embedded Signup connect, rename, sync, retry setup, PIN, coexistence sync, disconnect) with roles, impersonation block, suspended read-only, 503 when off, `rl:wa-connect:`; OpenAPI for every WhatsApp / Meta / admin / dev path.
+  - Seed: "Demo Finance" WhatsApp number via the fake signup + three events; `dev:whatsapp --account --event`.
+  - Hardening: 1,000-event burst, worker restart, parallel same-code connect, migration down / up. ADR 0037, [Meta setup guide](docs/setup/meta-whatsapp.md), README WhatsApp section, compliance notes.
+  - Fixed: a Phase 8 dispatcher test raced its own wake on a loaded machine (test-only).
+  - Tests: 2203 → 2460.
+
 - **Phase 9 · Batch 1 (T9.1–T9.4) — WhatsApp foundation** — 2026-10-22
   - Models `whatsappChannels`, `metaWebhookEvents`, `metaDeletionRequests` + account `whatsapp.metaPayer`; migration `0010-whatsapp`; env (`WHATSAPP_ENABLED`, `META_*`, `FAKE_META_APP_SECRET`) with production rules; `WHATSAPP_LIMITS`; 7 error codes, 12 audit actions, 6 notification types, 3 emails, `whatsapp.channel.updated`, permissions `whatsapp.read` / `whatsapp.manage`, queue `whatsapp`.
   - `src/core/meta`: Graph client (retries, scrubbed errors, no credentials in logs), deterministic fake Meta (Redis, error knobs), webhook / `signed_request` signatures, zod schemas, fixtures from Meta's samples.

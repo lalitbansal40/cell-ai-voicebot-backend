@@ -417,25 +417,25 @@ Batches: **Batch 1 = T9.1–T9.4** (`[P9-B1-DONE]`), **Batch 2 = T9.5–T9.7** (
 
 ### T9.5 — Health, callbacks, superadmin, simulator
 
-- [ ] Repeatable `whatsapp.health` job + per-channel pass; notifications + emails on transitions (once per transition, not every run).
-- [ ] Deauthorize + data deletion callbacks + status (§1i).
-- [ ] Superadmin: status endpoint (webhook URL = `APP_URL/api/v1/webhooks/meta`), failed events list + replay, account detail `whatsappChannels` summary, force disconnect, manual connect.
-- [ ] Dev simulator `POST /dev/meta/webhooks` (§1j kinds) — mounted only when not production and `MOCK_APIS_ENABLED`, signs with the active app secret, goes through `POST /webhooks/meta` handler.
-- [ ] Tests for each.
+- [x] Repeatable `whatsapp.health` job + per-channel pass; notifications + emails on transitions (once per transition, not every run).
+- [x] Deauthorize + data deletion callbacks + status (§1i).
+- [x] Superadmin: status endpoint (webhook URL = `APP_URL/api/v1/webhooks/meta`), failed events list + replay, account detail `whatsappChannels` summary, force disconnect, manual connect.
+- [x] Dev simulator `POST /dev/meta/webhooks` (§1j kinds) — mounted only when not production and `MOCK_APIS_ENABLED`, signs with the active app secret, goes through `POST /webhooks/meta` handler.
+- [x] Tests for each.
 
 ### T9.6 — API, OpenAPI, seed, dev script
 
-- [ ] `whatsapp.routes.ts`, `meta-callbacks.routes.ts`, admin routes, rate limits (`rl:wa-connect:`, `rl:wa-sync:`), zod bodies / params, OpenAPI registration (+ schemas imported in `openapi.ts` — Phase 8 lesson), `openapi:check`.
-- [ ] Seed: demo account gets one fake channel "Demo Finance" (`+91 90000 12345`, connected, GREEN, `TIER_1K`) via the fake signup path (not hand-written docs), idempotent.
-- [ ] `npm run dev:whatsapp` (dev only): connects a fake number for an account and fires a few simulated events; prints counts only.
-- [ ] Tests: roles × routes, isolation (another account → 404), impersonator 403, suspended account, disabled WhatsApp 503, OpenAPI document contains the new paths.
+- [x] `whatsapp.routes.ts`, `meta-callbacks.routes.ts`, admin routes, rate limits (`rl:wa-connect:`, `rl:wa-sync:`), zod bodies / params, OpenAPI registration (+ schemas imported in `openapi.ts` — Phase 8 lesson), `openapi:check`.
+- [x] Seed: demo account gets one fake channel "Demo Finance" (`+91 90000 12345`, connected, GREEN, `TIER_1K`) via the fake signup path (not hand-written docs), idempotent.
+- [x] `npm run dev:whatsapp` (dev only): connects a fake number for an account and fires a few simulated events; prints counts only.
+- [x] Tests: roles × routes, isolation (another account → 404), impersonator 403, suspended account, disabled WhatsApp 503, OpenAPI document contains the new paths.
 
 ### T9.7 — Hardening + docs
 
-- [ ] 1,000-event burst, restart mid-run, concurrent connect race, double delivery, migration down.
-- [ ] **ADR 0037** — WhatsApp channel architecture (MetaClient + fake, token storage, webhook pipeline + deferred fields, onboarding modes, one number → one active channel, manual connect).
-- [ ] **`docs/setup/meta-whatsapp.md`** — real setup checklist for later: create Meta app (Business type), add WhatsApp + Facebook Login for Business products, Embedded Signup configuration (permissions `whatsapp_business_management`, `whatsapp_business_messaging`, `business_management` if asked) → `config_id`, app domain + allowed JS SDK domains, webhook callback URL + verify token + fields to subscribe (§1f list), deauthorize + data deletion callback URLs, app secret → env, test number / test WABA, System User token for manual connect, dev tunnel (Cloudflare Tunnel) for local webhooks, Tech Provider onboarding, Business verification; how to switch `META_PROVIDER=meta`; smoke checklist (verify challenge, connect a test number, simulated events off, real event arrives).
-- [ ] README (WhatsApp section, env), security.md (Meta tokens, signatures), compliance-notes (Meta data deletion), CHANGELOG Phase 9 · Batch 1 / 2, `[P9-B2-DONE]` (full backend verify).
+- [x] 1,000-event burst, restart mid-run, concurrent connect race, double delivery, migration down.
+- [x] **ADR 0037** — WhatsApp channel architecture (MetaClient + fake, token storage, webhook pipeline + deferred fields, onboarding modes, one number → one active channel, manual connect).
+- [x] **`docs/setup/meta-whatsapp.md`** — real setup checklist for later: create Meta app (Business type), add WhatsApp + Facebook Login for Business products, Embedded Signup configuration (permissions `whatsapp_business_management`, `whatsapp_business_messaging`, `business_management` if asked) → `config_id`, app domain + allowed JS SDK domains, webhook callback URL + verify token + fields to subscribe (§1f list), deauthorize + data deletion callback URLs, app secret → env, test number / test WABA, System User token for manual connect, dev tunnel (Cloudflare Tunnel) for local webhooks, Tech Provider onboarding, Business verification; how to switch `META_PROVIDER=meta`; smoke checklist (verify challenge, connect a test number, simulated events off, real event arrives).
+- [x] README (WhatsApp section, env), security.md (Meta tokens, signatures), compliance-notes (Meta data deletion), CHANGELOG Phase 9 · Batch 1 / 2, `[P9-B2-DONE]` (full backend verify).
 
 ### T9.8 — FE foundation
 
@@ -546,3 +546,4 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T9.1–T9.4
 - 2026-10-22: Decisions from the project owner — (1) Meta billing **both ways** per account: platform credit line (default, Solution Partner `whatsapp_credit_sharing_and_attach`) or customer pays Meta; (2) **coexistence** numbers supported fully: echoes from the business phone, history and contacts sync (stored in Phase 9, shown in Phase 10); (3) connect / disconnect owner + admin only. §0, §1b, §1d, §1e, §1f, §1j, §1n, §1o, §1p, §5, §7 updated.
 - 2026-10-22 (T9.1): `WHATSAPP_ENABLED` defaults to `true` outside production and to `Boolean(META_APP_ID)` in production (a production deploy without a Meta app keeps WhatsApp off instead of failing to boot). The baseline had **11** notification types (not 13) → **17** after Phase 9 (+6).
 - 2026-10-22: **Batch 1 done** (T9.1–T9.4, `[P9-B1-DONE]`). Deviations: (1) `WHATSAPP_ENABLED` production default = `Boolean(META_APP_ID)` (above); (2) notification types 11 → 17 (the prompt's 13 → 19 counted wrong); (3) fake signup codes carry a random `nonce` (same business + phone twice → two valid codes, like Meta); (4) the webhook 503 uses `PROVIDER_UNAVAILABLE` (no new error code — the catalogue stays at 54); (5) `account_update` events without their own effect (`ACCOUNT_UPDATE`, `VERIFIED_ACCOUNT`, …) run a channel sync, so the simulator's `token_revoked` / `payment_method_added` kinds go through the real pipeline; (6) a billing retry re-reads the account's Meta payer until a credit line is attached (superadmin can switch a failing account to "customer pays Meta"); (7) the simulator payload builders (`simulator.ts`) were added with Batch 1 because `npm run dev:whatsapp` needs them — the simulator route stays in T9.5; (8) `ErrorDetail` gained `metaCode` / `metaSubcode` / `fbtraceId` for `META_API_ERROR`; (9) `setLogger()` test hook in `shared/logger.ts`.
+- 2026-10-22: **Batch 2 done** (T9.5–T9.7, `[P9-B2-DONE]`). Manual check on the dev server through the HTTP API (config, Cloud API + coexistence connect, verify challenge, unsigned POST 401, simulated quality downgrade + flag → red / `TIER_250` + one notification per recipient, `token_revoked` → needs reconnect, data deletion + status, superadmin status with the webhook URL, owner 403) and logs free of tokens, codes, `Bearer`, payload texts and the numbers. Deviations: (1) the manual sync limit (1 / min / number) is a Redis key in the service (`wa-rl-sync-<id>`, also used by coexistence retries) instead of an `rl:wa-sync:` express limiter — same effect in every process; (2) `GET /whatsapp/config` also answers 503 when WhatsApp is off (every `/whatsapp/*` route does); (3) Meta callbacks answer `422` (the project's validation status) instead of `400` for stale / malformed `signed_request`; (4) a restriction taken from the phone status ends when Meta reports the number `CONNECTED` again, webhook restrictions last until their end date or a lifting event (found by the health tests before commit); (5) quality-red / name approved / rejected notifications moved into the sync, so a webhook plus its re-check notify once; (6) replay also accepts `ignored` events; (7) a Phase 8 dispatcher test raced its own wake on a loaded machine (also on `main`) — fixed test-only (`b57e192`).
