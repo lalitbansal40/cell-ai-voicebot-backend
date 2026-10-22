@@ -331,10 +331,10 @@ Full backend verify; `bench:campaign` numbers; PHASE_8_TASKS T8.6–T8.9 `[x]`; 
 
 **Batch 3**
 
-- [ ] T8.10 FE foundation + fields
-- [ ] T8.11 list + wizard
-- [ ] T8.12 live detail + results + export
-- [ ] T8.13 entry points + settings + admin + notifications + bundle check
-- [ ] T8.14 Playwright (twice)
-- [ ] T8.15 gap audit, security, docs, sign-off
-- [ ] P8-B3-DONE (fresh clones, gitleaks, actionlint, `infra:down`)
+- [x] T8.10 FE foundation + fields
+- [x] T8.11 list + wizard
+- [x] T8.12 live detail + results + export
+- [x] T8.13 entry points + settings + admin + notifications + bundle check
+- [x] T8.14 Playwright (twice)
+- [x] T8.15 gap audit, security, docs, sign-off
+- [x] P8-B3-DONE (fresh clones, gitleaks, actionlint, `infra:down`)
