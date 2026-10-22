@@ -8,7 +8,7 @@ import type { Readable } from 'node:stream';
 import type { Redis } from 'ioredis';
 import { Types } from 'mongoose';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { loadEnv } from '../../src/config/env';
 import { createFakeProvider } from '../../src/core/ai';
@@ -474,8 +474,18 @@ describe('POST /calls — single call (PHASE_8_PLAN §1o)', () => {
         variables: { amount: 1_000_000_000 },
       })
     )._id.toString();
+    const started = vi.spyOn(manager, 'startOutboundCall');
     const res = await call(agent, { contactId, flowId }, 'one-call');
     expect(res.status, JSON.stringify(res.body)).toBe(201);
+    // a manual call plays the flow: the simulated line always answers (customers still vary)
+    expect(started.mock.calls[0]?.[0].dryRun?.mix).toEqual({
+      answered: 10_000,
+      no_answer: 0,
+      busy: 0,
+      failed: 0,
+      invalid_number: 0,
+    });
+    started.mockRestore();
     expect(res.body.data).toMatchObject({
       provider: 'dryrun',
       isTest: true,

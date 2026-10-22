@@ -149,7 +149,9 @@ export const startSingleCall = async (
     initiatedBy: auth.userId ?? null,
     dryRun: {
       seed: new Types.ObjectId().toString(),
-      mix: dryRun.mix,
+      // a manual call is made to hear the flow with this contact: the simulated
+      // line always answers (the customer scenarios still vary)
+      mix: { answered: 10_000, no_answer: 0, busy: 0, failed: 0, invalid_number: 0 },
       scenarios: dryRun.scenarios,
       templateKey,
       // real time: the contact page follows the call live
