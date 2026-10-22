@@ -40,6 +40,7 @@ import './modules/notifications/notifications.schema';
 import './modules/payments/webhooks.schema';
 import './modules/calls/calls.schema';
 import './modules/campaigns/campaigns.schema';
+import './modules/whatsapp/whatsapp.openapi';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;
 

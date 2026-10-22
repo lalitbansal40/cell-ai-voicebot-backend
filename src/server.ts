@@ -189,6 +189,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
           key: secretBoxKey(env),
         },
         jobs: queueWhatsAppJobs(createQueue(QUEUES.whatsapp, queueDeps)),
+        connectRateLimitStore: createRedisRateLimitStore(redis, 'rl:wa-connect:'),
       }
     : undefined;
   if (whatsapp)

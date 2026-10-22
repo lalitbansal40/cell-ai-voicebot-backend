@@ -252,6 +252,17 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 - **Recording:** `GET /calls/:id/recording` → `{ url, expiresAt, durationSec }` (5 minutes, `calls.listen`, audited, 404 when there is none).
 - **Hang up:** `POST /calls/:id/hangup` ends a live call running on this server (`calls.trigger`, audited) → the ended call; **409 `CALL_NOT_ACTIVE`** when it is not live here.
 
+## 14c. WhatsApp (Phase 9)
+
+- **Off:** with `WHATSAPP_ENABLED=false` every `/whatsapp/*` route answers **503 `WHATSAPP_NOT_CONFIGURED`**; the Meta-facing routes don't exist (404).
+- **Config:** `GET /whatsapp/config` (any signed-in user) → `{ enabled, provider, appId, configId, graphVersion }` — `appId` / `configId` only with the real provider; never secrets.
+- **Numbers:** `GET /whatsapp/channels` (`whatsapp.read`) → `{ items, counts, limit }`; `GET /whatsapp/channels/:id` adds ids, Meta statuses, `events24h` and the history. Another account's id → 404.
+- **Connect:** `POST /whatsapp/channels/embedded-signup { code, mode, sessionInfo? }` (`whatsapp.manage`, never while impersonating, 10 / hour / account) → `{ channel, outcome: connected | action_needed | needs_reconnect, reconnected }`. Errors: 422 `WHATSAPP_SIGNUP_FAILED` (`details[0]` = `{ path: 'step', message: exchange | verify | waba | phone }`), 409 `WHATSAPP_NUMBER_IN_USE`, 409 `WHATSAPP_CHANNEL_LIMIT`, 409 `CONFLICT_INVALID_STATE` (the number is being connected right now), 502 `META_API_ERROR` (`details[0]`: `metaCode`, `metaSubcode`, `fbtraceId`). Browser ids are hints, checked against the token.
+- **Actions** (`whatsapp.manage`): `PATCH /:id { label }`, `POST /:id/sync` (1 / min / number → 429), `/:id/retry-setup` (409 unless `action_needed`), `/:id/register { pin }` (409 unless a PIN is needed; wrong PIN → 422 at `pin`), `/:id/coexistence-sync`, `/:id/disconnect` (never deregisters the number). 409 `WHATSAPP_CHANNEL_NOT_READY` when a number must be reconnected first.
+- **Meta-facing (public):** `GET|POST /webhooks/meta` (verify challenge; `X-Hub-Signature-256`, raw body ≤ 3 MB, 401 `META_SIGNATURE_INVALID`, 503 when storage is down so Meta retries), `POST /meta/deauthorize`, `POST /meta/data-deletion` (form `signed_request`; the latter answers Meta's own `{ url, confirmation_code }` without the envelope), `GET /meta/data-deletion/:code`.
+- **Superadmin:** `GET /admin/whatsapp/status`, `GET /admin/whatsapp/events?status=`, `POST /admin/whatsapp/events/:id/replay`, `POST /admin/whatsapp/channels/:id/disconnect { reason }`, `PATCH /admin/accounts/:id/whatsapp-billing { metaPayer }`, `POST /admin/accounts/:id/whatsapp/manual-connect { wabaId, phoneNumberId, accessToken }`.
+- **Dev:** `POST /dev/meta/webhooks { channelId, kind }` (not in production; `MOCK_APIS_ENABLED`).
+
 ## 15. Versioning & deprecation
 
 - The contract is served at **`GET /api/v1/openapi.json`** (OpenAPI 3.1, raw document — **not** wrapped in the success envelope) and browsable at **`/api/docs`** (Swagger UI, off in production unless `API_DOCS_ENABLED=true`). [ADR 0029](../adr/0029-shared-api-types-via-openapi.md).

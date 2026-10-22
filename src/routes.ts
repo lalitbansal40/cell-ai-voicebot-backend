@@ -50,13 +50,20 @@ import {
   createMetaWebhooksRouter,
   type MetaWebhooksDeps,
 } from './modules/whatsapp/webhooks.routes';
+import {
+  createWhatsAppDisabledRouter,
+  createWhatsAppRouter,
+} from './modules/whatsapp/whatsapp.routes';
 import { createWhatsAppService } from './modules/whatsapp/whatsapp.service';
 
 /** Everything under /api/v1. Add each module router here. */
 /** What the contact modules need: file storage + the background job queue (Phase 3). */
 /** What the wallet / billing modules need (Phase 4). */
 /** Phase 9: WhatsApp (built by the server when `WHATSAPP_ENABLED`). */
-export type WhatsAppDeps = MetaWebhooksDeps;
+export type WhatsAppDeps = MetaWebhooksDeps & {
+  /** `rl:wa-connect:` limiter store (MemoryStore when omitted). */
+  connectRateLimitStore?: Store;
+};
 
 export interface BillingDeps {
   payments?: PaymentProvider;
@@ -184,6 +191,9 @@ export const createApiRouter = ({
   if (whatsappRuntime) {
     router.use('/webhooks/meta', createMetaWebhooksRouter(whatsappRuntime));
     router.use('/meta', createMetaCallbacksRouter(whatsappRuntime));
+    router.use('/whatsapp', createWhatsAppRouter(whatsappRuntime));
+  } else {
+    router.use('/whatsapp', createWhatsAppDisabledRouter());
   }
   router.use(
     '/webhooks',

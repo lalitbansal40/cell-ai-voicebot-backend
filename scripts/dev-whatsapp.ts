@@ -1,12 +1,14 @@
 /**
  * DEV ONLY — WhatsApp end to end on the dev database / Redis with the fake Meta
- * provider (`npm run dev:whatsapp`): connects two fake numbers to the first
- * customer account through the channel service (one Cloud API, one WhatsApp
- * Business app number), signs and POSTs five webhook events to the HTTP handler
- * of a locally started app (quality downgrade, name approved, echo, history
- * chunk, inbound text), runs the `whatsapp` worker until the queue is idle and
- * prints counts. Refuses production and the real Meta provider. Prints ids and
- * numbers only — never tokens, phones, names or texts.
+ * provider (`npm run dev:whatsapp [-- --account <slug>] [--event <kind>]`):
+ * connects two fake numbers to the account (default: the first customer
+ * account) through the channel service (one Cloud API, one WhatsApp Business app
+ * number), signs and POSTs webhook events to the HTTP handler of a locally
+ * started app (default five: quality downgrade, name approved, inbound text,
+ * echo, history chunk; `--event` sends one simulator kind instead), runs the
+ * `whatsapp` worker until the queue is idle and prints counts. Refuses
+ * production and the real Meta provider. Prints ids and numbers only — never
+ * tokens, phones, names or texts.
  */
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -34,7 +36,11 @@ import { WhatsAppChannelModel } from '../src/db/models/whatsapp-channel.model';
 import { connectMongo, disconnectMongo } from '../src/db/mongo';
 import type { WhatsAppContext } from '../src/modules/whatsapp/context';
 import { queueWhatsAppJobs } from '../src/modules/whatsapp/jobs';
-import { buildSimulatorPayload, type SimulatorKind } from '../src/modules/whatsapp/simulator';
+import {
+  buildSimulatorPayload,
+  SIMULATOR_KINDS,
+  type SimulatorKind,
+} from '../src/modules/whatsapp/simulator';
 import { createWhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
 import { createLogger } from '../src/shared/logger';
 
@@ -53,13 +59,31 @@ const NUMBERS = [
   { businessName: 'Dev WhatsApp Co', phone: '+91 90010 10010', mode: 'cloud_api' as const },
   { businessName: 'Dev WhatsApp Shop', phone: '+91 90010 10020', mode: 'coexistence' as const },
 ];
-const EVENTS: { kind: SimulatorKind; number: 0 | 1 }[] = [
+const arg = (name: string): string | undefined => {
+  const at = process.argv.indexOf(`--${name}`);
+  return at >= 0 ? process.argv[at + 1] : undefined;
+};
+const eventArg = arg('event');
+if (eventArg && !(SIMULATOR_KINDS as readonly string[]).includes(eventArg)) {
+  console.error(`dev:whatsapp — unknown --event; one of: ${SIMULATOR_KINDS.join(', ')}`);
+  process.exit(1);
+}
+const COEXISTENCE_KINDS = new Set([
+  'echo_text',
+  'history_chunk',
+  'history_declined',
+  'contacts_sync',
+]);
+const DEFAULT_EVENTS: { kind: SimulatorKind; number: 0 | 1 }[] = [
   { kind: 'quality_downgrade', number: 0 },
   { kind: 'name_approved', number: 0 },
   { kind: 'inbound_text', number: 0 },
   { kind: 'echo_text', number: 1 },
   { kind: 'history_chunk', number: 1 },
 ];
+const EVENTS = eventArg
+  ? [{ kind: eventArg as SimulatorKind, number: COEXISTENCE_KINDS.has(eventArg) ? 1 : 0 }]
+  : DEFAULT_EVENTS;
 
 const main = async () => {
   const logger = createLogger({ ...env, LOG_LEVEL: 'warn' });
@@ -67,10 +91,18 @@ const main = async () => {
   await connectMongo(env, logger);
   const redis = getAppRedis(env.REDIS_URL, logger);
 
-  const account = await AccountModel.findOne({ isPlatform: { $ne: true }, status: 'active' })
+  const slug = arg('account');
+  const account = await AccountModel.findOne({
+    isPlatform: { $ne: true },
+    status: 'active',
+    ...(slug ? { slug } : {}),
+  })
     .sort({ createdAt: 1 })
     .lean<{ _id: Types.ObjectId }>();
-  if (!account) throw new Error('No customer account — run npm run db:seed');
+  if (!account)
+    throw new Error(
+      slug ? `No active account "${slug}"` : 'No customer account — run npm run db:seed',
+    );
   const owner = await UserModel.findOne({ accountId: account._id, status: 'active' }).lean();
   if (!owner) throw new Error('No active user in that account');
 

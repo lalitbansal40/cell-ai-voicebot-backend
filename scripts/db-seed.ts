@@ -4,7 +4,8 @@
  * billing (profile, ₹1,000 credit, simulated calls, a fake top-up + invoice —
  * scripts/seed-billing.ts), demo AI agents + knowledge base + mock payment
  * records (scripts/seed-ai.ts), the demo flows (scripts/seed-flows.ts), two finished
- * demo calls run through the real call runtime on fake voice (scripts/seed-calls.ts)
+ * demo calls run through the real call runtime on fake voice (scripts/seed-calls.ts),
+ * a connected fake WhatsApp number with three simulated events (scripts/seed-whatsapp.ts)
  * and a platform superadmin. Needs Mongo + Redis (the
  * invoice PDF is rendered by the billing worker of a running dev server).
  * Idempotent; existing users are left as they are.
@@ -32,6 +33,7 @@ import { SEED_CALL_MARKS, seedCalls } from './seed-calls';
 import { SEED_CAMPAIGN_NAMES, SEED_CAMPAIGN_SEGMENT, seedCampaigns } from './seed-campaigns';
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
 import { SEED_FLOW_NAMES, seedFlows } from './seed-flows';
+import { SEED_WHATSAPP_NUMBER, seedWhatsApp } from './seed-whatsapp';
 
 const ROLES: SystemRoleKey[] = ['owner', 'admin', 'manager', 'agent', 'viewer'];
 
@@ -124,6 +126,18 @@ const main = async (): Promise<void> => {
     });
     console.info(
       `Campaigns: ${String(demoCampaigns.campaigns)} new ("${SEED_CAMPAIGN_NAMES.done}" ${String(demoCampaigns.calls)} dry-run calls, ${String(demoCampaigns.waiting)} callback(s) waiting; "${SEED_CAMPAIGN_NAMES.draft}"; "${SEED_CAMPAIGN_NAMES.recurring}" paused), segment "${SEED_CAMPAIGN_SEGMENT}" — dry run, never charged`,
+    );
+
+    const demoWhatsApp = await seedWhatsApp(account._id, {
+      env,
+      ownerId: owner?._id ?? account._id,
+      redis: getAppRedis(env.REDIS_URL, logger),
+      logger,
+    });
+    console.info(
+      demoWhatsApp.skipped
+        ? `WhatsApp: skipped (${demoWhatsApp.skipped})`
+        : `WhatsApp: ${String(demoWhatsApp.channels)} new demo number (${SEED_WHATSAPP_NUMBER}, fake Meta) + ${String(demoWhatsApp.events)} simulated events`,
     );
 
     console.info(

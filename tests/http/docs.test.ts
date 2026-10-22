@@ -187,4 +187,37 @@ describe('OpenAPI coverage', () => {
       expect(paths, p).toContain(p);
     }
   });
+
+  it('documents the Phase 9 routes', () => {
+    const doc = buildOpenApiDocument();
+    const paths = Object.keys(doc.paths ?? {});
+    for (const p of [
+      '/api/v1/whatsapp/config',
+      '/api/v1/whatsapp/channels',
+      '/api/v1/whatsapp/channels/embedded-signup',
+      '/api/v1/whatsapp/channels/{id}',
+      '/api/v1/whatsapp/channels/{id}/sync',
+      '/api/v1/whatsapp/channels/{id}/retry-setup',
+      '/api/v1/whatsapp/channels/{id}/register',
+      '/api/v1/whatsapp/channels/{id}/coexistence-sync',
+      '/api/v1/whatsapp/channels/{id}/disconnect',
+      '/api/v1/webhooks/meta',
+      '/api/v1/meta/deauthorize',
+      '/api/v1/meta/data-deletion',
+      '/api/v1/meta/data-deletion/{code}',
+      '/api/v1/admin/whatsapp/status',
+      '/api/v1/admin/whatsapp/events',
+      '/api/v1/admin/whatsapp/events/{id}/replay',
+      '/api/v1/admin/whatsapp/channels/{id}/disconnect',
+      '/api/v1/admin/accounts/{id}/whatsapp-billing',
+      '/api/v1/admin/accounts/{id}/whatsapp/manual-connect',
+      '/api/v1/dev/meta/webhooks',
+    ]) {
+      expect(paths, p).toContain(p);
+    }
+    // no secrets or examples of them in the document
+    expect(JSON.stringify(doc)).not.toMatch(
+      /fake_tok_|dev-fake-meta-app-secret|dev-meta-verify-token/,
+    );
+  });
 });
