@@ -68,24 +68,24 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ## 3. Phases — summary
 
-| #   | Phase                                 | Status        | Backend | UI    |
-| --- | ------------------------------------- | ------------- | ------- | ----- |
-| 0   | Setup & Architecture Decisions        | 🟢 Abhi       | ✔       | ✔     |
-| 1   | Backend Foundation                    | ✅ Done       | ✔       | –     |
-| 2   | Auth, Accounts, RBAC + App Shell      | ✅ Done       | ✔       | ✔     |
-| 3   | Contacts, Lists & Custom Fields       | ✅ Done       | ✔       | ✔     |
-| 4   | Wallet & Billing                      | ✅ Done       | ✔       | ✔     |
-| 5   | AI Agents & Knowledge Base            | ✅ Done       | ✔       | ✔     |
-| 6   | Call Flow Engine & Builder            | ✅ Done       | ✔       | ✔     |
-| 7   | Voice Runtime + Web Call Tester       | ✅ Done       | ✔       | ✔     |
-| 8   | Campaigns & Call Scheduler            | 🟢 Plan ready | ✔       | ✔     |
-| 9   | Call Records, Transcripts & Analytics | 🟢 Abhi       | ✔       | ✔     |
-| 10  | Integrations, Public API & Webhooks   | 🟢 Abhi       | ✔       | ✔     |
-| 11  | Security, Compliance & QA             | 🟡 Partial    | ✔       | ✔     |
-| 12  | Server Setup & Deployment             | 🟡 Partial    | ✔       | ✔     |
-| 13  | SIP Telephony Integration             | 🔴 Blocked    | ✔       | thoda |
-| 14  | Inbound Calls                         | 🔴 Blocked    | ✔       | thoda |
-| 15  | Pilot & Launch                        | 🔴 Blocked    | ✔       | ✔     |
+| #   | Phase                                 | Status     | Backend | UI    |
+| --- | ------------------------------------- | ---------- | ------- | ----- |
+| 0   | Setup & Architecture Decisions        | 🟢 Abhi    | ✔       | ✔     |
+| 1   | Backend Foundation                    | ✅ Done    | ✔       | –     |
+| 2   | Auth, Accounts, RBAC + App Shell      | ✅ Done    | ✔       | ✔     |
+| 3   | Contacts, Lists & Custom Fields       | ✅ Done    | ✔       | ✔     |
+| 4   | Wallet & Billing                      | ✅ Done    | ✔       | ✔     |
+| 5   | AI Agents & Knowledge Base            | ✅ Done    | ✔       | ✔     |
+| 6   | Call Flow Engine & Builder            | ✅ Done    | ✔       | ✔     |
+| 7   | Voice Runtime + Web Call Tester       | ✅ Done    | ✔       | ✔     |
+| 8   | Campaigns & Call Scheduler            | ✅ Done    | ✔       | ✔     |
+| 9   | Call Records, Transcripts & Analytics | 🟢 Abhi    | ✔       | ✔     |
+| 10  | Integrations, Public API & Webhooks   | 🟢 Abhi    | ✔       | ✔     |
+| 11  | Security, Compliance & QA             | 🟡 Partial | ✔       | ✔     |
+| 12  | Server Setup & Deployment             | 🟡 Partial | ✔       | ✔     |
+| 13  | SIP Telephony Integration             | 🔴 Blocked | ✔       | thoda |
+| 14  | Inbound Calls                         | 🔴 Blocked | ✔       | thoda |
+| 15  | Pilot & Launch                        | 🔴 Blocked | ✔       | ✔     |
 
 **Client ke jawab ke bina:** Backend ~70%, UI ~90%, total ~75%.
 
@@ -256,9 +256,9 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 
 ---
 
-### Phase 8 — Campaigns & Call Scheduler 🟢 (dry-run / web-call mode tak)
+### Phase 8 — Campaigns & Call Scheduler ✅ (dry-run mode; live calls with SIP in Phase 13)
 
-**Detailed plan:** [PHASE_8_PLAN.md](../phases/PHASE_8_PLAN.md) · tracker [PHASE_8_TASKS.md](../phases/PHASE_8_TASKS.md)
+**Detailed plan:** [PHASE_8_PLAN.md](../phases/PHASE_8_PLAN.md) · tracker [PHASE_8_TASKS.md](../phases/PHASE_8_TASKS.md) · sign-off [PHASE_8_SIGNOFF.md](../phases/PHASE_8_SIGNOFF.md)
 
 - Campaign wizard: list/segment → flow → caller number (SIP aane pe) → schedule → retries → review (**estimated cost**)
 - Scheduler: start now / later / recurring (roz 10am), timezone
@@ -272,7 +272,7 @@ AI customer ki **language** (Hindi / English / Hinglish) aur **tone** ke hisaab 
 - **Dry-run mode:** mock provider random outcomes ke saath — poora pipeline test bina real call ke
 - Single call: contact page se "Call now"
 
-**Done when:** 100 contacts ka dry-run campaign chale, retries + window + pause/resume + export sahi kaam karein.
+**Done when:** 100 contacts ka dry-run campaign chale, retries + window + pause/resume + export sahi kaam karein. ✅ Playwright `e2e/campaigns-done-when.spec.ts` (frontend) — [sign-off](../phases/PHASE_8_SIGNOFF.md).
 
 ---
 
@@ -442,6 +442,7 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 | Phase 5                | Complete — [PHASE_5_SIGNOFF.md](../phases/PHASE_5_SIGNOFF.md)                                      |                         |
 | Phase 6                | Complete — [PHASE_6_SIGNOFF.md](../phases/PHASE_6_SIGNOFF.md)                                      |                         |
 | Phase 7                | Complete — [PHASE_7_SIGNOFF.md](../phases/PHASE_7_SIGNOFF.md)                                      |                         |
+| Phase 8                | Complete — [PHASE_8_SIGNOFF.md](../phases/PHASE_8_SIGNOFF.md)                                      |                         |
 
 ---
 
@@ -459,3 +460,4 @@ Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 - 2026-10-12: Phase 7 detailed plan — [PHASE_7_PLAN.md](../phases/PHASE_7_PLAN.md): `TelephonyProvider` + WebCall over `/ws/media`, one process owns a call (Redis registry + heartbeat), PCM16 24 kHz web leg / μ-law 8 kHz SIP-ready, OpenAI Realtime + TTS + transcription behind interfaces with deterministic fakes (no key yet), Phase 6 `advance()` driven live by a voice host, barge-in, stereo recordings, hold / extend / settle billing (no telephony minutes for web test calls), Web Call Tester + Calls pages, Playwright with Chromium's fake mic.
 - 2026-10-16: Phase 7 complete (voice runtime: web call leg over `/ws/media`, call sessions with recording and hold / extend / settle billing, flows and agents live on calls, OpenAI Realtime / TTS / transcription behind interfaces with a deterministic fake voice, Calls API, web call tester, calls list and detail, Playwright with Chromium's fake mic) — [PHASE_7_SIGNOFF.md](../phases/PHASE_7_SIGNOFF.md). Live OpenAI voice run, SIP and client scripts pending. Next: Phase 8 (campaigns & call scheduler).
 - 2026-10-16: Phase 8 detailed plan — [PHASE_8_PLAN.md](../phases/PHASE_8_PLAN.md): campaigns pin a flow version and snapshot their audience at start, a per-account dispatcher in the call-owning process (BullMQ jobs + Mongo state + atomic Redis slots), dial guard (calling window with compliance bounds, DND / opt-out, per-contact caps), retries / callbacks / auto-pause on money, a dry-run telephony provider with simulated customers, virtual time and virtual cost until SIP (Phase 13), live dashboard, CSV / XLSX export, single "Call now".
+- 2026-10-22: Phase 8 complete (campaigns & call scheduler: campaigns pin a flow version and snapshot their audience, a per-account dispatcher with the dial guard (calling window + TRAI / RBI bounds, DND / opt-out, per-contact caps, money), atomic Redis slots + dial rates, retries / callbacks / promise follow-ups, auto-pause / resume, recurring runs, a dry-run line with simulated customers, virtual time and virtual money, live dashboard, CSV / XLSX export, Call now, superadmin limits + emergency pause, Playwright on a 100-contact dry run) — [PHASE_8_SIGNOFF.md](../phases/PHASE_8_SIGNOFF.md). Live calls wait for SIP (Phase 13). Next: Phase 9 (call records, transcripts & analytics).

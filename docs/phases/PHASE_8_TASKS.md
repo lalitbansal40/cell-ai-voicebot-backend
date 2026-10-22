@@ -13,11 +13,11 @@ Source plan: [PHASE_8_PLAN.md](PHASE_8_PLAN.md) — Batch 1 = T8.1–T8.5, Batch
 | [x]  | T8.7  | Campaigns API + single call API + results export + topic auth + OpenAPI                                                                                                    | BE   | M    |
 | [x]  | T8.8  | Hardening: 100-contact dry run, restart / double-dial tests, circuit breaker, `bench:campaign`                                                                             | BE   | M    |
 | [x]  | T8.9  | Sample CSV, seed, ADR 0036, docs, manual dry run                                                                                                                           | BE   | S    |
-| [ ]  | T8.10 | FE foundation: clients, routes, `LIVE_PHASE = 8`, WS events, window / schedule fields                                                                                      | FE   | M    |
-| [ ]  | T8.11 | Campaigns list + 5-step wizard (preview, estimate)                                                                                                                         | FE   | L    |
-| [ ]  | T8.12 | Campaign detail: live dashboard, controls, results table, runs, export                                                                                                     | FE   | L    |
-| [ ]  | T8.13 | Entry points: contact Call now / Test in browser, flow "used in campaigns", Settings → Calls, admin limits / pause, notifications, dashboard card                          | FE   | M    |
-| [ ]  | T8.14 | Playwright E2E: 100-contact dry run, wallet pause / resume, callback, DND / caps, Call now, roles                                                                          | FE   | M    |
-| [ ]  | T8.15 | Gap audit, security checklist, docs, Phase 8 sign-off                                                                                                                      | both | M    |
+| [x]  | T8.10 | FE foundation: clients, routes, `LIVE_PHASE = 8`, WS events, window / schedule fields                                                                                      | FE   | M    |
+| [x]  | T8.11 | Campaigns list + 5-step wizard (preview, estimate)                                                                                                                         | FE   | L    |
+| [x]  | T8.12 | Campaign detail: live dashboard, controls, results table, runs, export                                                                                                     | FE   | L    |
+| [x]  | T8.13 | Entry points: contact Call now / Test in browser, flow "used in campaigns", Settings → Calls, admin limits / pause, notifications, dashboard card                          | FE   | M    |
+| [x]  | T8.14 | Playwright E2E: 100-contact dry run, wallet pause / resume, callback, DND / caps, Call now, roles                                                                          | FE   | M    |
+| [x]  | T8.15 | Gap audit, security checklist, docs, Phase 8 sign-off                                                                                                                      | both | M    |
 
 **Done when:** 100 contacts ka dry-run campaign chale — retries + calling window + pause / resume + export sahi kaam karein — Playwright se proven.

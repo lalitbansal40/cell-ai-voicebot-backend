@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 8 · Batch 3 (T8.10–T8.15) — Phase 8 complete** — 2026-10-22
+  - Frontend campaigns list, wizard, live dashboard, results + export, Call now and the campaign entry points — see the frontend CHANGELOG.
+  - `GET /campaigns/summary` (dashboard card), `adminPausedCampaigns` on the admin account detail, result rows with `waitReason` (`window`, `daily_cap`, `weekly_cap`, `min_gap`), `AUTH_RATE_LIMIT_MAX` (public auth limit, default 30).
+  - Fixed: the OpenAPI document lacked the campaign and top-up schemas; **found by Playwright:** the dry-run minimum gap between two calls was real time (a ×20 run's retries waited 30 real minutes); Call now calls never updated the contact's call facts; Call now on the simulated line could be busy or unanswered (it always answers now). The per-contact caps test now really reaches the dial guard.
+  - Playwright: 17 campaign tests (5 specs, 61 total, green twice); backend logs of the run free of phones, names, customer phrases, template texts, `Bearer`, `sk-`, tokens and tickets.
+  - Sign-off: [PHASE_8_SIGNOFF.md](docs/phases/PHASE_8_SIGNOFF.md) (gap audit, numbers, deviations, TODOs by phase, pending inputs).
+  - Tests: 2197 → 2203 (frontend 666 → 737).
+
 - **Phase 8 · Batch 2 (T8.6–T8.9)** — 2026-10-21
   - Recurring campaigns (daily / weekly in the campaign timezone): one run per occurrence (job scheduler + sweep safety net), skipped while the previous run is active, parent completes after `until`.
   - Notifications: campaign finished / paused / run skipped to the starter + owners + admins; `campaign.paused` email once per automatic pause.
