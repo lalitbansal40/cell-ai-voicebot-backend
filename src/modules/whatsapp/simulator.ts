@@ -35,6 +35,7 @@ export const SIMULATOR_KINDS = [
   'history_declined',
   'contacts_sync',
   'payment_method_added',
+  'phone_number_added',
 ] as const;
 export type SimulatorKind = (typeof SIMULATOR_KINDS)[number];
 
@@ -118,6 +119,7 @@ export const buildSimulatorPayload = (
         };
       case 'token_revoked':
       case 'payment_method_added':
+      case 'phone_number_added':
         // Meta sends no event for these; an account update makes the app re-check the number
         return {
           field: 'account_update',
@@ -261,6 +263,8 @@ export const applySimulatorEffects = async (
   if (kind === 'name_rejected') await fake.patchPhone(phone, { new_name_status: 'DECLINED' });
   if (kind === 'token_revoked' && token) await fake.revokeToken(token);
   if (kind === 'payment_method_added') await fake.addPaymentMethod(channel.wabaId);
+  // an "only WABA" signup: the business adds its number in WhatsApp Manager
+  if (kind === 'phone_number_added') await fake.addPhoneNumber(channel.wabaId);
 };
 
 /**

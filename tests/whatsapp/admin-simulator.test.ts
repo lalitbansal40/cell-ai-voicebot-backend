@@ -321,6 +321,28 @@ describe('dev webhook simulator', () => {
     expect((await channelOf(customer.id))?.paymentMethodOk).toBe(true);
   });
 
+  it('phone_number_added: an only-WABA signup gets its number through the pipeline', async () => {
+    const signup = fakeSignup({ outcome: 'only_waba' });
+    const r = await w.svc.connect({
+      accountId: acc.account._id,
+      actor: userActor(owner.user._id),
+      mode: 'cloud_api',
+      code: codeFor(signup),
+      sessionInfo: { wabaId: idsFor(signup).wabaId },
+    });
+    expect(r.outcome).toBe('action_needed');
+    const res = await simulate(owner.token, {
+      channelId: r.channel.id,
+      kind: 'phone_number_added',
+    });
+    expect(res.body.data).toMatchObject({ field: 'account_update', received: 1 });
+    await drain();
+    expect(await channelOf(r.channel.id)).toMatchObject({
+      status: 'connected',
+      phoneNumberId: idsFor(signup).phoneNumberId,
+    });
+  });
+
   it('a wrong signing secret is refused by the receiver (401)', async () => {
     const { id } = await connect();
     const res = await simulate(

@@ -71,6 +71,7 @@ describe('simulator payloads', () => {
       ),
       revokeToken: () => (calls.push('revoke'), Promise.resolve()),
       addPaymentMethod: () => (calls.push('funded'), Promise.resolve()),
+      addPhoneNumber: () => (calls.push('number'), Promise.resolve()),
     };
     for (const kind of SIMULATOR_KINDS) await applySimulatorEffects(fake, kind, channel, 'tok');
     await applySimulatorEffects(fake, 'token_revoked', { ...channel, phoneNumberId: null }, null);
@@ -82,6 +83,7 @@ describe('simulator payloads', () => {
       'patch:{"new_name_status":"DECLINED"}',
       'revoke',
       'funded',
+      'number',
     ]);
   });
 });
