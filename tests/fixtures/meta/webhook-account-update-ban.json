@@ -1,0 +1,23 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "time": 1761120000,
+      "changes": [
+        {
+          "value": {
+            "event": "DISABLED_UPDATE",
+            "ban_info": {
+              "waba_ban_state": [
+                "SCHEDULE_FOR_DISABLE"
+              ],
+              "waba_ban_date": "2026-11-05"
+            }
+          },
+          "field": "account_update"
+        }
+      ]
+    }
+  ]
+}

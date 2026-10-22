@@ -1,0 +1,35 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "time": 1761120000,
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919000000010",
+              "phone_number_id": "106540352242922"
+            },
+            "history": [
+              {
+                "errors": [
+                  {
+                    "code": 2593109,
+                    "title": "History sharing is turned off by the business",
+                    "message": "History sharing is turned off by the business",
+                    "error_data": {
+                      "details": "The business declined to share chat history."
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "field": "history"
+        }
+      ]
+    }
+  ]
+}

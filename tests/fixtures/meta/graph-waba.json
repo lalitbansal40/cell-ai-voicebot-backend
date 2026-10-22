@@ -1,0 +1,14 @@
+{
+  "id": "102290129340398",
+  "name": "Test Business",
+  "currency": "INR",
+  "timezone_id": "71",
+  "message_template_namespace": "c8ae5f90_307a_ca4c_b8f6_d1e2a2573574",
+  "account_review_status": "APPROVED",
+  "business_verification_status": "verified",
+  "owner_business_info": {
+    "name": "Test Business",
+    "id": "3000000000000001"
+  },
+  "primary_funding_id": "4000000000000001"
+}

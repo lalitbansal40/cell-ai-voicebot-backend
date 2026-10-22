@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "verified_name": "Test Business",
+      "display_phone_number": "+91 90000 00010",
+      "id": "106540352242922",
+      "status": "CONNECTED"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "QVFI",
+      "after": "QVFI"
+    }
+  }
+}

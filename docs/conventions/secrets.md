@@ -43,6 +43,13 @@
 - `ENCRYPTION_KEY` now also **seals agent function secret headers** (AES-256-GCM, key derived per purpose). Rotating it needs a re-seal step (planned script) — until then rotation makes stored function secrets unreadable; re-enter them after a rotation.
 - Function header values marked secret are write-only in the API (`valueHint` `••••1234` only) and never appear in logs, audit meta, tool-call logs or playground traces. Outgoing-request rules (SSRF guard, templating): [security.md](security.md).
 
+## Meta / WhatsApp secrets (Phase 9)
+
+- `META_APP_SECRET` (signs webhooks and `signed_request` callbacks; used for the code exchange and `debug_token`), `META_WEBHOOK_VERIFY_TOKEN`, `META_SYSTEM_USER_TOKEN` (our business's System User — credit line calls) are secrets; `META_APP_ID`, `META_ES_CONFIG_ID` and `META_CREDIT_LINE_ID` are public ids (the app id and config id go to the browser). Real values only on the server at Meta setup (setup guide `docs/setup/meta-whatsapp.md`) — never AutoChatix values.
+- Business tokens of connected numbers and registration PINs are **sealed** with `ENCRYPTION_KEY` (`tokenSealed`, `registration.pinSealed`, `select: false`), never returned, logged or put in audit / WS / notifications / emails.
+- The two Graph calls that carry credentials in the query (`oauth/access_token`, `debug_token`) are never logged; Graph error messages are scrubbed (`access_token=`, `client_secret=`, `input_token=`, `code=`, `Bearer …` → `***`) before they reach logs or errors.
+- `FAKE_META_APP_SECRET` is a dev / test-only secret of the fake Meta provider; production refuses to start when it is set.
+
 ## Client SSH key
 
 - Store in the password manager and locally in `~/.ssh/` with `chmod 400`.

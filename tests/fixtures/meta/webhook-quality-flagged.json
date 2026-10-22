@@ -1,0 +1,19 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "time": 1761120000,
+      "changes": [
+        {
+          "value": {
+            "display_phone_number": "919000000010",
+            "event": "FLAGGED",
+            "current_limit": "TIER_1K"
+          },
+          "field": "phone_number_quality_update"
+        }
+      ]
+    }
+  ]
+}

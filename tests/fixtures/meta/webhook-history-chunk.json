@@ -1,0 +1,49 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "time": 1761120000,
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919000000010",
+              "phone_number_id": "106540352242922"
+            },
+            "history": [
+              {
+                "metadata": {
+                  "phase": 0,
+                  "chunk_order": 1,
+                  "progress": 55
+                },
+                "threads": [
+                  {
+                    "id": "919000000101",
+                    "messages": [
+                      {
+                        "from": "919000000101",
+                        "id": "wamid.HBgMOTE5MDAwMDAwMTAxFQIAEhggQjEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUYA",
+                        "timestamp": "1761033600",
+                        "type": "text",
+                        "text": {
+                          "body": "Test old message"
+                        },
+                        "history_context": {
+                          "status": "READ"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "field": "history"
+        }
+      ]
+    }
+  ]
+}

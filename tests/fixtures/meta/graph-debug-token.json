@@ -1,0 +1,37 @@
+{
+  "data": {
+    "app_id": "1000000000000001",
+    "type": "SYSTEM_USER",
+    "application": "Test App",
+    "data_access_expires_at": 0,
+    "expires_at": 0,
+    "is_valid": true,
+    "issued_at": 1761120000,
+    "scopes": [
+      "business_management",
+      "whatsapp_business_management",
+      "whatsapp_business_messaging"
+    ],
+    "granular_scopes": [
+      {
+        "scope": "business_management",
+        "target_ids": [
+          "3000000000000001"
+        ]
+      },
+      {
+        "scope": "whatsapp_business_management",
+        "target_ids": [
+          "102290129340398"
+        ]
+      },
+      {
+        "scope": "whatsapp_business_messaging",
+        "target_ids": [
+          "102290129340398"
+        ]
+      }
+    ],
+    "user_id": "2000000000000001"
+  }
+}

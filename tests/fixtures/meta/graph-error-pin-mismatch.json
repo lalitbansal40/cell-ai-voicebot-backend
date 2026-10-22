@@ -1,0 +1,12 @@
+{
+  "error": {
+    "message": "Two step verification PIN Mismatch",
+    "type": "OAuthException",
+    "code": 133005,
+    "error_data": {
+      "messaging_product": "whatsapp",
+      "details": "The PIN does not match the two-step verification PIN set on this number."
+    },
+    "fbtrace_id": "AbCdEfGhIjM"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "106540352242922",
+  "display_phone_number": "+91 90000 00010",
+  "verified_name": "Test Business",
+  "name_status": "APPROVED",
+  "new_name_status": "NONE",
+  "quality_rating": "GREEN",
+  "messaging_limit_tier": "TIER_1K",
+  "code_verification_status": "VERIFIED",
+  "platform_type": "CLOUD_API",
+  "throughput": {
+    "level": "STANDARD"
+  },
+  "account_mode": "LIVE",
+  "status": "CONNECTED",
+  "is_official_business_account": false,
+  "is_on_biz_app": false
+}

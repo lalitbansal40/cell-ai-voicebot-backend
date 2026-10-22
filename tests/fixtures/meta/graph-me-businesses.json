@@ -1,0 +1,28 @@
+{
+  "data": [
+    {
+      "id": "3000000000000001",
+      "name": "Test Business",
+      "owned_whatsapp_business_accounts": {
+        "data": [
+          {
+            "id": "102290129340398",
+            "name": "Test Business"
+          }
+        ],
+        "paging": {
+          "cursors": {
+            "before": "QVFI",
+            "after": "QVFI"
+          }
+        }
+      }
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "QVFI",
+      "after": "QVFI"
+    }
+  }
+}

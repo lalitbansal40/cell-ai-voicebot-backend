@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "(#80007) There have been too many calls to this WhatsApp Business account.",
+    "type": "OAuthException",
+    "code": 80007,
+    "fbtrace_id": "AbCdEfGhIjL"
+  }
+}
