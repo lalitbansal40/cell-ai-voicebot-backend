@@ -11,6 +11,8 @@ import {
 } from '../../../modules/contacts/retention';
 import { purgeDeletedAudio } from '../../../modules/flow-audio/flow-audio.service';
 import { purgeDeletedFlows } from '../../../modules/flows/maintenance';
+import { INBOX_RETENTION_CRON, INBOX_RETENTION_JOB } from '../../../modules/inbox/jobs';
+import { runInboxRetention } from '../../../modules/inbox/retention.job';
 import { purgeWebhookEvents } from '../../../modules/whatsapp/webhook-processor';
 import type { StorageProvider } from '../../storage';
 import { purgeTtsCache } from '../../voice/tts-cache';
@@ -45,6 +47,7 @@ export const MAINTENANCE_SCHEDULES = [
   { name: CALLS_PURGE_JOB, pattern: '10 5 * * *' },
   { name: TTS_CACHE_PURGE_JOB, pattern: '20 5 * * *' },
   { name: WHATSAPP_EVENTS_PURGE_JOB, pattern: '40 5 * * *' },
+  { name: INBOX_RETENTION_JOB, pattern: INBOX_RETENTION_CRON },
 ] as const;
 
 export interface MaintenanceDeps extends Pick<QueueFactoryDeps, 'logger'> {
@@ -95,6 +98,9 @@ export const processMaintenanceJob =
         break;
       case WHATSAPP_EVENTS_PURGE_JOB:
         result = await purgeWebhookEvents();
+        break;
+      case INBOX_RETENTION_JOB:
+        result = { ...(await runInboxRetention(needStorage(deps), getEnv().INBOX_RETENTION_DAYS)) };
         break;
       default:
         throw new Error(`Unknown maintenance job "${job.name}"`);

@@ -157,6 +157,7 @@ describe('maintenance worker', () => {
       ['calls-purge', '10 5 * * *'],
       ['tts-cache-purge', '20 5 * * *'],
       ['whatsapp-events-purge', '40 5 * * *'],
+      ['inbox-retention', '50 5 * * *'],
     ]);
     const run = processMaintenanceJob({ logger, storage });
     // the worker uses the real clock: rows made by the tests above (dated from

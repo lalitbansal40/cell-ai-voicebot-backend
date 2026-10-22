@@ -1,4 +1,4 @@
-import type { Job, Queue, Worker } from 'bullmq';
+import { DelayedError, type Job, type Queue, type Worker } from 'bullmq';
 
 import { WHATSAPP_LIMITS } from '../../../config/limits';
 import { hasDeferredInboxEvents, runInboxBackfill } from '../../../modules/inbox/backfill.job';
@@ -12,6 +12,8 @@ import {
   type MessageJobData,
 } from '../../../modules/inbox/jobs';
 import { downloadInboundMedia } from '../../../modules/inbox/media.service';
+import { processReadReceipt } from '../../../modules/inbox/receipts';
+import { processSend } from '../../../modules/inbox/send.job';
 import type { WhatsAppContext } from '../../../modules/whatsapp/context';
 import { runHealthPass, WHATSAPP_HEALTH_CRON } from '../../../modules/whatsapp/health';
 import {
@@ -32,7 +34,7 @@ import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-facto
  */
 export const processWhatsAppJob =
   (h: HandlerContext, ix?: InboxContext) =>
-  async (job: Job): Promise<unknown> => {
+  async (job: Job, token?: string): Promise<unknown> => {
     const finalAttempt = () => job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
     if (job.name === WEBHOOK_PROCESS_JOB) {
       const { eventId } = job.data as WebhookJobData;
@@ -44,6 +46,27 @@ export const processWhatsAppJob =
         const { messageId } = job.data as MessageJobData;
         return {
           status: await downloadInboundMedia(ix, messageId, { finalAttempt: finalAttempt() }),
+        };
+      }
+      if (job.name === INBOX_JOBS.messageSend) {
+        const data = job.data as MessageJobData & { waits?: number };
+        const waits = data.waits ?? 0;
+        const outcome = await processSend(ix, data.messageId, {
+          finalAttempt: finalAttempt(),
+          waits,
+        });
+        if (outcome.kind === 'wait' || outcome.kind === 'later') {
+          // an earlier message first / Meta asked to slow down: later, without using an attempt
+          await job.updateData({ ...data, waits: waits + 1 });
+          await job.moveToDelayed(Date.now() + outcome.delayMs, token);
+          throw new DelayedError();
+        }
+        return outcome;
+      }
+      if (job.name === INBOX_JOBS.readReceipt) {
+        const { messageId } = job.data as MessageJobData;
+        return {
+          status: await processReadReceipt(ix, messageId, { finalAttempt: finalAttempt() }),
         };
       }
       if (job.name === INBOX_JOBS.backfill) return runInboxBackfill(ix);

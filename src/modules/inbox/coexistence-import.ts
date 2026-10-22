@@ -23,9 +23,9 @@ import { findOrCreateWhatsAppContact } from './contacts';
 import { inboxNow, type InboxContext } from './context';
 import { touchLastMessage, upsertConversation } from './conversation-store';
 import { emitConversation, emitMessageCreated } from './events';
-import { applyReaction } from './inbound.service';
 import { insertMessage } from './message-store';
 import { normalizeInbound, type NormalizedInbound } from './normalize';
+import { applyReaction } from './reactions';
 
 const digits = (v: string | null | undefined) => v?.replace(/\D/g, '') ?? '';
 

@@ -16,13 +16,14 @@ import { WebhookSchemaError } from '../whatsapp/webhook-handlers';
 import { findOrCreateWhatsAppContact } from './contacts';
 import { inboxNow, type InboxContext } from './context';
 import { touchLastMessage, upsertConversation } from './conversation-store';
-import { emitConversation, emitMessageCreated, emitMessageUpdated, emitSummary } from './events';
+import { emitConversation, emitMessageCreated, emitSummary } from './events';
 import type { ReplyToView } from './inbox-json';
 import { insertMessage } from './message-store';
 import { normalizeInbound, type NormalizedInbound } from './normalize';
 import { notifyNewMessage } from './notify';
 import { handleKeywords } from './optout.service';
 import { buildPreview } from './preview';
+import { applyReaction } from './reactions';
 import { applyStatuses, type StatusResult } from './status.service';
 
 export interface InboundResult {
@@ -57,27 +58,6 @@ const findByWamid = (channel: WhatsAppChannelDoc, waMessageId: string | null) =>
         waMessageId,
       }).lean<MessageDoc>()
     : Promise.resolve(null);
-
-/** A reaction replaces the actor's earlier one on the target (`''` removes it). */
-export const applyReaction = async (
-  target: MessageDoc,
-  by: 'customer' | 'agent',
-  emoji: string,
-  at: Date,
-  userId: Types.ObjectId | null = null,
-): Promise<MessageDoc | null> => {
-  const pull = by === 'customer' ? { by: 'customer' } : { by: 'agent', userId };
-  await MessageModel.updateOne({ _id: target._id }, { $pull: { reactions: pull } });
-  const updated = emoji
-    ? await MessageModel.findOneAndUpdate(
-        { _id: target._id },
-        { $push: { reactions: { emoji, by, userId, at } } },
-        { returnDocument: 'after' },
-      ).lean<MessageDoc>()
-    : await MessageModel.findById(target._id).lean<MessageDoc>();
-  if (updated) emitMessageUpdated(updated);
-  return updated;
-};
 
 /**
  * One customer message (PHASE_10_PLAN §1c / §1g): dedupe by wamid → contact (match /
