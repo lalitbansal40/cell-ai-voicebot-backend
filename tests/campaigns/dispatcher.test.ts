@@ -687,6 +687,11 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
 
   it('a flow that can no longer run (its AI agent switched off) pauses the campaign until fixed', async () => {
     const w = await world();
+    // started before the hooks are wired: the start's own wake would race the
+    // switch-off below and could dial first on a slow machine
+    const id = await w.campaign({ audience: { listIds: [await w.listOf(3)] } });
+    await startCampaign(w.req, id);
+    await AiAgentModel.updateOne({ _id: agentId }, { isActive: false });
     const unwire = wireCampaigns({
       jobs: {
         schedule: () => Promise.resolve(),
@@ -698,9 +703,6 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
       logger,
     });
     try {
-      const id = await w.campaign({ audience: { listIds: [await w.listOf(3)] } });
-      await startCampaign(w.req, id);
-      await AiAgentModel.updateOne({ _id: agentId }, { isActive: false });
       w.clock.advance(Math.max(0, Date.now() - w.clock.now()));
       await w.dispatcher.tick(w.t.account._id.toString());
       expect(await docOf(id)).toMatchObject({ status: 'paused', pauseReason: 'flow_not_runnable' });
