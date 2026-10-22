@@ -10,6 +10,8 @@ regexes = [
   '''change-me(-32-bytes-base64)?''',
   # dummy function-header values in tests/ai/functions.test.ts (commit b11725c, renamed later)
   '''sk-live-(SUPERSECRET-4321|ROTATED-8765)''',
+  # the sample file name in the Phase 8 plan changelog ("API on the dev server: `campaign-100.csv`")
+  '''campaign-100\.csv''',
 ]
 # Public list of common passwords (SecLists, MIT) used by the password policy —
 # random-looking entries trigger `generic-api-key`.
