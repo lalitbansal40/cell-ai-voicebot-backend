@@ -376,6 +376,48 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
     expect(await CallModel.countDocuments({ campaignId: id })).toBe(2);
   });
 
+  it('a "Call now" call (no campaign) updates the contact\'s call facts; browser calls do not', async () => {
+    const w = await world();
+    const list = await w.listOf(1);
+    const contact = await ContactModel.findOne({ listIds: new Types.ObjectId(list) }).lean();
+    if (!contact) throw new Error('no contact');
+    const ended = (provider: 'dryrun' | 'webcall') =>
+      CallModel.create({
+        accountId: w.t.account._id,
+        direction: 'outbound',
+        provider,
+        from: provider,
+        to: contact.phoneE164,
+        contactId: contact._id,
+        isTest: provider === 'webcall',
+        charged: false,
+        source: { kind: 'flow', flowId: new Types.ObjectId(), flowVersionRef: 1 },
+        status: 'completed',
+        disposition: 'promise_to_pay',
+        timestamps: { queuedAt: new Date() },
+      });
+    const summary = (callId: string) => ({
+      callId,
+      accountId: w.t.account._id.toString(),
+      status: 'completed' as const,
+      endReason: 'hangup_node' as const,
+      durationSec: 30,
+      costMicros: 0,
+      disposition: 'promise_to_pay',
+      outcome: {},
+    });
+    const web = await ended('webcall');
+    await w.dispatcher.callEnded(summary(web._id.toString()));
+    expect((await ContactModel.findById(contact._id).lean())?.callCount).toBe(0);
+    const single = await ended('dryrun');
+    await w.dispatcher.callEnded(summary(single._id.toString()));
+    expect(await ContactModel.findById(contact._id).lean()).toMatchObject({
+      callCount: 1,
+      lastCalledAt: single.createdAt,
+      lastDisposition: 'promise_to_pay',
+    });
+  });
+
   it('dry runs pace dials in virtual time: dials per minute × speed', async () => {
     const w = await world();
     await AccountModel.updateOne(

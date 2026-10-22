@@ -434,14 +434,32 @@ export class CampaignDispatcher {
     await CampaignModel.updateOne({ _id: campaign._id }, { $inc: inc });
   }
 
-  /** A campaign call ended: apply its result once, then wake the account. */
+  /**
+   * A campaign call ended: apply its result once, then wake the account. A
+   * "Call now" call (outbound to a contact, no campaign) updates the contact's
+   * call facts; browser test calls do not.
+   */
   async callEnded(summary: CallEndedSummary): Promise<void> {
     const call = await CallModel.findById(summary.callId).lean<CallDoc>();
+    if (call && !call.campaignId && call.contactId && call.provider !== 'webcall') {
+      await recordContactCall(call.contactId, call.createdAt, call.disposition);
+      return;
+    }
     if (!call?.campaignId || !call.campaignContactId) return;
     await applyResult(call, new Date(this.clock.now()));
     this.wake(call.accountId.toString());
   }
 }
+
+/** The contact's `lastCalledAt` / `callCount` / `lastDisposition` after one of its calls. */
+const recordContactCall = (contactId: Types.ObjectId, at: Date, disposition: string | null) =>
+  ContactModel.updateOne(
+    { _id: contactId },
+    {
+      $set: { lastCalledAt: at, ...(disposition ? { lastDisposition: disposition } : {}) },
+      $inc: { callCount: 1 },
+    },
+  );
 
 /** Room left on the virtual (dry run) or real wallet, in micros. */
 export const virtualRoom = async (campaign: CampaignDoc): Promise<number> => {
@@ -519,16 +537,7 @@ export const applyResult = async (call: CallDoc, now: Date): Promise<void> => {
     },
     { returnDocument: 'after' },
   ).lean<CampaignDoc>();
-  await ContactModel.updateOne(
-    { _id: cc.contactId },
-    {
-      $set: {
-        lastCalledAt: call.createdAt,
-        ...(outcome.disposition ? { lastDisposition: outcome.disposition } : {}),
-      },
-      $inc: { callCount: 1 },
-    },
-  );
+  await recordContactCall(cc.contactId, call.createdAt, outcome.disposition);
   if (!after) return;
   publishProgress(campaign._id.toString());
   if (after.status === 'running' && after.stats.failureStreak >= CAMPAIGN_LIMITS.failuresToPause) {
