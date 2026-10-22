@@ -260,6 +260,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       const { worker: whatsappWorker } = await startWhatsAppWorker({
         ...queueDeps,
         ctx: whatsapp.ctx,
+        storage,
       });
       lifecycle.onShutdown('whatsapp', () => whatsappWorker.close(), 6);
     }

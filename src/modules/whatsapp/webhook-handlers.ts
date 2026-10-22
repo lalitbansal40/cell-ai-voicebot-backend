@@ -25,9 +25,28 @@ import type { WhatsAppService } from './whatsapp.service';
 
 export type HandlerResult = 'processed' | 'deferred';
 
+/**
+ * Phase 10 consumers of the fields Phase 9 only stored. Injected by the worker (the
+ * inbox module builds them) so this module never imports the inbox. Without them
+ * (scripts, Phase 9 tests) those events stay `deferred` for the backfill.
+ */
+export interface InboxHooks {
+  messages(channel: WhatsAppChannelDoc, value: unknown): Promise<unknown>;
+  echoes(channel: WhatsAppChannelDoc, value: unknown): Promise<unknown>;
+  stateSync(channel: WhatsAppChannelDoc, value: unknown): Promise<unknown>;
+  /** History chunks are imported by their own job (large); the event stays deferred until then. */
+  history(channel: WhatsAppChannelDoc, eventId: string): Promise<unknown>;
+}
+
 export interface HandlerContext {
   ctx: WhatsAppContext;
   service: Pick<WhatsAppService, 'syncChannel'>;
+  inbox?: InboxHooks;
+}
+
+/** The stored event being handled. */
+export interface HandlerEvent {
+  eventId: string;
 }
 
 /** A change value didn't match Meta's documented shape (event → `failed`, no retry). */
@@ -222,13 +241,27 @@ const echoes = async (
 ): Promise<HandlerResult> => {
   parse('smb_message_echoes', value);
   await update(channel, { 'coexistence.echoesAt': nowOf(h.ctx) });
-  return 'deferred';
+  if (!h.inbox) return 'deferred';
+  await h.inbox.echoes(channel, value);
+  return 'processed';
+};
+
+/** Phase 10: customer messages and statuses → the inbox. */
+const messages = async (
+  h: HandlerContext,
+  channel: WhatsAppChannelDoc,
+  value: unknown,
+): Promise<HandlerResult> => {
+  if (!h.inbox) return 'deferred';
+  await h.inbox.messages(channel, value);
+  return 'processed';
 };
 
 const history = async (
-  _h: HandlerContext,
+  h: HandlerContext,
   channel: WhatsAppChannelDoc,
   value: unknown,
+  event?: HandlerEvent,
 ): Promise<HandlerResult> => {
   const v = parse('history', value);
   if (v.history.some((c) => (c.errors ?? []).length)) {
@@ -243,27 +276,32 @@ const history = async (
     'coexistence.historyProgress': progress,
     'coexistence.historySync': progress >= 100 ? 'received' : 'requested',
   });
+  if (h.inbox && event) await h.inbox.history(channel, event.eventId);
   return 'deferred';
 };
 
 const appStateSync = async (
-  _h: HandlerContext,
+  h: HandlerContext,
   channel: WhatsAppChannelDoc,
   value: unknown,
 ): Promise<HandlerResult> => {
   parse('smb_app_state_sync', value);
   await update(channel, { 'coexistence.contactsSync': 'received' });
-  return 'deferred';
+  if (!h.inbox) return 'deferred';
+  await h.inbox.stateSync(channel, value);
+  return 'processed';
 };
 
 type Handler = (
   h: HandlerContext,
   channel: WhatsAppChannelDoc,
   value: unknown,
+  event?: HandlerEvent,
 ) => Promise<HandlerResult>;
 
-/** Phase 9 handlers; every other field is stored `deferred` for Phases 10–12. */
+/** Phase 9 handlers + the Phase 10 inbox fields; every other field is stored `deferred` for Phases 11–12. */
 export const WEBHOOK_HANDLERS: Partial<Record<WebhookField, Handler>> = {
+  messages,
   account_update: accountUpdate,
   phone_number_quality_update: qualityUpdate,
   phone_number_name_update: nameUpdate,
@@ -273,8 +311,13 @@ export const WEBHOOK_HANDLERS: Partial<Record<WebhookField, Handler>> = {
   smb_app_state_sync: appStateSync,
 };
 
-/** Fields kept 30 days instead of 7 (Phase 10 imports them). */
-export const LONG_LIVED_FIELDS = new Set(['smb_message_echoes', 'history', 'smb_app_state_sync']);
+/** Fields kept 30 days instead of 7 while deferred (the inbox consumes them). */
+export const LONG_LIVED_FIELDS = new Set([
+  'messages',
+  'smb_message_echoes',
+  'history',
+  'smb_app_state_sync',
+]);
 
 export const openPayload = (ctx: Pick<WhatsAppContext, 'key'>, sealed: string): unknown =>
   JSON.parse(openSecret(ctx, sealed)) as unknown;
