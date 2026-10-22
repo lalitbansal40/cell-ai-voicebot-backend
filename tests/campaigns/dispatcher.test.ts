@@ -352,6 +352,30 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
     expect((await docOf(id)).stats).toMatchObject({ failed: 2, attempts: 4, answered: 0 });
   });
 
+  it('dry runs measure the minimum gap between calls in virtual time too', async () => {
+    const w = await world();
+    // the default 30-minute gap: at ×50 it is 36 s, so a 15-minute retry (18 s) waits for it
+    await AccountModel.updateOne(
+      { _id: w.t.account._id },
+      { 'settings.callCaps': { perDay: 3, perWeek: 10, minGapMinutes: 30 } },
+    );
+    const id = await w.campaign({
+      audience: { listIds: [await w.listOf(1)] },
+      retry: { maxAttempts: 2, intervalMinutes: 15, retryOn: ['busy'] },
+      dryRun: {
+        speed: 50,
+        mix: { answered: 0, no_answer: 0, busy: 10_000, failed: 0, invalid_number: 0 },
+      },
+    });
+    await startCampaign(w.req, id);
+    expect(await drive(w, async () => (await docOf(id)).stats.waiting === 1)).toBe(true);
+    // past the retry and the scaled gap: the second attempt goes out (an unscaled
+    // 30-minute gap would hold it for the whole drive)
+    w.clock.advance(36_000);
+    expect(await drive(w, statusIs(id, 'completed'))).toBe(true);
+    expect(await CallModel.countDocuments({ campaignId: id })).toBe(2);
+  });
+
   it('dry runs pace dials in virtual time: dials per minute × speed', async () => {
     const w = await world();
     await AccountModel.updateOne(

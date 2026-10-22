@@ -298,6 +298,12 @@ export class CampaignDispatcher {
       return 'empty';
     }
     await CampaignModel.updateOne({ _id: campaign._id }, { $inc: moveStats(cc.status, 'queued') });
+    // dry runs live in virtual time: the gap between two calls shrinks with the speed
+    // (like the retry interval); daily / weekly caps keep real days
+    const caps = {
+      ...account.caps,
+      minGapMinutes: account.caps.minGapMinutes / scale,
+    };
     const facts = await loadContactFacts({
       accountId: campaign.accountId.toString(),
       contactId: cc.contactId.toString(),
@@ -305,7 +311,7 @@ export class CampaignDispatcher {
       mode: campaign.mode,
       now,
       timezone: campaign.schedule.timezone,
-      minGapMinutes: account.caps.minGapMinutes,
+      minGapMinutes: caps.minGapMinutes,
     });
     const decision = decideDial({
       now,
@@ -315,7 +321,7 @@ export class CampaignDispatcher {
       timezone: campaign.schedule.timezone,
       endAt: campaign.schedule.endAt,
       ...facts,
-      caps: account.caps,
+      caps,
       money: 'ok',
     });
     if (decision.kind === 'skip') {
