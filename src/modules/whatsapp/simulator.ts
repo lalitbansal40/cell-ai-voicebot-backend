@@ -56,6 +56,8 @@ export const buildSimulatorPayload = (
 ): Record<string, unknown> => {
   const display = (channel.displayPhoneNumber ?? '').replace(/\D/g, '');
   const metadata = { display_phone_number: display, phone_number_id: channel.phoneNumberId ?? '' };
+  // account updates name the number only when it has one
+  const phoneField = display ? { phone_number: display } : {};
   const ts = String(nowSec);
   const change = ((): { field: WebhookField; value: Record<string, unknown> } => {
     switch (kind) {
@@ -99,7 +101,7 @@ export const buildSimulatorPayload = (
         return {
           field: 'account_update',
           value: {
-            phone_number: display,
+            ...phoneField,
             event: 'ACCOUNT_RESTRICTION',
             restriction_info: [
               {
@@ -112,14 +114,14 @@ export const buildSimulatorPayload = (
       case 'unrestricted':
         return {
           field: 'account_update',
-          value: { phone_number: display, event: 'ACCOUNT_RESTRICTION', restriction_info: [] },
+          value: { ...phoneField, event: 'ACCOUNT_RESTRICTION', restriction_info: [] },
         };
       case 'token_revoked':
       case 'payment_method_added':
         // Meta sends no event for these; an account update makes the app re-check the number
         return {
           field: 'account_update',
-          value: { phone_number: display, event: 'ACCOUNT_UPDATE' },
+          value: { ...phoneField, event: 'ACCOUNT_UPDATE' },
         };
       case 'inbound_text':
         return {

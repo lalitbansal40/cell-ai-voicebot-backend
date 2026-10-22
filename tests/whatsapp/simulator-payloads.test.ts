@@ -45,6 +45,22 @@ describe('simulator payloads', () => {
     expect(JSON.stringify(bare)).toContain('Test Business');
   });
 
+  it('account updates of a WABA without a number leave `phone_number` out (schema-valid)', () => {
+    for (const kind of [
+      'restricted',
+      'unrestricted',
+      'token_revoked',
+      'payment_method_added',
+    ] as const) {
+      const update = webhookEnvelopeSchema.parse(
+        buildSimulatorPayload(kind, { ...channel, displayPhoneNumber: null }),
+      );
+      const value = update.entry[0]?.changes[0]?.value as Record<string, unknown>;
+      expect(value).not.toHaveProperty('phone_number');
+      expect(WEBHOOK_VALUE_SCHEMAS.account_update.safeParse(value).success, kind).toBe(true);
+    }
+  });
+
   it('effects update the fake Meta', async () => {
     const calls: string[] = [];
     const fake = {
