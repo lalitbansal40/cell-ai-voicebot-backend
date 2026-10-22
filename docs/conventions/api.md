@@ -227,7 +227,7 @@ const contact = await Contact.findOne({ _id: id, accountId: ctx.accountId });
 const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId });
 ```
 
-## 14. Outbound webhooks (preview — built in Phase 10)
+## 14. Outbound webhooks (preview — built in Phase 15)
 
 - `POST` with JSON body `{ "id": "evt_…", "type": "call.completed", "createdAt": "…", "data": { … } }`.
 - Headers: `X-Webhook-Id`, `X-Webhook-Timestamp` (unix seconds), `X-Webhook-Signature: v1=<hex HMAC-SHA256(secret, timestamp + "." + rawBody)>`.
@@ -262,6 +262,19 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 - **Meta-facing (public):** `GET|POST /webhooks/meta` (verify challenge; `X-Hub-Signature-256`, raw body ≤ 3 MB, 401 `META_SIGNATURE_INVALID`, 503 when storage is down so Meta retries), `POST /meta/deauthorize`, `POST /meta/data-deletion` (form `signed_request`; the latter answers Meta's own `{ url, confirmation_code }` without the envelope), `GET /meta/data-deletion/:code`.
 - **Superadmin:** `GET /admin/whatsapp/status`, `GET /admin/whatsapp/events?status=`, `POST /admin/whatsapp/events/:id/replay`, `POST /admin/whatsapp/channels/:id/disconnect { reason }`, `PATCH /admin/accounts/:id/whatsapp-billing { metaPayer }`, `POST /admin/accounts/:id/whatsapp/manual-connect { wabaId, phoneNumberId, accessToken }`.
 - **Dev:** `POST /dev/meta/webhooks { channelId, kind }` (not in production; `MOCK_APIS_ENABLED`).
+
+## 14d. WhatsApp inbox (Phase 10)
+
+- **Off:** with `WHATSAPP_ENABLED=false` every `/inbox/*` route answers **503 `WHATSAPP_NOT_CONFIGURED`** and `/account/inbox-settings` doesn't exist.
+- **Permissions:** `inbox.read` (every role) reads; `inbox.reply` (owner, admin, manager, agent) sends, writes notes, closes / reopens, pings typing, uploads and takes a conversation itself; `inbox.assign` (owner, admin, manager) assigns anyone, blocks / unblocks, retries downloads. Impersonators read only (the read marker is a no-op); suspended accounts read only. Another account's ids → 404.
+- **List:** `GET /inbox/conversations?status=open|closed&filter=all|unread|mine|unassigned&channelId&q&cursor&limit` (≤ 50) → rows newest first, `meta.nextCursor`; `q` (≥ 2 chars) matches contact names / numbers and message text (`match: { messageId, snippet }`).
+- **Detail / messages / panel:** `GET /inbox/conversations/:id` (window, channel, assignee), `GET /:id/messages?before=<olderCursor>|around=<messageId>&limit` (≤ 100, oldest → newest, `meta: { olderCursor, hasNewer }`, reply quotes, sender names; reactions are folded into their target), `GET /:id/contact` (contact, recent calls, other conversations; `callPermission: null` until Phase 12).
+- **Send:** `POST /inbox/conversations/:id/messages { clientId (uuid), type, … }` — types `text`, `image`, `video`, `audio`, `voice`, `document`, `sticker` (`mediaToken` from an upload), `location`, `contacts` (`contactIds`), `buttons`, `list`, `cta_url`, `reaction` (`messageId`, `emoji`, `''` removes), `note`; optional `replyToMessageId`. 201 queued, 200 for a repeated `clientId`. 409 `WHATSAPP_WINDOW_CLOSED` (details `windowExpiresAt`), 409 `WHATSAPP_RECIPIENT_BLOCKED`, 409 `WHATSAPP_CHANNEL_NOT_READY`, 422 per field, 429 (60 / min / user). Statuses arrive as `inbox.message.updated` on the topic.
+- **Uploads:** `POST /inbox/media` multipart `kind` + `file` (+ `durationSec`) → 201 `{ mediaToken, kind, mimeType, size, fileName, durationSec, voice, expiresAt }` (this user, 24 h, once). 413 `WHATSAPP_MEDIA_TOO_LARGE`, 422 `WHATSAPP_MEDIA_INVALID` (`details[0].message`: `type_mismatch`, `not_allowed`, `stereo_voice`, `corrupt`, `too_long`, `too_short`); 20 / min / user.
+- **Actions:** `POST /:id/read` (204; blue ticks when the account sends read receipts), `/:id/unread` (204), `/:id/typing` → `{ sent }`, `PATCH /:id { assignedTo }`, `/:id/close`, `/:id/reopen`, `/:id/block`, `/:id/unblock` (409 when Meta refuses — only after a message in the last 24 h), `POST /inbox/conversations/start { channelId, contactId }` (201 new / 200 existing).
+- **Media / retries:** `GET /inbox/messages/:id/media` → `{ url (signed, 5 min), mimeType, fileName, expiresInSec }` (404 until ready); `POST /inbox/messages/:id/retry` (failed outgoing → a new queued message with `retryOf`); `POST /inbox/messages/:id/media/retry` (204; 410 `INBOX_MEDIA_EXPIRED` after 7 days).
+- **Other:** `GET /inbox/summary`, `GET /inbox/config` (composer limits, retention days, fake provider flag); `GET|PATCH /account/inbox-settings` (`account.read` / `account.update`); `GET|PATCH /whatsapp/channels/:id/profile`, `POST /whatsapp/channels/:id/profile/photo` (`whatsapp.read` / `whatsapp.manage`).
+- **Dev:** `POST /dev/meta/webhooks { channelId, kind, from?, text?, conversationId?, days? }` (44 kinds), `GET /dev/meta/media/:id` (signed fake media), `GET /dev/meta/sent?channelId` (what the fake received) — not in production; `MOCK_APIS_ENABLED`.
 
 ## 15. Versioning & deprecation
 

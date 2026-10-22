@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 9 → Phase 10 · Batch 2 (T10.5–T10.6) — WhatsApp inbox API, dev tools, hardening** — 2026-10-23
+  - `/api/v1/inbox`: conversations (filters, search with snippets, cursor), detail, messages (older pages / around a message), contact panel, send every type + notes (idempotent, `rl:inbox-send:`), uploads (`rl:inbox-upload:`), read / unread, typing, assign, close / reopen, block / unblock, start chat, media links, retries, summary, config; `/api/v1/account/inbox-settings`; business profile + photo; `conversation:<id>` topics with `inbox.read`; public contacts show their WhatsApp profile; OpenAPI for every path.
+  - Simulator: 29 inbox kinds (44 in total) through the real pipeline, fake media route, fake sends view; seed: demo chats for "Demo Finance"; hardening tests (1,000 inbound, 200 parallel sends, download crash, 5,000-message history, 20,000-message retention, 10-minute remux) — the history import now inserts per thread in one batch.
+  - ADR 0038; api.md §14d (and §14 now says webhooks come in Phase 15), security.md §11, compliance notes §10, setup guide §12 / §13 (real-number checklist).
+
+- **Phase 9 → Phase 10 · Batch 1 (T10.1–T10.4) — WhatsApp inbox foundation** — 2026-10-23
+  - Conversations, messages (every type, every field declared), composer uploads; contact WhatsApp profile, DND `whatsapp` source, account inbox settings (Hinglish / Hindi keywords, confirmations, read receipts on); migration `0011-inbox`; env `INBOX_RETENTION_DAYS` (90), `FAKE_META_STATUS_DELAYS_MS`; 5 error codes, 11 audit actions, 2 notification types, 5 WS events.
+  - Meta client: send every type, read + typing, media upload / URL / allowlisted download, block, business profile; fake Meta with wamids, auto statuses, knobs, signed media.
+  - Inbound pipeline (every type, contacts, conversations, media downloads, statuses, opt-out / opt-in, coexistence import, backfill of deferred events) and outbound (validation, window, idempotency, send job, retries, read receipts, typing, notes), browser voice notes (WebM → OGG / Opus remux), 90-day retention job; `npm run dev:inbox`.
+  - Fixed: opt-out / opt-in keywords now apply in message order (a START processed before an earlier STOP left the customer opted out).
+
 - **Phase 9 · Batch 3 (T9.8–T9.12) — Phase 9 complete** — 2026-10-22
   - Frontend WhatsApp → Numbers, connect wizard, superadmin tools, notifications, dashboard card, `/data-deletion` — see the frontend CHANGELOG.
   - Simulator kind `phone_number_added` (only-WABA numbers get their number through the pipeline).

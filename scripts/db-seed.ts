@@ -5,7 +5,8 @@
  * scripts/seed-billing.ts), demo AI agents + knowledge base + mock payment
  * records (scripts/seed-ai.ts), the demo flows (scripts/seed-flows.ts), two finished
  * demo calls run through the real call runtime on fake voice (scripts/seed-calls.ts),
- * a connected fake WhatsApp number with three simulated events (scripts/seed-whatsapp.ts)
+ * a connected fake WhatsApp number with three simulated events (scripts/seed-whatsapp.ts),
+ * demo WhatsApp chats on it through the real inbox pipeline (scripts/seed-inbox.ts)
  * and a platform superadmin. Needs Mongo + Redis (the
  * invoice PDF is rendered by the billing worker of a running dev server).
  * Idempotent; existing users are left as they are.
@@ -33,6 +34,7 @@ import { SEED_CALL_MARKS, seedCalls } from './seed-calls';
 import { SEED_CAMPAIGN_NAMES, SEED_CAMPAIGN_SEGMENT, seedCampaigns } from './seed-campaigns';
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
 import { SEED_FLOW_NAMES, seedFlows } from './seed-flows';
+import { seedInbox } from './seed-inbox';
 import { SEED_WHATSAPP_NUMBER, seedWhatsApp } from './seed-whatsapp';
 
 const ROLES: SystemRoleKey[] = ['owner', 'admin', 'manager', 'agent', 'viewer'];
@@ -138,6 +140,19 @@ const main = async (): Promise<void> => {
       demoWhatsApp.skipped
         ? `WhatsApp: skipped (${demoWhatsApp.skipped})`
         : `WhatsApp: ${String(demoWhatsApp.channels)} new demo number (${SEED_WHATSAPP_NUMBER}, fake Meta) + ${String(demoWhatsApp.events)} simulated events`,
+    );
+
+    const demoInbox = await seedInbox(account._id, {
+      env,
+      ownerId: owner?._id ?? account._id,
+      redis: getAppRedis(env.REDIS_URL, logger),
+      logger,
+      storage: createStorage(env, logger),
+    });
+    console.info(
+      demoInbox.skipped
+        ? `Inbox: skipped (${demoInbox.skipped})`
+        : `Inbox: ${String(demoInbox.conversations)} demo conversations, ${String(demoInbox.messages)} messages (fake Meta)`,
     );
 
     console.info(

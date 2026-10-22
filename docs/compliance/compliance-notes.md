@@ -124,6 +124,14 @@ What the product does today (ADR 0032) — **to be confirmed with the client's C
 - **DPDP:** customer phone numbers in WhatsApp events are personal data of the customer's customers; we are a processor for the customer. Purpose limitation: Phase 9 stores them only for the chat features of Phases 10–12; logs never contain them.
 - **Questions for the client's legal team:** (1) Is a 7 / 30-day raw-event retention acceptable before conversations are stored? (2) Which privacy-policy text covers WhatsApp data (Meta App Review checks it)? (3) Should a data deletion request also notify the customer account's owner?
 
+## 10. WhatsApp messages (Phase 10)
+
+- **Retention:** messages and their media are kept **90 days** (`INBOX_RETENTION_DAYS`, owner decision 23 Oct 2026; 0 = keep forever) and deleted daily; conversations and contacts stay. History imported from the WhatsApp Business app is cut at the same limit. Account deletion (Phase 16) removes everything. _Legal review of the 90 days is still open._
+- **Opt-out:** a customer's whole-message `STOP` / `UNSUBSCRIBE` / `CANCEL` or Hinglish / Hindi keywords (`BAND KARO`, `MAT BHEJO`, `बंद करो` …, editable per account) opt them out: contact `optedOutAt`, a DND entry, an audit entry and one confirmation reply ("You won't get more messages from us. Reply START to opt in again." + Hinglish). `START` / `SHURU` opt back in (a DND entry a person added stays). Replies inside a window the customer opened stay possible; business-initiated templates (Phase 11) will respect opt-outs.
+- **Read receipts** are sent to customers by default (account switch); the typing indicator is sent only when read receipts are on.
+- **Voice recording:** agents record voice notes in the browser only while pressing record (browser mic indicator visible); recordings are kept in memory until sent, then stored like any media.
+- **DPDP:** WhatsApp messages are personal data processed for the account (the data fiduciary); purpose = customer service on the business's number; access by role; no message text in notifications or logs.
+
 ## Sources
 
 - TRAI Press Release 11/2025 — <https://cms.trai.gov.in/sites/default/files/2025-02/PR_No.11of2025.pdf>

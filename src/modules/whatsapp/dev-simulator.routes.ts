@@ -1,53 +1,121 @@
 import { Router } from 'express';
 import { Types } from 'mongoose';
 
+import { verifyFakeMediaSignature, type FakeMetaClient } from '../../core/meta';
+import type { StorageProvider } from '../../core/storage';
 import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
 import { requireAuth } from '../../shared/auth/auth-context';
-import { ForbiddenError, NotFoundError } from '../../shared/errors/app-error';
+import { ForbiddenError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
 import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { handle } from '../../shared/middlewares/validate';
+import { ObjectIdSchema } from '../../shared/validation/schemas';
+import { isInboxSimulatorKind, runInboxSimulator } from '../inbox/simulator';
 
 import type { WhatsAppContext } from './context';
 import type { WhatsAppJobs } from './jobs';
-import { runSimulator } from './simulator';
+import { runSimulator, type SimulatorKind } from './simulator';
 import { SimulatorBody } from './whatsapp.schema';
 
 /**
- * `POST /api/v1/dev/meta/webhooks` — the dev webhook simulator (§1j). Mounted
- * only outside production with `MOCK_APIS_ENABLED`. Owners / admins
- * (`whatsapp.manage`) simulate events of their own numbers; a superadmin of any.
+ * `/api/v1/dev/meta` — the dev webhook simulator (§1j) and the fake provider's media /
+ * sends views. Mounted only outside production with `MOCK_APIS_ENABLED`. Number
+ * events need `whatsapp.manage`, customer (inbox) events `inbox.reply`; a
+ * superadmin may simulate for any number.
  */
 export const createDevSimulatorRouter = (deps: {
   ctx: WhatsAppContext;
   jobs: WhatsAppJobs;
+  storage?: StorageProvider | undefined;
   /** Tests: sign with another secret (the receiver must refuse it). */
   secret?: string;
 }): Router => {
   const router = Router();
+
+  // the fake media URLs from `getMediaUrl` (signed, Bearer required like Meta's)
+  router.get('/media/:id', async (req, res) => {
+    const fake = deps.ctx.meta.provider === 'fake' ? (deps.ctx.meta as FakeMetaClient) : null;
+    const id = req.params.id;
+    const exp = Number(req.query.exp);
+    const sig = typeof req.query.sig === 'string' ? req.query.sig : '';
+    if (!fake || !/^Bearer\s+\S+/.test(req.headers.authorization ?? '')) throw new ForbiddenError();
+    if (!verifyFakeMediaSignature(fake.appSecret, id, exp, sig)) throw new ForbiddenError();
+    const media = await fake.readMedia(id);
+    if (!media) throw new NotFoundError('Media not found');
+    res.setHeader('content-type', media.mimeType);
+    res.setHeader('cache-control', 'no-store');
+    res.end(media.bytes);
+  });
+
   router.use(authenticate());
+  const allowed = async (
+    channelId: string,
+    permission: 'whatsapp.manage' | 'inbox.reply' | 'whatsapp.read',
+    auth: ReturnType<typeof requireAuth>,
+  ) => {
+    const channel = await WhatsAppChannelModel.findById(channelId)
+      .select({ accountId: 1, phoneNumberId: 1 })
+      .lean<{ _id: Types.ObjectId; accountId: Types.ObjectId; phoneNumberId: string | null }>();
+    const superadmin = auth.platformRole === 'superadmin' && !auth.impersonatorId;
+    if (!channel || (!superadmin && channel.accountId.toString() !== auth.accountId)) {
+      throw new NotFoundError('WhatsApp number not found');
+    }
+    if (!superadmin && !auth.permissions.has(permission)) throw new ForbiddenError();
+    return channel;
+  };
+
   router.post(
     '/webhooks',
     ...handle({ body: SimulatorBody }, async ({ body, req, res }) => {
       const auth = requireAuth(req);
-      const channel = await WhatsAppChannelModel.findById(body.channelId)
-        .select({ accountId: 1 })
-        .lean<{ _id: Types.ObjectId; accountId: Types.ObjectId }>();
-      const superadmin = auth.platformRole === 'superadmin' && !auth.impersonatorId;
-      if (!channel || (!superadmin && channel.accountId.toString() !== auth.accountId)) {
-        throw new NotFoundError('WhatsApp number not found');
+      const inbox = isInboxSimulatorKind(body.kind);
+      await allowed(body.channelId, inbox ? 'inbox.reply' : 'whatsapp.manage', auth);
+      const channelId = new Types.ObjectId(body.channelId);
+      if (inbox) {
+        ok(
+          res,
+          await runInboxSimulator(
+            deps,
+            channelId,
+            body.kind as Parameters<typeof runInboxSimulator>[2],
+            {
+              from: body.from,
+              text: body.text,
+              conversationId: body.conversationId,
+              days: body.days,
+            },
+          ),
+        );
+        return;
       }
-      if (!superadmin && !auth.permissions.has('whatsapp.manage')) throw new ForbiddenError();
       ok(
         res,
         await runSimulator(
           deps,
-          new Types.ObjectId(body.channelId),
-          body.kind,
+          channelId,
+          body.kind as SimulatorKind,
           ...(deps.secret ? [deps.secret] : []),
         ),
       );
     }),
   );
+
+  // what the fake recorded for a number: sends (no texts) and read receipts
+  router.get('/sent', async (req, res) => {
+    const auth = requireAuth(req);
+    const parsed = ObjectIdSchema.safeParse(req.query.channelId);
+    if (!parsed.success)
+      throw new ValidationError([{ path: 'channelId', message: 'Must be an id' }]);
+    const channel = await allowed(parsed.data, 'whatsapp.read', auth);
+    const fake = deps.ctx.meta.provider === 'fake' ? (deps.ctx.meta as FakeMetaClient) : null;
+    if (!fake || !channel.phoneNumberId) {
+      ok(res, { sent: [], readReceipts: [] });
+      return;
+    }
+    ok(res, {
+      sent: await fake.sentMessages(channel.phoneNumberId),
+      readReceipts: await fake.readReceipts(channel.phoneNumberId),
+    });
+  });
   return router;
 };

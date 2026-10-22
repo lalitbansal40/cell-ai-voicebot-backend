@@ -6153,9 +6153,41 @@
               "history_declined",
               "contacts_sync",
               "payment_method_added",
-              "phone_number_added"
+              "phone_number_added",
+              "inbound_image",
+              "inbound_video",
+              "inbound_audio",
+              "inbound_voice",
+              "inbound_document",
+              "inbound_sticker",
+              "inbound_location",
+              "inbound_contacts",
+              "inbound_button_reply",
+              "inbound_list_reply",
+              "inbound_template_button",
+              "inbound_reaction",
+              "inbound_reply",
+              "inbound_forwarded",
+              "inbound_ad_referral",
+              "inbound_order",
+              "inbound_nfm_reply",
+              "inbound_unsupported",
+              "inbound_number_changed",
+              "inbound_deleted",
+              "inbound_stop",
+              "inbound_start",
+              "inbound_stop_hinglish",
+              "inbound_stop_hindi",
+              "status_failed",
+              "window_expired",
+              "age_messages",
+              "run_retention"
             ]
-          }
+          },
+          "from": { "type": "string", "pattern": "^\\+?\\d[\\d\\s-]{5,19}$" },
+          "text": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "conversationId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "days": { "type": "integer", "minimum": 1, "maximum": 3650 }
         },
         "required": ["channelId", "kind"],
         "additionalProperties": false
@@ -22976,6 +23008,123 @@
             }
           },
           "502": { "description": "META_API_ERROR" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/dev/meta/media/{id}": {
+      "get": {
+        "tags": ["Dev"],
+        "summary": "DEV ONLY — fake Meta media download (signed `exp` / `sig`, Bearer required like Meta)",
+        "parameters": [
+          { "schema": { "type": "string" }, "required": true, "name": "id", "in": "path" },
+          { "schema": { "type": "string" }, "required": true, "name": "exp", "in": "query" },
+          { "schema": { "type": "string" }, "required": true, "name": "sig", "in": "query" }
+        ],
+        "responses": {
+          "200": { "description": "The file bytes" },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dev/meta/sent": {
+      "get": {
+        "tags": ["Dev"],
+        "summary": "DEV ONLY — what the fake Meta received for a number: sends (no texts) and read receipts",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "schema": { "type": "string" }, "required": true, "name": "channelId", "in": "query" }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sent": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "waMessageId": { "type": "string" },
+                              "phoneNumberId": { "type": "string" },
+                              "toLast4": { "type": "string" },
+                              "type": { "type": "string" },
+                              "interactiveType": { "type": ["string", "null"] },
+                              "mediaId": { "type": ["string", "null"] },
+                              "replyTo": { "type": "boolean" },
+                              "voiceValid": { "type": ["boolean", "null"] },
+                              "at": { "type": "string" }
+                            },
+                            "required": [
+                              "waMessageId",
+                              "phoneNumberId",
+                              "toLast4",
+                              "type",
+                              "interactiveType",
+                              "mediaId",
+                              "replyTo",
+                              "voiceValid",
+                              "at"
+                            ]
+                          }
+                        },
+                        "readReceipts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "waMessageId": { "type": "string" },
+                              "typing": { "type": "boolean" },
+                              "at": { "type": "string" }
+                            },
+                            "required": ["waMessageId", "typing", "at"]
+                          }
+                        }
+                      },
+                      "required": ["sent", "readReceipts"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
           "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
         }
       }

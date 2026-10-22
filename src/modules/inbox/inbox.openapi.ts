@@ -583,3 +583,51 @@ registry.registerPath({
     502: { description: 'META_API_ERROR' },
   },
 });
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/dev/meta/media/{id}',
+  tags: ['Dev'],
+  summary: 'DEV ONLY — fake Meta media download (signed `exp` / `sig`, Bearer required like Meta)',
+  request: {
+    params: z.object({ id: z.string() }),
+    query: z.object({ exp: z.string(), sig: z.string() }),
+  },
+  responses: {
+    200: { description: 'The file bytes' },
+    403: errors[403],
+    404: errors[404],
+  },
+});
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/dev/meta/sent',
+  tags: ['Dev'],
+  summary:
+    'DEV ONLY — what the fake Meta received for a number: sends (no texts) and read receipts',
+  security: bearer,
+  request: { query: z.object({ channelId: z.string() }) },
+  responses: {
+    200: ok(
+      z.object({
+        sent: z.array(
+          z.object({
+            waMessageId: z.string(),
+            phoneNumberId: z.string(),
+            toLast4: z.string(),
+            type: z.string(),
+            interactiveType: s,
+            mediaId: s,
+            replyTo: z.boolean(),
+            voiceValid: z.boolean().nullable(),
+            at: z.string(),
+          }),
+        ),
+        readReceipts: z.array(
+          z.object({ waMessageId: z.string(), typing: z.boolean(), at: z.string() }),
+        ),
+      }),
+    ),
+    ...common,
+  },
+});

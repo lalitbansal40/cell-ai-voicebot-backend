@@ -7,8 +7,7 @@ import {
 import { isDuplicateKeyError } from '../../db/errors';
 import { ContactModel } from '../../db/models/contact.model';
 import type { ConversationDoc } from '../../db/models/conversation.model';
-import type { MessageStatus } from '../../db/models/message.model';
-import { MessageModel } from '../../db/models/message.model';
+import { MessageModel, type MessageDoc, type MessageStatus } from '../../db/models/message.model';
 import { MetaWebhookEventModel } from '../../db/models/meta-webhook-event.model';
 import {
   WhatsAppChannelModel,
@@ -215,7 +214,7 @@ export const importHistoryEvent = async (
     for (const thread of chunk.threads ?? []) {
       const customer = digits(thread.id);
       if (customer.length < 6) continue;
-      let conversation: ConversationDoc | null = null;
+      const fresh: { n: NormalizedInbound; at: Date }[] = [];
       for (const raw of thread.messages ?? []) {
         const n = normalizeInbound(raw);
         if (!n) continue;
@@ -224,42 +223,94 @@ export const importHistoryEvent = async (
           result.skippedOld += 1;
           continue;
         }
-        if (!conversation) {
-          const contact = await findOrCreateWhatsAppContact({
+        fresh.push({ n, at });
+      }
+      if (!fresh.length) continue;
+      const contact = await findOrCreateWhatsAppContact({
+        accountId: channel.accountId,
+        waId: customer,
+      });
+      let conversation = await upsertConversation({
+        key: { accountId: channel.accountId, channelId: channel._id, waId: customer },
+        contactId: contact._id,
+        source: 'history',
+      });
+      result.conversations += 1;
+      // dedupe in one query, insert the thread in one batch (large chunks stay fast)
+      const known = new Set(
+        (
+          await MessageModel.find({
             accountId: channel.accountId,
-            waId: customer,
-          });
-          conversation = await upsertConversation({
-            key: { accountId: channel.accountId, channelId: channel._id, waId: customer },
-            contactId: contact._id,
-            source: 'history',
-          });
-          result.conversations += 1;
-        }
-        const fromCustomer = n.from === customer;
-        const status = fromCustomer
-          ? 'received'
-          : (HISTORY_STATUS[String(n.raw?.history_context?.status ?? '').toUpperCase()] ?? 'sent');
-        const stored = await insertOnce(conversation, n, {
-          direction: fromCustomer ? 'in' : 'out',
-          origin: 'history',
-          status,
-          at,
-        });
-        if (!stored) {
+            channelId: channel._id,
+            waMessageId: { $in: fresh.map((f) => f.n.waMessageId) },
+          })
+            .select({ waMessageId: 1 })
+            .lean<{ waMessageId: string }[]>()
+        ).map((m) => m.waMessageId),
+      );
+      const seen = new Set<string>();
+      const docs = [];
+      for (const { n, at } of fresh) {
+        if (known.has(n.waMessageId) || seen.has(n.waMessageId)) {
           result.duplicates += 1;
           continue;
         }
-        result.messages += 1;
-        if (n.mediaId && inboxNow(ix).getTime() - at.getTime() < INBOX_LIMITS.inboundMediaValidMs) {
-          await ix.jobs.enqueueMediaDownload(stored._id.toString());
-        }
-        if (stored.type !== 'reaction') {
-          const conv = await touchLastMessage(conversation._id, stored);
-          if (conv) conversation = conv;
+        seen.add(n.waMessageId);
+        const fromCustomer = n.from === customer;
+        const status: MessageStatus = fromCustomer
+          ? 'received'
+          : (HISTORY_STATUS[String(n.raw?.history_context?.status ?? '').toUpperCase()] ?? 'sent');
+        docs.push({
+          accountId: conversation.accountId,
+          conversationId: conversation._id,
+          channelId: conversation.channelId,
+          contactId: conversation.contactId,
+          ...n.content,
+          direction: fromCustomer ? ('in' as const) : ('out' as const),
+          origin: 'history' as const,
+          status,
+          at,
+          waMessageId: n.waMessageId,
+          metaTimestamp: n.metaTimestamp,
+          statusHistory: fromCustomer ? [] : [{ status, at }],
+          mediaId: n.mediaId,
+        });
+      }
+      let stored: MessageDoc[] = [];
+      try {
+        stored = (await MessageModel.insertMany(
+          docs.map(({ mediaId: _m, ...d }) => d),
+          { ordered: true },
+        )) as unknown as MessageDoc[];
+      } catch (err) {
+        // a parallel import of the same thread: fall back to one by one
+        if (!isDuplicateKeyError(err)) throw err;
+        stored = [];
+        for (const d of docs) {
+          const { mediaId: _m, ...doc } = d;
+          try {
+            stored.push((await MessageModel.create(doc)).toObject({ transform: false }));
+          } catch (e) {
+            if (!isDuplicateKeyError(e)) throw e;
+            result.duplicates += 1;
+          }
         }
       }
-      if (conversation) emitConversation(conversation);
+      result.messages += stored.length;
+      const mediaFor = new Map(docs.map((d) => [d.waMessageId, d.mediaId]));
+      for (const m of stored) {
+        if (
+          mediaFor.get(m.waMessageId ?? '') &&
+          inboxNow(ix).getTime() - m.at.getTime() < INBOX_LIMITS.inboundMediaValidMs
+        ) {
+          await ix.jobs.enqueueMediaDownload(m._id.toString());
+        }
+      }
+      const newest = stored
+        .filter((m) => m.type !== 'reaction')
+        .reduce<MessageDoc | null>((a, m) => (!a || m.at >= a.at ? m : a), null);
+      if (newest) conversation = (await touchLastMessage(conversation._id, newest)) ?? conversation;
+      emitConversation(conversation);
     }
   }
   const key = counterKey(channel._id.toString());

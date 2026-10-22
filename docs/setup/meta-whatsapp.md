@@ -85,3 +85,19 @@ Meta must reach your machine: `cloudflared tunnel --url http://localhost:5100` (
 - Coexistence: `smb_app_data` sync API, its time window after onboarding, and the `history` / `smb_app_state_sync` / `smb_message_echoes` payloads (fixtures in `tests/fixtures/meta/`).
 - Credit sharing: `whatsapp_credit_sharing_and_attach` (Meta is moving partners to a newer method) and the supported currencies.
 - Error codes the service reacts to: `190` (+ subcodes 460 / 463 / 467), `133005`, `100` / `36007` / `36009`, rate-limit codes.
+- Phase 10: the `POST /{phone}/messages` bodies per type (`payloads.ts`), mark-as-read + `typing_indicator`, media upload / `GET /{media-id}` / download hosts (`META_MEDIA_HOST_SUFFIXES`), whether audio needs an explicit voice flag for OGG / Opus voice messages, Block Users API limits, business profile fields and the resumable upload for the photo, send error codes (131047, 131026, 131056, 130429, 131052 / 131053, 368).
+
+## 13. Real-number manual checklist (Phase 13)
+
+With the real app and a test number, from two phones (Android + iPhone):
+
+1. Customer sends text, photo, video, voice note, audio file, document, sticker (+ animated), location, contact card; each appears live with the right bubble; media opens / plays / downloads.
+2. Reply with each type: text (with a link preview), photo + caption, video, audio file, document, sticker, location, contact card, buttons, list, link button, reaction, a quoted reply — each arrives; ticks go sent → delivered → read (read receipts on).
+3. Voice notes recorded in **Chrome, Firefox and Safari** play as **voice messages** (not files) on both phones; check duration and audio quality.
+4. Send to an invalid number → failed with "Message undeliverable"; after 24 h without a customer message the composer is blocked and the API answers 409.
+5. Customer sends `STOP`, `BAND KARO`, `बंद करो` → opted out + confirmation text; `START` → opted in + confirmation.
+6. Customer reacts / quotes our message; the app shows it; customer deletes a message → "This message was deleted".
+7. Block / unblock a customer; business profile edit (about, description, websites, photo) shows on the phone.
+8. Coexistence number: a message sent from the Business app phone appears as "Sent from the WhatsApp Business app"; history import shows past chats without unread.
+9. Typing indicator visible on the customer's phone while an agent types.
+10. Server logs for the whole session contain no message texts, numbers, names, file names, media URLs or tokens.
