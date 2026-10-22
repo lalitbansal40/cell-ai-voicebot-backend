@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import type { Redis } from 'ioredis';
 import { Types } from 'mongoose';
@@ -100,3 +102,20 @@ export const insertChannel = (over: Partial<WhatsAppChannelDoc> = {}) =>
     status: 'connected',
     ...over,
   });
+
+const FIXTURE_DIR = join(__dirname, '../fixtures/meta');
+
+/**
+ * A Meta webhook fixture pointed at a channel: the WABA id, phone number id and
+ * display number of the fixture are replaced by the channel's.
+ */
+export const webhookFor = (
+  fixture: string,
+  channel: { wabaId: string; phoneNumberId: string | null; displayPhoneNumber: string | null },
+): Record<string, unknown> => {
+  const text = readFileSync(join(FIXTURE_DIR, fixture), 'utf8')
+    .replaceAll('102290129340398', channel.wabaId)
+    .replaceAll('106540352242922', channel.phoneNumberId ?? 'none')
+    .replaceAll('919000000010', (channel.displayPhoneNumber ?? '').replace(/\D/g, ''));
+  return JSON.parse(text) as Record<string, unknown>;
+};

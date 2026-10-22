@@ -44,10 +44,17 @@ import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
 import { createWalletRouter } from './modules/wallet/wallet.routes';
+import {
+  createMetaWebhooksRouter,
+  type MetaWebhooksDeps,
+} from './modules/whatsapp/webhooks.routes';
 
 /** Everything under /api/v1. Add each module router here. */
 /** What the contact modules need: file storage + the background job queue (Phase 3). */
 /** What the wallet / billing modules need (Phase 4). */
+/** Phase 9: WhatsApp (built by the server when `WHATSAPP_ENABLED`). */
+export type WhatsAppDeps = MetaWebhooksDeps;
+
 export interface BillingDeps {
   payments?: PaymentProvider;
   jobs?: BillingJobs;
@@ -97,6 +104,7 @@ export const createApiRouter = ({
   flows = {},
   calls,
   campaigns = {},
+  whatsapp,
 }: {
   env: Pick<
     Env,
@@ -130,6 +138,7 @@ export const createApiRouter = ({
   flows?: FlowsDeps;
   calls?: CallsApiDeps;
   campaigns?: CampaignsRouterDeps;
+  whatsapp?: WhatsAppDeps;
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));
@@ -163,6 +172,9 @@ export const createApiRouter = ({
   router.use('/billing', createBillingRouter());
   router.use('/invoices', createInvoicesRouter({ storage: billing.storage }));
   router.use('/notifications', createNotificationsRouter());
+  if (whatsapp?.ctx.env.WHATSAPP_ENABLED) {
+    router.use('/webhooks/meta', createMetaWebhooksRouter(whatsapp));
+  }
   router.use(
     '/webhooks',
     createWebhooksRouter({

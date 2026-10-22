@@ -16,6 +16,7 @@ import {
   type EmailProvider,
 } from './core/email';
 import { createLifecycle, type Lifecycle } from './core/lifecycle';
+import { createMetaClient } from './core/meta';
 import { createPaymentProvider } from './core/payments';
 import { QUEUES } from './core/queues/names';
 import { closeAllQueues, createQueue, DEFAULT_QUEUE_PREFIX } from './core/queues/queue-factory';
@@ -33,6 +34,7 @@ import { startContactsWorker } from './core/queues/workers/contacts.worker';
 import { startEmailWorker } from './core/queues/workers/email.worker';
 import { startMaintenanceWorker } from './core/queues/workers/maintenance.worker';
 import { startSystemWorker } from './core/queues/workers/system.worker';
+import { startWhatsAppWorker } from './core/queues/workers/whatsapp.worker';
 import { createRealtime, setRealtime } from './core/realtime';
 import { createStorage } from './core/storage';
 import { createMediaServer } from './core/telephony/media-server';
@@ -56,6 +58,7 @@ import { queueCampaignExports, queueCampaignJobs, wireCampaigns } from './module
 import { resetProgressThrottle } from './modules/campaigns/progress';
 import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
+import { queueWhatsAppJobs } from './modules/whatsapp/jobs';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
 
@@ -176,9 +179,24 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       }),
     }),
   });
+  // Phase 9: WhatsApp (Meta webhooks now; the channel API joins in T9.6)
+  const whatsapp = env.WHATSAPP_ENABLED
+    ? {
+        ctx: {
+          env,
+          meta: createMetaClient(env, { redis, logger }),
+          redis,
+          key: secretBoxKey(env),
+        },
+        jobs: queueWhatsAppJobs(createQueue(QUEUES.whatsapp, queueDeps)),
+      }
+    : undefined;
+  if (whatsapp)
+    logger.info({ provider: whatsapp.ctx.meta.provider }, 'whatsapp: meta provider ready');
   const app = createApp({
     env,
     logger,
+    ...(whatsapp ? { whatsapp } : {}),
     rateLimitStore: createRedisRateLimitStore(redis),
     authRateLimitStore: createRedisRateLimitStore(redis, 'rl:auth:'),
     storage,
@@ -233,6 +251,10 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     startContactsWorker({ ...queueDeps, storage, jobs: contactJobs });
     await startBillingWorker({ ...queueDeps, storage, jobs: billingJobs });
     await startAiWorker({ ...queueDeps, storage, provider: aiProvider, jobs: aiJobs });
+    if (whatsapp) {
+      const { worker: whatsappWorker } = startWhatsAppWorker({ ...queueDeps, ctx: whatsapp.ctx });
+      lifecycle.onShutdown('whatsapp', () => whatsappWorker.close(), 6);
+    }
     if (env.CAMPAIGNS_ENABLED) {
       // Phase 8: the dispatcher dials in this process (it owns the calls)
       const dispatcher = new CampaignDispatcher({

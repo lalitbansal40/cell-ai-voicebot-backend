@@ -24,6 +24,7 @@ export const buildTestApp = (
     | 'flowRateLimitStores'
     | 'calls'
     | 'campaigns'
+    | 'whatsapp'
   > = {},
 ) => {
   const env = testEnv(overrides);

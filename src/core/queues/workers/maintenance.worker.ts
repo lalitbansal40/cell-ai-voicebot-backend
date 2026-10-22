@@ -11,6 +11,7 @@ import {
 } from '../../../modules/contacts/retention';
 import { purgeDeletedAudio } from '../../../modules/flow-audio/flow-audio.service';
 import { purgeDeletedFlows } from '../../../modules/flows/maintenance';
+import { purgeWebhookEvents } from '../../../modules/whatsapp/webhook-processor';
 import type { StorageProvider } from '../../storage';
 import { purgeTtsCache } from '../../voice/tts-cache';
 import { QUEUES } from '../names';
@@ -30,6 +31,8 @@ export const FLOWS_PURGE_JOB = 'flows-purge';
 export const CALLS_REAPER_JOB = 'calls-reaper';
 export const CALLS_PURGE_JOB = 'calls-purge';
 export const TTS_CACHE_PURGE_JOB = 'tts-cache-purge';
+/** Expired Meta webhook events (backup of the TTL index, Phase 9). */
+export const WHATSAPP_EVENTS_PURGE_JOB = 'whatsapp-events-purge';
 
 /** Repeatable maintenance jobs (UTC crons). */
 export const MAINTENANCE_SCHEDULES = [
@@ -41,6 +44,7 @@ export const MAINTENANCE_SCHEDULES = [
   { name: CALLS_REAPER_JOB, pattern: '*/1 * * * *' },
   { name: CALLS_PURGE_JOB, pattern: '10 5 * * *' },
   { name: TTS_CACHE_PURGE_JOB, pattern: '20 5 * * *' },
+  { name: WHATSAPP_EVENTS_PURGE_JOB, pattern: '40 5 * * *' },
 ] as const;
 
 export interface MaintenanceDeps extends Pick<QueueFactoryDeps, 'logger'> {
@@ -88,6 +92,9 @@ export const processMaintenanceJob =
         break;
       case TTS_CACHE_PURGE_JOB:
         result = await purgeTtsCache(needStorage(deps));
+        break;
+      case WHATSAPP_EVENTS_PURGE_JOB:
+        result = await purgeWebhookEvents();
         break;
       default:
         throw new Error(`Unknown maintenance job "${job.name}"`);

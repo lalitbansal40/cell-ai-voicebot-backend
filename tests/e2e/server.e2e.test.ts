@@ -185,10 +185,12 @@ describe('startServer (e2e)', () => {
     const hooks = logLines
       .filter((l) => l.msg === 'shutdown: running hook')
       .map((l) => l.hook as string);
-    // campaign dispatchers stop before the calls they started end
+    // campaign dispatchers stop before the calls they started end; the WhatsApp
+    // worker stops before the queues close
     expect(hooks).toEqual([
       'campaigns',
       'calls',
+      'whatsapp',
       'http',
       'ws',
       'queues',

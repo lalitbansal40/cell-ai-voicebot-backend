@@ -5,6 +5,7 @@ import type { Store } from 'express-rate-limit';
 import type { Env } from './config/env';
 import {
   BILLING_LIMITS,
+  WHATSAPP_LIMITS,
   JSON_BODY_LIMIT,
   UNLIMITED_PATHS,
   URLENCODED_BODY_LIMIT,
@@ -21,7 +22,7 @@ import { createDocsRouter } from './modules/docs/docs.routes';
 import { createFilesRouter } from './modules/files/files.routes';
 import type { ReadinessDeps } from './modules/health/health.controller';
 import { createHealthRouter } from './modules/health/health.routes';
-import { createApiRouter, type AiDeps, type CallsApiDeps } from './routes';
+import { createApiRouter, type AiDeps, type CallsApiDeps, type WhatsAppDeps } from './routes';
 import type { Logger } from './shared/logger';
 import { corsMiddleware } from './shared/middlewares/cors';
 import { errorHandler } from './shared/middlewares/error-handler';
@@ -67,6 +68,8 @@ export interface AppDeps {
   calls?: CallsApiDeps;
   /** Phase 8: campaign export queue + `rl:campaign:` limiter store. */
   campaigns?: CampaignsRouterDeps;
+  /** Phase 9: WhatsApp context (Meta client, Redis, secret key) + the `whatsapp` queue. */
+  whatsapp?: WhatsAppDeps;
 }
 
 /**
@@ -93,6 +96,7 @@ export const createApp = ({
   flowRateLimitStores = {},
   calls,
   campaigns = {},
+  whatsapp,
 }: AppDeps): Express => {
   // Wallet low-balance / exhausted alerts run after every committed wallet change.
   registerWalletAlerts();
@@ -113,6 +117,11 @@ export const createApp = ({
   app.use(
     '/api/v1/webhooks/razorpay',
     raw({ type: 'application/json', limit: BILLING_LIMITS.webhookMaxBytes }),
+  );
+  // Meta (WhatsApp) webhooks: X-Hub-Signature-256 over the raw bytes, this path only.
+  app.use(
+    '/api/v1/webhooks/meta',
+    raw({ type: 'application/json', limit: WHATSAPP_LIMITS.webhookMaxBytes }),
   );
   app.use(json({ limit: JSON_BODY_LIMIT }));
   app.use(urlencoded({ extended: false, limit: URLENCODED_BODY_LIMIT }));
@@ -138,6 +147,7 @@ export const createApp = ({
       flows: { rateLimitStores: flowRateLimitStores },
       ...(calls ? { calls } : {}),
       campaigns,
+      ...(whatsapp ? { whatsapp } : {}),
     }),
   );
 
