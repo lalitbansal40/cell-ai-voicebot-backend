@@ -442,23 +442,23 @@ Batches: **Batch 1 = T10.1–T10.4** (`[P10-B1-DONE]`), **Batch 2 = T10.5–T10.
 
 ### T10.5 — Inbox API
 
-- [ ] `inbox.routes.ts` + schemas (§1n), static paths before `/:id`, `requirePermission`, `blockWhenImpersonating()` on writes (read marker: no-op for impersonators), suspended → writes 403, WhatsApp off → 503, rate limits `rl:inbox-send:` / `rl:inbox-upload:`.
-- [ ] Views (`inbox-json.ts`): conversation row / detail, message (per type; media without storage keys — only `GET …/media`), contact panel.
-- [ ] Topic auth `conversation:<id>` (extend `authorizeTopic`), WS event types in `events.ts`.
-- [ ] Business profile routes (Phase 9 module), account inbox settings routes.
-- [ ] OpenAPI: every route + schema (import in `src/openapi.ts`), docs test paths, `openapi:check`.
-- [ ] Tests: roles × routes (owner / admin / manager / agent / viewer / superadmin / impersonating), isolation on every `:id` route, search + filters + cursor, assign rules (self-assign for agents, assignee must have `inbox.read`), close / reopen, block / unblock (Meta 24 h rule error), summary counts, settings, profile (fake), topic auth, rate limits, 503 / 403.
+- [x] `inbox.routes.ts` + schemas (§1n), static paths before `/:id`, `requirePermission`, `blockWhenImpersonating()` on writes (read marker: no-op for impersonators), suspended → writes 403, WhatsApp off → 503, rate limits `rl:inbox-send:` / `rl:inbox-upload:`.
+- [x] Views (`inbox-json.ts`): conversation row / detail, message (per type; media without storage keys — only `GET …/media`), contact panel.
+- [x] Topic auth `conversation:<id>` (extend `authorizeTopic`), WS event types in `events.ts`.
+- [x] Business profile routes (Phase 9 module), account inbox settings routes.
+- [x] OpenAPI: every route + schema (import in `src/openapi.ts`), docs test paths, `openapi:check`.
+- [x] Tests: roles × routes (owner / admin / manager / agent / viewer / superadmin / impersonating), isolation on every `:id` route, search + filters + cursor, assign rules (self-assign for agents, assignee must have `inbox.read`), close / reopen, block / unblock (Meta 24 h rule error), summary counts, settings, profile (fake), topic auth, rate limits, 503 / 403.
 
 ### T10.6 — Dev tools, hardening, docs
 
-- [ ] Simulator kinds (§1o) + optional `{ from, text }`; dev media route; `npm run dev:inbox [-- --account <slug>]`; seed: Demo Finance gets 4 conversations (text chat with replies, media chat, a closed one, a coexistence echo) through the real pipeline.
-- [ ] Hardening tests (§1q) — record timings.
-- [ ] **ADR 0038 — WhatsApp inbox (conversations, messages, statuses, media, window)**; docs: data-model §2.8, api.md §14d, security.md (customer messages, media, uploads), compliance-notes (90-day message retention, opt-out handling incl. Hinglish / Hindi keywords + confirmation texts, voice recording consent note, DPDP), README (Inbox section, simulator kinds, env), src/README rows, CHANGELOG.
-- [ ] **Real number manual checklist** in `docs/setup/meta-whatsapp.md` §13 (send / receive every type with a real phone, statuses, window expiry, STOP + `BAND KARO` + `बंद करो` with confirmation texts, media both ways, **voice note recorded in Chrome, Firefox and Safari plays as a voice message on Android + iPhone**, coexistence echo) — runs in Phase 13.
+- [x] Simulator kinds (§1o) + optional `{ from, text }`; dev media route; `npm run dev:inbox [-- --account <slug>]`; seed: Demo Finance gets 4 conversations (text chat with replies, media chat, a closed one, a coexistence echo) through the real pipeline.
+- [x] Hardening tests (§1q) — record timings.
+- [x] **ADR 0038 — WhatsApp inbox (conversations, messages, statuses, media, window)**; docs: data-model §2.8, api.md §14d, security.md (customer messages, media, uploads), compliance-notes (90-day message retention, opt-out handling incl. Hinglish / Hindi keywords + confirmation texts, voice recording consent note, DPDP), README (Inbox section, simulator kinds, env), src/README rows, CHANGELOG.
+- [x] **Real number manual checklist** in `docs/setup/meta-whatsapp.md` §13 (send / receive every type with a real phone, statuses, window expiry, STOP + `BAND KARO` + `बंद करो` with confirmation texts, media both ways, **voice note recorded in Chrome, Firefox and Safari plays as a voice message on Android + iPhone**, coexistence echo) — runs in Phase 13.
 
 ### P10-B2-DONE — checkpoint
 
-- [ ] Full backend verify + manual check through the HTTP API on the dev server (simulate inbound of every type, reply with every type, statuses arrive, window-closed 409, STOP → opted out, media links work, logs clean); tasks ticked; commit `docs: mark phase 10 batch 2 complete [P10-B2-DONE]`.
+- [x] Full backend verify + manual check through the HTTP API on the dev server (simulate inbound of every type, reply with every type, statuses arrive, window-closed 409, STOP → opted out, media links work, logs clean); tasks ticked; commit `docs: mark phase 10 batch 2 complete [P10-B2-DONE]`.
 
 ### T10.7 — FE foundation
 
@@ -577,3 +577,4 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T10.1–T10
 - 2026-10-23: T10.4 notes — internal notes are stored `status: sent` (never queued, no ticks) and don't change the list row; reactions don't either. The upload row is deleted in the same transaction as the message insert (a parallel send of the same upload gets 422). The Meta typing indicator is only sent when the account sends read receipts (Meta's typing call also marks the message read). Order waits and Meta's 60 s pair limit move the job to delayed (`DelayedError`) without using a retry attempt. `applyReaction` lives in `reactions.ts` (no import cycle).
 - 2026-10-23: **Batch 1 done** (T10.1–T10.4 + `[P10-B1-DONE]`). `npm run dev:inbox` on the dev DB: a fake number, 10 customer messages over the HTTP webhook (every main type, STOP / START), 6 replies (text, image, browser voice note, buttons, list, reaction) → all read via the fake's auto statuses, media downloaded, the voice note a valid mono OGG / Opus; the worker also backfilled the deferred events earlier dev runs had stored. Real bug found by it and fixed with a regression test (`3833db4`): keywords now apply in message-time order (a START processed before an earlier STOP no longer leaves the customer opted out). Backend 2678 tests, coverage 97.14 / 89.64 / 96.73 / 98.28.
 - 2026-10-23: T10.5 notes — `GET /inbox/messages/:id/media` answers `{ url, mimeType, fileName, expiresInSec }` (a signed storage link) instead of redirecting, so the browser decides inline / download. `/account/inbox-settings` is mounted only where WhatsApp is enabled. Public contacts get a small `whatsapp` view (profile name, last inbound, blocked) for the contact page. The inbox router needs the app's file storage (503 `PROVIDER_UNAVAILABLE` without it).
+- 2026-10-23: **Batch 2 done** (T10.5–T10.6 + `[P10-B2-DONE]`). Manual check on a locally started server through the HTTP API (dev DB, fake Meta, auto statuses on): 16 simulated customer types → all stored, every media `ready`; 11 replies (text with a link, image, browser voice note, document, location, buttons, list, CTA, reaction, quoted reply, note) → 201, every send `read`, the voice note a valid mono OGG; a media link downloads; after `window_expired` a send answers 409 `WHATSAPP_WINDOW_CLOSED` and a note 201; `band karo` → opted out + DND + confirmation; block / unblock and a profile edit 200; `age_messages` + `run_retention` empty the chat; the server log has no texts, numbers, names, file names, wamids, media URLs or tokens. Found while building: the simulator's ageing needed `updatePipeline` (Mongoose 9) and a wrong-secret simulation of `inbound_text` was signed with the right secret — both fixed before commit. Backend 2711 tests, coverage 97.08 / 89.56 / 96.61 / 98.20.
