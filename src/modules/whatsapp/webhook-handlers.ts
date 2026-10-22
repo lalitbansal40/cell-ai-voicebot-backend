@@ -60,7 +60,7 @@ const update = async (
   const updated = await WhatsAppChannelModel.findOneAndUpdate(
     { _id: channel._id },
     { $set: set },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean<WhatsAppChannelDoc>();
   if (!updated) return channel;
   emitChannelUpdated(updated);

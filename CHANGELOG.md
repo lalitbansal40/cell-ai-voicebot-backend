@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 9 · Batch 1 (T9.1–T9.4) — WhatsApp foundation** — 2026-10-22
+  - Models `whatsappChannels`, `metaWebhookEvents`, `metaDeletionRequests` + account `whatsapp.metaPayer`; migration `0010-whatsapp`; env (`WHATSAPP_ENABLED`, `META_*`, `FAKE_META_APP_SECRET`) with production rules; `WHATSAPP_LIMITS`; 7 error codes, 12 audit actions, 6 notification types, 3 emails, `whatsapp.channel.updated`, permissions `whatsapp.read` / `whatsapp.manage`, queue `whatsapp`.
+  - `src/core/meta`: Graph client (retries, scrubbed errors, no credentials in logs), deterministic fake Meta (Redis, error knobs), webhook / `signed_request` signatures, zod schemas, fixtures from Meta's samples.
+  - Channel service: Embedded Signup connect (granted-WABA check, discovery, duplicate / reconnect, subscribe, platform credit line or customer-paid billing, registration PIN or coexistence syncs), retry setup, PIN, sync, rename, disconnect (never deregisters), statuses with history, WS, audit, notifications + emails.
+  - Meta webhook pipeline: verify challenge, signed raw-body POST, sealed idempotent event store, `whatsapp` worker with routing, Phase 9 handlers, deferred fields API for Phases 10–12, retries, purge job.
+  - `npm run dev:whatsapp` (fake Meta end to end on the dev DB, counts only).
+
 - **Phase 8 · Batch 3 (T8.10–T8.15) — Phase 8 complete** — 2026-10-22
   - Frontend campaigns list, wizard, live dashboard, results + export, Call now and the campaign entry points — see the frontend CHANGELOG.
   - `GET /campaigns/summary` (dashboard card), `adminPausedCampaigns` on the admin account detail, result rows with `waitReason` (`window`, `daily_cap`, `weekly_cap`, `min_gap`), `AUTH_RATE_LIMIT_MAX` (public auth limit, default 30).

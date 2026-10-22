@@ -163,7 +163,7 @@ export const transition = async (
     };
   }
   const updated = await WhatsAppChannelModel.findOneAndUpdate({ _id: channel._id }, update, {
-    new: true,
+    returnDocument: 'after',
   }).lean<WhatsAppChannelDoc>();
   if (!updated) return channel;
   emitChannelUpdated(updated);

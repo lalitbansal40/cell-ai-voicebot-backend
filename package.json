@@ -50,7 +50,8 @@
     "bench:wallet": "tsx --env-file-if-exists=.env scripts/bench-wallet.ts",
     "bench:retrieval": "tsx --env-file-if-exists=.env scripts/bench-retrieval.ts",
     "dev:call": "tsx --env-file-if-exists=.env scripts/dev-call.ts",
-    "dev:campaign": "tsx --env-file-if-exists=.env scripts/dev-campaign.ts"
+    "dev:campaign": "tsx --env-file-if-exists=.env scripts/dev-campaign.ts",
+    "dev:whatsapp": "tsx --env-file-if-exists=.env scripts/dev-whatsapp.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

@@ -382,38 +382,38 @@ Batches: **Batch 1 = T9.1–T9.4** (`[P9-B1-DONE]`), **Batch 2 = T9.5–T9.7** (
 
 ### T9.1 — Models, migration 0010, limits, catalogue
 
-- [ ] `whatsapp-channel.model.ts` (§1e, `tenantPlugin`, `tokenSealed` / `registration.pinSealed` `select: false`, indexes incl. the partial unique on `phoneNumberId`), `meta-webhook-event.model.ts` (unique `key`, TTL), `meta-deletion-request.model.ts` (unique `confirmationCode`, TTL).
-- [ ] Migration **0010-whatsapp**: collections + indexes, `syncSystemRoles()` for `whatsapp.read` / `whatsapp.manage`; up / down + rollback test.
-- [ ] `WHATSAPP_LIMITS` (§1k) in `config/limits.ts`.
-- [ ] Env (§1b) with production rules + `env.test.ts` rows; `.env.example` placeholders + README env table rows (env-docs test).
-- [ ] Error codes (7 new, 47 → 54) + error-codes.md; audit actions (§1n) + meta shapes + audit.md; WS event `whatsapp.channel.updated` (backend `events.ts` + websocket.md); notification types (6) + email templates (needs reconnect, restricted, admin disconnect); permissions + role matrix + snapshot test; tenant-scope test exemption for `metaWebhookEvents` / `metaDeletionRequests` (documented reason).
-- [ ] Queue name `whatsapp` in `core/queues/names.ts`.
-- [ ] data-model.md §2.6 (three collections), rbac docs.
+- [x] `whatsapp-channel.model.ts` (§1e, `tenantPlugin`, `tokenSealed` / `registration.pinSealed` `select: false`, indexes incl. the partial unique on `phoneNumberId`), `meta-webhook-event.model.ts` (unique `key`, TTL), `meta-deletion-request.model.ts` (unique `confirmationCode`, TTL).
+- [x] Migration **0010-whatsapp**: collections + indexes, `syncSystemRoles()` for `whatsapp.read` / `whatsapp.manage`; up / down + rollback test.
+- [x] `WHATSAPP_LIMITS` (§1k) in `config/limits.ts`.
+- [x] Env (§1b) with production rules + `env.test.ts` rows; `.env.example` placeholders + README env table rows (env-docs test).
+- [x] Error codes (7 new, 47 → 54) + error-codes.md; audit actions (§1n) + meta shapes + audit.md; WS event `whatsapp.channel.updated` (backend `events.ts` + websocket.md); notification types (6) + email templates (needs reconnect, restricted, admin disconnect); permissions + role matrix + snapshot test; tenant-scope test exemption for `metaWebhookEvents` / `metaDeletionRequests` (documented reason).
+- [x] Queue name `whatsapp` in `core/queues/names.ts`.
+- [x] data-model.md §2.6 (three collections), rbac docs.
 
 ### T9.2 — Meta core
 
-- [ ] `src/core/meta/types.ts` — `MetaClient` (`exchangeCode`, `debugToken`, `listOwnedWabas`, `listBusinessesWithWabas`, `getWaba`, `listPhoneNumbers`, `getPhoneNumber`, `subscribeApp`, `unsubscribeApp`, `registerPhone`), result types, `MetaApiError` (status, code, subcode, type, message scrubbed, fbtraceId, retryable).
-- [ ] `graph.client.ts` — `fetch` with `AbortSignal.timeout`, `Authorization: Bearer` (never token in URL except Meta-mandated `debug_token input_token` / `oauth` — those URLs never logged), JSON parse guard, retries (§1k) with backoff + jitter, error mapping, base URL + version from env.
-- [ ] `fake.client.ts` (§1j) — deterministic ids, single-use codes, revocable tokens, error knobs, simulated details.
-- [ ] `signature.ts` — `verifyWebhookSignature(rawBody, header, secret)`, `parseSignedRequest(value, secret, now)`.
-- [ ] `schemas.ts` — zod for token / debug token / WABA / phone / phone list / webhook envelope + Phase 9 change values; fixtures in `tests/fixtures/meta/*.json` (from Meta docs samples, test values only).
-- [ ] `createMetaClient(env)` factory; `createFakeMetaClient` exported for tests.
-- [ ] Tests: stub-server client tests, fake determinism, signatures, schemas.
+- [x] `src/core/meta/types.ts` — `MetaClient` (`exchangeCode`, `debugToken`, `listOwnedWabas`, `listBusinessesWithWabas`, `getWaba`, `listPhoneNumbers`, `getPhoneNumber`, `subscribeApp`, `unsubscribeApp`, `registerPhone`), result types, `MetaApiError` (status, code, subcode, type, message scrubbed, fbtraceId, retryable).
+- [x] `graph.client.ts` — `fetch` with `AbortSignal.timeout`, `Authorization: Bearer` (never token in URL except Meta-mandated `debug_token input_token` / `oauth` — those URLs never logged), JSON parse guard, retries (§1k) with backoff + jitter, error mapping, base URL + version from env.
+- [x] `fake.client.ts` (§1j) — deterministic ids, single-use codes, revocable tokens, error knobs, simulated details.
+- [x] `signature.ts` — `verifyWebhookSignature(rawBody, header, secret)`, `parseSignedRequest(value, secret, now)`.
+- [x] `schemas.ts` — zod for token / debug token / WABA / phone / phone list / webhook envelope + Phase 9 change values; fixtures in `tests/fixtures/meta/*.json` (from Meta docs samples, test values only).
+- [x] `createMetaClient(env)` factory; `createFakeMetaClient` exported for tests.
+- [x] Tests: stub-server client tests, fake determinism, signatures, schemas.
 
 ### T9.3 — WhatsApp channel service
 
-- [ ] `whatsapp.service.ts`: `connect` (§1d all 10 steps, Redis lock, partial-failure save), `retrySetup`, `submitPin`, `sync` (one health pass), `rename`, `disconnect` (§1h), `listChannels`, `getChannel` (view without secrets), `getChannelToken` (internal, opens seal), status transition helper (history ≤ 50, WS, audit for user actions, system actor for jobs).
-- [ ] `channel-json.ts` — list / detail views (no token, no PIN, last-4 only where a number appears in audit).
-- [ ] Graph `190` anywhere → `markNeedsReconnect(channel, reason)`.
-- [ ] Tests: every path in §1p "Integration" for the service (fake client + stub client cases).
+- [x] `whatsapp.service.ts`: `connect` (§1d all 10 steps, Redis lock, partial-failure save), `retrySetup`, `submitPin`, `sync` (one health pass), `rename`, `disconnect` (§1h), `listChannels`, `getChannel` (view without secrets), `getChannelToken` (internal, opens seal), status transition helper (history ≤ 50, WS, audit for user actions, system actor for jobs).
+- [x] `channel-json.ts` — list / detail views (no token, no PIN, last-4 only where a number appears in audit).
+- [x] Graph `190` anywhere → `markNeedsReconnect(channel, reason)`.
+- [x] Tests: every path in §1p "Integration" for the service (fake client + stub client cases).
 
 ### T9.4 — Webhook pipeline
 
-- [ ] `app.ts` raw parser for `/api/v1/webhooks/meta`; routes GET / POST (§1f).
-- [ ] Event store (key, sealed payload, insert-or-skip), enqueue `webhook.process` (job id `wa-event-<id>`), `whatsapp` worker (concurrency 10), routing, handlers (`account_update`, `phone_number_quality_update`, `phone_number_name_update`, `business_capability_update`), deferred registry (`registerDeferredField(field)` + `consumeDeferred(field, handler)` API for later phases), throttled `webhook.lastEventAt`.
-- [ ] Retries (5, exponential) → `failed`; maintenance purge of expired events (TTL backup); counters (events 24 h per channel) via aggregation.
-- [ ] 503 when Mongo / Redis unavailable; metrics log line (counts only).
-- [ ] Tests: verify challenge, signature cases, duplicates, unknown routing, each handler (fixtures), deferred storage, retry → failed → replay, Redis down, logs clean.
+- [x] `app.ts` raw parser for `/api/v1/webhooks/meta`; routes GET / POST (§1f).
+- [x] Event store (key, sealed payload, insert-or-skip), enqueue `webhook.process` (job id `wa-event-<id>`), `whatsapp` worker (concurrency 10), routing, handlers (`account_update`, `phone_number_quality_update`, `phone_number_name_update`, `business_capability_update`), deferred registry (`registerDeferredField(field)` + `consumeDeferred(field, handler)` API for later phases), throttled `webhook.lastEventAt`.
+- [x] Retries (5, exponential) → `failed`; maintenance purge of expired events (TTL backup); counters (events 24 h per channel) via aggregation.
+- [x] 503 when Mongo / Redis unavailable; metrics log line (counts only).
+- [x] Tests: verify challenge, signature cases, duplicates, unknown routing, each handler (fixtures), deferred storage, retry → failed → replay, Redis down, logs clean.
 
 ### T9.5 — Health, callbacks, superadmin, simulator
 
@@ -545,3 +545,4 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T9.1–T9.4
 - 2026-10-22: Plan created after Phase 8 sign-off and BUILD_PLAN_V2 (WhatsApp first for Meta App Review). Real Meta developer app setup deferred by the project owner — the phase is built and tested on a fake Meta provider; `docs/setup/meta-whatsapp.md` makes the later switch an env-only change. Data deletion / deauthorize callbacks pulled into Phase 9 (Meta app plumbing) from Phase 13.
 - 2026-10-22: Decisions from the project owner — (1) Meta billing **both ways** per account: platform credit line (default, Solution Partner `whatsapp_credit_sharing_and_attach`) or customer pays Meta; (2) **coexistence** numbers supported fully: echoes from the business phone, history and contacts sync (stored in Phase 9, shown in Phase 10); (3) connect / disconnect owner + admin only. §0, §1b, §1d, §1e, §1f, §1j, §1n, §1o, §1p, §5, §7 updated.
 - 2026-10-22 (T9.1): `WHATSAPP_ENABLED` defaults to `true` outside production and to `Boolean(META_APP_ID)` in production (a production deploy without a Meta app keeps WhatsApp off instead of failing to boot). The baseline had **11** notification types (not 13) → **17** after Phase 9 (+6).
+- 2026-10-22: **Batch 1 done** (T9.1–T9.4, `[P9-B1-DONE]`). Deviations: (1) `WHATSAPP_ENABLED` production default = `Boolean(META_APP_ID)` (above); (2) notification types 11 → 17 (the prompt's 13 → 19 counted wrong); (3) fake signup codes carry a random `nonce` (same business + phone twice → two valid codes, like Meta); (4) the webhook 503 uses `PROVIDER_UNAVAILABLE` (no new error code — the catalogue stays at 54); (5) `account_update` events without their own effect (`ACCOUNT_UPDATE`, `VERIFIED_ACCOUNT`, …) run a channel sync, so the simulator's `token_revoked` / `payment_method_added` kinds go through the real pipeline; (6) a billing retry re-reads the account's Meta payer until a credit line is attached (superadmin can switch a failing account to "customer pays Meta"); (7) the simulator payload builders (`simulator.ts`) were added with Batch 1 because `npm run dev:whatsapp` needs them — the simulator route stays in T9.5; (8) `ErrorDetail` gained `metaCode` / `metaSubcode` / `fbtraceId` for `META_API_ERROR`; (9) `setLogger()` test hook in `shared/logger.ts`.

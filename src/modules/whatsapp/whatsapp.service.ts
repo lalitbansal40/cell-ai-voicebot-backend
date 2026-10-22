@@ -401,7 +401,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext) => {
     const updated = await WhatsAppChannelModel.findOneAndUpdate(
       { _id: channel._id },
       { $set: patch },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<WhatsAppChannelDoc>();
     return updated ?? channel;
   };
@@ -764,7 +764,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext) => {
     const updated = await WhatsAppChannelModel.findOneAndUpdate(
       { _id: channel._id, accountId },
       { $set: { label } },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean<WhatsAppChannelDoc>();
     if (!updated) throw new NotFoundError('WhatsApp number not found');
     emitChannelUpdated(updated);
