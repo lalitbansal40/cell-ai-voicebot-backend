@@ -1,0 +1,11 @@
+{
+  "messaging_product": "whatsapp",
+  "block_users": {
+    "removed_users": [
+      {
+        "input": "919000000101",
+        "wa_id": "919000000101"
+      }
+    ]
+  }
+}

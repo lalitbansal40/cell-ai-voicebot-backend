@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "about": "Test about",
+      "address": "Test Road, Jaipur",
+      "description": "Test description",
+      "email": "hello@example.com",
+      "profile_picture_url": "https://pps.whatsapp.net/v/test.jpg",
+      "websites": [
+        "https://example.com/"
+      ],
+      "vertical": "FINANCE",
+      "messaging_product": "whatsapp"
+    }
+  ]
+}

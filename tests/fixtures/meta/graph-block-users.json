@@ -1,0 +1,23 @@
+{
+  "messaging_product": "whatsapp",
+  "block_users": {
+    "added_users": [
+      {
+        "input": "919000000101",
+        "wa_id": "919000000101"
+      }
+    ],
+    "failed_users": [
+      {
+        "input": "919000000205",
+        "wa_id": "919000000205",
+        "errors": [
+          {
+            "message": "Failed to block user: the user has not messaged in the last 24 hours",
+            "code": 139100
+          }
+        ]
+      }
+    ]
+  }
+}

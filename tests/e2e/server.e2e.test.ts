@@ -186,9 +186,11 @@ describe('startServer (e2e)', () => {
       .filter((l) => l.msg === 'shutdown: running hook')
       .map((l) => l.hook as string);
     // campaign dispatchers stop before the calls they started end; the WhatsApp
-    // worker stops before the queues close
+    // worker stops before the queues close; the fake Meta's pending status timers are
+    // cancelled before the calls / worker hooks
     expect(hooks).toEqual([
       'campaigns',
+      'fake-meta-statuses',
       'calls',
       'whatsapp',
       'http',

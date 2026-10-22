@@ -1,11 +1,31 @@
 import { createHash } from 'node:crypto';
+import { Readable, Transform } from 'node:stream';
 
 import type { ZodType } from 'zod';
 
 import { WHATSAPP_LIMITS } from '../../config/limits';
 import { getLogger, type Logger } from '../../shared/logger';
 
-import { graphError, invalidResponse, metaErrorMeta, networkError, notConfigured } from './errors';
+import {
+  graphError,
+  invalidResponse,
+  mediaRefused,
+  metaErrorMeta,
+  networkError,
+  notConfigured,
+} from './errors';
+import {
+  blockUsersSchema,
+  businessProfileSchema,
+  mediaUploadSchema,
+  mediaUrlSchema,
+  sendMessageSchema,
+  toBlockResult,
+  toBusinessProfile,
+  toMediaUrl,
+  uploadHandleSchema,
+  uploadSessionSchema,
+} from './message-schemas';
 import {
   allocationSchema,
   businessesSchema,
@@ -29,7 +49,7 @@ import {
   toWaba,
   wabaSchema,
 } from './schemas';
-import type { MetaApiError, MetaClient } from './types';
+import { isAllowedMediaUrl, type MetaApiError, type MetaClient } from './types';
 
 export interface GraphMetaClientOptions {
   appId: string;
@@ -48,6 +68,8 @@ export interface GraphMetaClientOptions {
   timeoutMs?: number;
   retries?: number;
   retryBaseMs?: number;
+  /** Extra media hosts allowed for downloads (exact host — tests' local stub only). */
+  mediaHosts?: readonly string[];
 }
 
 type Method = 'GET' | 'POST' | 'DELETE';
@@ -59,8 +81,15 @@ interface GraphRequest<T> {
   path: string;
   query?: Record<string, string>;
   body?: Record<string, unknown>;
+  /** Multipart body (media upload). */
+  form?: FormData;
+  /** Raw bytes (resumable upload). */
+  bytes?: Buffer;
+  headers?: Record<string, string>;
   /** Bearer token; `null` for the two calls that take credentials in the query. */
   token: string | null;
+  /** `OAuth` for the resumable upload API; Bearer otherwise. */
+  authScheme?: 'Bearer' | 'OAuth';
   schema: ZodType<T>;
 }
 
@@ -93,6 +122,16 @@ const WABA_FIELDS = [
   'primary_funding_id',
 ].join(',');
 
+const PROFILE_FIELDS = [
+  'about',
+  'address',
+  'description',
+  'email',
+  'profile_picture_url',
+  'websites',
+  'vertical',
+].join(',');
+
 const seg = (value: string) => encodeURIComponent(value);
 const tokenKey = (token: string) => createHash('sha256').update(token).digest('hex');
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -121,14 +160,16 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
     for (const [k, v] of Object.entries(req.query ?? {})) url.searchParams.set(k, v);
     let res: Response;
     try {
+      const payload = req.form ?? (req.bytes ? new Uint8Array(req.bytes) : undefined);
       res = await fetchFn(url, {
         method: req.method,
         headers: {
           accept: 'application/json',
-          ...(req.token ? { authorization: `Bearer ${req.token}` } : {}),
+          ...(req.token ? { authorization: `${req.authScheme ?? 'Bearer'} ${req.token}` } : {}),
           ...(req.body ? { 'content-type': 'application/json' } : {}),
+          ...req.headers,
         },
-        ...(req.body ? { body: JSON.stringify(req.body) } : {}),
+        ...(req.body ? { body: JSON.stringify(req.body) } : payload ? { body: payload } : {}),
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
@@ -175,7 +216,10 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
     path: string,
     token: string,
     schema: ZodType<T>,
-    extra: Pick<GraphRequest<T>, 'query' | 'body'> = {},
+    extra: Pick<
+      GraphRequest<T>,
+      'query' | 'body' | 'form' | 'bytes' | 'headers' | 'authScheme'
+    > = {},
   ) => call({ op, method, path, token, schema, ...extra });
 
   return {
@@ -351,6 +395,193 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
         },
       );
       return { requestId: raw.request_id ?? null };
+    },
+
+    async sendMessage(token, phoneNumberId, payload) {
+      const raw = await bearer(
+        'phone.messages',
+        'POST',
+        `${seg(phoneNumberId)}/messages`,
+        token,
+        sendMessageSchema,
+        { body: payload },
+      );
+      return { waMessageId: raw.messages[0]?.id ?? '' };
+    },
+
+    async markRead(token, phoneNumberId, waMessageId, opts = {}) {
+      await bearer(
+        'phone.mark_read',
+        'POST',
+        `${seg(phoneNumberId)}/messages`,
+        token,
+        successSchema,
+        {
+          body: {
+            messaging_product: 'whatsapp',
+            status: 'read',
+            message_id: waMessageId,
+            ...(opts.typing ? { typing_indicator: { type: 'text' } } : {}),
+          },
+        },
+      );
+    },
+
+    async uploadMedia(token, phoneNumberId, media) {
+      // a fresh FormData per attempt (a body stream can be read once)
+      const form = () => {
+        const f = new FormData();
+        f.set('messaging_product', 'whatsapp');
+        f.set('type', media.mimeType);
+        f.set(
+          'file',
+          new Blob([new Uint8Array(media.bytes)], { type: media.mimeType }),
+          media.fileName,
+        );
+        return f;
+      };
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          const raw = await once({
+            op: 'phone.media_upload',
+            method: 'POST',
+            path: `${seg(phoneNumberId)}/media`,
+            token,
+            form: form(),
+            schema: mediaUploadSchema,
+          });
+          return raw.id;
+        } catch (err) {
+          const metaErr = err as MetaApiError;
+          const retry = metaErr.retryable && attempt < retries;
+          log().warn(
+            { op: 'phone.media_upload', attempt: attempt + 1, retry, ...metaErrorMeta(metaErr) },
+            'meta: request failed',
+          );
+          if (!retry) throw metaErr;
+          await sleep(retryBaseMs * 2 ** attempt + Math.floor(random() * retryBaseMs));
+        }
+      }
+    },
+
+    async getMediaUrl(token, mediaId, phoneNumberId) {
+      const raw = await bearer('media.get', 'GET', seg(mediaId), token, mediaUrlSchema, {
+        query: { phone_number_id: phoneNumberId },
+      });
+      return toMediaUrl(raw);
+    },
+
+    async downloadMedia(token, url, { maxBytes }) {
+      if (!isAllowedMediaUrl(url, options.mediaHosts)) throw mediaRefused('host');
+      let res: Response;
+      try {
+        res = await fetchFn(url, {
+          headers: { authorization: `Bearer ${token}` },
+          redirect: 'error',
+          signal: AbortSignal.timeout(timeoutMs * 6),
+        });
+      } catch (err) {
+        const name = (err as Error).name;
+        throw networkError(name === 'TimeoutError' || name === 'AbortError');
+      }
+      if (!res.ok || !res.body) {
+        await res.body?.cancel().catch(() => undefined);
+        throw graphError(res.status, null);
+      }
+      const length = Number(res.headers.get('content-length'));
+      const contentLength = Number.isFinite(length) && length > 0 ? length : null;
+      if (contentLength !== null && contentLength > maxBytes) {
+        await res.body.cancel().catch(() => undefined);
+        throw mediaRefused('too_large');
+      }
+      let seen = 0;
+      const counter = new Transform({
+        transform(chunk: Buffer, _enc, done) {
+          seen += chunk.length;
+          if (seen > maxBytes) done(mediaRefused('too_large'));
+          else done(null, chunk);
+        },
+      });
+      const source = Readable.fromWeb(res.body);
+      source.on('error', (err) => counter.destroy(err));
+      return {
+        stream: source.pipe(counter),
+        contentType: res.headers.get('content-type'),
+        contentLength,
+      };
+    },
+
+    async blockUsers(token, phoneNumberId, waIds) {
+      const raw = await bearer(
+        'phone.block_users',
+        'POST',
+        `${seg(phoneNumberId)}/block_users`,
+        token,
+        blockUsersSchema,
+        { body: { messaging_product: 'whatsapp', block_users: waIds.map((user) => ({ user })) } },
+      );
+      return toBlockResult(raw);
+    },
+
+    async unblockUsers(token, phoneNumberId, waIds) {
+      const raw = await bearer(
+        'phone.unblock_users',
+        'DELETE',
+        `${seg(phoneNumberId)}/block_users`,
+        token,
+        blockUsersSchema,
+        { body: { messaging_product: 'whatsapp', block_users: waIds.map((user) => ({ user })) } },
+      );
+      return toBlockResult(raw);
+    },
+
+    async getBusinessProfile(token, phoneNumberId) {
+      const raw = await bearer(
+        'phone.profile_get',
+        'GET',
+        `${seg(phoneNumberId)}/whatsapp_business_profile`,
+        token,
+        businessProfileSchema,
+        { query: { fields: PROFILE_FIELDS } },
+      );
+      return toBusinessProfile(raw);
+    },
+
+    async updateBusinessProfile(token, phoneNumberId, fields) {
+      const { profilePictureHandle, ...rest } = fields;
+      await bearer(
+        'phone.profile_update',
+        'POST',
+        `${seg(phoneNumberId)}/whatsapp_business_profile`,
+        token,
+        successSchema,
+        {
+          body: {
+            messaging_product: 'whatsapp',
+            ...rest,
+            ...(profilePictureHandle ? { profile_picture_handle: profilePictureHandle } : {}),
+          },
+        },
+      );
+    },
+
+    async uploadProfilePhoto(token, bytes, mimeType) {
+      const session = await bearer(
+        'app.upload_session',
+        'POST',
+        `${seg(appId)}/uploads`,
+        token,
+        uploadSessionSchema,
+        {
+          query: { file_length: String(bytes.length), file_type: mimeType },
+        },
+      );
+      const raw = await bearer('app.upload', 'POST', session.id, token, uploadHandleSchema, {
+        bytes,
+        authScheme: 'OAuth',
+        headers: { file_offset: '0', 'content-type': mimeType },
+      });
+      return raw.h;
     },
   };
 };

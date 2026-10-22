@@ -58,6 +58,7 @@ import { queueCampaignExports, queueCampaignJobs, wireCampaigns } from './module
 import { resetProgressThrottle } from './modules/campaigns/progress';
 import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
+import { connectFakeStatusWebhooks } from './modules/whatsapp/fake-statuses';
 import { queueWhatsAppJobs } from './modules/whatsapp/jobs';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
@@ -192,8 +193,11 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
         connectRateLimitStore: createRedisRateLimitStore(redis, 'rl:wa-connect:'),
       }
     : undefined;
-  if (whatsapp)
+  if (whatsapp) {
     logger.info({ provider: whatsapp.ctx.meta.provider }, 'whatsapp: meta provider ready');
+    // fake provider: auto status webhooks through the real receiver (Phase 10)
+    lifecycle.onShutdown('fake-meta-statuses', connectFakeStatusWebhooks(whatsapp), 5);
+  }
   const app = createApp({
     env,
     logger,

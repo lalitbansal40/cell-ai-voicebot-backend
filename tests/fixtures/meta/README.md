@@ -1,4 +1,4 @@
-# Meta fixtures (Phase 9)
+# Meta fixtures (Phases 9–10)
 
 Shapes copied from Meta's documented sample payloads; every id, number, name and text is a **test value** (`+91 90000 …`, `Test Business`, `Test Customer`). No real data, no AutoChatix data. Re-check against the docs when bumping `META_GRAPH_VERSION`.
 
@@ -29,3 +29,12 @@ Shapes copied from Meta's documented sample payloads; every id, number, name and
 | `webhook-messages-text.json`, `-status`   | whatsapp/cloud-api/webhooks/payload-examples                                 |
 | `webhook-calls-connect.json`              | whatsapp/cloud-api/calling/user-initiated-calls (`calls` connect)            |
 | `webhook-template-status.json`            | whatsapp/business-management-api/webhooks/components (template status)      |
+| `messages-*.json` (Phase 10) | whatsapp/cloud-api/webhooks/payload-examples — text (link), image, video, audio, voice (`audio.voice: true`), document, sticker (+ animated), location, contacts, interactive `button_reply` / `list_reply` / `nfm_reply`, template `button`, reaction (+ removed), reply `context`, forwarded, ad `referral`, order, system (number changed), unsupported (`errors`) |
+| `statuses-*.json` (sent, delivered, read, played, failed, deleted) | same page (status webhooks with `conversation` / `pricing`, `errors` on failed) |
+| `graph-message-sent.json`, `graph-error-window-closed.json`, `graph-error-throughput.json` | whatsapp/cloud-api/reference/messages + support/error-codes (131047, 130429) |
+| `graph-media-upload.json`, `graph-media-url.json` | whatsapp/cloud-api/reference/media (upload, retrieve URL — `lookaside.fbsbx.com`) |
+| `graph-business-profile.json` | whatsapp/cloud-api/reference/business-profiles |
+| `graph-block-users.json`, `graph-unblock-users.json` | whatsapp/cloud-api/block-users |
+| `graph-upload-session.json`, `graph-upload-handle.json` | graph-api/guides/upload (resumable upload → handle for the profile photo) |
+
+`media/sample.{jpg,png,webp,mp4,ogg,pdf}` — tiny generated files (no real content) for sniffing / download tests; `sample.ogg` is a valid mono OGG / Opus (OpusHead, OpusTags, 50 × 20 ms silent packets, CRCs computed).

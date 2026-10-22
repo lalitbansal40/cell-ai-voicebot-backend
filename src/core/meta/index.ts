@@ -11,12 +11,20 @@ export * from './types';
 export * from './errors';
 export * from './signature';
 export * from './schemas';
+export * from './message-schemas';
+export * from './payloads';
 export {
   buildFakeCode,
   createFakeMetaClient,
   FAKE_CREDIT_LINE_ID,
   FAKE_EXISTING_PIN,
+  FAKE_INBOX_KNOBS,
   FAKE_META_KNOBS,
+  fakeMediaSignature,
+  isMonoOggOpus,
+  verifyFakeMediaSignature,
+  type FakeReadReceipt,
+  type FakeSentMessage,
   FAKE_SYSTEM_USER_ID,
   fakeIds,
   fakeSignupSchema,
@@ -35,6 +43,8 @@ export type MetaEnv = Pick<
   | 'META_CREDIT_LINE_ID'
   | 'META_SYSTEM_USER_TOKEN'
   | 'FAKE_META_APP_SECRET'
+  | 'FAKE_META_STATUS_DELAYS_MS'
+  | 'APP_URL'
 >;
 
 export interface MetaDeps {
@@ -55,6 +65,8 @@ export const createMetaClient = (env: MetaEnv, deps: MetaDeps): MetaClient => {
     return createFakeMetaClient({
       redis: deps.redis,
       appSecret: metaAppSecret(env),
+      statusDelaysMs: env.FAKE_META_STATUS_DELAYS_MS,
+      mediaBaseUrl: env.APP_URL,
       ...(deps.prefix ? { prefix: deps.prefix } : {}),
     });
   }

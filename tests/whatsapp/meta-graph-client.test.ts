@@ -395,6 +395,8 @@ describe('createMetaClient', () => {
     META_CREDIT_LINE_ID: undefined,
     META_SYSTEM_USER_TOKEN: undefined,
     FAKE_META_APP_SECRET: 'dev-fake-meta-app-secret',
+    FAKE_META_STATUS_DELAYS_MS: null,
+    APP_URL: 'http://localhost:5100',
   };
   const redis = {} as Redis;
 

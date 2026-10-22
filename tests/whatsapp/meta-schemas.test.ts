@@ -50,6 +50,17 @@ const GRAPH_SCHEMAS = {
   'graph-smb-app-data.json': syncRequestSchema,
 } as const;
 
+const PHASE_10_GRAPH = new Set([
+  'graph-message-sent.json',
+  'graph-media-upload.json',
+  'graph-media-url.json',
+  'graph-business-profile.json',
+  'graph-block-users.json',
+  'graph-unblock-users.json',
+  'graph-upload-session.json',
+  'graph-upload-handle.json',
+]);
+
 describe('Meta fixtures', () => {
   it('every fixture is covered and documented', () => {
     const readme = readFileSync(join(DIR, 'README.md'), 'utf8');
@@ -62,8 +73,15 @@ describe('Meta fixtures', () => {
         globs.some((glob) => glob.test(file)) ||
         readme.includes(`\`-${/-([a-z]+)\.json$/.exec(file)?.[1] ?? ''}\``);
       expect(documented, file).toBe(true);
+      // Phase 10 fixtures (messages / statuses / messaging Graph answers) are parsed in
+      // tests/inbox/meta-message-schemas.test.ts
       expect(
-        file.startsWith('graph-error-') || file in GRAPH_SCHEMAS || file.startsWith('webhook-'),
+        file.startsWith('graph-error-') ||
+          file in GRAPH_SCHEMAS ||
+          file.startsWith('webhook-') ||
+          file.startsWith('messages-') ||
+          file.startsWith('statuses-') ||
+          PHASE_10_GRAPH.has(file),
         file,
       ).toBe(true);
     }

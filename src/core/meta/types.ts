@@ -1,3 +1,5 @@
+import type { Readable } from 'node:stream';
+
 import type { WaLimitTier, WaQuality } from '../../db/models/whatsapp-channel.model';
 
 /** Coexistence sync requests (`POST /{phone}/smb_app_data`). */
@@ -97,8 +99,90 @@ export interface MetaAllocation {
   receivingCredentialId: string | null;
 }
 
+/** `POST /{phone}/messages` body (built by `payloads.ts`). */
+export type MetaMessagePayload = Record<string, unknown> & {
+  messaging_product: 'whatsapp';
+  recipient_type: 'individual';
+  to: string;
+  type: string;
+};
+
+export interface MetaSendResult {
+  waMessageId: string;
+}
+
+export interface MetaMediaUpload {
+  bytes: Buffer;
+  mimeType: string;
+  fileName: string;
+}
+
+/** `GET /{media-id}` — a short-lived URL (needs the business token to download). */
+export interface MetaMediaUrl {
+  url: string;
+  mimeType: string | null;
+  sha256: string | null;
+  size: number | null;
+}
+
+export interface MetaMediaDownload {
+  stream: Readable;
+  contentType: string | null;
+  contentLength: number | null;
+}
+
+export interface MetaBlockResult {
+  /** waIds Meta blocked / unblocked. */
+  done: string[];
+  failed: { waId: string; code: number | null; message: string }[];
+}
+
+export const BUSINESS_VERTICALS = [
+  'UNDEFINED',
+  'OTHER',
+  'AUTO',
+  'BEAUTY',
+  'APPAREL',
+  'EDU',
+  'ENTERTAIN',
+  'EVENT_PLAN',
+  'FINANCE',
+  'GROCERY',
+  'GOVT',
+  'HOTEL',
+  'HEALTH',
+  'NONPROFIT',
+  'PROF_SERVICES',
+  'RETAIL',
+  'TRAVEL',
+  'RESTAURANT',
+  'NOT_A_BIZ',
+] as const;
+export type BusinessVertical = (typeof BUSINESS_VERTICALS)[number];
+
+export interface MetaBusinessProfile {
+  about: string | null;
+  address: string | null;
+  description: string | null;
+  email: string | null;
+  profilePictureUrl: string | null;
+  websites: string[];
+  vertical: string | null;
+}
+
+export interface MetaBusinessProfileUpdate {
+  about?: string;
+  address?: string;
+  description?: string;
+  email?: string;
+  websites?: string[];
+  vertical?: BusinessVertical;
+  /** From `uploadProfilePhoto`. */
+  profilePictureHandle?: string;
+}
+
 /**
- * Everything Phase 9 needs from the Meta Graph API. Two implementations:
+ * Everything Phases 9–10 need from the Meta Graph API. Two implementations:
  * `createGraphMetaClient` (real HTTP) and `createFakeMetaClient` (dev / tests / E2E).
  * Every method throws `MetaApiError` on failure.
  */
@@ -125,7 +209,53 @@ export interface MetaClient {
     phoneNumberId: string,
     kind: CoexistenceSyncKind,
   ): Promise<{ requestId: string | null }>;
+  /* ── Phase 10: inbox ── */
+  sendMessage(
+    token: string,
+    phoneNumberId: string,
+    payload: MetaMessagePayload,
+  ): Promise<MetaSendResult>;
+  /** Read receipt for `waMessageId` (and earlier ones); `typing` adds the typing indicator. */
+  markRead(
+    token: string,
+    phoneNumberId: string,
+    waMessageId: string,
+    options?: { typing?: boolean },
+  ): Promise<void>;
+  uploadMedia(token: string, phoneNumberId: string, media: MetaMediaUpload): Promise<string>;
+  getMediaUrl(token: string, mediaId: string, phoneNumberId: string): Promise<MetaMediaUrl>;
+  /** Streams a media URL (host allowlist, no redirects, aborts past `maxBytes`). */
+  downloadMedia(
+    token: string,
+    url: string,
+    options: { maxBytes: number },
+  ): Promise<MetaMediaDownload>;
+  blockUsers(token: string, phoneNumberId: string, waIds: string[]): Promise<MetaBlockResult>;
+  unblockUsers(token: string, phoneNumberId: string, waIds: string[]): Promise<MetaBlockResult>;
+  getBusinessProfile(token: string, phoneNumberId: string): Promise<MetaBusinessProfile>;
+  updateBusinessProfile(
+    token: string,
+    phoneNumberId: string,
+    fields: MetaBusinessProfileUpdate,
+  ): Promise<void>;
+  /** Resumable upload of a profile photo → handle for `updateBusinessProfile`. */
+  uploadProfilePhoto(token: string, bytes: Buffer, mimeType: string): Promise<string>;
 }
+
+/** Is `url` a Meta media host (or one of `extraHosts`, exact match — tests / fake)? */
+export const isAllowedMediaUrl = (url: string, extraHosts: readonly string[] = []): boolean => {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (extraHosts.includes(parsed.host.toLowerCase()) || extraHosts.includes(host)) return true;
+  return (
+    parsed.protocol === 'https:' && META_MEDIA_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))
+  );
+};
 
 export interface MetaApiErrorInit {
   /** HTTP status (0 = network error / timeout / not configured). */

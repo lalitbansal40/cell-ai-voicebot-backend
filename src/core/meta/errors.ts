@@ -22,16 +22,23 @@ const SECRET_PATTERNS: RegExp[] = [
   /input_token=[^&\s"]+/g,
   /code=[^&\s"]+/g,
   /Bearer\s+[^\s"]+/gi,
+  /OAuth\s+[^\s"]+/g,
 ];
+/** Media URLs (they authorise a download for a while) are never kept in messages. */
+const MEDIA_URL = /https?:\/\/[^\s"]*(?:fbsbx|fbcdn|whatsapp\.net)[^\s"]*/gi;
 
 /** Removes credentials Meta may echo in error messages / URLs. */
 export const scrubSecrets = (text: string): string =>
   SECRET_PATTERNS.reduce(
     (out, re) =>
       out.replace(re, (match) =>
-        /^bearer/i.test(match) ? 'Bearer ***' : `${match.slice(0, match.indexOf('=') + 1)}***`,
+        /^bearer/i.test(match)
+          ? 'Bearer ***'
+          : match.startsWith('OAuth')
+            ? 'OAuth ***'
+            : `${match.slice(0, match.indexOf('=') + 1)}***`,
       ),
-    text,
+    text.replace(MEDIA_URL, '<media url>'),
   ).slice(0, 500);
 
 interface GraphErrorBody {
@@ -113,6 +120,19 @@ export const notConfigured = (what: string): MetaApiError =>
     tokenInvalid: false,
   });
 
+/** A media download we refuse (not a Meta host / larger than allowed). */
+export const mediaRefused = (reason: 'host' | 'too_large'): MetaApiError =>
+  new MetaApiError({
+    status: 0,
+    code: null,
+    subcode: null,
+    type: reason === 'host' ? 'media_host_refused' : 'media_too_large',
+    message: reason === 'host' ? 'Media URL is not a Meta host' : 'Media is larger than allowed',
+    fbtraceId: null,
+    retryable: false,
+    tokenInvalid: false,
+  });
+
 /** Safe fields for logs / error details (never tokens, URLs or bodies). */
 export const metaErrorMeta = (err: MetaApiError) => ({
   status: err.status,
@@ -121,3 +141,100 @@ export const metaErrorMeta = (err: MetaApiError) => ({
   type: err.type,
   fbtraceId: err.fbtraceId,
 });
+
+/** What a failed send means for the message and the channel (PHASE_10_PLAN §1d). */
+export interface SendErrorMapping {
+  retryable: boolean;
+  /** Wait at least this long before the next attempt (Meta pair rate limit). */
+  retryAfterSec: number | null;
+  channelEffect: 'none' | 'needs_reconnect' | 'restricted';
+  /** Shown on the bubble — our text, never Meta's (it can quote customer data). */
+  reason: string;
+}
+
+const SEND_ERRORS: Record<
+  number,
+  Omit<SendErrorMapping, 'channelEffect'> & {
+    channelEffect?: SendErrorMapping['channelEffect'];
+  }
+> = {
+  131047: {
+    retryable: false,
+    retryAfterSec: null,
+    reason: 'More than 24 hours have passed since the customer last replied',
+  },
+  131026: { retryable: false, retryAfterSec: null, reason: 'Message undeliverable' },
+  131049: {
+    retryable: false,
+    retryAfterSec: null,
+    reason: 'Not delivered to keep engagement healthy',
+  },
+  131050: { retryable: false, retryAfterSec: null, reason: 'Customer stopped marketing messages' },
+  131051: { retryable: false, retryAfterSec: null, reason: 'Unsupported message type' },
+  131052: { retryable: true, retryAfterSec: null, reason: 'Media download error' },
+  131053: { retryable: true, retryAfterSec: null, reason: 'Media upload error' },
+  131056: { retryable: true, retryAfterSec: 60, reason: 'Too many messages to this customer' },
+  130429: { retryable: true, retryAfterSec: null, reason: 'Throughput limit reached' },
+  131000: {
+    retryable: true,
+    retryAfterSec: null,
+    reason: 'WhatsApp service temporarily unavailable',
+  },
+  131016: {
+    retryable: true,
+    retryAfterSec: null,
+    reason: 'WhatsApp service temporarily unavailable',
+  },
+  1: { retryable: true, retryAfterSec: null, reason: 'WhatsApp service temporarily unavailable' },
+  2: { retryable: true, retryAfterSec: null, reason: 'WhatsApp service temporarily unavailable' },
+  131009: { retryable: false, retryAfterSec: null, reason: 'Invalid message parameter' },
+  131008: { retryable: false, retryAfterSec: null, reason: 'Invalid message parameter' },
+  100: { retryable: false, retryAfterSec: null, reason: 'Invalid message parameter' },
+  368: {
+    retryable: false,
+    retryAfterSec: null,
+    channelEffect: 'restricted',
+    reason: 'Account restricted by Meta',
+  },
+  131031: {
+    retryable: false,
+    retryAfterSec: null,
+    channelEffect: 'restricted',
+    reason: 'Account restricted by Meta',
+  },
+  133010: { retryable: false, retryAfterSec: null, reason: 'Number not registered' },
+};
+
+/** Meta error (from a send or a `failed` status) → retry decision, channel effect, bubble text. */
+export const mapSendError = (input: {
+  code: number | null;
+  status?: number;
+  tokenInvalid?: boolean;
+  retryable?: boolean;
+}): SendErrorMapping => {
+  if (input.tokenInvalid || input.code === META_ERROR_CODES.tokenInvalid) {
+    return {
+      retryable: false,
+      retryAfterSec: null,
+      channelEffect: 'needs_reconnect',
+      reason: 'Connection to WhatsApp expired',
+    };
+  }
+  const known = input.code === null ? undefined : SEND_ERRORS[input.code];
+  if (known) return { channelEffect: 'none', ...known };
+  // network errors / HTTP 5xx without a code: transient
+  if (input.code === null && (input.retryable ?? (input.status ?? 0) >= 500)) {
+    return {
+      retryable: true,
+      retryAfterSec: null,
+      channelEffect: 'none',
+      reason: 'WhatsApp service temporarily unavailable',
+    };
+  }
+  return {
+    retryable: false,
+    retryAfterSec: null,
+    channelEffect: 'none',
+    reason: input.code === null ? 'Message failed' : `Message failed (code ${String(input.code)})`,
+  };
+};

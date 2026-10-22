@@ -1,0 +1,47 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "time": 1761120000,
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919000000010",
+              "phone_number_id": "106540352242922"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Test Customer"
+                },
+                "wa_id": "919000000101"
+              }
+            ],
+            "messages": [
+              {
+                "from": "919000000101",
+                "id": "wamid.HBgMOTE5MDAwMDAwMTAxFQIAEhgg0022TEST",
+                "timestamp": "1761120000",
+                "type": "unsupported",
+                "errors": [
+                  {
+                    "code": 131051,
+                    "title": "Message type unknown",
+                    "message": "Message type unknown",
+                    "error_data": {
+                      "details": "Message type is currently not supported."
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}
