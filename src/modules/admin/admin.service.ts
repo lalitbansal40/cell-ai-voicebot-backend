@@ -28,6 +28,7 @@ import {
 } from '../auth/session';
 import { resumeCampaignDoc } from '../campaigns/campaigns.service';
 import { pauseAccountCampaigns } from '../campaigns/jobs';
+import { accountWhatsApp } from '../whatsapp/whatsapp-admin.service';
 
 import type { AccountLimitsBody, ListAccountsQuery } from './admin.schema';
 
@@ -157,6 +158,7 @@ export const accountDetail = async (id: string) => {
     },
     activeCampaigns,
     adminPausedCampaigns: adminPaused.map((c) => ({ id: c._id.toString(), name: c.name })),
+    ...(await accountWhatsApp(account._id)),
     recentAudit: recent.map((r) => ({
       id: r._id.toString(),
       action: r.action,

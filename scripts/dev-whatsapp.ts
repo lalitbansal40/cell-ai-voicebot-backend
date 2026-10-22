@@ -94,7 +94,7 @@ const main = async () => {
   const server = createServer(app);
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}/api/v1/webhooks/meta`;
-  const { worker } = startWhatsAppWorker({ redisUrl: env.REDIS_URL, logger, ctx });
+  const { worker } = await startWhatsAppWorker({ redisUrl: env.REDIS_URL, logger, ctx });
 
   for (const e of EVENTS) {
     const channel = await WhatsAppChannelModel.findById(channelIds[e.number]).lean();

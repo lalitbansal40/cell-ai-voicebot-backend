@@ -252,7 +252,10 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     await startBillingWorker({ ...queueDeps, storage, jobs: billingJobs });
     await startAiWorker({ ...queueDeps, storage, provider: aiProvider, jobs: aiJobs });
     if (whatsapp) {
-      const { worker: whatsappWorker } = startWhatsAppWorker({ ...queueDeps, ctx: whatsapp.ctx });
+      const { worker: whatsappWorker } = await startWhatsAppWorker({
+        ...queueDeps,
+        ctx: whatsapp.ctx,
+      });
       lifecycle.onShutdown('whatsapp', () => whatsappWorker.close(), 6);
     }
     if (env.CAMPAIGNS_ENABLED) {

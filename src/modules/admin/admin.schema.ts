@@ -1,4 +1,5 @@
 import { ACCOUNT_LIMIT_RANGES } from '../../config/limits';
+import { META_PAYERS, WA_CHANNEL_STATUSES, WA_MODES } from '../../db/models/whatsapp-channel.model';
 import { OffsetPageMetaSchema } from '../../shared/openapi/common.schemas';
 import { registry } from '../../shared/openapi/registry';
 import { bearer, errors, noContentResponse, ok } from '../../shared/openapi/responses';
@@ -62,6 +63,24 @@ export const AdminAccountDetailSchema = registry.register(
     adminPausedCampaigns: z.array(z.object({ id: z.string(), name: z.string() })).openapi({
       description: 'Paused by the platform team — only a superadmin resumes them (≤ 100)',
     }),
+    whatsappBilling: z.object({ metaPayer: z.enum(META_PAYERS) }).openapi({
+      description: 'Who pays Meta for WhatsApp numbers connected from now on (Phase 9)',
+    }),
+    whatsappChannels: z.array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        status: z.enum(WA_CHANNEL_STATUSES),
+        mode: z.enum(WA_MODES),
+        displayPhoneNumber: z.string().nullable(),
+        verifiedName: z.string().nullable(),
+        qualityRating: z.string(),
+        messagingLimitTier: z.string().nullable(),
+        metaPayer: z.enum(META_PAYERS),
+        creditLineStatus: z.string(),
+        connectedAt: z.string().nullable(),
+      }),
+    ),
     recentAudit: z.array(AuditEntrySchema),
   }),
 );

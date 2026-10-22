@@ -493,6 +493,54 @@
             },
             "description": "Paused by the platform team — only a superadmin resumes them (≤ 100)"
           },
+          "whatsappBilling": {
+            "type": "object",
+            "properties": { "metaPayer": { "type": "string", "enum": ["platform", "customer"] } },
+            "required": ["metaPayer"],
+            "description": "Who pays Meta for WhatsApp numbers connected from now on (Phase 9)"
+          },
+          "whatsappChannels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "connecting",
+                    "connected",
+                    "action_needed",
+                    "needs_reconnect",
+                    "restricted",
+                    "disconnected"
+                  ]
+                },
+                "mode": { "type": "string", "enum": ["cloud_api", "coexistence"] },
+                "displayPhoneNumber": { "type": ["string", "null"] },
+                "verifiedName": { "type": ["string", "null"] },
+                "qualityRating": { "type": "string" },
+                "messagingLimitTier": { "type": ["string", "null"] },
+                "metaPayer": { "type": "string", "enum": ["platform", "customer"] },
+                "creditLineStatus": { "type": "string" },
+                "connectedAt": { "type": ["string", "null"] }
+              },
+              "required": [
+                "id",
+                "label",
+                "status",
+                "mode",
+                "displayPhoneNumber",
+                "verifiedName",
+                "qualityRating",
+                "messagingLimitTier",
+                "metaPayer",
+                "creditLineStatus",
+                "connectedAt"
+              ]
+            }
+          },
           "recentAudit": { "type": "array", "items": { "$ref": "#/components/schemas/AuditEntry" } }
         },
         "required": [
@@ -503,6 +551,8 @@
           "limits",
           "activeCampaigns",
           "adminPausedCampaigns",
+          "whatsappBilling",
+          "whatsappChannels",
           "recentAudit"
         ]
       },

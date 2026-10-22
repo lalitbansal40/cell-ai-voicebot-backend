@@ -40,6 +40,7 @@ import {
   emitChannelUpdated,
   markNeedsReconnect,
   notifyChannel,
+  notifyDetailChanges,
   numberName,
   TOKEN_INVALID_REASON,
   transition,
@@ -688,30 +689,41 @@ export const createWhatsAppService = (ctx: WhatsAppContext) => {
         ...(ch.metaPayer === 'customer' ? { paymentMethodOk: Boolean(waba.primaryFundingId) } : {}),
         syncedAt: now,
       };
+      const synced = async (updated: Promise<WhatsAppChannelDoc>) => {
+        const after = await updated;
+        await notifyDetailChanges(ctx, channel, after);
+        return after;
+      };
       if (RESTRICTED_PHONE_STATUSES.has(phone.status ?? '')) {
-        return await transition(
-          ctx,
-          ch,
-          'restricted',
-          reason(
+        return await synced(
+          transition(
+            ctx,
+            ch,
             'restricted',
-            `Meta reports this number as ${(phone.status ?? '').toLowerCase()}.`,
-            null,
+            reason(
+              'restricted',
+              `Meta reports this number as ${(phone.status ?? '').toLowerCase()}.`,
+              null,
+            ),
+            actor,
+            {
+              ...patch,
+              restriction: ch.restriction ?? { type: phone.status ?? 'RESTRICTED', until: null },
+            },
           ),
-          actor,
-          {
-            ...patch,
-            restriction: ch.restriction ?? { type: phone.status ?? 'RESTRICTED', until: null },
-          },
         );
       }
+      // a restriction Meta reported by phone status ends when the number is fine again;
+      // one from a webhook lasts until its end date or until a webhook lifts it
       const restrictionActive = ch.restriction?.until
         ? ch.restriction.until > now
-        : Boolean(ch.restriction);
+        : Boolean(ch.restriction) && !RESTRICTED_PHONE_STATUSES.has(ch.restriction?.type ?? '');
       if (ch.status === 'restricted' && restrictionActive) {
-        return await transition(ctx, ch, 'restricted', ch.statusReason, actor, patch);
+        return await synced(transition(ctx, ch, 'restricted', ch.statusReason, actor, patch));
       }
-      return await transition(ctx, ch, 'connected', null, actor, { ...patch, restriction: null });
+      return await synced(
+        transition(ctx, ch, 'connected', null, actor, { ...patch, restriction: null }),
+      );
     } catch (err) {
       if (isMetaApiError(err) && err.tokenInvalid) {
         return markNeedsReconnect(ctx, channel, TOKEN_INVALID_REASON, actor);

@@ -1,7 +1,22 @@
 import { randomBytes } from 'node:crypto';
 
-import type { FakeMetaClient, WebhookField } from '../../core/meta';
-import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
+import type { Types } from 'mongoose';
+
+import {
+  metaAppSecret,
+  signWebhook,
+  type FakeMetaClient,
+  type WebhookField,
+} from '../../core/meta';
+import {
+  WhatsAppChannelModel,
+  type WhatsAppChannelDoc,
+} from '../../db/models/whatsapp-channel.model';
+import { NotFoundError } from '../../shared/errors/app-error';
+
+import { openSecret, type WhatsAppContext } from './context';
+import type { WhatsAppJobs } from './jobs';
+import { receiveWebhook, type WebhookReceipt } from './webhooks.service';
 
 /** Dev webhook simulator kinds (§1j) — Meta-shaped payloads, same pipeline as Meta's. */
 export const SIMULATOR_KINDS = [
@@ -244,4 +259,36 @@ export const applySimulatorEffects = async (
   if (kind === 'name_rejected') await fake.patchPhone(phone, { new_name_status: 'DECLINED' });
   if (kind === 'token_revoked' && token) await fake.revokeToken(token);
   if (kind === 'payment_method_added') await fake.addPaymentMethod(channel.wabaId);
+};
+
+/**
+ * One simulated Meta event (dev only): updates the fake Meta, builds the payload,
+ * signs it with the app secret and hands it to the real webhook receiver — the
+ * effect comes from the pipeline (signature → store → queue → worker).
+ */
+export const runSimulator = async (
+  deps: { ctx: WhatsAppContext; jobs: WhatsAppJobs },
+  channelId: Types.ObjectId,
+  kind: SimulatorKind,
+  /** Signing secret (default: the active app secret; tests pass a wrong one). */
+  secret: string = metaAppSecret(deps.ctx.env),
+): Promise<{ kind: SimulatorKind; field: string } & WebhookReceipt> => {
+  const channel = await WhatsAppChannelModel.findById(channelId)
+    .select('+tokenSealed')
+    .lean<WhatsAppChannelDoc>();
+  if (!channel) throw new NotFoundError('WhatsApp number not found');
+  if (deps.ctx.meta.provider === 'fake') {
+    let token: string | null = null;
+    try {
+      token = channel.tokenSealed ? openSecret(deps.ctx, channel.tokenSealed) : null;
+    } catch {
+      token = null;
+    }
+    await applySimulatorEffects(deps.ctx.meta as FakeMetaClient, kind, channel, token);
+  }
+  const payload = buildSimulatorPayload(kind, channel);
+  const raw = Buffer.from(JSON.stringify(payload));
+  const receipt = await receiveWebhook(deps.ctx, deps.jobs, raw, signWebhook(raw, secret));
+  const field = (payload.entry as { changes: { field: string }[] }[])[0]?.changes[0]?.field ?? '';
+  return { kind, field, ...receipt };
 };

@@ -202,3 +202,42 @@ export const markNeedsReconnect = (
   reason: WaStatusReason = TOKEN_INVALID_REASON,
   actor: WaActor = SYSTEM_ACTOR,
 ): Promise<WhatsAppChannelDoc> => transition(ctx, channel, 'needs_reconnect', reason, actor);
+
+/**
+ * Notifications for detail changes Meta reports (sync / health pass): quality turned
+ * red, display name approved / rejected — once per change (compares before / after).
+ */
+export const notifyDetailChanges = async (
+  ctx: Pick<WhatsAppContext, 'env' | 'now'>,
+  before: WhatsAppChannelDoc,
+  after: WhatsAppChannelDoc,
+): Promise<void> => {
+  if (after.qualityRating === 'RED' && before.qualityRating !== 'RED') {
+    await notifyChannel(
+      ctx,
+      after,
+      'whatsapp.quality_low',
+      'WhatsApp number quality is low',
+      `${numberName(after)}: Meta rated its quality red — fewer messages may be delivered. Check recent messages for complaints.`,
+    );
+  }
+  if (after.nameStatus === 'APPROVED' && before.nameStatus && before.nameStatus !== 'APPROVED') {
+    await notifyChannel(
+      ctx,
+      after,
+      'whatsapp.name_approved',
+      'WhatsApp display name approved',
+      `${numberName(after)}: Meta approved the display name "${after.verifiedName ?? ''}".`,
+    );
+  }
+  const rejected = (s: string | null | undefined) => s === 'DECLINED' || s === 'REJECTED';
+  if (rejected(after.newNameStatus) && !rejected(before.newNameStatus)) {
+    await notifyChannel(
+      ctx,
+      after,
+      'whatsapp.name_rejected',
+      'WhatsApp display name rejected',
+      `${numberName(after)}: Meta rejected the new display name. Change it in WhatsApp Manager.`,
+    );
+  }
+};

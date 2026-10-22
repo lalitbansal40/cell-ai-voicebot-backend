@@ -155,14 +155,15 @@ const qualityUpdate = async (
   await resync(h, updated);
   updated =
     (await WhatsAppChannelModel.findById(channel._id).lean<WhatsAppChannelDoc>()) ?? updated;
+  // the re-check above already notified a turn to red; a flag on its own notifies here
   const becameRed = updated.qualityRating === 'RED' && before !== 'RED';
-  if (v.event === 'FLAGGED' || becameRed) {
+  if (v.event === 'FLAGGED' && !becameRed) {
     await notifyChannel(
       h.ctx,
       updated,
       'whatsapp.quality_low',
       'WhatsApp number quality is low',
-      `${numberName(updated)}: Meta ${v.event === 'FLAGGED' ? 'flagged the number' : 'rated its quality red'} — fewer messages may be delivered. Check recent messages for complaints.`,
+      `${numberName(updated)}: Meta flagged the number — fewer messages may be delivered. Check recent messages for complaints.`,
     );
   }
   return 'processed';

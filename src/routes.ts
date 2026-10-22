@@ -44,10 +44,13 @@ import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
 import { createWalletRouter } from './modules/wallet/wallet.routes';
+import { createDevSimulatorRouter } from './modules/whatsapp/dev-simulator.routes';
+import { createMetaCallbacksRouter } from './modules/whatsapp/meta-callbacks.routes';
 import {
   createMetaWebhooksRouter,
   type MetaWebhooksDeps,
 } from './modules/whatsapp/webhooks.routes';
+import { createWhatsAppService } from './modules/whatsapp/whatsapp.service';
 
 /** Everything under /api/v1. Add each module router here. */
 /** What the contact modules need: file storage + the background job queue (Phase 3). */
@@ -146,7 +149,13 @@ export const createApiRouter = ({
   router.use('/team', createTeamRouter());
   router.use('/api-keys', createApiKeysRouter());
   router.use('/audit-logs', createAuditRouter());
-  router.use('/admin', createAdminRouter({ env, provider: ai.provider }));
+  const whatsappRuntime = whatsapp?.ctx.env.WHATSAPP_ENABLED
+    ? { ...whatsapp, service: createWhatsAppService(whatsapp.ctx) }
+    : undefined;
+  router.use(
+    '/admin',
+    createAdminRouter({ env, provider: ai.provider, whatsapp: whatsappRuntime }),
+  );
   router.use('/ws', createWsTicketsRouter());
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
@@ -172,8 +181,9 @@ export const createApiRouter = ({
   router.use('/billing', createBillingRouter());
   router.use('/invoices', createInvoicesRouter({ storage: billing.storage }));
   router.use('/notifications', createNotificationsRouter());
-  if (whatsapp?.ctx.env.WHATSAPP_ENABLED) {
-    router.use('/webhooks/meta', createMetaWebhooksRouter(whatsapp));
+  if (whatsappRuntime) {
+    router.use('/webhooks/meta', createMetaWebhooksRouter(whatsappRuntime));
+    router.use('/meta', createMetaCallbacksRouter(whatsappRuntime));
   }
   router.use(
     '/webhooks',
@@ -245,5 +255,8 @@ export const createApiRouter = ({
     );
   }
   if (env.MOCK_APIS_ENABLED) router.use('/mock', createMockApisRouter());
+  if (whatsappRuntime && env.MOCK_APIS_ENABLED && env.NODE_ENV !== 'production') {
+    router.use('/dev/meta', createDevSimulatorRouter(whatsappRuntime));
+  }
   return router;
 };

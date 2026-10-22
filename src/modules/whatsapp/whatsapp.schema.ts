@@ -1,7 +1,10 @@
 import { WHATSAPP_LIMITS } from '../../config/limits';
-import { WA_CHANNEL_STATUSES, WA_MODES } from '../../db/models/whatsapp-channel.model';
+import { META_EVENT_STATUSES } from '../../db/models/meta-webhook-event.model';
+import { META_PAYERS, WA_CHANNEL_STATUSES, WA_MODES } from '../../db/models/whatsapp-channel.model';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
+
+import { SIMULATOR_KINDS } from './simulator';
 
 /** Meta ids are digits; the fake provider's ids start with `fake_`. */
 const MetaId = z
@@ -38,3 +41,38 @@ export const ListChannelsQuery = z.strictObject({
   status: z.enum(WA_CHANNEL_STATUSES).optional(),
 });
 export type ListChannelsQueryInput = z.infer<typeof ListChannelsQuery>;
+
+// ── superadmin ─────────────────────────────────────────────────────────────
+
+export const AdminDisconnectBody = z
+  .strictObject({ reason: z.string().trim().min(3).max(200) })
+  .openapi('WhatsAppAdminDisconnectInput');
+
+export const WhatsAppBillingBody = z
+  .strictObject({ metaPayer: z.enum(META_PAYERS) })
+  .openapi('WhatsAppBillingInput');
+
+export const ManualConnectBody = z
+  .strictObject({
+    wabaId: MetaId,
+    phoneNumberId: MetaId,
+    accessToken: z
+      .string()
+      .min(20)
+      .max(1000)
+      .openapi({ description: 'System User token (never stored in plain text)' }),
+  })
+  .openapi('WhatsAppManualConnectInput');
+
+export const EventParams = z.strictObject({ id: ObjectIdSchema });
+
+export const ListEventsQuery = z.strictObject({
+  status: z.enum(META_EVENT_STATUSES).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+// ── dev simulator ──────────────────────────────────────────────────────────
+
+export const SimulatorBody = z
+  .strictObject({ channelId: ObjectIdSchema, kind: z.enum(SIMULATOR_KINDS) })
+  .openapi('WhatsAppSimulatorInput');

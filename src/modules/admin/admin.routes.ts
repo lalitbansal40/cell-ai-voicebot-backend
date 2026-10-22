@@ -6,6 +6,8 @@ import { noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { requirePlatformAdmin } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
+import { createWhatsAppAdminRouter } from '../whatsapp/whatsapp-admin.routes';
+import type { WhatsAppAdminDeps } from '../whatsapp/whatsapp-admin.service';
 
 import { createAdminAiRouter } from './admin-ai.routes';
 import { createAdminBillingRouter } from './admin-billing.routes';
@@ -32,10 +34,13 @@ import {
 export const createAdminRouter = ({
   env,
   provider,
+  whatsapp,
 }: {
   env: Pick<Env, 'BILLING_SIMULATOR_ENABLED' | 'PAYMENT_PROVIDER'> &
     Parameters<typeof createAdminAiRouter>[0]['env'];
   provider: Pick<AiProvider, 'name'>;
+  /** Phase 9: WhatsApp runtime (superadmin WhatsApp tools); absent when WhatsApp is off. */
+  whatsapp?: WhatsAppAdminDeps | undefined;
 }): Router => {
   const router = Router();
   router.use(authenticate());
@@ -105,5 +110,6 @@ export const createAdminRouter = ({
   );
   router.use(createAdminBillingRouter({ env }));
   router.use(createAdminAiRouter({ env, provider }));
+  router.use(createWhatsAppAdminRouter({ whatsapp }));
   return router;
 };
