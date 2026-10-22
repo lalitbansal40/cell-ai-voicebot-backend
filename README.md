@@ -373,6 +373,7 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | ---------------------------------- | ----------------- | ------- | -------------------------------------------------------------------------------------------------------- |
 | `NODE_ENV`                         | no                | 1       | `development` / `production` / `test`                                                                    |
 | `PORT`                             | no                | 1       | API port (default 5100)                                                                                  |
+| `AUTH_RATE_LIMIT_MAX`              | no                | 1       | Public auth routes: requests per 15 min per IP and route (default 30; refresh has its own limit)         |
 | `APP_URL`                          | yes               | 1       | Public base URL of this API                                                                              |
 | `FRONTEND_URL`                     | yes               | 1       | Dashboard URL (links in emails, CORS)                                                                    |
 | `CORS_ORIGINS`                     | yes               | 1       | Comma-separated allowed origins                                                                          |

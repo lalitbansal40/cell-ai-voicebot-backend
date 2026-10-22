@@ -23,3 +23,19 @@ describe('auth rate limits (default settings)', () => {
     expect(last).toBe(429);
   });
 });
+
+describe('auth rate limit from the environment', () => {
+  it('AUTH_RATE_LIMIT_MAX sets the strict limit (E2E suites sign up many accounts); refresh keeps its own', async () => {
+    const app = buildTestApp({ AUTH_RATE_LIMIT_MAX: '5' });
+    const statuses: number[] = [];
+    for (let i = 0; i < 6; i += 1) {
+      statuses.push((await request(app).post('/api/v1/auth/login').send({})).status);
+    }
+    expect(statuses).toEqual([422, 422, 422, 422, 422, 429]);
+    for (let i = 0; i < 6; i += 1) {
+      expect((await request(app).post('/api/v1/auth/refresh').set('Origin', ORIGIN)).status).toBe(
+        401,
+      );
+    }
+  });
+});

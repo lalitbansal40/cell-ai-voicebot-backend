@@ -27,6 +27,8 @@ const optionalString = z.string().optional();
 const RawEnvSchema = z.object({
   NODE_ENV: NodeEnvSchema.default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(5100),
+  /** Public auth routes: requests per 15 minutes per IP and route (default 30; refresh has its own). */
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(5).max(10_000).default(30),
   APP_URL: z.url().optional(),
   FRONTEND_URL: z.url().optional(),
   CORS_ORIGINS: optionalString,

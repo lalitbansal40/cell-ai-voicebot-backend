@@ -40,7 +40,7 @@ import {
 import { updateProfile } from './login.service';
 
 export interface AuthRouterDeps {
-  env: Pick<Env, 'CORS_ORIGINS' | 'NODE_ENV'>;
+  env: Pick<Env, 'CORS_ORIGINS' | 'NODE_ENV'> & Partial<Pick<Env, 'AUTH_RATE_LIMIT_MAX'>>;
   /** Separate store (prefix `rl:auth:`) — never share the global limiter's store. */
   rateLimitStore?: Store;
   /** Test hook. */
@@ -52,7 +52,10 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
   const router = Router();
   const limiter = createRateLimiter({
     ...AUTH_RATE_LIMIT,
-    limit: (req) => (req.path === '/refresh' ? AUTH_REFRESH_RATE_LIMIT : AUTH_RATE_LIMIT.limit),
+    limit: (req) =>
+      req.path === '/refresh'
+        ? AUTH_REFRESH_RATE_LIMIT
+        : (deps.env.AUTH_RATE_LIMIT_MAX ?? AUTH_RATE_LIMIT.limit),
     // ipKeyGenerator groups IPv6 addresses by /56 so a client can't rotate addresses.
     keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? '')}:${req.path}`,
     ...(deps.rateLimitStore ? { store: deps.rateLimitStore } : {}),
