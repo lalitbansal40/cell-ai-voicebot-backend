@@ -518,9 +518,22 @@
           },
           "whatsappBilling": {
             "type": "object",
-            "properties": { "metaPayer": { "type": "string", "enum": ["platform", "customer"] } },
-            "required": ["metaPayer"],
-            "description": "Who pays Meta for WhatsApp numbers connected from now on (Phase 9)"
+            "properties": {
+              "metaPayer": { "type": "string", "enum": ["platform", "customer"] },
+              "markupBps": { "type": ["integer", "null"] },
+              "fixedPrices": {
+                "type": ["object", "null"],
+                "properties": {
+                  "marketing": { "type": "integer" },
+                  "utility": { "type": "integer" },
+                  "authentication": { "type": "integer" },
+                  "service": { "type": "integer" }
+                }
+              },
+              "platformFeeMicros": { "type": ["integer", "null"] }
+            },
+            "required": ["metaPayer", "markupBps", "fixedPrices", "platformFeeMicros"],
+            "description": "Who pays Meta for WhatsApp numbers connected from now on (Phase 9) and the account price override — null = the global settings (Phase 11)"
           },
           "whatsappChannels": {
             "type": "array",

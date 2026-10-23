@@ -6,6 +6,7 @@ import {
   AccountModel,
   DEFAULT_ACCOUNT_WHATSAPP,
   type AccountDoc,
+  type AccountWhatsAppBilling,
 } from '../../db/models/account.model';
 import {
   MetaWebhookEventModel,
@@ -162,14 +163,19 @@ export const replayEvent = async (req: Request, deps: WhatsAppAdminDeps, id: str
 /** Summary rows for the superadmin account detail (no secrets). */
 export const accountWhatsApp = async (accountId: Types.ObjectId) => {
   const [account, channels] = await Promise.all([
-    AccountModel.findById(accountId)
-      .select({ whatsapp: 1 })
-      .lean<{ whatsapp?: { metaPayer?: MetaPayer } }>(),
+    AccountModel.findById(accountId).select({ whatsapp: 1, whatsappBilling: 1 }).lean<{
+      whatsapp?: { metaPayer?: MetaPayer };
+      whatsappBilling?: AccountWhatsAppBilling | null;
+    }>(),
     WhatsAppChannelModel.find({ accountId }).sort({ createdAt: -1 }).lean<WhatsAppChannelDoc[]>(),
   ]);
   return {
     whatsappBilling: {
       metaPayer: account?.whatsapp?.metaPayer ?? DEFAULT_ACCOUNT_WHATSAPP.metaPayer,
+      // Phase 11: the account's WhatsApp price override (null = the global settings)
+      markupBps: account?.whatsappBilling?.markupBps ?? null,
+      fixedPrices: account?.whatsappBilling?.fixedPrices ?? null,
+      platformFeeMicros: account?.whatsappBilling?.platformFeeMicros ?? null,
     },
     whatsappChannels: channels.map((c) => ({
       id: c._id.toString(),

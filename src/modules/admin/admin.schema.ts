@@ -63,9 +63,24 @@ export const AdminAccountDetailSchema = registry.register(
     adminPausedCampaigns: z.array(z.object({ id: z.string(), name: z.string() })).openapi({
       description: 'Paused by the platform team — only a superadmin resumes them (≤ 100)',
     }),
-    whatsappBilling: z.object({ metaPayer: z.enum(META_PAYERS) }).openapi({
-      description: 'Who pays Meta for WhatsApp numbers connected from now on (Phase 9)',
-    }),
+    whatsappBilling: z
+      .object({
+        metaPayer: z.enum(META_PAYERS),
+        markupBps: z.number().int().nullable(),
+        fixedPrices: z
+          .object({
+            marketing: z.number().int().optional(),
+            utility: z.number().int().optional(),
+            authentication: z.number().int().optional(),
+            service: z.number().int().optional(),
+          })
+          .nullable(),
+        platformFeeMicros: z.number().int().nullable(),
+      })
+      .openapi({
+        description:
+          'Who pays Meta for WhatsApp numbers connected from now on (Phase 9) and the account price override — null = the global settings (Phase 11)',
+      }),
     whatsappChannels: z.array(
       z.object({
         id: z.string(),

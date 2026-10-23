@@ -201,7 +201,26 @@ describe('superadmin WhatsApp routes', () => {
     const detail = await request(app())
       .get(`/api/v1/admin/accounts/${acc.account._id.toString()}`)
       .set(bearer(superadmin.token));
-    expect(detail.body.data.whatsappBilling).toEqual({ metaPayer: 'customer' });
+    expect(detail.body.data.whatsappBilling).toEqual({
+      metaPayer: 'customer',
+      markupBps: null,
+      fixedPrices: null,
+      platformFeeMicros: null,
+    });
+    // the Phase 11 price override shows on the detail once set
+    await request(app())
+      .patch(url)
+      .set(bearer(superadmin.token))
+      .send({ markupBps: 2000, fixedPrices: { utility: 300_000 }, platformFeeMicros: 10_000 });
+    const after = await request(app())
+      .get(`/api/v1/admin/accounts/${acc.account._id.toString()}`)
+      .set(bearer(superadmin.token));
+    expect(after.body.data.whatsappBilling).toEqual({
+      metaPayer: 'customer',
+      markupBps: 2000,
+      fixedPrices: { utility: 300_000 },
+      platformFeeMicros: 10_000,
+    });
     expect(detail.body.data.whatsappChannels).toHaveLength(2);
     expect(detail.body.data.whatsappChannels[0]).toMatchObject({
       status: 'connected',
