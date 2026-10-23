@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { Router, type Request, type RequestHandler } from 'express';
 import type { Store } from 'express-rate-limit';
 import { Types } from 'mongoose';
@@ -173,9 +175,20 @@ export const createInboxRouter = (deps: InboxRouterDeps): Router => {
     '/conversations/start',
     ...reply,
     ...handle({ body: StartConversationBody }, async ({ body, req, res }) => {
-      const r = await startConversation(ix(), actorOf(req), body);
-      if (r.created) created(res, r);
-      else ok(res, r);
+      const actor = actorOf(req);
+      const r = await startConversation(ix(), actor, body);
+      if (!body.template) {
+        if (r.created) created(res, r);
+        else ok(res, r);
+        return;
+      }
+      // Phase 11: one request from the contact page — the chat + its first template
+      const clientId = body.template.clientId ?? randomUUID();
+      const sent = await sendMessage(ix(), actor, r.id, { ...body.template, clientId });
+      const [message] = await messageViews(actor, [sent.message]);
+      const out = { ...r, message, clientId };
+      if (r.created || sent.created) created(res, out);
+      else ok(res, out);
     }),
   );
   router.get(

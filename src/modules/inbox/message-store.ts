@@ -26,7 +26,14 @@ export type NewMessage = NormalizedContent &
   Partial<
     Pick<
       MessageDoc,
-      'waMessageId' | 'clientId' | 'sentBy' | 'retryOf' | 'metaTimestamp' | 'statusHistory'
+      | 'waMessageId'
+      | 'clientId'
+      | 'sentBy'
+      | 'retryOf'
+      | 'metaTimestamp'
+      | 'statusHistory'
+      | 'template'
+      | 'billing'
     >
   >;
 

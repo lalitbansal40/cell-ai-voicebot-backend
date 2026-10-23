@@ -135,6 +135,28 @@ export const ReactionBody = z.object({
 
 export const NoteBody = z.object({ ...base, type: z.literal('note'), text: text(L.textMax) });
 
+/** Phase 11: an approved template (works outside the 24-hour window). */
+export const TemplateBody = z.object({
+  ...base,
+  type: z.literal('template'),
+  templateId: ObjectIdSchema,
+  /** Values per variable key (wins over the remembered source; `ask` variables need one). */
+  variables: z.record(z.string().max(60), z.string().max(1024)).optional(),
+  header: z
+    .union([
+      z.object({ mediaToken }),
+      z.object({
+        location: z.object({
+          latitude: z.number().min(-90).max(90),
+          longitude: z.number().min(-180).max(180),
+          name: optText(100),
+          address: optText(200),
+        }),
+      }),
+    ])
+    .optional(),
+});
+
 export const SendMessageBody = z
   .discriminatedUnion('type', [
     TextBody,
@@ -151,6 +173,7 @@ export const SendMessageBody = z
     CtaUrlBody,
     ReactionBody,
     NoteBody,
+    TemplateBody,
   ])
   .openapi('InboxSendMessage');
 export type SendMessageInput = z.infer<typeof SendMessageBody>;
@@ -170,4 +193,5 @@ export const SEND_TYPES = [
   'cta_url',
   'reaction',
   'note',
+  'template',
 ] as const;

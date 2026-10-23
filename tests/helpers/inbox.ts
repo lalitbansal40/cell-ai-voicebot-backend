@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { beforeAll, beforeEach } from 'vitest';
 
+import { credit } from '../../src/core/billing/engine';
 import { signWebhook } from '../../src/core/meta';
 import { ContactModel } from '../../src/db/models/contact.model';
 import { ConversationModel } from '../../src/db/models/conversation.model';
@@ -75,6 +76,14 @@ export const useInboxWorld = (env: NodeJS.ProcessEnv = {}) => {
   /** A fresh account + connected fake number (owner, admin, manager, agent, viewer users). */
   const setup = async (over: Parameters<typeof fakeSignup>[0] = {}) => {
     state.acc = await createTestAccount();
+    // Phase 11: replies are charged (an empty wallet refuses them) — ₹1,000 test money
+    await credit({
+      accountId: state.acc.account._id,
+      type: 'topup',
+      amountMicros: 1_000 * 1_000_000,
+      ref: { type: 'manual', id: 'inbox-test' },
+      idempotencyKey: `inbox-test-${state.acc.account._id.toString()}`,
+    });
     const users = {
       owner: await state.acc.addUser('owner'),
       admin: await state.acc.addUser('admin'),

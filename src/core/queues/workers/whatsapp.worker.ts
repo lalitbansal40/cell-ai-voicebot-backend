@@ -111,6 +111,7 @@ export const startWhatsAppWorker = async (
         storage: deps.storage,
         jobs: queueInboxJobs(queue),
         billing: createWhatsAppBillingHook(),
+        templateJobs: queueTemplateJobs(queue),
       }
     : undefined;
   const tx: TemplateContext = {

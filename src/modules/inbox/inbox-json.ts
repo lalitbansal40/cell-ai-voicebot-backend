@@ -83,6 +83,25 @@ export const toMessageView = (
   clientId: m.clientId,
   sentBy: extra.sentBy ?? (m.sentBy ? { id: m.sentBy.toString(), name: '' } : null),
   retryOf: id(m.retryOf),
+  /** Phase 11: which template (no variable values — the text already shows them). */
+  template: m.template
+    ? {
+        templateId: m.template.templateId.toString(),
+        name: m.template.name,
+        language: m.template.language,
+        category: m.template.category,
+      }
+    : null,
+  /** Phase 11: what the message costs (price fixed at send; status follows Meta). */
+  billing: m.billing
+    ? {
+        payer: m.billing.payer,
+        category: m.billing.category,
+        market: m.billing.market,
+        priceMicros: m.billing.priceMicros,
+        status: m.billing.status,
+      }
+    : null,
   at: m.at.toISOString(),
   createdAt: m.createdAt.toISOString(),
 });

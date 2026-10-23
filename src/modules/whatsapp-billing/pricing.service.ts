@@ -1,6 +1,7 @@
 import type { Types } from 'mongoose';
 
 import { BILLING_LIMITS } from '../../config/limits';
+import { holdForWhatsApp, releaseWhatsApp } from '../../core/billing/engine';
 import {
   marketFor,
   metaRate,
@@ -9,6 +10,7 @@ import {
   type SellingPrice,
 } from '../../core/billing/whatsapp';
 import { AccountModel, type AccountWhatsAppBilling } from '../../db/models/account.model';
+import type { MessageBilling } from '../../db/models/message.model';
 import {
   DEFAULT_WHATSAPP_BILLING_SETTINGS,
   PlatformSettingsModel,
@@ -119,4 +121,75 @@ export const priceMessage = async (input: {
     markupBps,
     rateCardId: card.id,
   };
+};
+
+/* ── message holds (send pipeline) ─────────────────────────────────────── */
+
+export interface MessageCharge {
+  billing: MessageBilling;
+  /** Release this hold when the message can't be stored. */
+  holdId: Types.ObjectId | null;
+}
+
+/**
+ * Prices a message and holds its price (PHASE_11_PROMPT §1: after every non-money
+ * rule, before the insert; key `wa-hold-<clientId>` so a duplicate replays it). A
+ * customer-pays account with no platform fee holds nothing (`billing.status: none`).
+ * Refused → `WALLET_INSUFFICIENT_BALANCE` / `WALLET_BUDGET_EXCEEDED` (`path: whatsapp`).
+ */
+export const holdMessageCharge = async (input: {
+  accountId: Types.ObjectId;
+  payer: 'platform' | 'customer';
+  phoneE164: string;
+  category: PriceCategory;
+  clientId: string;
+  now: Date;
+}): Promise<MessageCharge> => {
+  const quote = await priceMessage({
+    accountId: input.accountId,
+    payer: input.payer,
+    phoneE164: input.phoneE164,
+    category: input.category,
+    at: input.now,
+  });
+  const base: MessageBilling = {
+    payer: input.payer,
+    market: quote.market,
+    category: input.category,
+    estimateMicros: quote.priceMicros,
+    priceMicros: quote.priceMicros,
+    metaCostMicros: quote.metaCostMicros,
+    holdId: null,
+    status: 'none',
+    billable: null,
+    pricingType: null,
+    metaCategory: null,
+    categoryMismatch: false,
+    at: input.now,
+  };
+  if (quote.priceMicros <= 0) return { billing: base, holdId: null };
+  const res = await holdForWhatsApp({
+    accountId: input.accountId,
+    clientId: input.clientId,
+    amountMicros: quote.priceMicros,
+    breakdown: {
+      waCategory: input.category,
+      waMarket: quote.market,
+      metaCostMicros: quote.metaCostMicros,
+      markupMicros: quote.markupMicros,
+      platformFeeMicros: quote.platformFeeMicros,
+    },
+    ref: { type: 'whatsapp_message', id: input.clientId },
+  });
+  const holdId = res.entries[0]?._id ?? null;
+  return { billing: { ...base, holdId, status: holdId ? 'held' : 'none' }, holdId };
+};
+
+/** The insert failed after the hold: give it back. */
+export const releaseMessageCharge = async (
+  accountId: Types.ObjectId,
+  holdId: Types.ObjectId | null,
+): Promise<void> => {
+  if (!holdId) return;
+  await releaseWhatsApp({ accountId, holdId, reason: 'send_aborted' });
 };

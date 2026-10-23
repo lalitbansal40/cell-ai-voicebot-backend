@@ -3,6 +3,7 @@ import { mapSendError, metaTime, type MetaStatus } from '../../core/meta';
 import { MessageModel, type MessageDoc } from '../../db/models/message.model';
 import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
 import { getLogger } from '../../shared/logger';
+import { recordTemplateUsage } from '../templates/template.service';
 
 import { applyChannelEffect } from './channel-effects';
 import type { InboxContext } from './context';
@@ -104,6 +105,13 @@ const applyOne = async (
     if (conv) emitConversation(conv);
     await applyChannelEffect(ix.wa, channel._id, effect);
     await bill();
+    // Phase 11: template usage counters follow the statuses
+    if (
+      updated.template &&
+      (next === 'sent' || next === 'delivered' || next === 'read' || next === 'failed')
+    ) {
+      await recordTemplateUsage(updated.template.templateId, next, at);
+    }
     return 'applied';
   }
   /* c8 ignore next -- three lost races in a row */

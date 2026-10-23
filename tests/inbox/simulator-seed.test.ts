@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { SEED_INBOX_CUSTOMERS, seedInbox } from '../../scripts/seed-inbox';
 import { SEED_WHATSAPP_NUMBER, seedWhatsApp } from '../../scripts/seed-whatsapp';
+import { credit } from '../../src/core/billing/engine';
 import { ContactModel } from '../../src/db/models/contact.model';
 import { ConversationModel } from '../../src/db/models/conversation.model';
 import { MessageModel } from '../../src/db/models/message.model';
@@ -316,6 +317,14 @@ describe('seedInbox', () => {
       skipped: 'No demo WhatsApp number',
     });
     await seedWhatsApp(t.account._id, deps);
+    // like `db:seed` (billing runs before the inbox): the demo replies are charged
+    await credit({
+      accountId: t.account._id,
+      type: 'topup',
+      amountMicros: 1_000 * 1_000_000,
+      ref: { type: 'manual', id: 'seed-test' },
+      idempotencyKey: `seed-test-${t.account._id.toString()}`,
+    });
     const first = await seedInbox(t.account._id, deps);
     expect(first.skipped).toBeNull();
     expect(first.conversations).toBeGreaterThanOrEqual(5);

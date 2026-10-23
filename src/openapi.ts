@@ -42,6 +42,7 @@ import './modules/calls/calls.schema';
 import './modules/campaigns/campaigns.schema';
 import './modules/whatsapp/whatsapp.openapi';
 import './modules/inbox/inbox.openapi';
+import './modules/whatsapp-billing/whatsapp-billing.openapi';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;
 

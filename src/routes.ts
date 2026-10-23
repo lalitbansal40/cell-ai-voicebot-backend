@@ -60,6 +60,7 @@ import {
   createWhatsAppRouter,
 } from './modules/whatsapp/whatsapp.routes';
 import { createWhatsAppService } from './modules/whatsapp/whatsapp.service';
+import { createPricePreviewRouter } from './modules/whatsapp-billing/price-preview.routes';
 
 /** Everything under /api/v1. Add each module router here. */
 /** What the contact modules need: file storage + the background job queue (Phase 3). */
@@ -219,6 +220,7 @@ export const createApiRouter = ({
     router.use('/webhooks/meta', createMetaWebhooksRouter(whatsappRuntime));
     router.use('/meta', createMetaCallbacksRouter(whatsappRuntime));
     router.use('/whatsapp', createBusinessProfileRouter(whatsappRuntime.ctx));
+    router.use('/whatsapp', createPricePreviewRouter());
     router.use('/whatsapp', createWhatsAppRouter(whatsappRuntime));
     router.use(
       '/inbox',

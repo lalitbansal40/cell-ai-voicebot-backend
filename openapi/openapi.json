@@ -5738,6 +5738,30 @@
             "required": ["id", "name"]
           },
           "retryOf": { "type": ["string", "null"] },
+          "template": {
+            "type": ["object", "null"],
+            "properties": {
+              "templateId": { "type": "string" },
+              "name": { "type": "string" },
+              "language": { "type": "string" },
+              "category": { "type": "string", "enum": ["MARKETING", "UTILITY", "AUTHENTICATION"] }
+            },
+            "required": ["templateId", "name", "language", "category"]
+          },
+          "billing": {
+            "type": ["object", "null"],
+            "properties": {
+              "payer": { "type": "string", "enum": ["platform", "customer"] },
+              "category": { "type": "string" },
+              "market": { "type": "string" },
+              "priceMicros": { "type": "integer" },
+              "status": {
+                "type": "string",
+                "enum": ["none", "held", "captured", "released", "late_charged", "waived"]
+              }
+            },
+            "required": ["payer", "category", "market", "priceMicros", "status"]
+          },
           "at": { "type": "string" },
           "createdAt": { "type": "string" }
         },
@@ -5766,6 +5790,8 @@
           "clientId",
           "sentBy",
           "retryOf",
+          "template",
+          "billing",
           "at",
           "createdAt"
         ]
@@ -6519,8 +6545,100 @@
               "text": { "type": "string", "minLength": 1, "maxLength": 4096 }
             },
             "required": ["clientId", "type", "text"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["template"] },
+              "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "variables": {
+                "type": "object",
+                "additionalProperties": { "type": "string", "maxLength": 1024 }
+              },
+              "header": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "mediaToken": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "required": ["mediaToken"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "location": {
+                        "type": "object",
+                        "properties": {
+                          "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+                          "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+                          "name": { "type": ["string", "null"], "maxLength": 100 },
+                          "address": { "type": ["string", "null"], "maxLength": 200 }
+                        },
+                        "required": ["latitude", "longitude"]
+                      }
+                    },
+                    "required": ["location"]
+                  }
+                ]
+              }
+            },
+            "required": ["clientId", "type", "templateId"]
           }
         ]
+      },
+      "WhatsAppPricePreview": {
+        "type": "object",
+        "properties": {
+          "payer": { "type": "string", "enum": ["platform", "customer"] },
+          "market": { "type": "string" },
+          "marketLabel": { "type": "string" },
+          "category": {
+            "type": "string",
+            "enum": [
+              "marketing",
+              "utility",
+              "authentication",
+              "authentication_international",
+              "service"
+            ]
+          },
+          "priceMicros": { "type": "integer" },
+          "currency": { "type": "string", "enum": ["INR"] },
+          "note": {
+            "type": "string",
+            "enum": ["billed_when_delivered", "free_tier_may_apply", "customer_pays_meta"]
+          }
+        },
+        "required": [
+          "payer",
+          "market",
+          "marketLabel",
+          "category",
+          "priceMicros",
+          "currency",
+          "note"
+        ]
+      },
+      "WhatsAppPricePreviewBody": {
+        "type": "object",
+        "properties": {
+          "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "phone": { "type": "string", "minLength": 6, "maxLength": 30 },
+          "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "category": {
+            "type": "string",
+            "enum": ["marketing", "utility", "authentication", "service"]
+          }
+        },
+        "required": ["channelId"]
       }
     },
     "parameters": {}
@@ -21594,7 +21712,56 @@
                 "type": "object",
                 "properties": {
                   "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-                  "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                  "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "template": {
+                    "type": "object",
+                    "properties": {
+                      "clientId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+                      },
+                      "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                      "type": { "type": "string", "enum": ["template"] },
+                      "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                      "variables": {
+                        "type": "object",
+                        "additionalProperties": { "type": "string", "maxLength": 1024 }
+                      },
+                      "header": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "mediaToken": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                            },
+                            "required": ["mediaToken"]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "location": {
+                                "type": "object",
+                                "properties": {
+                                  "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+                                  "longitude": {
+                                    "type": "number",
+                                    "minimum": -180,
+                                    "maximum": 180
+                                  },
+                                  "name": { "type": ["string", "null"], "maxLength": 100 },
+                                  "address": { "type": ["string", "null"], "maxLength": 200 }
+                                },
+                                "required": ["latitude", "longitude"]
+                              }
+                            },
+                            "required": ["location"]
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["type", "templateId"]
+                  }
                 },
                 "required": ["channelId", "contactId"]
               }
@@ -23199,6 +23366,61 @@
             }
           },
           "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/price-preview": {
+      "post": {
+        "tags": ["WhatsApp billing"],
+        "summary": "Price of one WhatsApp message to a contact / phone: template category or service (inbox.read or templates.read)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppPricePreviewBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppPricePreview" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
         }
       }
     }

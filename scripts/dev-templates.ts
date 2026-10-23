@@ -7,8 +7,8 @@
  * prints counts and the wallet before / after (numbers only). Refuses production and the
  * real Meta provider. Never prints texts, phones, names or tokens.
  *
- * Batch 1 drives the send directly (price → hold → Meta → message row); T11.5 switches it
- * to the inbox `sendMessage` pipeline.
+ * Sends go through the inbox `sendMessage` pipeline (rules → price → hold → message →
+ * `message.send` job) like the API.
  */
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -19,15 +19,8 @@ import type { Types } from 'mongoose';
 import { createApp } from '../src/app';
 import { loadEnv } from '../src/config/env';
 import { secretBoxKey } from '../src/core/ai/secret-box';
-import { credit, holdForWhatsApp } from '../src/core/billing/engine';
-import {
-  buildFakeCode,
-  buildMessagePayload,
-  buildTemplatePayload,
-  createMetaClient,
-  type FakeMetaClient,
-  type MetaMessagePayload,
-} from '../src/core/meta';
+import { credit } from '../src/core/billing/engine';
+import { buildFakeCode, createMetaClient, type FakeMetaClient } from '../src/core/meta';
 import { QUEUES } from '../src/core/queues/names';
 import { closeAllQueues, createQueue } from '../src/core/queues/queue-factory';
 import { closeAllRedis, getAppRedis } from '../src/core/queues/redis';
@@ -44,14 +37,17 @@ import {
 } from '../src/db/models/whatsapp-channel.model';
 import { connectMongo, disconnectMongo } from '../src/db/mongo';
 import { findOrCreateWhatsAppContact } from '../src/modules/inbox/contacts';
+import type { InboxContext } from '../src/modules/inbox/context';
 import { upsertConversation } from '../src/modules/inbox/conversation-store';
+import { queueInboxJobs } from '../src/modules/inbox/jobs';
+import { sendMessage } from '../src/modules/inbox/outbound.service';
 import { queueTemplateJobs } from '../src/modules/templates/jobs';
 import { createTemplate } from '../src/modules/templates/template.service';
-import { openSecret, type WhatsAppContext } from '../src/modules/whatsapp/context';
+import type { WhatsAppContext } from '../src/modules/whatsapp/context';
 import { connectFakeStatusWebhooks } from '../src/modules/whatsapp/fake-statuses';
 import { queueWhatsAppJobs } from '../src/modules/whatsapp/jobs';
 import { createWhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
-import { priceMessage } from '../src/modules/whatsapp-billing/pricing.service';
+import { createWhatsAppBillingHook } from '../src/modules/whatsapp-billing/billing-hook';
 import { createLogger } from '../src/shared/logger';
 
 const env = loadEnv();
@@ -155,81 +151,38 @@ const main = async () => {
   });
   step(`template ${template.id}: ${template.status}`);
 
-  const token = openSecret(ctx, channel.tokenSealed ?? '');
-  /** Price → hold → Meta → message row (the T11.5 pipeline does this in `sendMessage`). */
-  const send = async (
-    waId: string,
-    category: 'utility' | 'service',
-    payload: MetaMessagePayload,
-  ) => {
+  const ix: InboxContext = {
+    wa: ctx,
+    storage,
+    jobs: queueInboxJobs(queue),
+    billing: createWhatsAppBillingHook(),
+  };
+  const sendActor = { accountId: account._id, userId: owner._id };
+  /** A conversation for `waId`; `open` = the customer wrote just now (service window). */
+  const conversationFor = async (waId: string, open: boolean) => {
     const contact = await findOrCreateWhatsAppContact({ accountId: account._id, waId });
     const conv = await upsertConversation({
       key: { accountId: account._id, channelId: channel._id, waId },
       contactId: contact._id,
       source: 'outbound',
+      ...(open ? { inbound: { at: new Date(), countUnread: false } } : {}),
     });
-    const quote = await priceMessage({
-      accountId: account._id,
-      payer: channel.metaPayer,
-      phoneE164: `+${waId}`,
-      category,
-    });
-    const clientId = randomUUID();
-    const hold = await holdForWhatsApp({
-      accountId: account._id,
-      clientId,
-      amountMicros: quote.priceMicros,
-      breakdown: {
-        waCategory: category,
-        waMarket: quote.market,
-        metaCostMicros: quote.metaCostMicros,
-        markupMicros: quote.markupMicros,
-        platformFeeMicros: quote.platformFeeMicros,
-      },
-      ref: { type: 'whatsapp_message', id: clientId },
-    });
-    const { waMessageId } = await meta.sendMessage(token, channel.phoneNumberId ?? '', payload);
-    await MessageModel.create({
-      accountId: account._id,
-      channelId: channel._id,
-      contactId: contact._id,
-      conversationId: conv._id,
-      direction: 'out',
-      origin: 'agent',
-      type: payload.type === 'template' ? 'template' : 'text',
-      text: payload.type === 'template' ? 'Dev template' : 'Dev reply',
-      status: 'accepted',
-      waMessageId,
-      clientId,
-      sentBy: owner._id,
-      at: new Date(),
-      billing: {
-        payer: channel.metaPayer,
-        market: quote.market,
-        category,
-        estimateMicros: quote.priceMicros,
-        priceMicros: quote.priceMicros,
-        metaCostMicros: quote.metaCostMicros,
-        holdId: hold.entries[0]?._id ?? null,
-        status: 'held',
-        at: new Date(),
-      },
-    });
+    return conv._id.toString();
   };
-  const tpl = (to: string) =>
-    buildTemplatePayload(to, {
-      name: template.name,
-      language: 'en',
-      parameterFormat: 'positional',
-      body: [{ key: '1', text: 'Dev Customer' }],
+  const sendTemplate = async (waId: string) =>
+    sendMessage(ix, sendActor, await conversationFor(waId, false), {
+      clientId: randomUUID(),
+      type: 'template',
+      templateId: template.id,
+      variables: { '1': 'Dev Customer' },
     });
-  await send('919001020041', 'utility', tpl('919001020041'));
-  await send(
-    '919001020042',
-    'service',
-    buildMessagePayload('919001020042', { type: 'text', body: 'Dev reply' }),
-  );
-  await send('919001000009', 'utility', tpl('919001000009'));
+  await sendTemplate('919001020041'); // window closed: only a template can go
+  await sendMessage(ix, sendActor, await conversationFor('919001020042', true), {
+    clientId: randomUUID(),
+    type: 'text',
+    text: 'Dev reply',
+  });
+  await sendTemplate('919001000009'); // fake: sent, then failed (undeliverable)
 
   // fake statuses → receiver → worker → billing hook
   const delays = env.FAKE_META_STATUS_DELAYS_MS ?? [0, 0, 0];

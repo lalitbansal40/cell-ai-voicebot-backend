@@ -5,6 +5,7 @@ import {
   buildMessagePayload,
   isMetaApiError,
   mapSendError,
+  templateSendEffect,
   type InteractiveHeaderInput,
   type MetaContactCard,
   type OutboundContent,
@@ -15,7 +16,16 @@ import {
   WhatsAppChannelModel,
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
+import {
+  WhatsAppTemplateModel,
+  type WhatsAppTemplateDoc,
+} from '../../db/models/whatsapp-template.model';
 import { getLogger } from '../../shared/logger';
+import { setMarketingPreference } from '../templates/marketing';
+import { auditTemplate, emitTemplateUpdated } from '../templates/notify';
+import { templatePayloadFor } from '../templates/send.service';
+import { historyPush, recordTemplateUsage } from '../templates/template.service';
+import { SYSTEM_ACTOR } from '../whatsapp/channel-status';
 import { openSecret } from '../whatsapp/context';
 
 import { applyChannelEffect } from './channel-effects';
@@ -235,15 +245,84 @@ const update = async (
   return updated;
 };
 
+/** Meta refused a template send: the template / contact follows (PHASE_11_PROMPT §1 mapping). */
+const templateEffects = async (ix: InboxContext, m: MessageDoc, code: number | null, now: Date) => {
+  const effect = templateSendEffect(code);
+  if (effect === 'none') return;
+  if (effect === 'marketing_stopped') {
+    await setMarketingPreference({
+      accountId: m.accountId,
+      contactId: m.contactId,
+      stopped: true,
+      source: 'error_131050',
+      at: now,
+    });
+    return;
+  }
+  if (!m.template) return;
+  if (effect === 'template_sync') {
+    await ix.templateJobs?.enqueueSync(m.channelId.toString(), 'webhook');
+    return;
+  }
+  const status = effect === 'template_paused' ? 'PAUSED' : 'DISABLED';
+  const before = await WhatsAppTemplateModel.findOne({
+    _id: m.template.templateId,
+    accountId: m.accountId,
+  }).lean<WhatsAppTemplateDoc>();
+  if (!before || before.status === status) return;
+  const updated = await WhatsAppTemplateModel.findOneAndUpdate(
+    { _id: before._id },
+    {
+      $set: { status, lastEventAt: now },
+      $push: historyPush({ status, reason: `send_error_${String(code)}`, at: now, source: 'sync' }),
+    },
+    { returnDocument: 'after' },
+  ).lean<WhatsAppTemplateDoc>();
+  if (!updated) return;
+  emitTemplateUpdated(updated);
+  await auditTemplate(updated, 'template.status_changed', SYSTEM_ACTOR, {
+    from: before.status,
+    to: status,
+    reasonCode: `send_error_${String(code)}`,
+  });
+};
+
 const fail = async (
+  ix: InboxContext,
   m: MessageDoc,
   code: number | null,
   title: string | null,
   reason: string,
   now: Date,
 ) => {
-  await update(m, 'queued', { error: { code, title, reason } }, 'failed', now);
+  const failed = await update(m, 'queued', { error: { code, title, reason } }, 'failed', now);
+  if (failed) {
+    // Phase 11: the hold goes back; template usage counts the failure
+    await ix.billing?.onStatus({
+      accountId: m.accountId,
+      messageId: m._id,
+      status: 'failed',
+      pricing: null,
+    });
+    if (m.template) await recordTemplateUsage(m.template.templateId, 'failed', now);
+  }
   return { kind: 'failed' as const, reason };
+};
+
+/** A template message → Meta's template payload (header media uploaded once). */
+const templatePayload = async (
+  ix: InboxContext,
+  m: MessageDoc,
+  conversation: ConversationDoc,
+  token: string,
+  phoneNumberId: string,
+  now: Date,
+) => {
+  if (!m.template) throw new NotSendable('Template missing');
+  const t = await WhatsAppTemplateModel.findById(m.template.templateId).lean<WhatsAppTemplateDoc>();
+  if (!t) throw new NotSendable('The template was deleted');
+  const mediaId = m.media ? await metaMediaFor(ix, m, token, phoneNumberId, 'media', now) : null;
+  return templatePayloadFor(t, m, conversation.waId, mediaId);
 };
 
 /**
@@ -287,21 +366,23 @@ export const processSend = async (
     }
     if (conversation.blocked) throw new NotSendable('You blocked this customer');
     const token = openSecret(ix.wa, channel.tokenSealed);
-    const content = await contentOf(ix, m, token, channel.phoneNumberId, now);
-    const payload = buildMessagePayload(
-      conversation.waId,
-      content,
-      m.context?.replyToWaMessageId ?? null,
-    );
+    const payload =
+      m.type === 'template'
+        ? await templatePayload(ix, m, conversation, token, channel.phoneNumberId, now)
+        : buildMessagePayload(
+            conversation.waId,
+            await contentOf(ix, m, token, channel.phoneNumberId, now),
+            m.context?.replyToWaMessageId ?? null,
+          );
     const { waMessageId } = await ix.wa.meta.sendMessage(token, channel.phoneNumberId, payload);
     await update(m, 'queued', { waMessageId, error: null }, 'accepted', now);
     return { kind: 'accepted', waMessageId };
   } catch (err) {
-    if (err instanceof NotSendable) return fail(m, null, null, err.reason, now);
+    if (err instanceof NotSendable) return fail(ix, m, null, null, err.reason, now);
     if (!isMetaApiError(err)) {
       // our own validation (limits) or a programming error: never retried endlessly
       if (options.finalAttempt || (err as { code?: string }).code === 'VALIDATION_FAILED') {
-        return fail(m, null, null, 'Message failed', now);
+        return fail(ix, m, null, null, 'Message failed', now);
       }
       throw err;
     }
@@ -324,6 +405,7 @@ export const processSend = async (
       return { kind: 'later', delayMs: mapped.retryAfterSec * 1000 };
     }
     if (mapped.retryable && !options.finalAttempt) throw new RetryableSendError(err.code);
-    return fail(m, err.code, err.type, mapped.reason, now);
+    if (m.type === 'template') await templateEffects(ix, m, err.code, now);
+    return fail(ix, m, err.code, err.type, mapped.reason, now);
   }
 };

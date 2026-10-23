@@ -1,8 +1,12 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import type { Readable } from 'node:stream';
 
 import { Types } from 'mongoose';
 
 import { INBOX_LIMITS } from '../../config/limits';
+import type { PriceCategory } from '../../core/billing/whatsapp';
+import { REACTIONS_BILLABLE } from '../../core/meta';
+import { storageKey } from '../../core/storage/keys';
 import { isDuplicateKeyError } from '../../db/errors';
 import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import { ConversationModel, type ConversationDoc } from '../../db/models/conversation.model';
@@ -21,6 +25,19 @@ import {
 } from '../../db/models/whatsapp-channel.model';
 import { withTransaction } from '../../db/transaction';
 import { AppError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
+import { getLogger } from '../../shared/logger';
+import {
+  assertMarketingFrequency,
+  assertTemplateAllowed,
+  loadSendableTemplate,
+  prepareTemplateSend,
+  type PreparedTemplate,
+} from '../templates/send.service';
+import {
+  holdMessageCharge,
+  releaseMessageCharge,
+  type MessageCharge,
+} from '../whatsapp-billing/pricing.service';
 
 import { inboxNow, type InboxContext } from './context';
 import { touchLastMessage } from './conversation-store';
@@ -48,13 +65,15 @@ export const isWindowOpen = (c: Pick<ConversationDoc, 'windowExpiresAt'>, now: D
 export const assertCanSend = async (
   conversation: ConversationDoc,
   now: Date,
+  { window = true }: { window?: boolean } = {},
 ): Promise<WhatsAppChannelDoc> => {
   const channel = await WhatsAppChannelModel.findById(
     conversation.channelId,
   ).lean<WhatsAppChannelDoc>();
   if (!channel || !SENDABLE.has(channel.status)) throw new AppError('WHATSAPP_CHANNEL_NOT_READY');
   if (conversation.blocked) throw new AppError('WHATSAPP_RECIPIENT_BLOCKED');
-  if (!isWindowOpen(conversation, now)) {
+  // templates (Phase 11) are the way to write when the window is closed
+  if (window && !isWindowOpen(conversation, now)) {
     throw new AppError('WHATSAPP_WINDOW_CLOSED', undefined, [
       {
         path: 'windowExpiresAt',
@@ -65,7 +84,7 @@ export const assertCanSend = async (
     ]);
   }
   // opted-out customers: replies are allowed inside a window the customer opened —
-  // business-initiated messages (templates, Phase 11) will check `optedOutAt`
+  // business-initiated templates check opt-out / DND / marketing stop (templates/send.service)
   return channel;
 };
 
@@ -128,7 +147,7 @@ interface Built {
 const buildContent = async (
   actor: SendActor,
   conversation: ConversationDoc,
-  input: Exclude<SendMessageInput, { type: 'note' }>,
+  input: Exclude<SendMessageInput, { type: 'note' | 'template' }>,
   now: Date,
 ): Promise<Built> => {
   const uploads: InboxUploadDoc[] = [];
@@ -295,6 +314,129 @@ const buildContent = async (
   }
 };
 
+const readAll = async (stream: Readable): Promise<Buffer> => {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks);
+};
+
+/**
+ * Template content (Phase 11): the template must be sendable on this number, the
+ * contact allowed (marketing: opt-out / DND / stopped; others: DND) and within the
+ * marketing frequency; variables resolved; a media header from a fresh upload or a
+ * copy of the template's stored example; a location header from the request.
+ */
+const buildTemplateContent = async (
+  ix: InboxContext,
+  actor: SendActor,
+  conversation: ConversationDoc,
+  channel: WhatsAppChannelDoc,
+  input: Extract<SendMessageInput, { type: 'template' }>,
+  now: Date,
+): Promise<Built & { prepared: PreparedTemplate }> => {
+  const contact = await ContactModel.findOne({
+    _id: conversation.contactId,
+    accountId: actor.accountId,
+  }).lean<ContactDoc>();
+  if (!contact) throw new NotFoundError('Contact not found');
+  const template = await loadSendableTemplate(actor.accountId, channel, input.templateId, now);
+  assertTemplateAllowed(contact, template.category);
+  if (template.category === 'MARKETING') {
+    await assertMarketingFrequency(actor.accountId, contact._id, now);
+  }
+  const prepared = await prepareTemplateSend({ template, contact, variables: input.variables });
+  const uploads: InboxUploadDoc[] = [];
+  let media: MessageMedia | null = null;
+  let location: NormalizedContent['location'] = null;
+  const kind = prepared.headerKind;
+  if (kind === 'image' || kind === 'video' || kind === 'document') {
+    if (input.header && 'mediaToken' in input.header) {
+      const upload = await loadUpload(
+        actor,
+        input.header.mediaToken,
+        [kind],
+        'header.mediaToken',
+        now,
+      );
+      uploads.push(upload);
+      media = mediaOf(upload);
+    } else if (template.headerMedia?.storageKey) {
+      // the stored example, copied so the message's retention never deletes it
+      const example = template.headerMedia;
+      const bytes = await readAll(await ix.storage.get(example.storageKey));
+      const key = storageKey({
+        accountId: actor.accountId.toString(),
+        area: 'inbox-media',
+        id: randomUUID(),
+        ext: example.storageKey.split('.').pop() ?? 'bin',
+      });
+      await ix.storage.put(key, bytes, { contentType: example.mimeType });
+      media = {
+        metaMediaId: null,
+        metaMediaUploadedAt: null,
+        storageKey: key,
+        mimeType: example.mimeType,
+        size: bytes.length,
+        sha256: createHash('sha256').update(bytes).digest('base64'),
+        fileName: example.fileName,
+        voice: false,
+        durationSec: null,
+        animated: false,
+        status: 'ready',
+        error: null,
+      };
+    } else {
+      throw bad('header.mediaToken', 'Attach the header file');
+    }
+  } else if (kind === 'location') {
+    if (!input.header || !('location' in input.header)) {
+      throw bad('header.location', 'Add the location for the header');
+    }
+    const l = input.header.location;
+    location = {
+      latitude: l.latitude,
+      longitude: l.longitude,
+      name: l.name?.trim() || null,
+      address: l.address?.trim() || null,
+      url: null,
+    };
+  }
+  return {
+    content: { ...blankContent('template'), text: prepared.text, media, location },
+    uploads,
+    reactionTarget: null,
+    prepared,
+  };
+};
+
+/** Every sent message except notes is priced and held (service replies + templates). */
+const chargeFor = async (
+  conversation: ConversationDoc,
+  channel: WhatsAppChannelDoc,
+  type: string,
+  category: PriceCategory,
+  clientId: string,
+  now: Date,
+): Promise<MessageCharge | null> => {
+  if (type === 'reaction' && !REACTIONS_BILLABLE) return null;
+  return holdMessageCharge({
+    accountId: conversation.accountId,
+    payer: channel.metaPayer,
+    phoneE164: conversation.phoneE164,
+    category,
+    clientId,
+    now,
+  });
+};
+
+const templateRef = (p: PreparedTemplate) => ({
+  templateId: p.template._id,
+  name: p.template.name,
+  language: p.template.language,
+  category: p.template.category,
+  parameters: p.parameters,
+});
+
 const replyContext = async (
   conversation: ConversationDoc,
   replyToMessageId: string | undefined,
@@ -395,9 +537,22 @@ export const sendMessage = async (
     }
   }
 
-  await assertCanSend(conversation, now);
-  const built = await buildContent(actor, conversation, input, now);
+  const channel = await assertCanSend(conversation, now, { window: input.type !== 'template' });
+  let built: Built;
+  let prepared: PreparedTemplate | null = null;
+  if (input.type === 'template') {
+    const t = await buildTemplateContent(ix, actor, conversation, channel, input, now);
+    built = t;
+    prepared = t.prepared;
+  } else {
+    built = await buildContent(actor, conversation, input, now);
+  }
   const reply = await replyContext(conversation, input.replyToMessageId);
+  // money last: every non-money rule passed (PHASE_11_PROMPT §1 "Hold placement")
+  const category: PriceCategory = prepared
+    ? (prepared.template.category.toLowerCase() as PriceCategory)
+    : 'service';
+  const charge = await chargeFor(conversation, channel, input.type, category, input.clientId, now);
   const doc: NewMessage = {
     ...built.content,
     context: input.type === 'reaction' ? null : reply.context,
@@ -408,6 +563,8 @@ export const sendMessage = async (
     clientId: input.clientId,
     at: now,
     statusHistory: [{ status: 'queued', at: now }],
+    ...(prepared ? { template: templateRef(prepared) } : {}),
+    billing: charge?.billing ?? null,
   };
   let message: MessageDoc;
   try {
@@ -438,7 +595,11 @@ export const sendMessage = async (
       });
     });
   } catch (err) {
-    if (!isDuplicateKeyError(err)) throw err;
+    if (!isDuplicateKeyError(err)) {
+      // the message was never stored: give the hold back (same clientId → same hold)
+      await releaseMessageCharge(conversation.accountId, charge?.holdId ?? null);
+      throw err;
+    }
     const raced = await findByClientId(actor, input.clientId);
     if (!raced) throw err;
     return { message: raced, created: false };
@@ -484,7 +645,7 @@ export const retryMessage = async (
   ).lean<ConversationDoc>();
   if (!conversation) throw new NotFoundError('Conversation not found');
   const now = inboxNow(ix);
-  await assertCanSend(conversation, now);
+  const channel = await assertCanSend(conversation, now, { window: failed.type !== 'template' });
   const already = await MessageModel.findOne({
     retryOf: failed._id,
     status: { $ne: 'failed' },
@@ -499,18 +660,31 @@ export const retryMessage = async (
     pricing: _p,
     statusHistory: _s,
     clientId: _ci,
+    billing: oldBilling,
     ...content
   } = failed;
-  const message = await insertMessage(conversation, {
-    ...(content as unknown as NewMessage),
-    status: 'queued',
-    sentBy: actor.userId,
-    retryOf: failed._id,
-    clientId: randomUUID(),
-    at: now,
-    statusHistory: [{ status: 'queued', at: now }],
-    media: failed.media ? { ...failed.media, status: 'ready', error: null } : null,
-  });
+  const clientId = randomUUID();
+  // a retry is a new message: priced and held again (the failed one was released)
+  const category = (oldBilling?.category ??
+    (failed.template ? failed.template.category.toLowerCase() : 'service')) as PriceCategory;
+  const charge = await chargeFor(conversation, channel, failed.type, category, clientId, now);
+  let message: MessageDoc;
+  try {
+    message = await insertMessage(conversation, {
+      ...(content as unknown as NewMessage),
+      status: 'queued',
+      sentBy: actor.userId,
+      retryOf: failed._id,
+      clientId,
+      at: now,
+      statusHistory: [{ status: 'queued', at: now }],
+      media: failed.media ? { ...failed.media, status: 'ready', error: null } : null,
+      billing: charge?.billing ?? null,
+    });
+  } catch (err) {
+    await releaseMessageCharge(conversation.accountId, charge?.holdId ?? null);
+    throw err;
+  }
   await announce(conversation, message, { userId: actor.userId });
   await ix.jobs.enqueueSend(message._id.toString());
   return message;
@@ -528,15 +702,40 @@ export const queueSystemText = async (
 ): Promise<MessageDoc | null> => {
   const now = inboxNow(ix);
   if (!isWindowOpen(conversation, now)) return null;
-  const message = await insertMessage(conversation, {
-    ...blankContent('text'),
-    text,
-    direction: 'out',
-    origin: 'system',
-    status: 'queued',
-    at: now,
-    statusHistory: [{ status: 'queued', at: now }],
-  });
+  const channel = await WhatsAppChannelModel.findById(
+    conversation.channelId,
+  ).lean<WhatsAppChannelDoc>();
+  if (!channel) return null;
+  // our confirmations are service messages too: held like replies (key by the new id)
+  const id = new Types.ObjectId();
+  let charge: MessageCharge | null;
+  try {
+    charge = await chargeFor(conversation, channel, 'text', 'service', `sys-${id.toString()}`, now);
+  } catch (err) {
+    if (!(err instanceof AppError)) throw err;
+    getLogger().warn(
+      { conversationId: conversation._id.toString(), code: err.code },
+      'inbox: confirmation not sent (wallet)',
+    );
+    return null;
+  }
+  let message: MessageDoc;
+  try {
+    message = await insertMessage(conversation, {
+      ...blankContent('text'),
+      text,
+      direction: 'out',
+      origin: 'system',
+      status: 'queued',
+      at: now,
+      statusHistory: [{ status: 'queued', at: now }],
+      billing: charge?.billing ?? null,
+      _id: id,
+    } as NewMessage);
+  } catch (err) {
+    await releaseMessageCharge(conversation.accountId, charge?.holdId ?? null);
+    throw err;
+  }
   emitMessageCreated(message);
   const conv = await touchLastMessage(conversation._id, message);
   if (conv) emitConversation(conv);

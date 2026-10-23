@@ -12,8 +12,11 @@ import {
   MESSAGE_STATUSES,
   MESSAGE_TYPES,
   REACTION_ACTORS,
+  MESSAGE_BILLING_STATUSES,
+  MESSAGE_PAYERS,
 } from '../../db/models/message.model';
 import { WA_CHANNEL_STATUSES, WA_MODES } from '../../db/models/whatsapp-channel.model';
+import { TEMPLATE_CATEGORIES } from '../../db/models/whatsapp-template.model';
 import { registry } from '../../shared/openapi/registry';
 import { bearer, errors, noContentResponse, ok } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
@@ -127,6 +130,23 @@ export const InboxMessageSchema = registry.register(
     clientId: s,
     sentBy: z.object({ id: z.string(), name: z.string() }).nullable(),
     retryOf: s,
+    template: z
+      .object({
+        templateId: z.string(),
+        name: z.string(),
+        language: z.string(),
+        category: z.enum(TEMPLATE_CATEGORIES),
+      })
+      .nullable(),
+    billing: z
+      .object({
+        payer: z.enum(MESSAGE_PAYERS),
+        category: z.string(),
+        market: z.string(),
+        priceMicros: z.number().int(),
+        status: z.enum(MESSAGE_BILLING_STATUSES),
+      })
+      .nullable(),
     at: z.string(),
     createdAt: z.string(),
   }),

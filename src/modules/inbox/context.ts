@@ -2,6 +2,7 @@ import type { Types } from 'mongoose';
 
 import type { StorageProvider } from '../../core/storage';
 import type { MessagePricing, MessageStatus } from '../../db/models/message.model';
+import type { TemplateJobs } from '../templates/jobs';
 import type { WhatsAppContext } from '../whatsapp/context';
 
 import type { InboxJobs } from './jobs';
@@ -22,6 +23,8 @@ export interface InboxContext {
   storage: StorageProvider;
   jobs: InboxJobs;
   billing?: InboxBillingHook;
+  /** Phase 11: a template sync after Meta said the template is gone (132001). */
+  templateJobs?: Pick<TemplateJobs, 'enqueueSync'>;
 }
 
 export const inboxNow = (ix: Pick<InboxContext, 'wa'>): Date => ix.wa.now?.() ?? new Date();

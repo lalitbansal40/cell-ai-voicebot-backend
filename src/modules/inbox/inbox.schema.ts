@@ -5,6 +5,8 @@ import { UPLOAD_KINDS } from '../../db/models/inbox-upload.model';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
 
+import { TemplateBody } from './outbound.schema';
+
 export const ConversationParams = z.object({ id: ObjectIdSchema });
 export const MessageParams = z.object({ id: ObjectIdSchema });
 
@@ -35,6 +37,8 @@ export const AssignBody = z.object({
 export const StartConversationBody = z.object({
   channelId: ObjectIdSchema,
   contactId: ObjectIdSchema,
+  /** Phase 11: send a template right away (contact page); `clientId` generated when omitted. */
+  template: TemplateBody.extend({ clientId: TemplateBody.shape.clientId.optional() }).optional(),
 });
 
 /** Multipart fields of `POST /inbox/media` (the file is the `file` part). */
