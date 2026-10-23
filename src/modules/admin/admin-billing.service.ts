@@ -228,7 +228,7 @@ const walletView = async (accountId: Types.ObjectId, wallet?: WalletDoc) =>
 export const getAccountWallet = async (id: string) => walletView((await customerAccount(id))._id);
 
 export const getAccountLedger = async (id: string, query: z.infer<typeof AdminLedgerQuery>) =>
-  listLedger((await customerAccount(id))._id, query);
+  listLedger((await customerAccount(id))._id, query, { platform: true });
 
 export const updateCreditLimit = async (req: Request, id: string, creditLimitMicros: number) => {
   const account = await customerAccount(id);
@@ -295,7 +295,7 @@ export const createAdjustment = async (
     });
   }
   return {
-    entry: toLedgerView(entry, await userNames([entry])),
+    entry: toLedgerView(entry, await userNames([entry]), { platform: true }),
     wallet: await walletView(account._id, result.wallet),
   };
 };
@@ -351,7 +351,7 @@ export const endSimulatedCall = async (
   const names = await userNames(rows);
   return {
     outcome: billable ? ('charged' as const) : ('released' as const),
-    entries: rows.map((r) => toLedgerView(r, names)),
+    entries: rows.map((r) => toLedgerView(r, names, { platform: true })),
     wallet: await walletView(account._id, result.wallet),
   };
 };

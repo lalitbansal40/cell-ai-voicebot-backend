@@ -35,7 +35,22 @@ export const describeEntry = (e: Pick<LedgerEntryDoc, 'type' | 'status' | 'note'
   return TYPE_TEXT[e.type];
 };
 
-export const toLedgerView = (e: LedgerEntryDoc, names: Map<string, string>) => ({
+/** Platform-only parts of a WhatsApp charge: accounts see the selling price, never Meta's cost. */
+const PLATFORM_BREAKDOWN = ['metaCostMicros', 'markupMicros', 'platformFeeMicros'] as const;
+
+const accountBreakdown = (b: LedgerEntryDoc['breakdown']): LedgerEntryDoc['breakdown'] => {
+  if (!b) return null;
+  const out = { ...b };
+  for (const key of PLATFORM_BREAKDOWN) delete out[key];
+  return out;
+};
+
+/** `platform: true` (superadmin pages) keeps Meta's cost, the markup and the fee. */
+export const toLedgerView = (
+  e: LedgerEntryDoc,
+  names: Map<string, string>,
+  { platform = false }: { platform?: boolean } = {},
+) => ({
   id: e._id.toString(),
   type: e.type,
   direction: e.direction,
@@ -43,7 +58,7 @@ export const toLedgerView = (e: LedgerEntryDoc, names: Map<string, string>) => (
   amountMicros: e.amountMicros,
   currency: 'INR' as const,
   balanceAfterMicros: e.balanceAfterMicros ?? null,
-  breakdown: e.breakdown ?? null,
+  breakdown: platform ? (e.breakdown ?? null) : accountBreakdown(e.breakdown),
   ref: { type: e.ref.type, id: e.ref.id },
   holdId: e.holdId ? e.holdId.toString() : null,
   description: describeEntry(e),
@@ -67,7 +82,11 @@ export const userNames = async (rows: Pick<LedgerEntryDoc, 'createdBy'>[]) => {
 };
 
 /** Newest first, keyset cursor `{ at: createdAt, id }`. */
-export const listLedger = async (accountId: Types.ObjectId, query: z.infer<typeof LedgerQuery>) => {
+export const listLedger = async (
+  accountId: Types.ObjectId,
+  query: z.infer<typeof LedgerQuery>,
+  view: { platform?: boolean } = {},
+) => {
   const filter: Record<string, unknown> = { accountId };
   if (query.type) filter.type = { $in: query.type };
   if (query.status) filter.status = query.status;
@@ -93,7 +112,7 @@ export const listLedger = async (accountId: Types.ObjectId, query: z.infer<typeo
   const names = await userNames(page);
   const last = page.at(-1);
   return {
-    items: page.map((r) => toLedgerView(r, names)),
+    items: page.map((r) => toLedgerView(r, names, view)),
     meta: {
       hasMore,
       nextCursor:

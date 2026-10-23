@@ -8,6 +8,7 @@ import {
   chargeUsage,
   credit,
   holdForCall,
+  holdForWhatsApp,
   settleCall,
 } from '../../src/core/billing/engine';
 import { createRateCardVersion, invalidateRateCardCache } from '../../src/core/billing/rates';
@@ -450,6 +451,57 @@ describe('ledger', () => {
     } finally {
       limits.ledgerExportMaxRows = before;
     }
+  });
+});
+
+describe('WhatsApp charges in the account ledger (Phase 11)', () => {
+  it("shows the selling price, category and market — never Meta's cost, markup or fee", async () => {
+    const wa = await createTestAccount();
+    const waOwner = await wa.addUser('owner');
+    await credit({
+      accountId: wa.account._id,
+      type: 'topup',
+      amountMicros: 10 * RUPEE,
+      ref: { type: 'topup', id: 'wa-seed' },
+      idempotencyKey: 'wa-seed-topup',
+    });
+    const hold = await holdForWhatsApp({
+      accountId: wa.account._id,
+      clientId: 'wa-ledger-1',
+      amountMicros: 140_000,
+      breakdown: {
+        waCategory: 'utility',
+        waMarket: 'IN',
+        metaCostMicros: 115_000,
+        markupMicros: 25_000,
+        platformFeeMicros: 0,
+      },
+      ref: { type: 'whatsapp_message', id: 'wa-ledger-1' },
+    });
+    const id = hold.entries[0]?._id.toString() ?? '';
+    const list = await get('/api/v1/wallet/ledger?type=whatsapp_charge', waOwner);
+    const one = await get(`/api/v1/wallet/ledger/${id}`, waOwner);
+    for (const entry of [list.body.data[0], one.body.data]) {
+      expect(entry.amountMicros).toBe(140_000);
+      expect(entry.breakdown).toEqual({ kind: 'whatsapp', waCategory: 'utility', waMarket: 'IN' });
+    }
+    expect(JSON.stringify([list.body, one.body])).not.toMatch(/metaCost|markup|platformFee/);
+    // the superadmin's view of the account keeps the cost split (margin checks)
+    const platform = await createTestAccount({
+      isPlatform: true,
+      slug: `p-wa-ledger-${String(Date.now())}`,
+      name: 'P',
+    });
+    const sa = await platform.addUser('owner', { platformRole: 'superadmin' });
+    const platformView = await get(
+      `/api/v1/admin/accounts/${wa.account._id.toString()}/ledger?type=whatsapp_charge`,
+      sa,
+    );
+    expect(platformView.status).toBe(200);
+    expect(platformView.body.data[0].breakdown).toMatchObject({
+      metaCostMicros: 115_000,
+      markupMicros: 25_000,
+    });
   });
 });
 
