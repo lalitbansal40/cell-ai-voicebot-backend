@@ -181,8 +181,78 @@ export interface MetaBusinessProfileUpdate {
   profilePictureHandle?: string;
 }
 
+/* ── Phase 11: templates + pricing ── */
+
 /**
- * Everything Phases 9–10 need from the Meta Graph API. Two implementations:
+ * Reactions and WhatsApp billing (re-checked 23 Oct 2026): Meta's pricing page bills every
+ * delivered message by category and does **not** list reactions as free, so a reaction is
+ * held like a service reply and released when Meta reports `billable: false`.
+ */
+export const REACTIONS_BILLABLE = true;
+
+/** A template as Meta returns it (`GET /{waba}/message_templates`). */
+export interface MetaTemplate {
+  id: string;
+  name: string;
+  language: string;
+  status: string;
+  category: string;
+  subCategory: string | null;
+  parameterFormat: 'positional' | 'named';
+  components: Record<string, unknown>[];
+  qualityScore: string | null;
+  rejectedReason: string | null;
+  ttlSeconds: number | null;
+}
+
+export interface MetaTemplatePage {
+  templates: MetaTemplate[];
+  /** Cursor of the next page; null on the last one. */
+  after: string | null;
+}
+
+export interface MetaTemplateCreate {
+  name: string;
+  language: string;
+  category: string;
+  parameterFormat: 'positional' | 'named';
+  components: Record<string, unknown>[];
+  ttlSeconds?: number | null;
+}
+
+export interface MetaTemplateCreated {
+  id: string;
+  status: string;
+  category: string;
+}
+
+export interface MetaTemplateEdit {
+  category?: string;
+  components?: Record<string, unknown>[];
+  ttlSeconds?: number | null;
+}
+
+/** A file for Meta's resumable upload (template header examples, profile photos). */
+export interface MetaUploadFile {
+  bytes: Buffer;
+  mimeType: string;
+  fileName?: string | null;
+}
+
+/** One `pricing_analytics` data point (cost in the WABA currency, major units). */
+export interface MetaPricingPoint {
+  start: Date;
+  end: Date;
+  country: string | null;
+  category: string | null;
+  pricingType: string | null;
+  tier: string | null;
+  volume: number;
+  cost: number;
+}
+
+/**
+ * Everything Phases 9–11 need from the Meta Graph API. Two implementations:
  * `createGraphMetaClient` (real HTTP) and `createFakeMetaClient` (dev / tests / E2E).
  * Every method throws `MetaApiError` on failure.
  */
@@ -240,6 +310,32 @@ export interface MetaClient {
   ): Promise<void>;
   /** Resumable upload of a profile photo → handle for `updateBusinessProfile`. */
   uploadProfilePhoto(token: string, bytes: Buffer, mimeType: string): Promise<string>;
+  /* ── Phase 11: templates + pricing ── */
+  listTemplates(
+    token: string,
+    wabaId: string,
+    options?: { after?: string | null; limit?: number },
+  ): Promise<MetaTemplatePage>;
+  createTemplate(
+    token: string,
+    wabaId: string,
+    body: MetaTemplateCreate,
+  ): Promise<MetaTemplateCreated>;
+  editTemplate(token: string, templateId: string, body: MetaTemplateEdit): Promise<void>;
+  /** `hsmId` deletes one language; without it every language of the name goes. */
+  deleteTemplate(
+    token: string,
+    wabaId: string,
+    target: { name: string; hsmId?: string | null },
+  ): Promise<void>;
+  /** Resumable upload of a template header example → handle (`header_handle`). */
+  uploadExample(token: string, file: MetaUploadFile): Promise<string>;
+  /** Daily cost / volume per pricing category, type and country (`pricing_analytics`). */
+  getPricingAnalytics(
+    token: string,
+    wabaId: string,
+    range: { start: Date; end: Date },
+  ): Promise<MetaPricingPoint[]>;
 }
 
 /** Is `url` a Meta media host (or one of `extraHosts`, exact match — tests / fake)? */

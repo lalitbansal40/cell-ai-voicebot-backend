@@ -49,7 +49,20 @@ import {
   toWaba,
   wabaSchema,
 } from './schemas';
-import { isAllowedMediaUrl, type MetaApiError, type MetaClient } from './types';
+import {
+  pricingAnalyticsSchema,
+  templateCreatedSchema,
+  templateListSchema,
+  toPricingPoints,
+  toTemplateCreated,
+  toTemplatePage,
+} from './template-schemas';
+import {
+  isAllowedMediaUrl,
+  type MetaApiError,
+  type MetaClient,
+  type MetaUploadFile,
+} from './types';
 
 export interface GraphMetaClientOptions {
   appId: string;
@@ -131,6 +144,25 @@ const PROFILE_FIELDS = [
   'websites',
   'vertical',
 ].join(',');
+
+const TEMPLATE_FIELDS = [
+  'id',
+  'name',
+  'language',
+  'status',
+  'category',
+  'sub_category',
+  'parameter_format',
+  'components',
+  'quality_score',
+  'rejected_reason',
+  'message_send_ttl_seconds',
+].join(',');
+
+/** `pricing_analytics` dimensions (Meta: comma list, no brackets). */
+const PRICING_DIMENSIONS = 'PRICING_CATEGORY,PRICING_TYPE,COUNTRY';
+
+const unix = (d: Date) => String(Math.floor(d.getTime() / 1000));
 
 const seg = (value: string) => encodeURIComponent(value);
 const tokenKey = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -221,6 +253,30 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
       'query' | 'body' | 'form' | 'bytes' | 'headers' | 'authScheme'
     > = {},
   ) => call({ op, method, path, token, schema, ...extra });
+
+  /** Meta's resumable upload: session on the app, then the bytes (`OAuth` header) → handle. */
+  const resumableUpload = async (op: string, token: string, file: MetaUploadFile) => {
+    const session = await bearer(
+      `${op}_session`,
+      'POST',
+      `${seg(appId)}/uploads`,
+      token,
+      uploadSessionSchema,
+      {
+        query: {
+          ...(file.fileName ? { file_name: file.fileName } : {}),
+          file_length: String(file.bytes.length),
+          file_type: file.mimeType,
+        },
+      },
+    );
+    const raw = await bearer(op, 'POST', session.id, token, uploadHandleSchema, {
+      bytes: file.bytes,
+      authScheme: 'OAuth',
+      headers: { file_offset: '0', 'content-type': file.mimeType },
+    });
+    return raw.h;
+  };
 
   return {
     provider: 'meta',
@@ -566,22 +622,87 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
     },
 
     async uploadProfilePhoto(token, bytes, mimeType) {
-      const session = await bearer(
-        'app.upload_session',
-        'POST',
-        `${seg(appId)}/uploads`,
+      return resumableUpload('app.upload', token, { bytes, mimeType });
+    },
+
+    async listTemplates(token, wabaId, opts = {}) {
+      const raw = await bearer(
+        'waba.templates',
+        'GET',
+        `${seg(wabaId)}/message_templates`,
         token,
-        uploadSessionSchema,
+        templateListSchema,
         {
-          query: { file_length: String(bytes.length), file_type: mimeType },
+          query: {
+            fields: TEMPLATE_FIELDS,
+            limit: String(opts.limit ?? 100),
+            ...(opts.after ? { after: opts.after } : {}),
+          },
         },
       );
-      const raw = await bearer('app.upload', 'POST', session.id, token, uploadHandleSchema, {
-        bytes,
-        authScheme: 'OAuth',
-        headers: { file_offset: '0', 'content-type': mimeType },
+      return toTemplatePage(raw);
+    },
+
+    async createTemplate(token, wabaId, body) {
+      const raw = await bearer(
+        'waba.template_create',
+        'POST',
+        `${seg(wabaId)}/message_templates`,
+        token,
+        templateCreatedSchema,
+        {
+          body: {
+            name: body.name,
+            language: body.language,
+            category: body.category,
+            parameter_format: body.parameterFormat.toUpperCase(),
+            components: body.components,
+            ...(body.ttlSeconds ? { message_send_ttl_seconds: body.ttlSeconds } : {}),
+          },
+        },
+      );
+      return toTemplateCreated(raw);
+    },
+
+    async editTemplate(token, templateId, body) {
+      await bearer('template.edit', 'POST', seg(templateId), token, successSchema, {
+        body: {
+          ...(body.category ? { category: body.category } : {}),
+          ...(body.components ? { components: body.components } : {}),
+          ...(body.ttlSeconds ? { message_send_ttl_seconds: body.ttlSeconds } : {}),
+        },
       });
-      return raw.h;
+    },
+
+    async deleteTemplate(token, wabaId, target) {
+      await bearer(
+        'waba.template_delete',
+        'DELETE',
+        `${seg(wabaId)}/message_templates`,
+        token,
+        successSchema,
+        { query: { name: target.name, ...(target.hsmId ? { hsm_id: target.hsmId } : {}) } },
+      );
+    },
+
+    uploadExample(token, file) {
+      return resumableUpload('app.example_upload', token, file);
+    },
+
+    async getPricingAnalytics(token, wabaId, range) {
+      const raw = await bearer(
+        'waba.pricing_analytics',
+        'GET',
+        seg(wabaId),
+        token,
+        pricingAnalyticsSchema,
+        {
+          query: {
+            fields: `pricing_analytics.start(${unix(range.start)}).end(${unix(range.end)}).granularity(DAILY).dimensions(${PRICING_DIMENSIONS})`,
+          },
+        },
+      );
+      return toPricingPoints(raw);
     },
   };
 };

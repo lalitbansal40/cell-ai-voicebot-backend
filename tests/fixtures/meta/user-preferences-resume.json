@@ -1,0 +1,35 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "time": 1761120000,
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919000000010",
+              "phone_number_id": "106540352242922"
+            },
+            "contacts": [
+              {
+                "wa_id": "919000000101"
+              }
+            ],
+            "user_preferences": [
+              {
+                "wa_id": "919000000101",
+                "detail": "User requested to resume marketing messages",
+                "category": "marketing_messages",
+                "value": "resume",
+                "timestamp": 1761123600
+              }
+            ]
+          },
+          "field": "user_preferences"
+        }
+      ]
+    }
+  ]
+}

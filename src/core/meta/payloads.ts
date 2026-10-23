@@ -1,4 +1,4 @@
-import { INBOX_LIMITS } from '../../config/limits';
+import { INBOX_LIMITS, TEMPLATE_LIMITS } from '../../config/limits';
 import { ValidationError, type ErrorDetail } from '../../shared/errors/app-error';
 
 import type { MetaMessagePayload } from './types';
@@ -289,3 +289,164 @@ export const contactToMetaCard = (contact: {
   phones: [{ phone: contact.phoneE164, type: 'CELL', ...opt('wa_id', contact.waId) }],
   ...(contact.email ? { emails: [{ email: contact.email, type: 'WORK' as const }] } : {}),
 });
+
+/* ── Phase 11: template messages ── */
+
+export type TemplateHeaderParam =
+  | { type: 'text'; text: string; name?: string | null }
+  | { type: 'image' | 'video'; mediaId: string }
+  | { type: 'document'; mediaId: string; fileName?: string | null }
+  | {
+      type: 'location';
+      latitude: number;
+      longitude: number;
+      name?: string | null;
+      address?: string | null;
+    };
+
+export type TemplateButtonParam =
+  /** `text` = the URL suffix (percent-encoded here). */
+  | { subType: 'url'; index: number; text: string }
+  | { subType: 'copy_code'; index: number; code: string }
+  | { subType: 'quick_reply'; index: number; payload: string };
+
+/** Resolved values of one template send (customer data — never logged). */
+export interface TemplateSendInput {
+  name: string;
+  language: string;
+  parameterFormat: 'positional' | 'named';
+  header?: TemplateHeaderParam | null;
+  /** Positional keys `1`, `2`… (sent in number order) or names. */
+  body?: { key: string; text: string }[];
+  buttons?: TemplateButtonParam[];
+}
+
+/** Header / button values may not hold new lines or tabs (Meta rejects them). */
+const SINGLE_LINE = /[\n\r\t]/;
+const LANGUAGE = /^[a-z]{2,3}(_[A-Za-z]{2,4})?$/;
+
+const checkTemplate = (input: TemplateSendInput): ErrorDetail[] => {
+  const errors: ErrorDetail[] = [];
+  const add = (path: string, message: string) => errors.push({ path, message });
+  if (!TEMPLATE_LIMITS.namePattern.test(input.name) || input.name.length > TEMPLATE_LIMITS.nameMax)
+    add('template.name', 'Not a template name');
+  if (!LANGUAGE.test(input.language)) add('template.language', 'Not a language code');
+  const h = input.header;
+  if (h?.type === 'text') {
+    if (!h.text.trim()) add('header', 'Missing value');
+    if (h.text.length > TEMPLATE_LIMITS.headerTextMax)
+      add('header', `At most ${String(TEMPLATE_LIMITS.headerTextMax)} characters`);
+    if (SINGLE_LINE.test(h.text)) add('header', 'No line breaks or tabs');
+  } else if (h?.type === 'location') {
+    if (Math.abs(h.latitude) > 90) add('header.latitude', 'Must be between -90 and 90');
+    if (Math.abs(h.longitude) > 180) add('header.longitude', 'Must be between -180 and 180');
+  } else if (h && !h.mediaId) add('header', 'Missing media');
+  const body = input.body ?? [];
+  if (body.length > TEMPLATE_LIMITS.variablesMax)
+    add('body', `At most ${String(TEMPLATE_LIMITS.variablesMax)} variables`);
+  const keys = new Set<string>();
+  for (const v of body) {
+    if (keys.has(v.key)) add(`body.${v.key}`, 'Listed twice');
+    keys.add(v.key);
+    if (!v.text.trim()) add(`body.${v.key}`, 'Missing value');
+    if (v.text.length > TEMPLATE_LIMITS.variableValueMax)
+      add(`body.${v.key}`, `At most ${String(TEMPLATE_LIMITS.variableValueMax)} characters`);
+    if (input.parameterFormat === 'positional' && !/^\d{1,2}$/.test(v.key))
+      add(`body.${v.key}`, 'Positional variables are numbered');
+    if (input.parameterFormat === 'named' && !/^[a-z_][a-z0-9_]*$/.test(v.key))
+      add(`body.${v.key}`, 'Not a variable name');
+  }
+  for (const b of input.buttons ?? []) {
+    const path = `buttons.${String(b.index)}`;
+    if (!Number.isInteger(b.index) || b.index < 0 || b.index >= TEMPLATE_LIMITS.buttonsMax)
+      add(path, 'Not a button index');
+    const value = b.subType === 'url' ? b.text : b.subType === 'copy_code' ? b.code : b.payload;
+    if (!value.trim()) add(path, 'Missing value');
+    if (SINGLE_LINE.test(value)) add(path, 'No line breaks or tabs');
+    if (b.subType === 'copy_code' && b.code.length > TEMPLATE_LIMITS.copyCodeExampleMax)
+      add(path, `At most ${String(TEMPLATE_LIMITS.copyCodeExampleMax)} characters`);
+    if (b.subType === 'url' && b.text.length > TEMPLATE_LIMITS.urlMax)
+      add(path, `At most ${String(TEMPLATE_LIMITS.urlMax)} characters`);
+  }
+  return errors;
+};
+
+const headerParameter = (h: TemplateHeaderParam, named: boolean): Record<string, unknown> => {
+  switch (h.type) {
+    case 'text':
+      return { type: 'text', text: h.text, ...(named && h.name ? { parameter_name: h.name } : {}) };
+    case 'image':
+    case 'video':
+      return { type: h.type, [h.type]: { id: h.mediaId } };
+    case 'document':
+      return { type: 'document', document: { id: h.mediaId, ...opt('filename', h.fileName) } };
+    case 'location':
+      return {
+        type: 'location',
+        location: {
+          latitude: h.latitude,
+          longitude: h.longitude,
+          ...opt('name', h.name),
+          ...opt('address', h.address),
+        },
+      };
+  }
+};
+
+const buttonParameter = (b: TemplateButtonParam): Record<string, unknown> => {
+  switch (b.subType) {
+    case 'url':
+      return { type: 'text', text: encodeURIComponent(b.text) };
+    case 'copy_code':
+      return { type: 'coupon_code', coupon_code: b.code };
+    case 'quick_reply':
+      return { type: 'payload', payload: b.payload };
+  }
+};
+
+/**
+ * Exact template `POST /{phone}/messages` body (Cloud API "Send template messages").
+ * Components without parameters are left out; positional body values go in number order,
+ * named ones carry `parameter_name`.
+ */
+export const buildTemplatePayload = (to: string, input: TemplateSendInput): MetaMessagePayload => {
+  const errors = checkTemplate(input);
+  if (!/^\d{6,20}$/.test(to)) errors.push({ path: 'to', message: 'Not a WhatsApp id' });
+  if (errors.length) throw new ValidationError(errors);
+  const named = input.parameterFormat === 'named';
+  const components: Record<string, unknown>[] = [];
+  if (input.header) {
+    components.push({ type: 'header', parameters: [headerParameter(input.header, named)] });
+  }
+  const body = [...(input.body ?? [])];
+  if (!named) body.sort((a, b) => Number(a.key) - Number(b.key));
+  if (body.length) {
+    components.push({
+      type: 'body',
+      parameters: body.map((v) => ({
+        type: 'text',
+        text: v.text,
+        ...(named ? { parameter_name: v.key } : {}),
+      })),
+    });
+  }
+  for (const b of [...(input.buttons ?? [])].sort((x, y) => x.index - y.index)) {
+    components.push({
+      type: 'button',
+      sub_type: b.subType,
+      index: String(b.index),
+      parameters: [buttonParameter(b)],
+    });
+  }
+  return {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to,
+    type: 'template',
+    template: {
+      name: input.name,
+      language: { code: input.language },
+      ...(components.length ? { components } : {}),
+    },
+  };
+};

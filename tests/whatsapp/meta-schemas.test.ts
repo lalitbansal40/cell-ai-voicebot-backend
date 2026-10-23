@@ -61,6 +61,9 @@ const PHASE_10_GRAPH = new Set([
   'graph-upload-handle.json',
 ]);
 
+const PHASE_11_FIXTURE =
+  /^(templates-|user-preferences-|pricing-|graph-templates-|graph-template-created|graph-pricing-analytics)/;
+
 describe('Meta fixtures', () => {
   it('every fixture is covered and documented', () => {
     const readme = readFileSync(join(DIR, 'README.md'), 'utf8');
@@ -81,7 +84,9 @@ describe('Meta fixtures', () => {
           file.startsWith('webhook-') ||
           file.startsWith('messages-') ||
           file.startsWith('statuses-') ||
-          PHASE_10_GRAPH.has(file),
+          PHASE_10_GRAPH.has(file) ||
+          // Phase 11 (templates / pricing) — parsed in tests/templates/meta-*.test.ts
+          PHASE_11_FIXTURE.test(file),
         file,
       ).toBe(true);
     }

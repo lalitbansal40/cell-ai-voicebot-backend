@@ -1,0 +1,66 @@
+{
+  "data": [
+    {
+      "id": "9000000000000001",
+      "name": "test_order_update",
+      "language": "en_US",
+      "status": "APPROVED",
+      "category": "UTILITY",
+      "sub_category": "ORDER_DETAILS",
+      "parameter_format": "POSITIONAL",
+      "components": [
+        {
+          "type": "HEADER",
+          "format": "TEXT",
+          "text": "Order {{1}}",
+          "example": {
+            "header_text": [
+              "TEST1"
+            ]
+          }
+        },
+        {
+          "type": "BODY",
+          "text": "Hi {{1}}, your order {{2}} is on its way.",
+          "example": {
+            "body_text": [
+              [
+                "Test Customer",
+                "TEST1"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "FOOTER",
+          "text": "Test footer"
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "URL",
+              "text": "Track",
+              "url": "https://example.test/track/{{1}}",
+              "example": [
+                "https://example.test/track/TEST1"
+              ]
+            }
+          ]
+        }
+      ],
+      "quality_score": {
+        "score": "GREEN",
+        "date": 1761120000
+      },
+      "message_send_ttl_seconds": 3600
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "QVFIUBEFORE",
+      "after": "QVFIUAFTER"
+    },
+    "next": "https://graph.facebook.com/v23.0/102290129340398/message_templates?after=QVFIUAFTER"
+  }
+}

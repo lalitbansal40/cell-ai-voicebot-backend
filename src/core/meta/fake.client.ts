@@ -36,6 +36,14 @@ import {
   toWaba,
   wabaSchema,
 } from './schemas';
+import {
+  pricingAnalyticsSchema,
+  templateCreatedSchema,
+  templateListSchema,
+  toPricingPoints,
+  toTemplateCreated,
+  toTemplatePage,
+} from './template-schemas';
 import type {
   MetaApiError,
   MetaBusinessProfileUpdate,
@@ -80,6 +88,61 @@ export const FAKE_INBOX_KNOBS = {
   undeliverable: '00009',
 } as const;
 
+/** Customer number ending → template / billing behaviour (PHASE_11_PROMPT §1). */
+export const FAKE_TEMPLATE_KNOBS = {
+  /** Service (free-form) sends are billable `regular` (beyond the free tier). */
+  serviceBillable: '00010',
+  /** Everything is free (`billable: false`, `free_entry_point`). */
+  freeEntryPoint: '00011',
+  /** Template sends fail 131049 (Meta limited marketing to this customer). */
+  marketingLimited: '00012',
+  /** Template sends fail 131050 (the customer stopped marketing). */
+  marketingStopped: '00013',
+} as const;
+
+/** Template name parts → review outcome in the fake (dev / E2E). */
+export const FAKE_TEMPLATE_NAME_KNOBS = {
+  /** Approved at once (no review event). */
+  instant: 'instant',
+  /** Rejected `INVALID_FORMAT` after the review delay. */
+  reject: '_reject',
+  /** Approved, then recategorised UTILITY → MARKETING. */
+  recategorize: '_recategorize',
+  /** Approved, then paused (`FIRST_PAUSE`) 1 s later. */
+  pause: '_pause',
+  /** Stays in review (no review event). */
+  slow: '_slow',
+} as const;
+
+/** Seed placeholder rates (INR per message) the fake uses for `pricing_analytics`. */
+const FAKE_RATES: Record<string, number> = { marketing: 0.8631 };
+const FAKE_DEFAULT_RATE = 0.115;
+
+/** A template the fake keeps (Meta's JSON shape). */
+export interface FakeTemplate {
+  id: string;
+  name: string;
+  language: string;
+  status: string;
+  category: string;
+  sub_category: string | null;
+  parameter_format: 'POSITIONAL' | 'NAMED';
+  components: Record<string, unknown>[];
+  quality_score: { score: string } | null;
+  rejected_reason: string | null;
+  message_send_ttl_seconds: number | null;
+  /** Creation order (paging). */
+  seq: number;
+}
+
+/** What the fake's status webhooks report as Meta pricing (PMP). */
+interface FakePricing {
+  billable: boolean;
+  pricing_model: 'PMP';
+  category: string;
+  type: string;
+}
+
 /** One send the fake recorded (no texts, no full numbers). */
 export interface FakeSentMessage {
   waMessageId: string;
@@ -91,6 +154,10 @@ export interface FakeSentMessage {
   replyTo: boolean;
   /** Audio sends: the uploaded bytes are a mono OGG / Opus file. */
   voiceValid: boolean | null;
+  /** Phase 11: template name (not customer data) and the pricing Meta reports. */
+  templateName?: string | null;
+  pricingCategory?: string;
+  billable?: boolean;
   at: string;
 }
 
@@ -206,6 +273,15 @@ export interface FakeMetaClient extends MetaClient {
   sentMessages(phoneNumberId: string): Promise<FakeSentMessage[]>;
   readReceipts(phoneNumberId: string): Promise<FakeReadReceipt[]>;
   isBlocked(phoneNumberId: string, waId: string): Promise<boolean>;
+  /* ── Phase 11 ── */
+  /** The fake's templates of a WABA (dev route / simulator), creation order. */
+  templates(wabaId: string): Promise<FakeTemplate[]>;
+  /** Changes a stored template (simulator: status / quality / category / components). */
+  patchTemplate(
+    wabaId: string,
+    templateId: string,
+    patch: Partial<Omit<FakeTemplate, 'id' | 'seq'>>,
+  ): Promise<FakeTemplate | null>;
 }
 
 export interface FakeMetaOptions {
@@ -217,6 +293,8 @@ export interface FakeMetaOptions {
   statusDelaysMs?: readonly [number, number, number] | null;
   /** Origin of the dev media route (`APP_URL`) — media URLs point there. */
   mediaBaseUrl?: string;
+  /** Template review webhook after this many ms; null / omitted = templates stay in review. */
+  templateReviewMs?: number | null;
 }
 
 interface Identity extends FakeSignup {
@@ -266,6 +344,7 @@ export const createFakeMetaClient = ({
   appSecret,
   statusDelaysMs = null,
   mediaBaseUrl = 'http://localhost:5100',
+  templateReviewMs = null,
 }: FakeMetaOptions): FakeMetaClient => {
   const key = (name: string) => `${prefix}fake-meta-${name}`;
   const calls: FakeMetaCall[] = [];
@@ -367,6 +446,7 @@ export const createFakeMetaClient = ({
     phoneNumberId: string,
     waMessageId: string,
     payload: MetaMessagePayload,
+    pricing: FakePricing,
   ) => {
     const part = payload[payload.type] as Record<string, unknown> | undefined;
     const mediaId = typeof part?.id === 'string' ? part.id : null;
@@ -385,6 +465,9 @@ export const createFakeMetaClient = ({
       mediaId,
       replyTo: Boolean(payload.context),
       voiceValid,
+      templateName: payload.type === 'template' ? templateNameOf(payload) : null,
+      pricingCategory: pricing.category,
+      billable: pricing.billable,
       at: new Date().toISOString(),
     } satisfies FakeSentMessage);
   };
@@ -395,6 +478,7 @@ export const createFakeMetaClient = ({
     waMessageId: string,
     to: string,
     status: string,
+    pricing: FakePricing,
   ) => ({
     object: 'whatsapp_business_account',
     entry: [
@@ -415,13 +499,9 @@ export const createFakeMetaClient = ({
                   status,
                   timestamp: String(Math.floor(Date.now() / 1000)),
                   recipient_id: to,
-                  conversation: { id: `fake_conv_${to}`, origin: { type: 'service' } },
-                  pricing: {
-                    billable: false,
-                    pricing_model: 'PMP',
-                    category: 'service',
-                    type: 'free_customer_service',
-                  },
+                  conversation: { id: `fake_conv_${to}`, origin: { type: pricing.category } },
+                  // Meta bills delivered messages only: a failed one reports no pricing
+                  ...(status === 'failed' ? {} : { pricing }),
                   ...(status === 'failed'
                     ? {
                         errors: [
@@ -449,6 +529,7 @@ export const createFakeMetaClient = ({
     phoneNumberId: string,
     waMessageId: string,
     to: string,
+    pricing: FakePricing,
   ) => {
     if (!statusDelaysMs) return;
     const plan: string[] = to.endsWith(FAKE_INBOX_KNOBS.undeliverable)
@@ -459,14 +540,167 @@ export const createFakeMetaClient = ({
     plan.forEach((status, i) => {
       const timer = setTimeout(() => {
         timers.delete(timer);
-        void emitter?.(statusWebhook(identity, phoneNumberId, waMessageId, to, status)).catch(
-          () => undefined,
-        );
+        void emitter?.(
+          statusWebhook(identity, phoneNumberId, waMessageId, to, status, pricing),
+        ).catch(() => undefined);
       }, statusDelaysMs[i] ?? 0);
       timer.unref();
       timers.add(timer);
     });
   };
+
+  /* ── Phase 11: templates ── */
+
+  const templateNameOf = (payload: MetaMessagePayload): string | null => {
+    const t = payload.template as { name?: unknown } | undefined;
+    return typeof t?.name === 'string' ? t.name : null;
+  };
+
+  const loadTemplates = async (wabaId: string): Promise<FakeTemplate[]> =>
+    Object.values(await redis.hgetall(key(`templates-${wabaId}`)))
+      .map((raw) => JSON.parse(raw) as FakeTemplate)
+      .sort((a, b) => a.seq - b.seq);
+
+  const saveTemplate = async (wabaId: string, t: FakeTemplate) => {
+    await redis.hset(key(`templates-${wabaId}`), t.id, JSON.stringify(t));
+    await redis.set(key(`template-waba-${t.id}`), wabaId, 'EX', IDENTITY_TTL_SEC);
+  };
+
+  const loadTemplate = async (wabaId: string, templateId: string) => {
+    const raw = await redis.hget(key(`templates-${wabaId}`), templateId);
+    return raw ? (JSON.parse(raw) as FakeTemplate) : null;
+  };
+
+  const templateWebhook = (wabaId: string, field: string, value: Record<string, unknown>) => ({
+    object: 'whatsapp_business_account',
+    entry: [
+      {
+        id: wabaId,
+        time: Math.floor(Date.now() / 1000),
+        changes: [{ field, value }],
+      },
+    ],
+  });
+
+  const ref = (t: FakeTemplate) => ({
+    message_template_id: t.id,
+    message_template_name: t.name,
+    message_template_language: t.language,
+  });
+
+  const later = (ms: number, fn: () => Promise<void>) => {
+    const timer = setTimeout(() => {
+      timers.delete(timer);
+      void fn().catch(() => undefined);
+    }, ms);
+    timer.unref();
+    timers.add(timer);
+  };
+
+  /** Applies a review outcome and emits Meta's webhook (only while an emitter is attached). */
+  const setStatus = async (
+    wabaId: string,
+    templateId: string,
+    status: string,
+    extra: Record<string, unknown> = {},
+  ) => {
+    const t = await loadTemplate(wabaId, templateId);
+    if (!t) return;
+    t.status = status;
+    t.rejected_reason = status === 'REJECTED' ? 'INVALID_FORMAT' : null;
+    await saveTemplate(wabaId, t);
+    await emitter?.(
+      templateWebhook(wabaId, 'message_template_status_update', {
+        event: status,
+        ...ref(t),
+        message_template_category: t.category,
+        reason: status === 'REJECTED' ? 'INVALID_FORMAT' : status === 'PAUSED' ? 'NONE' : null,
+        ...extra,
+      }),
+    );
+  };
+
+  const scheduleReview = (wabaId: string, t: FakeTemplate) => {
+    if (templateReviewMs === null || t.name.includes(FAKE_TEMPLATE_NAME_KNOBS.slow)) return;
+    later(templateReviewMs, async () => {
+      if (t.name.includes(FAKE_TEMPLATE_NAME_KNOBS.reject)) {
+        await setStatus(wabaId, t.id, 'REJECTED', {
+          rejection_info: {
+            reason: 'Invalid format',
+            recommendation: 'Check the variables and their examples',
+          },
+        });
+        return;
+      }
+      await setStatus(wabaId, t.id, 'APPROVED');
+      if (t.name.includes(FAKE_TEMPLATE_NAME_KNOBS.recategorize)) {
+        const current = await loadTemplate(wabaId, t.id);
+        if (!current) return;
+        const previous = current.category;
+        current.category = 'MARKETING';
+        await saveTemplate(wabaId, current);
+        await emitter?.(
+          templateWebhook(wabaId, 'template_category_update', {
+            ...ref(current),
+            previous_category: previous,
+            new_category: 'MARKETING',
+          }),
+        );
+      }
+      if (t.name.includes(FAKE_TEMPLATE_NAME_KNOBS.pause)) {
+        later(1000, () =>
+          setStatus(wabaId, t.id, 'PAUSED', {
+            other_info: { title: 'FIRST_PAUSE', description: 'Paused for low quality (fake)' },
+          }),
+        );
+      }
+    });
+  };
+
+  /** Pricing Meta reports for a send (knobs by the customer number ending). */
+  const pricingFor = async (
+    wabaId: string,
+    payload: MetaMessagePayload,
+    to: string,
+  ): Promise<FakePricing> => {
+    let pricing: FakePricing;
+    if (payload.type === 'template') {
+      const name = templateNameOf(payload);
+      const code = (payload.template as { language?: { code?: unknown } } | undefined)?.language
+        ?.code;
+      const t = (await loadTemplates(wabaId)).find(
+        (x) => x.name === name && x.language === code && x.status !== 'DELETED',
+      );
+      pricing = {
+        billable: true,
+        pricing_model: 'PMP',
+        category: (t?.category ?? 'MARKETING').toLowerCase(),
+        type: 'regular',
+      };
+    } else {
+      pricing = {
+        billable: to.endsWith(FAKE_TEMPLATE_KNOBS.serviceBillable),
+        pricing_model: 'PMP',
+        category: 'service',
+        type: to.endsWith(FAKE_TEMPLATE_KNOBS.serviceBillable)
+          ? 'regular'
+          : 'free_customer_service',
+      };
+    }
+    if (to.endsWith(FAKE_TEMPLATE_KNOBS.freeEntryPoint)) {
+      pricing = { ...pricing, billable: false, type: 'free_entry_point' };
+    }
+    return pricing;
+  };
+
+  const templateNotFound = () =>
+    fail(
+      400,
+      100,
+      'Template does not exist or the token can not access it',
+      33,
+      'GraphMethodException',
+    );
 
   const block = async (phoneNumberId: string, waIds: string[], add: boolean) => {
     const done: { input: string; wa_id: string }[] = [];
@@ -803,9 +1037,27 @@ export const createFakeMetaClient = ({
         if (n <= 2) throw fail(400, 130429, 'Rate limit hit', undefined, 'OAuthException');
         await redis.del(k);
       }
+      if (payload.type === 'template') {
+        if (to.endsWith(FAKE_TEMPLATE_KNOBS.marketingLimited)) {
+          throw fail(
+            400,
+            131049,
+            'This message was not delivered to maintain healthy ecosystem engagement',
+          );
+        }
+        if (to.endsWith(FAKE_TEMPLATE_KNOBS.marketingStopped)) {
+          throw fail(
+            400,
+            131050,
+            'Unable to deliver the message: the user stopped marketing messages',
+          );
+        }
+      }
+      const wabaId = fakeIds(identity.businessName, identity.phone).wabaId;
+      const pricing = await pricingFor(wabaId, payload, to);
       const waMessageId = `wamid.FAKE${randomBytes(12).toString('hex').toUpperCase()}`;
-      await recordSend(phoneNumberId, waMessageId, payload);
-      scheduleStatuses(identity, phoneNumberId, waMessageId, to);
+      await recordSend(phoneNumberId, waMessageId, payload, pricing);
+      scheduleStatuses(identity, phoneNumberId, waMessageId, to, pricing);
       return {
         waMessageId:
           sendMessageSchema.parse({ messages: [{ id: waMessageId }] }).messages[0]?.id ??
@@ -932,6 +1184,132 @@ export const createFakeMetaClient = ({
       return `fake_handle_${randomBytes(8).toString('hex')}`;
     },
 
+    async listTemplates(token, wabaId, opts = {}) {
+      track('listTemplates', wabaId);
+      await owned(token, wabaId, 'waba');
+      const all = await loadTemplates(wabaId);
+      const offset = opts.after ? Number(Buffer.from(opts.after, 'base64url').toString()) || 0 : 0;
+      const limit = Math.min(opts.limit ?? 100, 100);
+      const page = all.slice(offset, offset + limit);
+      const more = offset + limit < all.length;
+      const cursor = (n: number) => Buffer.from(String(n)).toString('base64url');
+      return toTemplatePage(
+        templateListSchema.parse({
+          data: page.map(({ seq: _seq, ...t }) => t),
+          paging: {
+            cursors: { before: cursor(offset), after: cursor(offset + page.length) },
+            ...(more ? { next: `fake://templates?after=${cursor(offset + page.length)}` } : {}),
+          },
+        }),
+      );
+    },
+
+    async createTemplate(token, wabaId, body) {
+      track('createTemplate', wabaId);
+      await owned(token, wabaId, 'waba');
+      const all = await loadTemplates(wabaId);
+      if (all.some((t) => t.name === body.name && t.language === body.language)) {
+        throw fail(400, 100, 'Message template already exists', 2388023);
+      }
+      const instant = body.name.includes(FAKE_TEMPLATE_NAME_KNOBS.instant);
+      const t: FakeTemplate = {
+        id: `fake_tpl_${randomBytes(8).toString('hex')}`,
+        name: body.name,
+        language: body.language,
+        status: instant ? 'APPROVED' : 'PENDING',
+        category: body.category.toUpperCase(),
+        sub_category: null,
+        parameter_format: body.parameterFormat === 'named' ? 'NAMED' : 'POSITIONAL',
+        components: body.components,
+        quality_score: instant ? { score: 'UNKNOWN' } : null,
+        rejected_reason: null,
+        message_send_ttl_seconds: body.ttlSeconds ?? null,
+        seq: Date.now() * 1000 + all.length,
+      };
+      await saveTemplate(wabaId, t);
+      if (!instant) scheduleReview(wabaId, t);
+      return toTemplateCreated(
+        templateCreatedSchema.parse({ id: t.id, status: t.status, category: t.category }),
+      );
+    },
+
+    async editTemplate(token, templateId, body) {
+      track('editTemplate', templateId);
+      const wabaId = await redis.get(key(`template-waba-${templateId}`));
+      if (!wabaId) throw templateNotFound();
+      await owned(token, wabaId, 'waba');
+      const t = await loadTemplate(wabaId, templateId);
+      if (!t) throw templateNotFound();
+      if (!['APPROVED', 'REJECTED', 'PAUSED'].includes(t.status)) {
+        throw fail(400, 100, 'The template can not be edited in its current status');
+      }
+      if (body.category) t.category = body.category.toUpperCase();
+      if (body.components) t.components = body.components;
+      if (body.ttlSeconds) t.message_send_ttl_seconds = body.ttlSeconds;
+      t.status = 'PENDING';
+      t.rejected_reason = null;
+      await saveTemplate(wabaId, t);
+      scheduleReview(wabaId, t);
+    },
+
+    async deleteTemplate(token, wabaId, target) {
+      track('deleteTemplate', wabaId);
+      await owned(token, wabaId, 'waba');
+      const gone = (await loadTemplates(wabaId)).filter(
+        (t) => t.name === target.name && (!target.hsmId || t.id === target.hsmId),
+      );
+      if (!gone.length) throw templateNotFound();
+      await redis.hdel(key(`templates-${wabaId}`), ...gone.map((t) => t.id));
+    },
+
+    async uploadExample(token, file) {
+      track('uploadExample', null);
+      await identityOf(token);
+      const allowed = ['image/jpeg', 'image/png', 'video/mp4', 'application/pdf'];
+      if (!allowed.includes(file.mimeType) || file.bytes.length === 0) {
+        throw fail(400, 100, 'Unsupported file type', undefined, 'GraphMethodException');
+      }
+      return `fake_handle_${randomBytes(8).toString('hex')}`;
+    },
+
+    async getPricingAnalytics(token, wabaId, range) {
+      track('getPricingAnalytics', wabaId);
+      const identity = await owned(token, wabaId, 'waba');
+      const phoneId = fakeIds(identity.businessName, identity.phone).phoneNumberId;
+      const sent = (await redis.lrange(key(`sent-${phoneId}`), 0, -1)).map(
+        (raw) => JSON.parse(raw) as FakeSentMessage,
+      );
+      const groups = new Map<string, { start: number; category: string; volume: number }>();
+      for (const m of sent) {
+        const at = Date.parse(m.at);
+        if (!m.billable || at < range.start.getTime() || at >= range.end.getTime()) continue;
+        const day = Math.floor(at / 86_400_000) * 86_400;
+        const category = (m.pricingCategory ?? 'service').toUpperCase();
+        const k = `${String(day)}|${category}`;
+        const g = groups.get(k) ?? { start: day, category, volume: 0 };
+        g.volume += 1;
+        groups.set(k, g);
+      }
+      const points = [...groups.values()].map((g) => ({
+        start: g.start,
+        end: g.start + 86_400,
+        country: 'IN',
+        pricing_category: g.category,
+        pricing_type: 'REGULAR',
+        volume: g.volume,
+        cost:
+          Math.round(
+            g.volume * (FAKE_RATES[g.category.toLowerCase()] ?? FAKE_DEFAULT_RATE) * 10_000,
+          ) / 10_000,
+      }));
+      return toPricingPoints(
+        pricingAnalyticsSchema.parse({
+          pricing_analytics: { data: [{ data_points: points }] },
+          id: wabaId,
+        }),
+      );
+    },
+
     setWebhookEmitter(emit) {
       emitter = emit;
     },
@@ -995,6 +1373,18 @@ export const createFakeMetaClient = ({
 
     async isRegistered(phoneNumberId) {
       return (await redis.exists(key(`registered-${phoneNumberId}`))) === 1;
+    },
+
+    templates(wabaId) {
+      return loadTemplates(wabaId);
+    },
+
+    async patchTemplate(wabaId, templateId, patch) {
+      const t = await loadTemplate(wabaId, templateId);
+      if (!t) return null;
+      const next = { ...t, ...patch };
+      await saveTemplate(wabaId, next);
+      return next;
     },
   };
 };

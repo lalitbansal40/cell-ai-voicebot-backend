@@ -167,9 +167,33 @@ const SEND_ERRORS: Record<
   131049: {
     retryable: false,
     retryAfterSec: null,
-    reason: 'Not delivered to keep engagement healthy',
+    reason: 'WhatsApp limited marketing messages to this customer — try later',
   },
   131050: { retryable: false, retryAfterSec: null, reason: 'Customer stopped marketing messages' },
+  // Phase 11 — template sends (Meta error codes reference, re-checked 23 Oct 2026)
+  132000: {
+    retryable: false,
+    retryAfterSec: null,
+    reason: "Template variables don't match the template",
+  },
+  132001: { retryable: false, retryAfterSec: null, reason: 'Template not found for this language' },
+  132005: {
+    retryable: false,
+    retryAfterSec: null,
+    reason: 'Text too long after filling the variables',
+  },
+  132007: {
+    retryable: false,
+    retryAfterSec: null,
+    reason: 'Template content violates WhatsApp policy',
+  },
+  132012: {
+    retryable: false,
+    retryAfterSec: null,
+    reason: "Variable format doesn't match the template",
+  },
+  132015: { retryable: false, retryAfterSec: null, reason: 'Template is paused for low quality' },
+  132016: { retryable: false, retryAfterSec: null, reason: 'Template is disabled' },
   131051: { retryable: false, retryAfterSec: null, reason: 'Unsupported message type' },
   131052: { retryable: true, retryAfterSec: null, reason: 'Media download error' },
   131053: { retryable: true, retryAfterSec: null, reason: 'Media upload error' },
@@ -236,5 +260,67 @@ export const mapSendError = (input: {
     retryAfterSec: null,
     channelEffect: 'none',
     reason: input.code === null ? 'Message failed' : `Message failed (code ${String(input.code)})`,
+  };
+};
+
+/** What a failed template send means for the template / contact (PHASE_11_PROMPT §1). */
+export type TemplateSendEffect =
+  'none' | 'template_sync' | 'template_paused' | 'template_disabled' | 'marketing_stopped';
+
+const TEMPLATE_SEND_EFFECTS: Partial<Record<number, TemplateSendEffect>> = {
+  132001: 'template_sync',
+  132015: 'template_paused',
+  132016: 'template_disabled',
+  131050: 'marketing_stopped',
+};
+
+export const templateSendEffect = (code: number | null): TemplateSendEffect =>
+  (code === null ? undefined : TEMPLATE_SEND_EFFECTS[code]) ?? 'none';
+
+/** Template management errors (create / edit / delete) → our error code. */
+export interface TemplateManagementError {
+  code:
+    | 'TEMPLATE_NAME_TAKEN'
+    | 'TEMPLATE_LIMIT_REACHED'
+    | 'VALIDATION_FAILED'
+    | 'RATE_LIMITED'
+    | 'META_API_ERROR';
+  /** Our text; Meta's own title only for invalid content (scrubbed, never template text). */
+  message: string;
+}
+
+/** Name exists / is being deleted (Meta subcodes; also accepted as top-level codes). */
+const NAME_TAKEN = new Set([2388023, 2388024]);
+const LIMIT = new Set([2388042]);
+const INVALID = new Set([2388040, 2388047]);
+/** Template creation rate (80008) and the WABA rate limit (80007, Meta's reference). */
+const RATE = new Set([80007, 80008]);
+
+const matches = (set: ReadonlySet<number>, err: Pick<MetaApiError, 'code' | 'subcode'>) =>
+  (err.code !== null && set.has(err.code)) || (err.subcode !== null && set.has(err.subcode));
+
+export const mapTemplateError = (
+  err: Pick<MetaApiError, 'code' | 'subcode' | 'message'>,
+): TemplateManagementError => {
+  if (matches(NAME_TAKEN, err)) {
+    return {
+      code: 'TEMPLATE_NAME_TAKEN',
+      message: 'WhatsApp already has a template with this name and language (or is deleting it)',
+    };
+  }
+  if (matches(LIMIT, err)) {
+    return { code: 'TEMPLATE_LIMIT_REACHED', message: 'The WhatsApp template limit is reached' };
+  }
+  if (matches(INVALID, err)) {
+    return { code: 'VALIDATION_FAILED', message: scrubSecrets(err.message).slice(0, 300) };
+  }
+  if (matches(RATE, err)) {
+    return { code: 'RATE_LIMITED', message: 'Too many template changes — try again later' };
+  }
+  const n = err.subcode ?? err.code;
+  return {
+    code: 'META_API_ERROR',
+    message:
+      n === null ? 'Meta refused the template' : `Meta refused the template (code ${String(n)})`,
   };
 };

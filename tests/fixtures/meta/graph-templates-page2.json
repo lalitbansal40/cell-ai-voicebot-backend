@@ -1,0 +1,33 @@
+{
+  "data": [
+    {
+      "id": "9000000000000002",
+      "name": "test_offer",
+      "language": "hi",
+      "status": "REJECTED",
+      "category": "MARKETING",
+      "parameter_format": "NAMED",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Namaste {{first_name}}",
+          "example": {
+            "body_text_named_params": [
+              {
+                "param_name": "first_name",
+                "example": "Test"
+              }
+            ]
+          }
+        }
+      ],
+      "rejected_reason": "INVALID_FORMAT"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "QVFIUAFTER",
+      "after": "QVFIUEND"
+    }
+  }
+}

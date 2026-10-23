@@ -1,0 +1,11 @@
+{
+  "error": {
+    "message": "Message template already exists",
+    "type": "OAuthException",
+    "code": 100,
+    "error_subcode": 2388023,
+    "is_transient": false,
+    "error_user_title": "Message template already exists",
+    "fbtrace_id": "TESTTRACE"
+  }
+}

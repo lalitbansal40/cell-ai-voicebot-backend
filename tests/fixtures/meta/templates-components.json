@@ -1,0 +1,34 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "time": 1761120000,
+      "changes": [
+        {
+          "value": {
+            "message_template_id": 9000000000000001,
+            "message_template_name": "test_order_update",
+            "message_template_language": "en_US",
+            "message_template_element": "Test body {{1}}",
+            "message_template_title": "Test header",
+            "message_template_footer": "Test footer",
+            "message_template_buttons": [
+              {
+                "message_template_button_type": "URL",
+                "message_template_button_text": "Track",
+                "message_template_button_url": "https://example.test/track/{{1}}"
+              },
+              {
+                "message_template_button_type": "PHONE_NUMBER",
+                "message_template_button_text": "Call",
+                "message_template_button_phone_number": "+919000000010"
+              }
+            ]
+          },
+          "field": "message_template_components_update"
+        }
+      ]
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import {
   type WaQuality,
 } from '../../db/models/whatsapp-channel.model';
 
+import { volumeTierInfoSchema } from './template-schemas';
 import type {
   MetaAccessToken,
   MetaAllocation,
@@ -241,6 +242,7 @@ export const WEBHOOK_FIELDS = [
   'message_template_status_update',
   'message_template_quality_update',
   'template_category_update',
+  'message_template_components_update',
   'user_preferences',
   'security',
   'history',
@@ -285,6 +287,8 @@ export const accountUpdateValueSchema = z.looseObject({
     .array(z.looseObject({ restriction_type: z.string(), expiration: z.number().nullish() }))
     .nullish(),
   violation_info: z.looseObject({ violation_type: optStr }).nullish(),
+  /** `VOLUME_BASED_PRICING_TIER_UPDATE` (Phase 11). */
+  volume_tier_info: volumeTierInfoSchema.nullish(),
 });
 
 export const qualityUpdateValueSchema = z.looseObject({

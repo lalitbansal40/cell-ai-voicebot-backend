@@ -1,4 +1,4 @@
-# Meta fixtures (Phases 9–10)
+# Meta fixtures (Phases 9–11)
 
 Shapes copied from Meta's documented sample payloads; every id, number, name and text is a **test value** (`+91 90000 …`, `Test Business`, `Test Customer`). No real data, no AutoChatix data. Re-check against the docs when bumping `META_GRAPH_VERSION`.
 
@@ -36,5 +36,15 @@ Shapes copied from Meta's documented sample payloads; every id, number, name and
 | `graph-business-profile.json` | whatsapp/cloud-api/reference/business-profiles |
 | `graph-block-users.json`, `graph-unblock-users.json` | whatsapp/cloud-api/block-users |
 | `graph-upload-session.json`, `graph-upload-handle.json` | graph-api/guides/upload (resumable upload → handle for the profile photo) |
+| `templates-status-*.json` (approved, rejected, paused, disabled) (Phase 11) | whatsapp/webhooks/reference/message_template_status_update (`reason`, `other_info`, `rejection_info`, `disable_info`, `message_template_category`) |
+| `templates-quality.json` | whatsapp/webhooks/reference/message_template_quality_update |
+| `templates-category-*.json` (pending, changed) | whatsapp/webhooks/reference/template_category_update (pending: `correct_category` + `category_update_timestamp`; done: `previous_category`) |
+| `templates-components.json` | whatsapp/webhooks/reference/message_template_components_update |
+| `user-preferences-*.json` (stop, resume) | whatsapp/webhooks/reference/user_preferences (`marketing_messages` stop / resume) |
+| `webhook-account-update-volume-tier.json` | whatsapp/webhooks/reference/account_update (`VOLUME_BASED_PRICING_TIER_UPDATE`, `volume_tier_info`) |
+| `pricing-*.json` (template billable, service free, `paid_exempt` subtype, free entry point) | docs/whatsapp/pricing (status webhook `pricing`) |
+| `graph-templates-page1.json`, `graph-templates-page2.json`, `graph-template-created.json` | whatsapp/business-management-api/message-templates (list with paging, create answer) |
+| `graph-error-template-exists.json` | same page (code 100, subcode 2388023) |
+| `graph-pricing-analytics.json` | whatsapp/business-management-api/analytics (`pricing_analytics` data points) |
 
 `media/sample.{jpg,png,webp,mp4,ogg,pdf}` — tiny generated files (no real content) for sniffing / download tests; `sample.ogg` is a valid mono OGG / Opus (OpusHead, OpusTags, 50 × 20 ms silent packets, CRCs computed).

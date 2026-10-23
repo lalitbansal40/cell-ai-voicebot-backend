@@ -29,7 +29,7 @@ Phase 9 runs on the **fake Meta provider** (`META_PROVIDER=fake`, the default ou
 ## 5. Webhooks
 
 1. **WhatsApp → Configuration → Webhook:** Callback URL `https://<api-host>/api/v1/webhooks/meta`, Verify token = a long random value (≥ 24 characters) → `META_WEBHOOK_VERIFY_TOKEN`. Meta calls `GET` with the challenge; it must show "Verified" (the API must already run with the new env).
-2. **Webhook fields** — subscribe all of these (the list is `WEBHOOK_FIELDS` in `src/core/meta/schemas.ts`): `messages`, `calls`, `account_update`, `phone_number_quality_update`, `phone_number_name_update`, `business_capability_update`, `message_template_status_update`, `message_template_quality_update`, `template_category_update`, `user_preferences`, `security`, `history`, `smb_app_state_sync`, `smb_message_echoes`.
+2. **Webhook fields** — subscribe all of these (the list is `WEBHOOK_FIELDS` in `src/core/meta/schemas.ts`): `messages`, `calls`, `account_update`, `phone_number_quality_update`, `phone_number_name_update`, `business_capability_update`, `message_template_status_update`, `message_template_quality_update`, `template_category_update`, `message_template_components_update` (Phase 11), `user_preferences`, `security`, `history`, `smb_app_state_sync`, `smb_message_echoes`.
 3. The superadmin page **Admin → WhatsApp** shows the exact webhook URL to paste.
 
 ## 6. App callbacks (App Review prerequisites)

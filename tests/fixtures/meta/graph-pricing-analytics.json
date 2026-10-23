@@ -1,0 +1,30 @@
+{
+  "pricing_analytics": {
+    "data": [
+      {
+        "data_points": [
+          {
+            "start": 1761091200,
+            "end": 1761177600,
+            "country": "IN",
+            "pricing_type": "REGULAR",
+            "pricing_category": "MARKETING",
+            "volume": 12,
+            "cost": 10.36,
+            "tier": "0:MAX"
+          },
+          {
+            "start": 1761091200,
+            "end": 1761177600,
+            "country": "IN",
+            "pricing_type": "FREE_CUSTOMER_SERVICE",
+            "pricing_category": "SERVICE",
+            "volume": 40,
+            "cost": 0
+          }
+        ]
+      }
+    ]
+  },
+  "id": "102290129340398"
+}

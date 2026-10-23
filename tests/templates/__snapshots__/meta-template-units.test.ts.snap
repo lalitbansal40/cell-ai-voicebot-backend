@@ -1,0 +1,235 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildTemplatePayload > named: parameter_name on body and text header; media / location headers > document 1`] = `
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "template": {
+    "components": [
+      {
+        "parameters": [
+          {
+            "document": {
+              "filename": "invoice.pdf",
+              "id": "m3",
+            },
+            "type": "document",
+          },
+        ],
+        "type": "header",
+      },
+    ],
+    "language": {
+      "code": "en",
+    },
+    "name": "order_update",
+  },
+  "to": "919000000101",
+  "type": "template",
+}
+`;
+
+exports[`buildTemplatePayload > named: parameter_name on body and text header; media / location headers > image 1`] = `
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "template": {
+    "components": [
+      {
+        "parameters": [
+          {
+            "image": {
+              "id": "m1",
+            },
+            "type": "image",
+          },
+        ],
+        "type": "header",
+      },
+    ],
+    "language": {
+      "code": "en",
+    },
+    "name": "order_update",
+  },
+  "to": "919000000101",
+  "type": "template",
+}
+`;
+
+exports[`buildTemplatePayload > named: parameter_name on body and text header; media / location headers > location 1`] = `
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "template": {
+    "components": [
+      {
+        "parameters": [
+          {
+            "location": {
+              "address": "Delhi",
+              "latitude": 28.6,
+              "longitude": 77.2,
+              "name": "Shop",
+            },
+            "type": "location",
+          },
+        ],
+        "type": "header",
+      },
+    ],
+    "language": {
+      "code": "en",
+    },
+    "name": "order_update",
+  },
+  "to": "919000000101",
+  "type": "template",
+}
+`;
+
+exports[`buildTemplatePayload > named: parameter_name on body and text header; media / location headers > video 1`] = `
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "template": {
+    "components": [
+      {
+        "parameters": [
+          {
+            "type": "video",
+            "video": {
+              "id": "m2",
+            },
+          },
+        ],
+        "type": "header",
+      },
+    ],
+    "language": {
+      "code": "en",
+    },
+    "name": "order_update",
+  },
+  "to": "919000000101",
+  "type": "template",
+}
+`;
+
+exports[`buildTemplatePayload > named: parameter_name on body and text header; media / location headers 1`] = `
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "template": {
+    "components": [
+      {
+        "parameters": [
+          {
+            "parameter_name": "first_name",
+            "text": "Asha",
+            "type": "text",
+          },
+        ],
+        "type": "header",
+      },
+      {
+        "parameters": [
+          {
+            "parameter_name": "first_name",
+            "text": "Asha",
+            "type": "text",
+          },
+          {
+            "parameter_name": "order_id",
+            "text": "ORD-1",
+            "type": "text",
+          },
+        ],
+        "type": "body",
+      },
+    ],
+    "language": {
+      "code": "en",
+    },
+    "name": "order_update",
+  },
+  "to": "919000000101",
+  "type": "template",
+}
+`;
+
+exports[`buildTemplatePayload > positional: text header, body in number order, every button kind 1`] = `
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "template": {
+    "components": [
+      {
+        "parameters": [
+          {
+            "text": "ORD-1",
+            "type": "text",
+          },
+        ],
+        "type": "header",
+      },
+      {
+        "parameters": [
+          {
+            "text": "one",
+            "type": "text",
+          },
+          {
+            "text": "two",
+            "type": "text",
+          },
+          {
+            "text": "ten",
+            "type": "text",
+          },
+        ],
+        "type": "body",
+      },
+      {
+        "index": "0",
+        "parameters": [
+          {
+            "text": "a%20b%2Fc%3Fd%3D1%26e",
+            "type": "text",
+          },
+        ],
+        "sub_type": "url",
+        "type": "button",
+      },
+      {
+        "index": "1",
+        "parameters": [
+          {
+            "coupon_code": "SAVE20",
+            "type": "coupon_code",
+          },
+        ],
+        "sub_type": "copy_code",
+        "type": "button",
+      },
+      {
+        "index": "2",
+        "parameters": [
+          {
+            "payload": "qr_t1_2",
+            "type": "payload",
+          },
+        ],
+        "sub_type": "quick_reply",
+        "type": "button",
+      },
+    ],
+    "language": {
+      "code": "en_US",
+    },
+    "name": "order_update",
+  },
+  "to": "919000000101",
+  "type": "template",
+}
+`;
