@@ -38,6 +38,7 @@ import {
 import type { HandlerContext } from '../../../modules/whatsapp/webhook-handlers';
 import { processWebhookEvent } from '../../../modules/whatsapp/webhook-processor';
 import { createWhatsAppService } from '../../../modules/whatsapp/whatsapp.service';
+import { createWhatsAppBillingHook } from '../../../modules/whatsapp-billing/billing-hook';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -105,7 +106,12 @@ export const startWhatsAppWorker = async (
 ): Promise<{ queue: Queue; worker: Worker }> => {
   const queue = createQueue(QUEUES.whatsapp, deps);
   const ix: InboxContext | undefined = deps.storage
-    ? { wa: deps.ctx, storage: deps.storage, jobs: queueInboxJobs(queue) }
+    ? {
+        wa: deps.ctx,
+        storage: deps.storage,
+        jobs: queueInboxJobs(queue),
+        billing: createWhatsAppBillingHook(),
+      }
     : undefined;
   const tx: TemplateContext = {
     wa: deps.ctx,

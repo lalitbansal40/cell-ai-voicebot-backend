@@ -49,11 +49,28 @@ const applyOne = async (
       .lean<Pick<MessageDoc, '_id' | 'status' | 'direction' | 'conversationId' | 'pricing'>>();
     if (!current) return 'unknown';
     const pricing = pricingOf(s);
+    // Phase 11: every billing-relevant status reaches billing (idempotent — a retried
+    // webhook or a status that loses the race still captures / releases once)
+    const bill = async () => {
+      if (
+        ix.billing &&
+        current.direction === 'out' &&
+        (typeof pricing?.billable === 'boolean' || next === 'failed')
+      ) {
+        await ix.billing.onStatus({
+          accountId: channel.accountId,
+          messageId: current._id,
+          status: next,
+          pricing,
+        });
+      }
+    };
     if (!canMoveTo(current.status, next, current.direction)) {
       // a late duplicate may still carry pricing (Phase 11 bills from it)
       if (pricing && !current.pricing) {
         await MessageModel.updateOne({ _id: current._id }, { $set: { pricing } });
       }
+      await bill();
       return 'ignored';
     }
     const set: Record<string, unknown> = { status: next };
@@ -86,6 +103,7 @@ const applyOne = async (
     const conv = await syncLastMessageStatus(updated);
     if (conv) emitConversation(conv);
     await applyChannelEffect(ix.wa, channel._id, effect);
+    await bill();
     return 'applied';
   }
   /* c8 ignore next -- three lost races in a row */

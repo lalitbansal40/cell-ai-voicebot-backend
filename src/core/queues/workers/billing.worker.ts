@@ -1,6 +1,8 @@
 import type { Job, Queue, Worker } from 'bullmq';
 
 import { purgeNotifications } from '../../../modules/notifications/notifications.service';
+import type { WhatsAppContext } from '../../../modules/whatsapp/context';
+import { runWhatsAppReconcile } from '../../../modules/whatsapp-billing/reconcile';
 import { renderInvoice } from '../../billing/invoice-render';
 import {
   BILLING_SCHEDULES,
@@ -12,6 +14,7 @@ import {
 import { expireTopupOrders } from '../../billing/orders';
 import { reapStaleHolds } from '../../billing/reaper';
 import { reconcileWallets } from '../../billing/reconcile';
+import { reapWhatsAppHolds } from '../../billing/whatsapp-reaper';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -20,6 +23,8 @@ export interface BillingJobContext {
   storage?: StorageProvider;
   jobs: BillingJobs;
   logger: QueueFactoryDeps['logger'];
+  /** Phase 11: Meta access for the WhatsApp reconciliation (only where WhatsApp is on). */
+  whatsapp?: WhatsAppContext;
 }
 
 export type BillingJobHandler<N extends BillingJobName = BillingJobName> = (
@@ -40,6 +45,9 @@ export const BILLING_JOB_HANDLERS: BillingJobHandlers = {
   'notifications.purge': () => purgeNotifications(),
   'billing.expire_orders': () => expireTopupOrders(),
   'invoice.render': (data, ctx, job) => renderInvoice(data, ctx, job),
+  'billing.whatsapp_reap_holds': () => reapWhatsAppHolds(),
+  'billing.whatsapp_reconcile': (_data, ctx) =>
+    ctx.whatsapp ? runWhatsAppReconcile(ctx.whatsapp) : Promise.resolve({ skipped: true }),
 };
 
 export const processBillingJob =
@@ -52,9 +60,18 @@ export const processBillingJob =
 
 /** Starts the `billing` worker and schedules the repeatable billing jobs. */
 export const startBillingWorker = async (
-  deps: QueueFactoryDeps & { storage?: StorageProvider; jobs: BillingJobs },
+  deps: QueueFactoryDeps & {
+    storage?: StorageProvider;
+    jobs: BillingJobs;
+    whatsapp?: WhatsAppContext;
+  },
 ): Promise<{ queue: Queue; worker: Worker }> => {
-  const ctx: BillingJobContext = { storage: deps.storage, jobs: deps.jobs, logger: deps.logger };
+  const ctx: BillingJobContext = {
+    storage: deps.storage,
+    jobs: deps.jobs,
+    logger: deps.logger,
+    ...(deps.whatsapp ? { whatsapp: deps.whatsapp } : {}),
+  };
   const queue = createQueue(QUEUES.billing, deps);
   const worker = createWorker(QUEUES.billing, processBillingJob(ctx), { ...deps, concurrency: 2 });
   for (const s of BILLING_SCHEDULES) {

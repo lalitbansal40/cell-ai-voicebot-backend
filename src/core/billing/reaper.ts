@@ -9,12 +9,17 @@ import { releaseHold } from './engine';
 const BATCH = 1000;
 
 /**
- * Releases holds older than 2 h (a call that crashed without settling).
- * Phase 7 replaces this with call-state checks. Idempotent.
+ * Releases call holds older than 2 h (a call that crashed without settling).
+ * Only `call_charge` holds: WhatsApp message holds have their own reaper (72 h).
+ * Idempotent.
  */
 export const reapStaleHolds = async (now = new Date()): Promise<{ released: number }> => {
   const cutoff = new Date(now.getTime() - BILLING_LIMITS.staleHoldMs);
-  const rows = await LedgerEntryModel.find({ status: 'held', createdAt: { $lt: cutoff } })
+  const rows = await LedgerEntryModel.find({
+    type: 'call_charge',
+    status: 'held',
+    createdAt: { $lt: cutoff },
+  })
     .select({ accountId: 1, holdId: 1 })
     .limit(BATCH)
     .lean<{ _id: Types.ObjectId; accountId: Types.ObjectId; holdId?: Types.ObjectId | null }[]>();

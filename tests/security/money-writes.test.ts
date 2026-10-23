@@ -42,6 +42,23 @@ describe('money writes (security)', () => {
     expect(offenders.map((f) => path.relative(SRC, f))).toEqual([]);
   });
 
+  it('WhatsApp message charges (whatsapp_charge) are written by the engine only', () => {
+    const engine = readFileSync(path.join(BILLING_CORE, 'engine.ts'), 'utf8');
+    for (const fn of [
+      'holdForWhatsApp',
+      'captureWhatsApp',
+      'releaseWhatsApp',
+      'chargeWhatsAppLate',
+    ]) {
+      expect(engine).toContain(`export const ${fn}`);
+    }
+    expect(engine.match(/type: 'whatsapp_charge'/g)?.length).toBe(3);
+    const outside = files(SRC)
+      .filter((f) => !f.startsWith(BILLING_CORE) && !f.includes(`${path.sep}db${path.sep}`))
+      .filter((f) => /type: 'whatsapp_charge'/.test(readFileSync(f, 'utf8')));
+    expect(outside.map((f) => path.relative(SRC, f))).toEqual([]);
+  });
+
   it('has no float arithmetic in the money core', () => {
     const offenders = [...files(BILLING_CORE), path.join(SRC, 'shared/money.ts')].filter((f) =>
       /parseFloat|toFixed\(|\* ?0\.\d/.test(readFileSync(f, 'utf8')),

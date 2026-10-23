@@ -261,7 +261,12 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     startEmailWorker({ ...queueDeps, provider: emailProvider });
     await startMaintenanceWorker({ ...queueDeps, storage });
     startContactsWorker({ ...queueDeps, storage, jobs: contactJobs });
-    await startBillingWorker({ ...queueDeps, storage, jobs: billingJobs });
+    await startBillingWorker({
+      ...queueDeps,
+      storage,
+      jobs: billingJobs,
+      ...(whatsapp ? { whatsapp: whatsapp.ctx } : {}),
+    });
     await startAiWorker({ ...queueDeps, storage, provider: aiProvider, jobs: aiJobs });
     if (whatsapp) {
       const { worker: whatsappWorker } = await startWhatsAppWorker({

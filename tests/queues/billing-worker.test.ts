@@ -38,9 +38,19 @@ describe('billing worker', () => {
       'billing.expire_orders',
       'billing.reap_holds',
       'billing.reconcile',
+      'billing.whatsapp_reap_holds',
+      'billing.whatsapp_reconcile',
       'invoice.render',
       'notifications.purge',
     ]);
+    // every scheduled job has a handler
+    for (const s of BILLING_SCHEDULES) expect(BILLING_JOB_HANDLERS[s.name]).toBeDefined();
+  });
+
+  it('the WhatsApp reconcile is skipped without Meta access', async () => {
+    await expect(processBillingJob(ctx)(job('billing.whatsapp_reconcile'))).resolves.toEqual({
+      skipped: true,
+    });
   });
 
   it('schedules every repeatable job with a UTC cron', () => {

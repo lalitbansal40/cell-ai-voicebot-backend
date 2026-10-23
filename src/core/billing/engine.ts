@@ -149,7 +149,10 @@ const insufficient = async (
   accountId: Types.ObjectId,
   amountMicros: number,
   session: ClientSession,
-  { useCreditLimit, budget }: { useCreditLimit: boolean; budget?: 'call' | 'ai'; month?: string },
+  {
+    useCreditLimit,
+    budget,
+  }: { useCreditLimit: boolean; budget?: 'call' | 'ai' | 'whatsapp'; month?: string },
 ): Promise<never> => {
   const wallet = await WalletModel.findOne({ accountId }).session(session).lean<WalletDoc>();
   if (!wallet) throw new NotFoundError('Wallet not found');
@@ -158,14 +161,14 @@ const insufficient = async (
   if (available >= amountMicros && budget) {
     throw new AppError('WALLET_BUDGET_EXCEEDED', undefined, [
       {
-        path: 'amountMicros',
-        message: `Monthly ${budget === 'ai' ? 'AI' : 'call'} budget reached`,
+        path: budget === 'whatsapp' ? 'whatsapp' : 'amountMicros',
+        message: `Monthly ${budget === 'ai' ? 'AI' : budget === 'whatsapp' ? 'WhatsApp' : 'call'} budget reached`,
       },
     ]);
   }
   throw new AppError('WALLET_INSUFFICIENT_BALANCE', undefined, [
     {
-      path: 'amountMicros',
+      path: budget === 'whatsapp' ? 'whatsapp' : 'amountMicros',
       message: 'Not enough available balance',
       availableMicros: Math.max(available, 0),
     },
@@ -667,6 +670,204 @@ export const chargeUsage = async (input: UsageInput): Promise<EngineResult> => {
         breakdown: input.breakdown ?? null,
         ref: input.ref,
         idempotencyKey: input.idempotencyKey,
+      });
+      return {
+        result: { entries: [entry], wallet, replay: false },
+        change: change(accountId, wallet, -amount, 0),
+      };
+    });
+    return finish(out);
+  });
+};
+
+// ─────────────────────────────── WhatsApp messages (Phase 11) ───────────────────────────────
+
+export interface WhatsAppHoldInput {
+  accountId: Types.ObjectId | string;
+  /** The message's `clientId` (key `wa-hold-<clientId>`: a duplicate send replays the hold). */
+  clientId: string;
+  amountMicros: number;
+  breakdown: LedgerBreakdown;
+  ref: LedgerRef;
+}
+
+/**
+ * Reserves the price of one WhatsApp message at send time (may use the credit limit,
+ * counts against the WhatsApp budget). Refused → the message is never created.
+ */
+export const holdForWhatsApp = async (input: WhatsAppHoldInput): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const amount = assertMicros(input.amountMicros);
+  if (amount <= 0) throw new RangeError('Hold must be positive');
+  const key = `wa-hold-${input.clientId}`;
+  await getOrCreateWallet(accountId);
+  return raceSafe(accountId, key, async () => {
+    const out = await run(async (session) => {
+      const existing = await findByKey(accountId, key, session);
+      if (existing) return replay(accountId, [existing], session);
+      const month = await accountMonth(accountId, session);
+      const rule = { useCreditLimit: true, budget: 'whatsapp' as const, month };
+      const wallet = await updateWallet(
+        accountId,
+        session,
+        moneyPipeline(month, { hold: amount }),
+        canSpend(amount, rule),
+      );
+      if (!wallet) return insufficient(accountId, amount, session, rule);
+      const entry = await insertRow(session, {
+        accountId,
+        type: 'whatsapp_charge',
+        direction: 'debit',
+        status: 'held',
+        amountMicros: amount,
+        breakdown: { ...input.breakdown, kind: 'whatsapp' },
+        ref: input.ref,
+        idempotencyKey: key,
+      });
+      return {
+        result: { entries: [entry], wallet, replay: false },
+        change: change(accountId, wallet, 0, amount),
+      };
+    });
+    return finish(out);
+  });
+};
+
+/** The root row of a WhatsApp hold (never a call hold). */
+export const loadWhatsAppHold = async (
+  accountId: Types.ObjectId | string,
+  holdId: Types.ObjectId | string,
+  session?: ClientSession,
+): Promise<LedgerEntryDoc> => {
+  const q = LedgerEntryModel.findOne({ _id: oid(holdId), accountId: oid(accountId), holdId: null });
+  if (session) q.session(session);
+  const root = await q.lean<LedgerEntryDoc>();
+  if (root?.type !== 'whatsapp_charge' || root.direction !== 'debit') {
+    throw new NotFoundError('Hold not found');
+  }
+  return root;
+};
+
+const CAPTURED = 'captured';
+
+/**
+ * Meta billed the message: the held price becomes a captured charge (price fixed at
+ * send). Key `wa-capture-<messageId>`. A hold already released without a capture
+ * throws — the caller takes the late path (`chargeWhatsAppLate`).
+ */
+export const captureWhatsApp = async (input: {
+  accountId: Types.ObjectId | string;
+  holdId: Types.ObjectId | string;
+  messageId: string;
+  note?: string | null;
+}): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const key = `wa-capture-${input.messageId}`;
+  return raceSafe(accountId, key, async () => {
+    const out = await run(async (session) => {
+      const existing = await findByKey(accountId, key, session);
+      if (existing) return replay(accountId, [existing], session);
+      const root = await loadWhatsAppHold(accountId, input.holdId, session);
+      if (root.status !== 'held') {
+        throw new ConflictError('CONFLICT_INVALID_STATE', 'This hold was released already');
+      }
+      await releaseRows([root._id], CAPTURED, session);
+      const amount = root.amountMicros;
+      const month = await accountMonth(accountId, session);
+      const wallet = await updateWallet(
+        accountId,
+        session,
+        moneyPipeline(month, { balance: -amount, hold: -amount, whatsapp: amount }),
+      );
+      if (!wallet) throw new NotFoundError('Wallet not found');
+      const entry = await insertRow(session, {
+        accountId,
+        type: 'whatsapp_charge',
+        direction: 'debit',
+        status: 'captured',
+        amountMicros: amount,
+        balanceAfterMicros: wallet.balanceMicros,
+        breakdown: root.breakdown ?? null,
+        ref: root.ref,
+        holdId: root._id,
+        idempotencyKey: key,
+        note: input.note ?? null,
+      });
+      return {
+        result: { entries: [entry], wallet, replay: false },
+        change: change(accountId, wallet, -amount, -amount),
+      };
+    });
+    return finish(out);
+  });
+};
+
+/** Meta didn't bill it (free, failed, no status in time): the hold goes back. No-op when done. */
+export const releaseWhatsApp = async (input: {
+  accountId: Types.ObjectId | string;
+  holdId: Types.ObjectId | string;
+  reason: string;
+}): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const out = await run(async (session) => {
+    const root = await loadWhatsAppHold(accountId, input.holdId, session);
+    if (root.status !== 'held') return replay(accountId, [], session);
+    await releaseRows([root._id], input.reason.slice(0, 60), session);
+    const month = await accountMonth(accountId, session);
+    const wallet = await updateWallet(
+      accountId,
+      session,
+      moneyPipeline(month, { hold: -root.amountMicros }),
+    );
+    if (!wallet) throw new NotFoundError('Wallet not found');
+    return {
+      result: { entries: [], wallet, replay: false },
+      change: change(accountId, wallet, 0, -root.amountMicros),
+    };
+  });
+  return finish(out);
+};
+
+/**
+ * A billable status after the hold was released (72 h reaper, an early `failed`):
+ * a direct captured debit at the price fixed at send. May take the balance below 0
+ * (Meta billed us already). Key `wa-late-<messageId>`.
+ */
+export const chargeWhatsAppLate = async (input: {
+  accountId: Types.ObjectId | string;
+  messageId: string;
+  amountMicros: number;
+  breakdown: LedgerBreakdown;
+  ref: LedgerRef;
+}): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const amount = assertMicros(input.amountMicros);
+  if (amount <= 0) throw new RangeError('Charge must be positive');
+  const key = `wa-late-${input.messageId}`;
+  await getOrCreateWallet(accountId);
+  return raceSafe(accountId, key, async () => {
+    const out = await run(async (session) => {
+      const existing = await findByKey(accountId, key, session);
+      if (existing) return replay(accountId, [existing], session);
+      const month = await accountMonth(accountId, session);
+      const wallet = await updateWallet(
+        accountId,
+        session,
+        moneyPipeline(month, { balance: -amount, whatsapp: amount }),
+      );
+      if (!wallet) throw new NotFoundError('Wallet not found');
+      assertMicros(wallet.balanceMicros, { allowNegative: true });
+      const entry = await insertRow(session, {
+        accountId,
+        type: 'whatsapp_charge',
+        direction: 'debit',
+        status: 'captured',
+        amountMicros: amount,
+        balanceAfterMicros: wallet.balanceMicros,
+        breakdown: { ...input.breakdown, kind: 'whatsapp' },
+        ref: input.ref,
+        idempotencyKey: key,
+        note: 'Late WhatsApp charge (Meta billed after the hold was released)',
       });
       return {
         result: { entries: [entry], wallet, replay: false },
