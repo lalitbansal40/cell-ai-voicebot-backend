@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 10 · Batch 3 (T10.7–T10.12) — Phase 10 complete** — 2026-10-23
+  - Frontend Inbox page, composer (every free-form type incl. browser voice notes), contact panel, Settings → Inbox, business profile editor, entry points — see the frontend CHANGELOG.
+  - Fixed (found by the inbox E2E run): `POST /inbox/conversations/:id/messages` (also an idempotent resend) and `POST /inbox/messages/:id/retry` answered without the reply quote and sender name the live event carries (`2cae0a2`).
+  - Playwright: 26 inbox tests (5 specs, 103 total, green twice); backend logs of the run free of customer texts, names, test numbers, file names, wamids, Meta media URLs, tokens, `Bearer`, `sk-` and the E2E passwords.
+  - Sign-off: [PHASE_10_SIGNOFF.md](docs/phases/PHASE_10_SIGNOFF.md).
+  - Tests: 2711 → 2712 (frontend 803 → 1048).
+
 - **Phase 9 → Phase 10 · Batch 2 (T10.5–T10.6) — WhatsApp inbox API, dev tools, hardening** — 2026-10-23
   - `/api/v1/inbox`: conversations (filters, search with snippets, cursor), detail, messages (older pages / around a message), contact panel, send every type + notes (idempotent, `rl:inbox-send:`), uploads (`rl:inbox-upload:`), read / unread, typing, assign, close / reopen, block / unblock, start chat, media links, retries, summary, config; `/api/v1/account/inbox-settings`; business profile + photo; `conversation:<id>` topics with `inbox.read`; public contacts show their WhatsApp profile; OpenAPI for every path.
   - Simulator: 29 inbox kinds (44 in total) through the real pipeline, fake media route, fake sends view; seed: demo chats for "Demo Finance"; hardening tests (1,000 inbound, 200 parallel sends, download crash, 5,000-message history, 20,000-message retention, 10-minute remux) — the history import now inserts per thread in one batch.

@@ -462,60 +462,60 @@ Batches: **Batch 1 = T10.1–T10.4** (`[P10-B1-DONE]`), **Batch 2 = T10.5–T10.
 
 ### T10.7 — FE foundation
 
-- [ ] `gen:api`; `services/api/inbox.ts` (+ upload with progress via axios `onUploadProgress`), profile + settings clients; types; fixtures `src/test/inbox.ts` (`fakeConversation`, `fakeMessage(type)` for every type).
-- [ ] `features/inbox/{keys,queries,labels,format,permissions}.ts`: infinite conversations / messages, `useConversationTopic(id)` merging `inbox.message.*` into the cache, account events → list / summary, polling fallbacks (§1j), mutations (send with optimistic `queued` bubble keyed by `clientId`, read, typing throttle, assign, close / reopen, block, retry), `useCanReply` / `useCanAssign`, status tick helpers, window countdown helper, preview / type labels, file size format.
-- [ ] Realtime: event types + topic `conversation:<id>` subscribe.
-- [ ] Nav **Inbox** with unread badge (`inbox.read`, `phase: 10`), `LIVE_PHASE = 10`, layout test; routes `/inbox`, `/inbox/:conversationId` (lazy).
-- [ ] Tests: clients, hooks (merge order, dedupe optimistic vs real, polling stop), labels, nav.
+- [x] `gen:api`; `services/api/inbox.ts` (+ upload with progress via axios `onUploadProgress`), profile + settings clients; types; fixtures `src/test/inbox.ts` (`fakeConversation`, `fakeMessage(type)` for every type).
+- [x] `features/inbox/{keys,queries,labels,format,permissions}.ts`: infinite conversations / messages, `useConversationTopic(id)` merging `inbox.message.*` into the cache, account events → list / summary, polling fallbacks (§1j), mutations (send with optimistic `queued` bubble keyed by `clientId`, read, typing throttle, assign, close / reopen, block, retry), `useCanReply` / `useCanAssign`, status tick helpers, window countdown helper, preview / type labels, file size format.
+- [x] Realtime: event types + topic `conversation:<id>` subscribe.
+- [x] Nav **Inbox** with unread badge (`inbox.read`, `phase: 10`), `LIVE_PHASE = 10`, layout test; routes `/inbox`, `/inbox/:conversationId` (lazy).
+- [x] Tests: clients, hooks (merge order, dedupe optimistic vs real, polling stop), labels, nav.
 
 ### T10.8 — Inbox page (list + chat view)
 
-- [ ] Three-pane layout (responsive), conversation list (§1p left), chat header (window state, assignee, actions menu), message list (infinite up, separators, unread divider, jump to reply, auto-scroll on new when at bottom else "New messages" pill), **bubbles for every type** (§1c / §1d incl. note, system, deleted, unsupported, order, form, referral, forwarded, business app / history labels), media viewer (lightbox lazy), audio / video players, ticks + failed tooltip + Retry, media download state + Retry (managers).
-- [ ] Tests: every bubble type renders (text with links escaped — `<script>` stays text), ticks per status, list filters / search / live reorder, unread divider, infinite scroll (load older keeps position), jump to reply, mobile stacking, empty / loading / error states, read marker sent on open (not for impersonators).
+- [x] Three-pane layout (responsive), conversation list (§1p left), chat header (window state, assignee, actions menu), message list (infinite up, separators, unread divider, jump to reply, auto-scroll on new when at bottom else "New messages" pill), **bubbles for every type** (§1c / §1d incl. note, system, deleted, unsupported, order, form, referral, forwarded, business app / history labels), media viewer (lightbox lazy), audio / video players, ticks + failed tooltip + Retry, media download state + Retry (managers).
+- [x] Tests: every bubble type renders (text with links escaped — `<script>` stays text), ticks per status, list filters / search / live reorder, unread divider, infinite scroll (load older keeps position), jump to reply, mobile stacking, empty / loading / error states, read marker sent on open (not for impersonators).
 
 ### T10.9 — Composer
 
-- [ ] Text + emoji (lazy picker) + counter, attachments (kind detection, preview, caption, upload progress, cancel, size / type errors before upload), **voice recorder** (`features/inbox/voice-recorder.ts` hook + `VoiceRecorder.tsx`, §1p: type preference, mono stream, timer, auto-stop, discard < 1 s, preview, re-record, upload `kind: voice`, mic released on stop / unmount), location dialog, contact card picker, interactive builder (buttons / list / CTA URL with limits + live preview), reply-to, reactions (hover / long-press picker), notes toggle, Templates button (disabled with Phase 11 text), window closed / opted out / blocked / read-only / channel not ready states, optimistic send + retry, typing pings.
-- [ ] Tests: each type sends the exact body, validation per limit, upload flows (progress, cancel, 413 / 422 from server), window closed hides send (notes allowed), keyboard (Enter / Shift+Enter), optimistic → real replacement, failed → Retry, read only roles, voice recorder states (recording / preview / uploading / denied / unsupported / fallback), mic tracks stopped on cancel / unmount.
+- [x] Text + emoji (lazy picker) + counter, attachments (kind detection, preview, caption, upload progress, cancel, size / type errors before upload), **voice recorder** (`features/inbox/voice-recorder.ts` hook + `VoiceRecorder.tsx`, §1p: type preference, mono stream, timer, auto-stop, discard < 1 s, preview, re-record, upload `kind: voice`, mic released on stop / unmount), location dialog, contact card picker, interactive builder (buttons / list / CTA URL with limits + live preview), reply-to, reactions (hover / long-press picker), notes toggle, Templates button (disabled with Phase 11 text), window closed / opted out / blocked / read-only / channel not ready states, optimistic send + retry, typing pings.
+- [x] Tests: each type sends the exact body, validation per limit, upload flows (progress, cancel, 413 / 422 from server), window closed hides send (notes allowed), keyboard (Enter / Shift+Enter), optimistic → real replacement, failed → Retry, read only roles, voice recorder states (recording / preview / uploading / denied / unsupported / fallback), mic tracks stopped on cancel / unmount.
 
 ### T10.10 — Contact panel + entry points
 
-- [ ] Contact panel (§1p right), assign select (self / others by permission), close / reopen, block / unblock (confirm), contact page **Open chat** / **Start chat**, Settings → **Inbox** tab, Numbers drawer **Business profile** editor (+ photo), notification icons / texts / links (2 types), dashboard **Inbox** card, nav badge live, dev **Simulate customer** drawer (fake provider + dev build), bundle check vs `main` (same script as Phase 9).
-- [ ] Tests for each.
+- [x] Contact panel (§1p right), assign select (self / others by permission), close / reopen, block / unblock (confirm), contact page **Open chat** / **Start chat**, Settings → **Inbox** tab, Numbers drawer **Business profile** editor (+ photo), notification icons / texts / links (2 types), dashboard **Inbox** card, nav badge live, dev **Simulate customer** drawer (fake provider + dev build), bundle check vs `main` (same script as Phase 9).
+- [x] Tests for each.
 
 ### T10.11 — Playwright E2E
 
-- [ ] Backend env: `FAKE_META_STATUS_DELAYS_MS=200,500,800` (fast ticks).
-- [ ] Chromium launch args for the inbox specs: `--use-fake-ui-for-media-stream`, `--use-fake-device-for-media-stream` (fake mic, no prompt) + `permissions: ['microphone']`; other specs unchanged.
-- [ ] Helpers `e2e/inbox.ts`: `connectNumber` (reuse `e2e/whatsapp.ts`), `simulateCustomer(page, kind, text?)` (dev drawer or API), `openConversation`, `sendText`, `sendFile(path)`, `expectTicks(bubble, state)`.
-- [ ] Specs (one account per spec, serial, unique phones):
+- [x] Backend env: `FAKE_META_STATUS_DELAYS_MS=200,500,800` (fast ticks).
+- [x] Chromium launch args for the inbox specs: `--use-fake-ui-for-media-stream`, `--use-fake-device-for-media-stream` (fake mic, no prompt) + `permissions: ['microphone']`; other specs unchanged.
+- [x] Helpers `e2e/inbox.ts`: `connectNumber` (reuse `e2e/whatsapp.ts`), `simulateCustomer(page, kind, text?)` (dev drawer or API), `openConversation`, `sendText`, `sendFile(path)`, `expectTicks(bubble, state)`.
+- [x] Specs (one account per spec, serial, unique phones):
   1. **`inbox-done-when.spec.ts`:** connect number → customer sends text → conversation appears live (unread 1, bell) → open (unread 0, read receipt) → reply text → ticks ✓ → ✓✓ → blue ✓✓ → reply with an image (upload progress → bubble) → customer sends image / video / voice note / document / sticker / location / contact card → each bubble renders, media opens / plays / downloads → reply-to a customer message (quote) → customer reacts → emoji on bubble → agent reacts → interactive buttons sent → customer taps a button → "Replied: …" → list + CTA URL sent → **voice note**: tap mic → record 3 s (fake mic) → preview → send → voice bubble with duration → ticks → fake confirms it received a valid mono OGG/Opus.
   2. **`inbox-window-statuses.spec.ts`:** a conversation whose window expired (simulator kind `window_expired` — dev / test only — moves `lastInboundAt` back 25 h) → composer blocked + banner, notes still work, API 409 → customer writes → window open again; failed recipient (`…00009`) → ⚠ with "Message undeliverable" + Retry; never-read recipient (`…00008`) stays ✓✓; throughput knob (`…00006`) still delivers.
   3. **`inbox-optout-coexistence.spec.ts`:** customer sends "STOP" → opted-out banner + DND on the contact page + auto-confirmation bubble → "START" → cleared + opt-in confirmation → customer sends "band karo" → opted out again → "बंद करो" again → no second confirmation (idempotent) → "SHURU" → cleared; "mera order band karo mat" → nothing happens; retention: `age_messages` 91 days + run the retention job (dev trigger) → old bubbles gone, newer stay, list preview updated; coexistence number → `echo_text` shows "Sent from the WhatsApp Business app" → history chunk imports past messages (no unread) → contacts sync creates contacts.
   4. **`inbox-roles.spec.ts`:** viewer reads, no composer; agent replies, assigns self, can't assign others / block; manager assigns to agent → agent bell "assigned to you" + "Mine" filter; impersonating superadmin read only (no read receipt sent); second account never sees the first's conversations; search by name / text; close → reopen by inbound.
   5. **`inbox-entry-points.spec.ts`:** contact page Open chat; Start chat with a closed window (banner); Settings → Inbox shows read receipts **on** by default → toggle off (fake records no receipt) → on again; adds a custom keyword ("ROKO") → customer sends it → opted out; retention text "90 days" visible; business profile edit on the Numbers drawer; dashboard card + nav badge counts.
-- [ ] All earlier **77** tests stay green; whole suite **twice** (2nd with `E2E_BACKEND_LOGS=1` → log grep: customer texts used in specs, test phones (full + `+91`), contact names, file names, `wamid`, Meta media urls, tokens, `Bearer`, `sk-`, passwords → 0).
+- [x] All earlier **77** tests stay green; whole suite **twice** (2nd with `E2E_BACKEND_LOGS=1` → log grep: customer texts used in specs, test phones (full + `+91`), contact names, file names, `wamid`, Meta media urls, tokens, `Bearer`, `sk-`, passwords → 0).
 
 ### T10.12 — Gap audit, security, docs, sign-off
 
-- [ ] Requirement → test table for §0 / §1 / every task; missing tests added.
-- [ ] Security checklist (§1l): customer data never in logs / audit / notifications / job data / errors; uploads sniffed; XSS (bubble rendering test with hostile text / file names / vCard / interactive titles); signed media links + isolation; impersonation read only; topic auth; gitleaks both repos; `console.log` 0; no network in tests.
-- [ ] Coverage re-measured (gates never lowered), bundle numbers, hardening numbers.
-- [ ] Docs both repos, BUILD_PLAN_V2 Phase 10 ✅ + "Next: Phase 11", tasks all `[x]`, plan changelog, **PHASE_10_SIGNOFF.md**; `[P10-B3-DONE]` (full verify both repos, E2E twice, fresh clones without `.env`, actionlint, gitleaks, `infra:down`).
+- [x] Requirement → test table for §0 / §1 / every task; missing tests added.
+- [x] Security checklist (§1l): customer data never in logs / audit / notifications / job data / errors; uploads sniffed; XSS (bubble rendering test with hostile text / file names / vCard / interactive titles); signed media links + isolation; impersonation read only; topic auth; gitleaks both repos; `console.log` 0; no network in tests.
+- [x] Coverage re-measured (gates never lowered), bundle numbers, hardening numbers.
+- [x] Docs both repos, BUILD_PLAN_V2 Phase 10 ✅ + "Next: Phase 11", tasks all `[x]`, plan changelog, **PHASE_10_SIGNOFF.md**; `[P10-B3-DONE]` (full verify both repos, E2E twice, fresh clones without `.env`, actionlint, gitleaks, `infra:down`).
 
 ---
 
 ## 4. Deliverables checklist
 
-- [ ] Conversations + messages models, contact / account fields, migration 0011 + Phase 9 backfill.
-- [ ] Meta client: send every free-form type, read / typing, media upload / download, block, business profile; fake with auto statuses + knobs + media.
-- [ ] Inbound: every type normalised, contacts, conversations, unread, window, media downloads, statuses, opt-out / opt-in, coexistence echoes / history / contacts.
-- [ ] Outbound: every free-form type, uploads, browser voice notes (WebM → OGG remux), window / opt-out / block rules, idempotent sends with retries, read receipts, typing, notes, opt-out / opt-in confirmations.
-- [ ] 90-day retention job (messages + media + orphan uploads).
-- [ ] Inbox API + OpenAPI + topic auth; business profile + inbox settings; simulator kinds + `dev:inbox` + seed; hardening; ADR 0038; real-number checklist.
-- [ ] UI: Inbox (list, chat with every bubble, composer with every type, contact panel), Open / Start chat, Settings → Inbox, business profile editor, notifications, dashboard card, nav badge.
-- [ ] Playwright: done-when (both directions every type), window + statuses, opt-out + coexistence, roles, entry points — twice, logs clean.
-- [ ] Docs: ADR 0038, data-model, api, security, compliance, READMEs, CHANGELOGs, sign-off.
+- [x] Conversations + messages models, contact / account fields, migration 0011 + Phase 9 backfill.
+- [x] Meta client: send every free-form type, read / typing, media upload / download, block, business profile; fake with auto statuses + knobs + media.
+- [x] Inbound: every type normalised, contacts, conversations, unread, window, media downloads, statuses, opt-out / opt-in, coexistence echoes / history / contacts.
+- [x] Outbound: every free-form type, uploads, browser voice notes (WebM → OGG remux), window / opt-out / block rules, idempotent sends with retries, read receipts, typing, notes, opt-out / opt-in confirmations.
+- [x] 90-day retention job (messages + media + orphan uploads).
+- [x] Inbox API + OpenAPI + topic auth; business profile + inbox settings; simulator kinds + `dev:inbox` + seed; hardening; ADR 0038; real-number checklist.
+- [x] UI: Inbox (list, chat with every bubble, composer with every type, contact panel), Open / Start chat, Settings → Inbox, business profile editor, notifications, dashboard card, nav badge.
+- [x] Playwright: done-when (both directions every type), window + statuses, opt-out + coexistence, roles, entry points — twice, logs clean.
+- [x] Docs: ADR 0038, data-model, api, security, compliance, READMEs, CHANGELOGs, sign-off.
 
 ## 5. Risks
 
@@ -578,3 +578,5 @@ _Estimate — run batch-wise with one detailed run prompt (Batch 1 = T10.1–T10
 - 2026-10-23: **Batch 1 done** (T10.1–T10.4 + `[P10-B1-DONE]`). `npm run dev:inbox` on the dev DB: a fake number, 10 customer messages over the HTTP webhook (every main type, STOP / START), 6 replies (text, image, browser voice note, buttons, list, reaction) → all read via the fake's auto statuses, media downloaded, the voice note a valid mono OGG / Opus; the worker also backfilled the deferred events earlier dev runs had stored. Real bug found by it and fixed with a regression test (`3833db4`): keywords now apply in message-time order (a START processed before an earlier STOP no longer leaves the customer opted out). Backend 2678 tests, coverage 97.14 / 89.64 / 96.73 / 98.28.
 - 2026-10-23: T10.5 notes — `GET /inbox/messages/:id/media` answers `{ url, mimeType, fileName, expiresInSec }` (a signed storage link) instead of redirecting, so the browser decides inline / download. `/account/inbox-settings` is mounted only where WhatsApp is enabled. Public contacts get a small `whatsapp` view (profile name, last inbound, blocked) for the contact page. The inbox router needs the app's file storage (503 `PROVIDER_UNAVAILABLE` without it).
 - 2026-10-23: **Batch 2 done** (T10.5–T10.6 + `[P10-B2-DONE]`). Manual check on a locally started server through the HTTP API (dev DB, fake Meta, auto statuses on): 16 simulated customer types → all stored, every media `ready`; 11 replies (text with a link, image, browser voice note, document, location, buttons, list, CTA, reaction, quoted reply, note) → 201, every send `read`, the voice note a valid mono OGG; a media link downloads; after `window_expired` a send answers 409 `WHATSAPP_WINDOW_CLOSED` and a note 201; `band karo` → opted out + DND + confirmation; block / unblock and a profile edit 200; `age_messages` + `run_retention` empty the chat; the server log has no texts, numbers, names, file names, wamids, media URLs or tokens. Found while building: the simulator's ageing needed `updatePipeline` (Mongoose 9) and a wrong-secret simulation of `inbound_text` was signed with the right secret — both fixed before commit. Backend 2711 tests, coverage 97.08 / 89.56 / 96.61 / 98.20.
+- 2026-10-23: T10.7–T10.10 notes — the menu item is `ForumOutlined` with badge key `inbox-unread`; tick labels Queued / Sent / Delivered / Read / Failed; the Inbox simulator kinds live in their own frontend list (the Numbers drawer keeps the 16 Phase 9 test events); the business profile hooks live in `features/whatsapp/profile.ts`; the menu badge is a lazy chunk so the inbox client stays out of the main bundle; the composer tools sit on their own row above the text box.
+- 2026-10-23: **Batch 3 done** (T10.7–T10.12 + `[P10-B3-DONE]`). Playwright 26 inbox tests in 5 specs, 103 in total, green twice; the second run's backend log free of customer data and secrets. Found by the E2E run and fixed with regression tests: send / retry responses without the quote and sender (backend `2cae0a2`); the message box squeezed to zero width on a narrow three-pane chat; React strict mode starting the voice recorder twice; the contact panel not refreshing on opt-out (frontend `588a4b0`, `c47524a`, `3d4cb72`). Bundle: start-up code +2.7 KB gzip as one stream, +8.4 KB counted per file (the bundler splits it into 42 files instead of 18) — recorded as a deviation. Sign-off: [PHASE_10_SIGNOFF.md](PHASE_10_SIGNOFF.md).

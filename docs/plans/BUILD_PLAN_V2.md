@@ -16,18 +16,19 @@ Ye plan bache hue saare kaam ko **ek hi product** maan ke dobara order karta hai
 
 ---
 
-## 1. Ab tak (Phase 0–9) ✅
+## 1. Ab tak (Phase 0–10) ✅
 
-| #   | Phase                                                     | Status                                             |
-| --- | --------------------------------------------------------- | -------------------------------------------------- |
-| 0–2 | Setup, foundation, auth / RBAC                            | ✅ Done                                            |
-| 3   | Contacts, lists, custom fields                            | ✅ Done                                            |
-| 4   | Wallet & billing (holds, ledger)                          | ✅ Done                                            |
-| 5   | AI agents & knowledge                                     | ✅ Done                                            |
-| 6   | Call flow engine & builder                                | ✅ Done                                            |
-| 7   | Voice runtime + web call tester                           | ✅ Done                                            |
-| 8   | Campaigns & call scheduler                                | ✅ Done                                            |
-| 9   | WhatsApp Connect (Embedded Signup, fake Meta until setup) | ✅ Done ([sign-off](../phases/PHASE_9_SIGNOFF.md)) |
+| #   | Phase                                                     | Status                                              |
+| --- | --------------------------------------------------------- | --------------------------------------------------- |
+| 0–2 | Setup, foundation, auth / RBAC                            | ✅ Done                                             |
+| 3   | Contacts, lists, custom fields                            | ✅ Done                                             |
+| 4   | Wallet & billing (holds, ledger)                          | ✅ Done                                             |
+| 5   | AI agents & knowledge                                     | ✅ Done                                             |
+| 6   | Call flow engine & builder                                | ✅ Done                                             |
+| 7   | Voice runtime + web call tester                           | ✅ Done                                             |
+| 8   | Campaigns & call scheduler                                | ✅ Done                                             |
+| 9   | WhatsApp Connect (Embedded Signup, fake Meta until setup) | ✅ Done ([sign-off](../phases/PHASE_9_SIGNOFF.md))  |
+| 10  | WhatsApp Inbox (every type both ways, fake Meta)          | ✅ Done ([sign-off](../phases/PHASE_10_SIGNOFF.md)) |
 
 ---
 
@@ -130,7 +131,7 @@ Dev setup: local webhooks ke liye tunnel (Cloudflare Tunnel / ngrok) — sirf de
 
 ---
 
-### Phase 10 — WhatsApp Inbox: chat screen (L)
+### Phase 10 — WhatsApp Inbox: chat screen (L) ✅
 
 **Goal:** Ek chat screen jisme har type ka WhatsApp message aaye aur jaye — agent / manager yahin se reply kare.
 
@@ -378,3 +379,4 @@ Bulk WhatsApp calling (client promise "Bulk calling"):
 - 2026-10-22: Owner decisions — Meta billing both ways per account (platform credit line default / customer pays), coexistence numbers fully supported (echoes, history, contacts), connect owner / admin only. Phase 9 detailed plan: [PHASE_9_PLAN.md](../phases/PHASE_9_PLAN.md).
 - 2026-10-22: **Phase 9 done** ([sign-off](../phases/PHASE_9_SIGNOFF.md)) — built and tested on the fake Meta provider; the real Meta app is an env-only switch ([setup guide](../setup/meta-whatsapp.md)). **Next: Phase 10 (WhatsApp Inbox).**
 - 2026-10-23: Phase 10 detailed plan + run prompt written ([plan](../phases/PHASE_10_PLAN.md)) — owner answers 23 Oct 2026: 90-day message retention, no message text in notifications, Hinglish / Hindi opt-out keywords, STOP confirmation on, read receipts on, browser voice notes in Phase 10.
+- 2026-10-23: **Phase 10 done** ([sign-off](../phases/PHASE_10_SIGNOFF.md)) — every free-form WhatsApp type both ways (incl. browser voice notes), 24-hour window, statuses, opt-out keywords, 90-day retention and coexistence, proven by Playwright on the fake Meta provider; the real-number checklist runs in Phase 13. **Next: Phase 11 (Templates + WhatsApp billing).**
