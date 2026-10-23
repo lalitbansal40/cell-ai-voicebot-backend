@@ -27,9 +27,30 @@ export const stableStringify = (value: unknown): string => {
 };
 
 /** Idempotency key of one `entry × change` (Meta redelivers the same payload). */
-export const eventKey = (object: string, entryId: string, field: string, value: unknown): string =>
+/**
+ * Fields whose value carries no time of its own: the same event can legitimately come
+ * again later (an edited template approved again), so the entry time is part of the key.
+ */
+const TIMELESS_FIELDS = new Set([
+  'message_template_status_update',
+  'message_template_quality_update',
+  'template_category_update',
+  'message_template_components_update',
+]);
+
+export const eventKey = (
+  object: string,
+  entryId: string,
+  field: string,
+  value: unknown,
+  entryTime?: number | null,
+): string =>
   createHash('sha256')
-    .update(`${object}|${entryId}|${field}|${stableStringify(value)}`)
+    .update(
+      `${object}|${entryId}|${field}|${stableStringify(value)}${
+        TIMELESS_FIELDS.has(field) && entryTime ? `|${String(entryTime)}` : ''
+      }`,
+    )
     .digest('hex');
 
 /** `GET /webhooks/meta` — the challenge to echo, or `null` (→ 403). Constant-time token compare. */
@@ -105,7 +126,7 @@ export const receiveWebhook = async (
   try {
     for (const entry of envelope.entry) {
       for (const change of entry.changes) {
-        const key = eventKey(envelope.object, entry.id, change.field, change.value);
+        const key = eventKey(envelope.object, entry.id, change.field, change.value, entry.time);
         const res = await MetaWebhookEventModel.updateOne(
           { key },
           {
