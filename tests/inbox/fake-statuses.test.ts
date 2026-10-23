@@ -72,10 +72,13 @@ describe('fake Meta auto statuses → the real webhook receiver', () => {
       ids.phoneNumberId,
       buildMessagePayload('919000001300', { type: 'text', body: 'Test' }),
     );
+    // the store and the queue are awaited one after the other: wait for the queue too
+    // (a count on another connection can see the rows before the upserts' replies arrive)
     await vi.waitFor(async () => {
       expect(await MetaWebhookEventModel.countDocuments({ phoneNumberId: ids.phoneNumberId })).toBe(
         3,
       );
+      expect(queued).toHaveLength(3);
     });
     const events = await MetaWebhookEventModel.find({ phoneNumberId: ids.phoneNumberId }).lean();
     expect(events.every((e) => e.field === 'messages' && e.status === 'received')).toBe(true);
