@@ -554,6 +554,12 @@ describe('holds per path', () => {
     });
     expect(b.created).toBe(false);
     expect(await holdsOf()).toHaveLength(1);
+    // the wallet line links to its chat
+    expect((await holdsOf())[0]?.breakdown).toMatchObject({
+      kind: 'whatsapp',
+      waCategory: 'utility',
+      waConversationId: conv._id.toString(),
+    });
     expect(a.message.billing).toMatchObject({
       status: 'held',
       category: 'utility',

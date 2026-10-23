@@ -59,6 +59,8 @@ export interface LedgerBreakdown {
   markupMicros?: number;
   platformFeeMicros?: number;
   waPricingType?: string;
+  /** The chat of the message (wallet → "open the chat"). */
+  waConversationId?: string;
 }
 
 export const LEDGER_USAGE_KINDS = [
@@ -139,6 +141,7 @@ const schema = new Schema<LedgerEntryDoc>({
         markupMicros: { type: Number, min: 0, validate: Number.isSafeInteger },
         platformFeeMicros: { type: Number, min: 0, validate: Number.isSafeInteger },
         waPricingType: { type: String, maxlength: 40 },
+        waConversationId: { type: String, maxlength: 24 },
       },
       { _id: false },
     ),

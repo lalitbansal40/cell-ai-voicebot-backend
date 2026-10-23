@@ -27,7 +27,11 @@ export type BillingOutcome = 'none' | 'captured' | 'released' | 'late_charged' |
 
 const FINAL: readonly MessageBillingStatus[] = ['captured', 'late_charged', 'waived'];
 
-export const breakdownOf = (b: MessageBilling, pricingType: string | null): LedgerBreakdown => ({
+export const breakdownOf = (
+  b: MessageBilling,
+  pricingType: string | null,
+  conversationId: Types.ObjectId | null = null,
+): LedgerBreakdown => ({
   kind: 'whatsapp',
   waCategory: b.category,
   waMarket: b.market,
@@ -35,6 +39,7 @@ export const breakdownOf = (b: MessageBilling, pricingType: string | null): Ledg
   markupMicros: Math.max(0, b.priceMicros - b.metaCostMicros),
   platformFeeMicros: 0,
   ...(pricingType ? { waPricingType: pricingType } : {}),
+  ...(conversationId ? { waConversationId: conversationId.toString() } : {}),
 });
 
 /** Moves `billing.status` only from the status we read (a parallel status loses). */
@@ -68,8 +73,8 @@ const lateChargeBell = async (accountId: Types.ObjectId, amountMicros: number) =
  */
 export const onMessageStatus = async (input: BillingStatusInput): Promise<BillingOutcome> => {
   const m = await MessageModel.findOne({ _id: input.messageId, accountId: input.accountId })
-    .select({ billing: 1, accountId: 1 })
-    .lean<Pick<MessageDoc, '_id' | 'accountId' | 'billing'>>();
+    .select({ billing: 1, accountId: 1, conversationId: 1 })
+    .lean<Pick<MessageDoc, '_id' | 'accountId' | 'billing' | 'conversationId'>>();
   const b = m?.billing;
   if (!m || !b || b.status === 'none') return 'none';
   // Meta charges delivered messages only: `sent` already carries the expected pricing,
@@ -120,7 +125,7 @@ export const onMessageStatus = async (input: BillingStatusInput): Promise<Billin
       accountId: m.accountId,
       messageId,
       amountMicros: b.priceMicros,
-      breakdown: breakdownOf(b, facts.pricingType),
+      breakdown: breakdownOf(b, facts.pricingType, m.conversationId),
       ref: { type: 'whatsapp_message', id: messageId },
     });
     await setBilling(m, 'released', { ...facts, status: 'late_charged' });

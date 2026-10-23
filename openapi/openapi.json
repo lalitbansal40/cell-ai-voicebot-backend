@@ -3673,7 +3673,14 @@
                   "flow_intent",
                   "whatsapp"
                 ]
-              }
+              },
+              "waCategory": { "type": "string" },
+              "waMarket": { "type": "string" },
+              "waPricingType": { "type": "string" },
+              "waConversationId": { "type": "string" },
+              "metaCostMicros": { "type": "number", "description": "Superadmin views only" },
+              "markupMicros": { "type": "number", "description": "Superadmin views only" },
+              "platformFeeMicros": { "type": "number", "description": "Superadmin views only" }
             }
           },
           "ref": {

@@ -425,6 +425,7 @@ const chargeFor = async (
     phoneE164: conversation.phoneE164,
     category,
     clientId,
+    conversationId: conversation._id,
     now,
   });
 };

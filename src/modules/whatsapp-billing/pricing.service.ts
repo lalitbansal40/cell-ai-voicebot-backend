@@ -143,6 +143,8 @@ export const holdMessageCharge = async (input: {
   phoneE164: string;
   category: PriceCategory;
   clientId: string;
+  /** The message's chat (shown as a link on the wallet line). */
+  conversationId?: Types.ObjectId | null;
   now: Date;
 }): Promise<MessageCharge> => {
   const quote = await priceMessage({
@@ -178,6 +180,7 @@ export const holdMessageCharge = async (input: {
       metaCostMicros: quote.metaCostMicros,
       markupMicros: quote.markupMicros,
       platformFeeMicros: quote.platformFeeMicros,
+      ...(input.conversationId ? { waConversationId: input.conversationId.toString() } : {}),
     },
     ref: { type: 'whatsapp_message', id: input.clientId },
   });

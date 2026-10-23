@@ -198,13 +198,13 @@ describe('template simulator — 14 kinds', () => {
     });
     await sim('late_billable_status', { messageId: msg._id.toString() });
     expect((await MessageModel.findById(msg._id).lean())?.billing?.status).toBe('late_charged');
-    expect(
-      await LedgerEntryModel.countDocuments({
-        accountId,
-        type: 'whatsapp_charge',
-        idempotencyKey: `wa-late-${msg._id.toString()}`,
-      }),
-    ).toBe(1);
+    const late = await LedgerEntryModel.find({
+      accountId,
+      type: 'whatsapp_charge',
+      idempotencyKey: `wa-late-${msg._id.toString()}`,
+    }).lean();
+    expect(late).toHaveLength(1);
+    expect(late[0]?.breakdown?.waConversationId).toBe(msg.conversationId.toString());
     await expect(sim('late_billable_status')).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 });

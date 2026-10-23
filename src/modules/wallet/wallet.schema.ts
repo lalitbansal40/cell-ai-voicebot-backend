@@ -184,6 +184,14 @@ export const LedgerEntrySchema = registry.register(
         embeddingTokens: z.number().optional(),
         model: z.string().optional(),
         kind: z.enum(LEDGER_USAGE_KINDS).optional(),
+        // Phase 11 WhatsApp charges (selling price only — Meta's cost / markup / fee are superadmin-only)
+        waCategory: z.string().optional(),
+        waMarket: z.string().optional(),
+        waPricingType: z.string().optional(),
+        waConversationId: z.string().optional(),
+        metaCostMicros: z.number().optional().openapi({ description: 'Superadmin views only' }),
+        markupMicros: z.number().optional().openapi({ description: 'Superadmin views only' }),
+        platformFeeMicros: z.number().optional().openapi({ description: 'Superadmin views only' }),
       })
       .nullable(),
     ref: z.object({ type: z.enum(LEDGER_REF_TYPES), id: z.string() }),
