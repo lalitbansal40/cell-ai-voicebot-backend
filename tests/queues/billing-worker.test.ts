@@ -49,9 +49,17 @@ describe('billing worker', () => {
       'billing.reconcile',
       'billing.expire_orders',
       'notifications.purge',
+      'billing.whatsapp_reap_holds',
+      'billing.whatsapp_reconcile',
     ]);
     expect(BILLING_SCHEDULES.find((s) => s.name === 'billing.reconcile')?.pattern).toBe(
       '0 21 * * *',
+    );
+    expect(BILLING_SCHEDULES.find((s) => s.name === 'billing.whatsapp_reap_holds')?.pattern).toBe(
+      '*/30 * * * *',
+    );
+    expect(BILLING_SCHEDULES.find((s) => s.name === 'billing.whatsapp_reconcile')?.pattern).toBe(
+      '30 21 * * *',
     );
     for (const s of BILLING_SCHEDULES) expect(isBillingJobName(s.name)).toBe(true);
   });

@@ -179,7 +179,7 @@ const canSpend = (
     useCreditLimit,
     budget,
     month,
-  }: { useCreditLimit: boolean; budget?: 'call' | 'ai'; month: string },
+  }: { useCreditLimit: boolean; budget?: 'call' | 'ai' | 'whatsapp'; month: string },
 ) => {
   const available = {
     $subtract: [
@@ -189,17 +189,22 @@ const canSpend = (
   };
   const clauses: unknown[] = [{ $gte: [available, amount] }];
   if (budget) {
-    const limit = budget === 'call' ? '$budgets.monthlyCallMicros' : '$budgets.monthlyAiMicros';
+    // wallets created before Phase 11 have no WhatsApp budget / spend fields yet
+    const limit =
+      budget === 'call'
+        ? '$budgets.monthlyCallMicros'
+        : budget === 'ai'
+          ? '$budgets.monthlyAiMicros'
+          : { $ifNull: ['$budgets.monthlyWhatsappMicros', 0] };
+    const thisMonth = (value: unknown) => ({
+      $cond: [{ $eq: ['$spend.month', month] }, value, 0],
+    });
     const spent =
       budget === 'call'
-        ? { $cond: [{ $eq: ['$spend.month', month] }, '$spend.callMicros', 0] }
-        : {
-            $cond: [
-              { $eq: ['$spend.month', month] },
-              { $add: ['$spend.aiMicros', '$spend.ttsMicros'] },
-              0,
-            ],
-          };
+        ? thisMonth('$spend.callMicros')
+        : budget === 'ai'
+          ? thisMonth({ $add: ['$spend.aiMicros', '$spend.ttsMicros'] })
+          : thisMonth({ $ifNull: ['$spend.whatsappMicros', 0] });
     clauses.push({ $or: [{ $eq: [limit, 0] }, { $lte: [{ $add: [spent, amount] }, limit] }] });
   }
   return { $and: clauses };
@@ -208,7 +213,14 @@ const canSpend = (
 /** Update pipeline: month rollover of `spend`, then the money deltas. */
 const moneyPipeline = (
   month: string,
-  d: { balance?: number; hold?: number; call?: number; ai?: number; tts?: number },
+  d: {
+    balance?: number;
+    hold?: number;
+    call?: number;
+    ai?: number;
+    tts?: number;
+    whatsapp?: number;
+  },
 ): PipelineStage[] =>
   [
     {
@@ -217,7 +229,7 @@ const moneyPipeline = (
           $cond: [
             { $eq: ['$spend.month', month] },
             '$spend',
-            { month, callMicros: 0, aiMicros: 0, ttsMicros: 0 },
+            { month, callMicros: 0, aiMicros: 0, ttsMicros: 0, whatsappMicros: 0 },
           ],
         },
       },
@@ -229,6 +241,9 @@ const moneyPipeline = (
         'spend.callMicros': { $add: ['$spend.callMicros', d.call ?? 0] },
         'spend.aiMicros': { $add: ['$spend.aiMicros', d.ai ?? 0] },
         'spend.ttsMicros': { $add: ['$spend.ttsMicros', d.tts ?? 0] },
+        'spend.whatsappMicros': {
+          $add: [{ $ifNull: ['$spend.whatsappMicros', 0] }, d.whatsapp ?? 0],
+        },
         version: { $add: ['$version', 1] },
         updatedAt: '$$NOW',
       },

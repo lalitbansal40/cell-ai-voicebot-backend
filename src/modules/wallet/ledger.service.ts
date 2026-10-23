@@ -25,6 +25,7 @@ const TYPE_TEXT: Record<LedgerEntryDoc['type'], string> = {
   refund: 'Refund',
   subscription: 'Subscription',
   recording_charge: 'Recording storage',
+  whatsapp_charge: 'WhatsApp message',
 };
 
 /** Human description of a row (built here, never stored). */

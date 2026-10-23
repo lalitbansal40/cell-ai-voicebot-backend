@@ -60,13 +60,25 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `WHATSAPP_CHANNEL_NOT_READY`  | 409  | The WhatsApp number needs its setup finished or a reconnect before this action                                                                                                     | 9     |
 | `META_API_ERROR`              | 502  | The Meta Graph API returned an error — `details` carry Meta's `code`, `subcode`, `fbtraceId` (never tokens)                                                                        | 9     |
 | `META_SIGNATURE_INVALID`      | 401  | A Meta webhook / `signed_request` signature is missing or wrong                                                                                                                    | 9     |
-| `WHATSAPP_WINDOW_CLOSED`      | 409  | The customer's 24-hour service window is closed — only internal notes (templates arrive in Phase 11); `details[0].path = 'windowExpiresAt'`                                        | 10    |
+| `WHATSAPP_WINDOW_CLOSED`      | 409  | The customer's 24-hour service window is closed — only internal notes or a template (Phase 11); `details[0].path = 'windowExpiresAt'`                                              | 10    |
 | `WHATSAPP_RECIPIENT_BLOCKED`  | 409  | The team blocked this customer on WhatsApp — unblock to reply                                                                                                                      | 10    |
 | `WHATSAPP_MEDIA_INVALID`      | 422  | The file is not allowed for its kind or its content doesn't match (sniffed), a voice note is stereo / corrupt / too long / too short — `details[0].message` names the reason       | 10    |
 | `WHATSAPP_MEDIA_TOO_LARGE`    | 413  | The file is larger than WhatsApp allows for its kind — `details[0].message` carries the limit                                                                                      | 10    |
 | `INBOX_MEDIA_EXPIRED`         | 410  | Media of an inbound message older than 7 days can't be downloaded from Meta any more                                                                                               | 10    |
+| `TEMPLATE_NOT_FOUND`          | 404  | The template doesn't exist in this account (or Meta no longer has it for this language)                                                                                            | 11    |
+| `TEMPLATE_NOT_APPROVED`       | 409  | The template isn't approved (or flagged) yet — `details[0] = { path: 'status', message }`                                                                                          | 11    |
+| `TEMPLATE_PAUSED`             | 409  | Meta paused the template for low quality — `details[0] = { path: 'pausedUntil', message }`                                                                                         | 11    |
+| `TEMPLATE_VARIABLES_MISSING`  | 422  | Some variables have no value — one `details` entry per variable **key** (never values)                                                                                             | 11    |
+| `TEMPLATE_PARAMS_INVALID`     | 422  | Values don't fit the template (count, length, format, URL suffix, copy code)                                                                                                       | 11    |
+| `TEMPLATE_EDIT_NOT_ALLOWED`   | 409  | Meta doesn't allow this edit now — `details[0].message` = reason `status` / `edit_limit` / `category_locked` / `not_editable`                                                      | 11    |
+| `TEMPLATE_NAME_TAKEN`         | 409  | A template with this name + language exists, or the name was deleted less than 30 days ago                                                                                         | 11    |
+| `TEMPLATE_LIMIT_REACHED`      | 409  | The WABA has the maximum number of templates, or the creation rate (100 / hour / WABA) is reached                                                                                  | 11    |
+| `TEMPLATE_MARKETING_BLOCKED`  | 409  | Marketing templates can't go to this contact — reason `opted_out` / `dnd` / `stopped_marketing`                                                                                    | 11    |
+| `WHATSAPP_FREQUENCY_LIMIT`    | 429  | The contact already got a marketing template in the last 24 h — `details[0].message` carries `retryAfterSec`                                                                       | 11    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
+
+`WALLET_INSUFFICIENT_BALANCE` / `WALLET_BUDGET_EXCEEDED` are reused for WhatsApp messages with `details: [{ path: 'whatsapp', message }]` (Phase 11).
 
 AI provider failures (OpenAI) reuse `PROVIDER_UNAVAILABLE` (timeout, 429 / 5xx after retries, network) and `PROVIDER_ERROR` (rejected request) — Phase 5.
 

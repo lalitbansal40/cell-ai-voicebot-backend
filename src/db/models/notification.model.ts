@@ -23,6 +23,13 @@ export const NOTIFICATION_TYPES = [
   'whatsapp.channel_disconnected_by_admin',
   'inbox.message_received',
   'inbox.conversation_assigned',
+  'template.approved',
+  'template.rejected',
+  'template.paused',
+  'template.disabled',
+  'template.category_changed',
+  'template.quality_low',
+  'wallet.whatsapp_late_charge',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

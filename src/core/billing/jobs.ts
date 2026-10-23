@@ -7,6 +7,10 @@ export interface BillingJobData {
   'billing.reconcile': Record<string, never>;
   'billing.expire_orders': Record<string, never>;
   'notifications.purge': Record<string, never>;
+  /** Phase 11 — WhatsApp message holds older than `holdMaxAgeMs` are released. */
+  'billing.whatsapp_reap_holds': Record<string, never>;
+  /** Phase 11 — our captured charges vs Meta's pricing analytics, last 3 days. */
+  'billing.whatsapp_reconcile': Record<string, never>;
 }
 
 export type BillingJobName = keyof BillingJobData;
@@ -17,6 +21,8 @@ export const BILLING_JOB_NAMES = [
   'billing.reconcile',
   'billing.expire_orders',
   'notifications.purge',
+  'billing.whatsapp_reap_holds',
+  'billing.whatsapp_reconcile',
 ] as const satisfies readonly BillingJobName[];
 
 export const isBillingJobName = (value: string): value is BillingJobName =>
@@ -28,6 +34,9 @@ export const BILLING_SCHEDULES = [
   { name: 'billing.reconcile', pattern: '0 21 * * *' },
   { name: 'billing.expire_orders', pattern: '0 * * * *' },
   { name: 'notifications.purge', pattern: '45 3 * * *' },
+  { name: 'billing.whatsapp_reap_holds', pattern: '*/30 * * * *' },
+  // 03:00 IST
+  { name: 'billing.whatsapp_reconcile', pattern: '30 21 * * *' },
 ] as const satisfies readonly { name: BillingJobName; pattern: string }[];
 
 /** Enqueues billing jobs — the API depends on this interface, not on BullMQ. */

@@ -447,3 +447,53 @@ export const INBOX_LIMITS = {
   mediaLinkTtlSec: 300,
   readReceiptAttempts: 3,
 } as const;
+
+/** WhatsApp message templates (Phase 11; Meta limits re-checked 23 Oct 2026). */
+export const TEMPLATE_LIMITS = {
+  nameMax: 512,
+  namePattern: /^[a-z0-9_]+$/,
+  headerTextMax: 60,
+  headerVariablesMax: 1,
+  bodyMax: 1024,
+  footerMax: 60,
+  buttonsMax: 10,
+  quickRepliesMax: 10,
+  urlButtonsMax: 2,
+  phoneButtonsMax: 1,
+  copyCodeButtonsMax: 1,
+  voiceCallButtonsMax: 1,
+  buttonTextMax: 25,
+  urlMax: 2000,
+  phoneMax: 20,
+  copyCodeExampleMax: 20,
+  variablesMax: 20,
+  variableValueMax: 1024,
+  templatesPerWabaUnverified: 250,
+  templatesPerWabaVerified: 6000,
+  createsPerHourPerWaba: 100,
+  createsPerHourPerUser: 20,
+  approvedEditsPer30Days: 10,
+  approvedEditGapMs: 24 * HOUR_MS,
+  /** Meta keeps a deleted template's name locked for 30 days. */
+  deletedNameLockMs: 30 * 24 * HOUR_MS,
+  syncPageSize: 100,
+  syncPerMinutePerWaba: 1,
+  statusHistoryMax: 30,
+  /** At most one marketing template per contact in this window (owner default). */
+  marketingPerContactWindowMs: 24 * HOUR_MS,
+  headerExampleMaxBytes: { image: 5 * MB, video: 16 * MB, document: 100 * MB },
+} as const;
+
+/** WhatsApp message charges (Phase 11). */
+export const WHATSAPP_BILLING_LIMITS = {
+  /** 15 % on top of Meta's rate (owner default). */
+  defaultMarkupBps: 1500,
+  /** Holds without a decisive status are released after this (a late billable status charges again). */
+  holdMaxAgeMs: 72 * HOUR_MS,
+  reapBatch: 1000,
+  reconcileDays: 3,
+  /** Meta: 1,000 free service messages per number per month (from 1 Oct 2026). */
+  freeServiceTierPerNumber: 1000,
+  rateCardMarketsMax: 300,
+  csvMaxBytes: 2 * MB,
+} as const;

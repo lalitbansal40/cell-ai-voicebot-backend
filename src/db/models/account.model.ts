@@ -77,6 +77,8 @@ export interface AccountSettings {
   recordingNotice: string;
   aiDisclosureEnabled: boolean;
   inbox: AccountInboxSettings;
+  /** Phase 11 — absent on accounts created before migration 0012. */
+  templates?: AccountTemplateSettings;
 }
 
 /** GST billing details (PHASE_4_PLAN §1d) — buyer on invoices. Latin text only (PDF). */
@@ -124,6 +126,8 @@ export interface AccountDoc {
   limits: AccountLimits;
   /** WhatsApp (Phase 9): who pays Meta for numbers connected from now on (superadmin setting). */
   whatsapp: AccountWhatsApp;
+  /** WhatsApp prices (Phase 11, superadmin): override of the platform markup. */
+  whatsappBilling?: AccountWhatsAppBilling | null;
   billing?: (BillingProfile & { updatedAt: Date }) | null;
   createdAt: Date;
   updatedAt: Date;
@@ -144,6 +148,38 @@ export interface AccountWhatsApp {
   /** `platform` = our credit line on the customer's WABA; `customer` = their own payment method. */
   metaPayer: 'platform' | 'customer';
 }
+
+/** Template defaults of the account (Phase 11). */
+export interface AccountTemplateSettings {
+  /** Meta language code preselected in the template builder. */
+  defaultLanguage: string;
+}
+
+export const DEFAULT_TEMPLATE_SETTINGS: AccountTemplateSettings = { defaultLanguage: 'en' };
+
+export const WHATSAPP_PRICE_CATEGORIES = [
+  'marketing',
+  'utility',
+  'authentication',
+  'service',
+] as const;
+export type WhatsAppPriceCategory = (typeof WHATSAPP_PRICE_CATEGORIES)[number];
+
+/**
+ * Per-account WhatsApp price override (superadmin, Phase 11). `null` fields use the
+ * platform settings; `fixedPrices` (micros per message) win over the markup.
+ */
+export interface AccountWhatsAppBilling {
+  markupBps: number | null;
+  fixedPrices: Partial<Record<WhatsAppPriceCategory, number>> | null;
+  platformFeeMicros: number | null;
+}
+
+export const DEFAULT_ACCOUNT_WHATSAPP_BILLING: AccountWhatsAppBilling = {
+  markupBps: null,
+  fixedPrices: null,
+  platformFeeMicros: null,
+};
 
 export const DEFAULT_ACCOUNT_WHATSAPP: AccountWhatsApp = { metaPayer: 'platform' };
 
@@ -219,6 +255,13 @@ const schema = new Schema<AccountDoc>({
         default: DEFAULT_INBOX_SETTINGS.notifyOnNewMessage,
       },
     },
+    templates: {
+      defaultLanguage: {
+        type: String,
+        default: DEFAULT_TEMPLATE_SETTINGS.defaultLanguage,
+        maxlength: 20,
+      },
+    },
   },
   limits: {
     maxConcurrentCalls: { type: Number, default: DEFAULT_ACCOUNT_LIMITS.maxConcurrentCalls },
@@ -230,6 +273,23 @@ const schema = new Schema<AccountDoc>({
       enum: ['platform', 'customer'],
       default: DEFAULT_ACCOUNT_WHATSAPP.metaPayer,
     },
+  },
+  whatsappBilling: {
+    type: new Schema<AccountWhatsAppBilling>(
+      {
+        markupBps: { type: Number, default: null, min: 0, max: 100_000 },
+        fixedPrices: {
+          type: new Schema(
+            Object.fromEntries(WHATSAPP_PRICE_CATEGORIES.map((c) => [c, { type: Number, min: 0 }])),
+            { _id: false },
+          ),
+          default: null,
+        },
+        platformFeeMicros: { type: Number, default: null, min: 0 },
+      },
+      { _id: false },
+    ),
+    default: null,
   },
   billing: {
     type: new Schema<BillingProfile & { updatedAt: Date }>(

@@ -37,8 +37,7 @@ import { AppError } from '../../src/shared/errors/app-error';
 import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 10 catalogue', () => {
-  it('has 59 error codes incl. the five inbox codes', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(59);
+  it('has the five inbox error codes (count: Phase 11 catalogue test)', () => {
     expect(
       (
         [
@@ -59,8 +58,7 @@ describe('Phase 10 catalogue', () => {
     expect(new AppError('WHATSAPP_WINDOW_CLOSED').message).toContain('24-hour window is closed');
   });
 
-  it('has 106 audit actions incl. the eleven inbox actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(106);
+  it('has the eleven inbox audit actions (count: Phase 11 catalogue test)', () => {
     expect(
       AUDIT_ACTIONS.filter((a) => a.startsWith('inbox.') || a === 'whatsapp.profile_updated'),
     ).toEqual([
@@ -78,8 +76,7 @@ describe('Phase 10 catalogue', () => {
     ]);
   });
 
-  it('has 19 notification types (17 + 2) and the five inbox WS events', () => {
-    expect(NOTIFICATION_TYPES).toHaveLength(19);
+  it('has the two inbox notification types and the five inbox WS events', () => {
     expect(NOTIFICATION_TYPES.filter((t) => t.startsWith('inbox.'))).toEqual([
       'inbox.message_received',
       'inbox.conversation_assigned',
@@ -144,8 +141,11 @@ describe('Phase 10 catalogue', () => {
   it('model constants, defaults and limits', () => {
     expect(CONVERSATION_STATUSES).toEqual(['open', 'closed']);
     expect(CONVERSATION_SOURCES).toEqual(['inbound', 'outbound', 'business_app', 'history']);
-    expect(MESSAGE_ORIGINS).toEqual(['customer', 'agent', 'business_app', 'history', 'system']);
-    expect(MESSAGE_TYPES).toHaveLength(15);
+    // `api` + `template` arrive in Phase 11 (counts: Phase 11 catalogue test)
+    expect(MESSAGE_ORIGINS).toEqual(
+      expect.arrayContaining(['customer', 'agent', 'business_app', 'history', 'system']),
+    );
+    expect(MESSAGE_TYPES).toEqual(expect.arrayContaining(['text', 'interactive', 'reaction']));
     expect(MESSAGE_TYPES).toContain('note');
     expect(MESSAGE_STATUSES).toEqual([
       'received',

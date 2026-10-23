@@ -24,6 +24,7 @@ const pricingOf = (s: MetaStatus) =>
         model: s.pricing?.pricing_model ?? null,
         category: s.pricing?.category ?? null,
         type: s.pricing?.type ?? null,
+        subtype: s.pricing?.subtype ?? null,
         conversationId: s.conversation?.id ?? null,
         conversationOrigin: s.conversation?.origin?.type ?? null,
       }

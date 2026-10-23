@@ -12,6 +12,8 @@ export interface WalletSpend {
   callMicros: number;
   aiMicros: number;
   ttsMicros: number;
+  /** WhatsApp messages (Phase 11). */
+  whatsappMicros: number;
 }
 
 export interface WalletDoc {
@@ -20,14 +22,14 @@ export interface WalletDoc {
   currency: 'INR';
   /** Real money. Below 0 only after a call overran its hold (PHASE_4_PLAN §1a). */
   balanceMicros: number;
-  /** Reserved for running calls. */
+  /** Reserved for running calls and WhatsApp messages waiting for delivery. */
   holdMicros: number;
   /** Holds may use it; AI / TTS charges never do. */
   creditLimitMicros: number;
   /** 0 = alerts off. */
   lowBalanceThresholdMicros: number;
   /** 0 = unlimited. */
-  budgets: { monthlyCallMicros: number; monthlyAiMicros: number };
+  budgets: { monthlyCallMicros: number; monthlyAiMicros: number; monthlyWhatsappMicros: number };
   spend: WalletSpend;
   alerts: { lowBalanceNotifiedAt: Date | null; exhaustedNotifiedAt: Date | null };
   /** Bumped on every change. */
@@ -57,12 +59,14 @@ const schema = new Schema<WalletDoc>({
   budgets: {
     monthlyCallMicros: micros(),
     monthlyAiMicros: micros(),
+    monthlyWhatsappMicros: micros(),
   },
   spend: {
     month: { type: String, default: null },
     callMicros: micros(),
     aiMicros: micros(),
     ttsMicros: micros(),
+    whatsappMicros: micros(),
   },
   alerts: {
     lowBalanceNotifiedAt: { type: Date, default: null },

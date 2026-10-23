@@ -28,6 +28,8 @@ const MANAGER: Permission[] = [
   'inbox.read',
   'inbox.reply',
   'inbox.assign',
+  'templates.read',
+  'templates.manage',
   'reports.read',
   'reports.export',
 ];
@@ -44,6 +46,7 @@ const AGENT: Permission[] = [
   'whatsapp.read',
   'inbox.read',
   'inbox.reply',
+  'templates.read',
 ];
 
 const VIEWER: Permission[] = [
@@ -56,6 +59,7 @@ const VIEWER: Permission[] = [
   'campaigns.read',
   'whatsapp.read',
   'inbox.read',
+  'templates.read',
   'reports.read',
 ];
 

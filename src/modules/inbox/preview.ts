@@ -18,6 +18,7 @@ export const TYPE_LABELS: Record<MessageType, string> = {
   system: 'System message',
   unsupported: 'Unsupported message',
   note: 'Internal note',
+  template: 'Template',
 };
 
 type PreviewSource = Pick<

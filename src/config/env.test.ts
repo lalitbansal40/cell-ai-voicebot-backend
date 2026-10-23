@@ -623,4 +623,35 @@ describe('loadEnv — WhatsApp inbox (Phase 10)', () => {
       ),
     ).toEqual(['FAKE_META_STATUS_DELAYS_MS']);
   });
+
+  it('fake template review delay: 3 s in development, off in tests, never in production', () => {
+    expect(loadEnv({}).FAKE_META_TEMPLATE_REVIEW_MS).toBe(3000);
+    expect(loadEnv({ NODE_ENV: 'test' }).FAKE_META_TEMPLATE_REVIEW_MS).toBeNull();
+    expect(
+      loadEnv({ NODE_ENV: 'test', FAKE_META_TEMPLATE_REVIEW_MS: '250' })
+        .FAKE_META_TEMPLATE_REVIEW_MS,
+    ).toBe(250);
+    expect(
+      loadEnv({ FAKE_META_TEMPLATE_REVIEW_MS: 'OFF' }).FAKE_META_TEMPLATE_REVIEW_MS,
+    ).toBeNull();
+    expect(loadEnv({ FAKE_META_TEMPLATE_REVIEW_MS: '0' }).FAKE_META_TEMPLATE_REVIEW_MS).toBe(0);
+    for (const bad of ['-1', 'soon', '600001', '1.5']) {
+      expect(issuesOf({ FAKE_META_TEMPLATE_REVIEW_MS: bad }).issues.map((i) => i.variable)).toEqual(
+        ['FAKE_META_TEMPLATE_REVIEW_MS'],
+      );
+    }
+    expect(
+      loadEnv({
+        META_PROVIDER: 'meta',
+        WHATSAPP_ENABLED: 'false',
+        FAKE_META_TEMPLATE_REVIEW_MS: '10',
+      }).FAKE_META_TEMPLATE_REVIEW_MS,
+    ).toBeNull();
+    expect(loadEnv(validProduction).FAKE_META_TEMPLATE_REVIEW_MS).toBeNull();
+    expect(
+      issuesOf({ ...validProduction, FAKE_META_TEMPLATE_REVIEW_MS: '10' }).issues.map(
+        (i) => i.variable,
+      ),
+    ).toEqual(['FAKE_META_TEMPLATE_REVIEW_MS']);
+  });
 });

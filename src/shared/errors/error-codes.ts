@@ -115,6 +115,31 @@ export const ERROR_CODES = {
     status: 410,
     message: 'This media is no longer available from WhatsApp (older than 7 days).',
   },
+  TEMPLATE_NOT_FOUND: { status: 404, message: 'Template not found.' },
+  TEMPLATE_NOT_APPROVED: { status: 409, message: 'This template is not approved by WhatsApp.' },
+  TEMPLATE_PAUSED: {
+    status: 409,
+    message: 'WhatsApp paused this template for low quality. Try again later.',
+  },
+  TEMPLATE_VARIABLES_MISSING: { status: 422, message: 'Some template variables have no value.' },
+  TEMPLATE_PARAMS_INVALID: {
+    status: 422,
+    message: "The template values don't match the template.",
+  },
+  TEMPLATE_EDIT_NOT_ALLOWED: { status: 409, message: "This template can't be edited now." },
+  TEMPLATE_NAME_TAKEN: {
+    status: 409,
+    message: 'A template with this name and language already exists (or was deleted recently).',
+  },
+  TEMPLATE_LIMIT_REACHED: { status: 409, message: 'The WhatsApp template limit is reached.' },
+  TEMPLATE_MARKETING_BLOCKED: {
+    status: 409,
+    message: "Marketing templates can't be sent to this customer.",
+  },
+  WHATSAPP_FREQUENCY_LIMIT: {
+    status: 429,
+    message: 'This customer already got a marketing template recently. Try again later.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

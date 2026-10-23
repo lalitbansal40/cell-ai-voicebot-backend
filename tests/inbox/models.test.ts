@@ -224,6 +224,7 @@ describe('Message model', () => {
         type: 'free_customer_service',
         conversationId: 'conv1',
         conversationOrigin: 'service',
+        subtype: 'paid_exempt',
       },
     };
     const doc = await MessageModel.create(message(full));
@@ -328,6 +329,7 @@ describe('Contact / account additions', () => {
       syncRemovedAt: null,
       nameEditedAt: null,
       keywordAt: null,
+      marketing: null,
     });
     const plain = await ContactModel.create({
       accountId,

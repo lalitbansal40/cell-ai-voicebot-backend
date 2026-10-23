@@ -109,6 +109,19 @@ export const AUDIT_ACTIONS = [
   'inbox.messages_purged',
   'inbox.settings_updated',
   'whatsapp.profile_updated',
+  // Phase 11 — templates + WhatsApp billing
+  'template.created',
+  'template.submitted',
+  'template.updated',
+  'template.deleted',
+  'template.synced',
+  'template.status_changed',
+  'template.category_changed',
+  'template.variables_updated',
+  'whatsapp.rate_card_saved',
+  'whatsapp.billing_settings_updated',
+  'account.whatsapp_billing_updated',
+  'contact.whatsapp_marketing_changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

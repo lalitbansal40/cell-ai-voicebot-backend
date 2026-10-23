@@ -140,6 +140,11 @@ const RawEnvSchema = z.object({
    * delays (`sent,delivered,read` ms, or `off`). Default `500,1500,3000` in development, off in tests.
    */
   FAKE_META_STATUS_DELAYS_MS: optionalString,
+  /**
+   * DEV / E2E ONLY — fake Meta reviews a submitted template after this delay (ms, or `off`).
+   * Default `3000` in development, off in tests (Phase 11).
+   */
+  FAKE_META_TEMPLATE_REVIEW_MS: optionalString,
 
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./uploads'),
@@ -233,6 +238,7 @@ export type Env = Readonly<
     | 'META_WEBHOOK_VERIFY_TOKEN'
     | 'FAKE_META_APP_SECRET'
     | 'FAKE_META_STATUS_DELAYS_MS'
+    | 'FAKE_META_TEMPLATE_REVIEW_MS'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -270,6 +276,8 @@ export type Env = Readonly<
     FAKE_META_APP_SECRET: string | undefined;
     /** Fake Meta auto-status delays `[sent, delivered, read]`; null = off. */
     FAKE_META_STATUS_DELAYS_MS: readonly [number, number, number] | null;
+    /** Fake Meta template review delay; null = off (templates stay in review). */
+    FAKE_META_TEMPLATE_REVIEW_MS: number | null;
   }
 >;
 
@@ -320,6 +328,14 @@ const parseStatusDelays = (value: string): readonly [number, number, number] | n
   const [sent, delivered, read] = parts.map(Number) as [number, number, number];
   if ([sent, delivered, read].some((n) => n > 60_000)) return undefined;
   return Object.freeze([sent, delivered, read] as const);
+};
+
+/** `off` → null; ms 0–600000 → number; anything else → undefined (invalid). */
+const parseReviewDelay = (value: string): number | null | undefined => {
+  if (value.trim().toLowerCase() === 'off') return null;
+  if (!/^\d{1,6}$/.test(value.trim())) return undefined;
+  const ms = Number(value.trim());
+  return ms <= 600_000 ? ms : undefined;
 };
 
 const isValidUrl = (value: string): boolean => z.url().safeParse(value).success;
@@ -560,6 +576,24 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     });
   }
 
+  if (production) {
+    check(
+      'FAKE_META_TEMPLATE_REVIEW_MS',
+      'must not be set in production',
+      raw.FAKE_META_TEMPLATE_REVIEW_MS === undefined,
+    );
+  }
+  const reviewDelay = parseReviewDelay(
+    raw.FAKE_META_TEMPLATE_REVIEW_MS ??
+      (raw.NODE_ENV === 'development' && metaProvider === 'fake' ? '3000' : 'off'),
+  );
+  if (reviewDelay === undefined) {
+    issues.push({
+      variable: 'FAKE_META_TEMPLATE_REVIEW_MS',
+      reason: 'must be off or a delay in ms (0–600000)',
+    });
+  }
+
   if (issues.length) throw new EnvValidationError(issues);
 
   const defaultLogLevel: Record<NodeEnv, LogLevel> = {
@@ -613,6 +647,8 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       metaProvider === 'fake' ? (raw.FAKE_META_APP_SECRET ?? DEV_FAKE_META_APP_SECRET) : undefined,
     FAKE_META_STATUS_DELAYS_MS:
       metaProvider === 'fake' && !production ? (statusDelays ?? null) : null,
+    FAKE_META_TEMPLATE_REVIEW_MS:
+      metaProvider === 'fake' && !production ? (reviewDelay ?? null) : null,
   });
 };
 

@@ -7,8 +7,18 @@ import { tenantPlugin } from '../plugins/tenant';
 export const MESSAGE_DIRECTIONS = ['in', 'out'] as const;
 export type MessageDirection = (typeof MESSAGE_DIRECTIONS)[number];
 
-/** `business_app` = coexistence echo (sent from the phone); `system` = Meta / our system message. */
-export const MESSAGE_ORIGINS = ['customer', 'agent', 'business_app', 'history', 'system'] as const;
+/**
+ * `business_app` = coexistence echo (sent from the phone); `system` = Meta / our system message;
+ * `api` = sent through the internal API (Phase 11; public API in Phase 15).
+ */
+export const MESSAGE_ORIGINS = [
+  'customer',
+  'agent',
+  'business_app',
+  'history',
+  'system',
+  'api',
+] as const;
 export type MessageOrigin = (typeof MESSAGE_ORIGINS)[number];
 
 /** `note` = internal team note, never sent to WhatsApp. */
@@ -28,6 +38,7 @@ export const MESSAGE_TYPES = [
   'system',
   'unsupported',
   'note',
+  'template',
 ] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
@@ -185,8 +196,51 @@ export interface MessagePricing {
   model: string | null;
   category: string | null;
   type: string | null;
+  /** Meta's `subtype` (e.g. `paid_exempt`, from 12 Oct 2026). */
+  subtype: string | null;
   conversationId: string | null;
   conversationOrigin: string | null;
+}
+
+/** A sent template (Phase 11) — `parameters` are customer data (never logged). */
+export interface MessageTemplateRef {
+  templateId: Types.ObjectId;
+  name: string;
+  language: string;
+  category: string;
+  parameters: { key: string; value: string }[];
+}
+
+export const MESSAGE_BILLING_STATUSES = [
+  'none',
+  'held',
+  'captured',
+  'released',
+  'late_charged',
+  'waived',
+] as const;
+export type MessageBillingStatus = (typeof MESSAGE_BILLING_STATUSES)[number];
+
+export const MESSAGE_PAYERS = ['platform', 'customer'] as const;
+export type MessagePayer = (typeof MESSAGE_PAYERS)[number];
+
+/** What this message costs the account (Phase 11) — the price is fixed at send. */
+export interface MessageBilling {
+  payer: MessagePayer;
+  market: string;
+  /** `marketing` / `utility` / `authentication` / `service`. */
+  category: string;
+  estimateMicros: number;
+  priceMicros: number;
+  metaCostMicros: number;
+  holdId: Types.ObjectId | null;
+  status: MessageBillingStatus;
+  billable: boolean | null;
+  pricingType: string | null;
+  /** The category Meta billed, when it differs from ours. */
+  metaCategory: string | null;
+  categoryMismatch: boolean;
+  at: Date | null;
 }
 
 export interface MessageOrder {
@@ -237,6 +291,8 @@ export interface MessageDoc {
   sentBy: Types.ObjectId | null;
   retryOf: Types.ObjectId | null;
   pricing: MessagePricing | null;
+  template: MessageTemplateRef | null;
+  billing: MessageBilling | null;
   metaTimestamp: Date | null;
   /** Chat order, paging and retention: Meta's time for inbound / echoes / history, send time otherwise. */
   at: Date;
@@ -457,8 +513,45 @@ const schema = new Schema<MessageDoc>({
       model: nullableString,
       category: nullableString,
       type: nullableString,
+      subtype: nullableString,
       conversationId: nullableString,
       conversationOrigin: nullableString,
+    }),
+    default: null,
+  },
+  template: {
+    type: sub<MessageTemplateRef>({
+      templateId: { type: Schema.Types.ObjectId, required: true },
+      name: { type: String, required: true, maxlength: 512 },
+      language: { type: String, required: true, maxlength: 20 },
+      category: { type: String, required: true, maxlength: 20 },
+      parameters: {
+        type: [
+          sub({
+            key: { type: String, required: true, maxlength: 60 },
+            value: { type: String, required: true, maxlength: 1024 },
+          }),
+        ],
+        default: [],
+      },
+    }),
+    default: null,
+  },
+  billing: {
+    type: sub<MessageBilling>({
+      payer: { type: String, enum: MESSAGE_PAYERS, required: true },
+      market: { type: String, required: true, maxlength: 40 },
+      category: { type: String, required: true, maxlength: 30 },
+      estimateMicros: { type: Number, required: true, min: 0 },
+      priceMicros: { type: Number, required: true, min: 0 },
+      metaCostMicros: { type: Number, default: 0, min: 0 },
+      holdId: { type: Schema.Types.ObjectId, default: null },
+      status: { type: String, enum: MESSAGE_BILLING_STATUSES, default: 'none' },
+      billable: { type: Boolean, default: null },
+      pricingType: { type: String, default: null, maxlength: 40 },
+      metaCategory: { type: String, default: null, maxlength: 40 },
+      categoryMismatch: { type: Boolean, default: false },
+      at: { type: Date, default: null },
     }),
     default: null,
   },
@@ -480,6 +573,16 @@ schema.index(
   { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } },
 );
 schema.index({ 'media.status': 1, createdAt: 1 });
+// Phase 11: WhatsApp hold reaper (held charges by age)
+schema.index(
+  { 'billing.at': 1 },
+  { partialFilterExpression: { 'billing.status': 'held' }, name: 'billing_held_at' },
+);
+// Phase 11: 1 marketing template / contact / 24 h + template usage
+schema.index(
+  { accountId: 1, contactId: 1, 'template.category': 1, at: -1 },
+  { partialFilterExpression: { type: 'template' }, name: 'template_contact_at' },
+);
 // search; no stemming so Hinglish words match as typed
 schema.index({ accountId: 1, text: 'text' }, { default_language: 'none' });
 

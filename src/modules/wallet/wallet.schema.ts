@@ -28,12 +28,17 @@ export const WalletSchema = registry.register(
     creditLimitMicros: z.number(),
     status: z.enum(['ok', 'low', 'exhausted']),
     lowBalanceThresholdMicros: z.number(),
-    budgets: z.object({ monthlyCallMicros: z.number(), monthlyAiMicros: z.number() }),
+    budgets: z.object({
+      monthlyCallMicros: z.number(),
+      monthlyAiMicros: z.number(),
+      monthlyWhatsappMicros: z.number().openapi({ description: '0 = no WhatsApp budget' }),
+    }),
     monthSpend: z.object({
       month: z.string().openapi({ example: '2026-10' }),
       callMicros: z.number(),
       aiMicros: z.number(),
       ttsMicros: z.number(),
+      whatsappMicros: z.number(),
       totalMicros: z.number(),
     }),
     updatedAt: z.string(),
@@ -47,6 +52,7 @@ export const WalletSettingsBody = z
       .strictObject({
         monthlyCallMicros: micros(BILLING_LIMITS.budgetMaxMicros).optional(),
         monthlyAiMicros: micros(BILLING_LIMITS.budgetMaxMicros).optional(),
+        monthlyWhatsappMicros: micros(BILLING_LIMITS.budgetMaxMicros).optional(),
       })
       .optional(),
   })

@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
+import type {
+  TemplateCategory,
+  TemplateQuality,
+  TemplateStatus,
+} from '../../db/models/whatsapp-template.model';
+
 /** Server → client envelope (docs/conventions/websocket.md §3). */
 export interface WsEventEnvelope<T = unknown> {
   id: string;
@@ -84,6 +90,13 @@ export interface WsEventMap {
   };
   /** Topic — another agent is typing (team only). */
   'inbox.typing': { conversationId: string; userId: string; name: string };
+  /** Account level (Phase 11) — status / quality / category only, never template text. */
+  'whatsapp.template.updated': {
+    templateId: string;
+    status: TemplateStatus;
+    quality: TemplateQuality | null;
+    category: TemplateCategory;
+  };
   'wallet.updated': {
     balanceMicros: number;
     holdMicros: number;
@@ -136,6 +149,7 @@ export const WS_EVENT_TYPES = [
   'inbox.message.created',
   'inbox.message.updated',
   'inbox.typing',
+  'whatsapp.template.updated',
   'wallet.updated',
   'wallet.low_balance',
   'wallet.exhausted',

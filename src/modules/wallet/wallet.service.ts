@@ -30,6 +30,8 @@ export const toWalletView = (w: WalletDoc, month: string) => {
   const call = current ? w.spend.callMicros : 0;
   const ai = current ? w.spend.aiMicros : 0;
   const tts = current ? w.spend.ttsMicros : 0;
+  // wallets from before Phase 11 may lack the WhatsApp fields until migration 0012 ran
+  const whatsapp = current ? (w.spend.whatsappMicros ?? 0) : 0;
   return {
     currency: 'INR' as const,
     balanceMicros: w.balanceMicros,
@@ -41,13 +43,15 @@ export const toWalletView = (w: WalletDoc, month: string) => {
     budgets: {
       monthlyCallMicros: w.budgets.monthlyCallMicros,
       monthlyAiMicros: w.budgets.monthlyAiMicros,
+      monthlyWhatsappMicros: w.budgets.monthlyWhatsappMicros ?? 0,
     },
     monthSpend: {
       month,
       callMicros: call,
       aiMicros: ai,
       ttsMicros: tts,
-      totalMicros: call + ai + tts,
+      whatsappMicros: whatsapp,
+      totalMicros: call + ai + tts + whatsapp,
     },
     updatedAt: w.updatedAt.toISOString(),
   };
@@ -81,6 +85,11 @@ export const updateSettings = async (req: Request, body: z.infer<typeof WalletSe
   );
   track('monthlyCallMicros', before.budgets.monthlyCallMicros, after.budgets.monthlyCallMicros);
   track('monthlyAiMicros', before.budgets.monthlyAiMicros, after.budgets.monthlyAiMicros);
+  track(
+    'monthlyWhatsappMicros',
+    before.budgets.monthlyWhatsappMicros ?? 0,
+    after.budgets.monthlyWhatsappMicros ?? 0,
+  );
   if (fields.length) {
     await auditRequest(req, 'wallet.settings_updated', {
       target: { type: 'wallet', id: after._id.toString() },

@@ -227,6 +227,8 @@ export const statusSchema = z.looseObject({
       pricing_model: optStr,
       category: optStr,
       type: optStr,
+      /** `paid_exempt` etc. (Meta, from 12 Oct 2026). */
+      subtype: optStr,
     })
     .nullish(),
   errors: z.array(metaErrorItemSchema).nullish(),

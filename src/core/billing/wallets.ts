@@ -30,7 +30,11 @@ export const getOrCreateWallet = async (accountId: Types.ObjectId): Promise<Wall
 
 export interface WalletSettingsInput {
   lowBalanceThresholdMicros?: number;
-  budgets?: { monthlyCallMicros?: number; monthlyAiMicros?: number };
+  budgets?: {
+    monthlyCallMicros?: number;
+    monthlyAiMicros?: number;
+    monthlyWhatsappMicros?: number;
+  };
 }
 
 /**
@@ -51,6 +55,8 @@ export const updateWalletSettings = async (
     set['budgets.monthlyCallMicros'] = input.budgets.monthlyCallMicros;
   if (input.budgets?.monthlyAiMicros !== undefined)
     set['budgets.monthlyAiMicros'] = input.budgets.monthlyAiMicros;
+  if (input.budgets?.monthlyWhatsappMicros !== undefined)
+    set['budgets.monthlyWhatsappMicros'] = input.budgets.monthlyWhatsappMicros;
   const after = await WalletModel.findOneAndUpdate(
     { accountId },
     { $set: set, $inc: { version: 1 } },

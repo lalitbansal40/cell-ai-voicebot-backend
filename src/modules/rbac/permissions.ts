@@ -50,6 +50,11 @@ export const PERMISSION_INFO = {
     group: 'Inbox',
     description: 'Assign conversations to anyone, block customers, retry media',
   },
+  'templates.read': { group: 'WhatsApp', description: 'View WhatsApp message templates' },
+  'templates.manage': {
+    group: 'WhatsApp',
+    description: 'Create, edit, submit, sync and delete WhatsApp templates',
+  },
   'reports.read': { group: 'Reports', description: 'View reports and analytics' },
   'reports.export': { group: 'Reports', description: 'Export reports' },
   'integrations.manage': { group: 'Integrations', description: 'Manage webhooks and integrations' },

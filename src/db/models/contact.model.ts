@@ -20,6 +20,18 @@ export interface ContactWhatsApp {
   nameEditedAt: Date | null;
   /** Time of the customer message whose opt-out / opt-in keyword set the current state (ordering). */
   keywordAt: Date | null;
+  /** The customer stopped marketing messages in WhatsApp (Phase 11) — marketing templates are refused. */
+  marketing?: ContactWhatsAppMarketing | null;
+}
+
+export const MARKETING_STOP_SOURCES = ['user_preferences', 'error_131050', 'manual'] as const;
+export type MarketingStopSource = (typeof MARKETING_STOP_SOURCES)[number];
+
+export interface ContactWhatsAppMarketing {
+  stopped: boolean;
+  /** Time of the event that set the state (ordering of stop / resume). */
+  at: Date | null;
+  source: MarketingStopSource | null;
 }
 
 export const EMPTY_CONTACT_WHATSAPP: ContactWhatsApp = {
@@ -104,6 +116,17 @@ const schema = new Schema<ContactDoc>({
         syncRemovedAt: { type: Date, default: null },
         nameEditedAt: { type: Date, default: null },
         keywordAt: { type: Date, default: null },
+        marketing: {
+          type: new Schema<ContactWhatsAppMarketing>(
+            {
+              stopped: { type: Boolean, default: false },
+              at: { type: Date, default: null },
+              source: { type: String, enum: [...MARKETING_STOP_SOURCES, null], default: null },
+            },
+            { _id: false },
+          ),
+          default: null,
+        },
       },
       { _id: false },
     ),

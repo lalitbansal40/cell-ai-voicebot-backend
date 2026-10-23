@@ -430,7 +430,19 @@
               "inbox.history_imported",
               "inbox.messages_purged",
               "inbox.settings_updated",
-              "whatsapp.profile_updated"
+              "whatsapp.profile_updated",
+              "template.created",
+              "template.submitted",
+              "template.updated",
+              "template.deleted",
+              "template.synced",
+              "template.status_changed",
+              "template.category_changed",
+              "template.variables_updated",
+              "whatsapp.rate_card_saved",
+              "whatsapp.billing_settings_updated",
+              "account.whatsapp_billing_updated",
+              "contact.whatsapp_marketing_changed"
             ]
           },
           "actor": {
@@ -3477,9 +3489,10 @@
             "type": "object",
             "properties": {
               "monthlyCallMicros": { "type": "number" },
-              "monthlyAiMicros": { "type": "number" }
+              "monthlyAiMicros": { "type": "number" },
+              "monthlyWhatsappMicros": { "type": "number", "description": "0 = no WhatsApp budget" }
             },
-            "required": ["monthlyCallMicros", "monthlyAiMicros"]
+            "required": ["monthlyCallMicros", "monthlyAiMicros", "monthlyWhatsappMicros"]
           },
           "monthSpend": {
             "type": "object",
@@ -3488,9 +3501,17 @@
               "callMicros": { "type": "number" },
               "aiMicros": { "type": "number" },
               "ttsMicros": { "type": "number" },
+              "whatsappMicros": { "type": "number" },
               "totalMicros": { "type": "number" }
             },
-            "required": ["month", "callMicros", "aiMicros", "ttsMicros", "totalMicros"]
+            "required": [
+              "month",
+              "callMicros",
+              "aiMicros",
+              "ttsMicros",
+              "whatsappMicros",
+              "totalMicros"
+            ]
           },
           "updatedAt": { "type": "string" }
         },
@@ -3573,7 +3594,8 @@
               "adjustment",
               "refund",
               "subscription",
-              "recording_charge"
+              "recording_charge",
+              "whatsapp_charge"
             ]
           },
           "direction": { "type": "string", "enum": ["credit", "debit"] },
@@ -3600,7 +3622,14 @@
               "model": { "type": "string" },
               "kind": {
                 "type": "string",
-                "enum": ["playground", "kb_ingest", "call", "flow_simulator", "flow_intent"]
+                "enum": [
+                  "playground",
+                  "kb_ingest",
+                  "call",
+                  "flow_simulator",
+                  "flow_intent",
+                  "whatsapp"
+                ]
               }
             }
           },
@@ -3609,7 +3638,16 @@
             "properties": {
               "type": {
                 "type": "string",
-                "enum": ["call", "campaign", "topup", "manual", "simulator", "usage", "seed"]
+                "enum": [
+                  "call",
+                  "campaign",
+                  "topup",
+                  "manual",
+                  "simulator",
+                  "usage",
+                  "seed",
+                  "whatsapp_message"
+                ]
               },
               "id": { "type": "string" }
             },
@@ -4072,7 +4110,8 @@
                         "adjustment",
                         "refund",
                         "subscription",
-                        "recording_charge"
+                        "recording_charge",
+                        "whatsapp_charge"
                       ]
                     },
                     "amountMicros": { "type": "number" }
@@ -4235,7 +4274,14 @@
               "whatsapp.name_rejected",
               "whatsapp.channel_disconnected_by_admin",
               "inbox.message_received",
-              "inbox.conversation_assigned"
+              "inbox.conversation_assigned",
+              "template.approved",
+              "template.rejected",
+              "template.paused",
+              "template.disabled",
+              "template.category_changed",
+              "template.quality_low",
+              "wallet.whatsapp_late_charge"
             ]
           },
           "title": { "type": "string" },
@@ -5371,7 +5417,7 @@
           "direction": { "type": "string", "enum": ["in", "out"] },
           "origin": {
             "type": "string",
-            "enum": ["customer", "agent", "business_app", "history", "system"],
+            "enum": ["customer", "agent", "business_app", "history", "system", "api"],
             "description": "`business_app` = sent from the WhatsApp Business app (coexistence); `history` = imported"
           },
           "type": {
@@ -5391,7 +5437,8 @@
               "order",
               "system",
               "unsupported",
-              "note"
+              "note",
+              "template"
             ],
             "description": "`note` = internal team note, never sent"
           },
@@ -5593,7 +5640,8 @@
                   "order",
                   "system",
                   "unsupported",
-                  "note"
+                  "note",
+                  "template"
                 ]
               },
               "direction": { "type": "string", "enum": ["in", "out"] },
@@ -5770,7 +5818,8 @@
                   "order",
                   "system",
                   "unsupported",
-                  "note"
+                  "note",
+                  "template"
                 ]
               },
               "preview": { "type": "string" },
@@ -15489,6 +15538,12 @@
                         "minimum": 0,
                         "maximum": 10000000000000,
                         "description": "Integer micros (₹1 = 1,000,000)"
+                      },
+                      "monthlyWhatsappMicros": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000000000000,
+                        "description": "Integer micros (₹1 = 1,000,000)"
                       }
                     },
                     "additionalProperties": false
@@ -15657,7 +15712,16 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["call", "campaign", "topup", "manual", "simulator", "usage", "seed"]
+              "enum": [
+                "call",
+                "campaign",
+                "topup",
+                "manual",
+                "simulator",
+                "usage",
+                "seed",
+                "whatsapp_message"
+              ]
             },
             "required": false,
             "name": "refType",
@@ -16967,7 +17031,16 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["call", "campaign", "topup", "manual", "simulator", "usage", "seed"]
+              "enum": [
+                "call",
+                "campaign",
+                "topup",
+                "manual",
+                "simulator",
+                "usage",
+                "seed",
+                "whatsapp_message"
+              ]
             },
             "required": false,
             "name": "refType",

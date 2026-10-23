@@ -52,7 +52,13 @@ describe('Phase 9 catalogue', () => {
     expect(
       AUDIT_ACTIONS.filter(
         (a) =>
-          (a.startsWith('whatsapp.') && a !== 'whatsapp.profile_updated') || a.startsWith('meta.'),
+          (a.startsWith('whatsapp.') &&
+            ![
+              'whatsapp.profile_updated',
+              'whatsapp.rate_card_saved',
+              'whatsapp.billing_settings_updated',
+            ].includes(a)) ||
+          a.startsWith('meta.'),
       ),
     ).toEqual([
       'whatsapp.channel_connected',

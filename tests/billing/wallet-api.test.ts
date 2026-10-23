@@ -71,7 +71,8 @@ describe('GET /wallet', () => {
       creditLimitMicros: 0,
       status: 'ok',
       lowBalanceThresholdMicros: 500 * RUPEE,
-      budgets: { monthlyCallMicros: 0, monthlyAiMicros: 0 },
+      budgets: { monthlyCallMicros: 0, monthlyAiMicros: 0, monthlyWhatsappMicros: 0 },
+      monthSpend: { whatsappMicros: 0 },
     });
     expect(res.body.data.monthSpend.month).toMatch(/^\d{4}-\d{2}$/);
     expect(Object.keys(res.body.data).sort()).toEqual(
@@ -149,6 +150,37 @@ describe('PATCH /wallet/settings', () => {
       .patch('/api/v1/wallet/settings')
       .set(auth(owner))
       .send({ budgets: { monthlyCallMicros: 0 } });
+  });
+
+  it('sets the monthly WhatsApp budget (Phase 11)', async () => {
+    const res = await request(app)
+      .patch('/api/v1/wallet/settings')
+      .set(auth(owner))
+      .send({ budgets: { monthlyWhatsappMicros: 300 * RUPEE } });
+    expect(res.status).toBe(200);
+    expect(res.body.data.budgets.monthlyWhatsappMicros).toBe(300 * RUPEE);
+    const audit = await AuditLogModel.findOne({
+      accountId: acc(),
+      action: 'wallet.settings_updated',
+      'meta.fields': 'monthlyWhatsappMicros',
+    }).lean();
+    expect(audit?.meta).toMatchObject({
+      fields: ['monthlyWhatsappMicros'],
+      from: { monthlyWhatsappMicros: 0 },
+      to: { monthlyWhatsappMicros: 300 * RUPEE },
+    });
+    expect(
+      (
+        await request(app)
+          .patch('/api/v1/wallet/settings')
+          .set(auth(owner))
+          .send({ budgets: { monthlyWhatsappMicros: BILLING_LIMITS.budgetMaxMicros + 1 } })
+      ).status,
+    ).toBe(422);
+    await request(app)
+      .patch('/api/v1/wallet/settings')
+      .set(auth(owner))
+      .send({ budgets: { monthlyWhatsappMicros: 0 } });
   });
 
   it('validates and guards the route', async () => {

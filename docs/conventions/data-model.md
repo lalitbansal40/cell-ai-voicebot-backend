@@ -878,22 +878,102 @@ Indexes: `{ expiresAt: 1 }`.
 
 **Additions (Phase 10):** Contact `whatsapp: { waId, profileName, lastInboundAt, blocked, syncRemovedAt, nameEditedAt, keywordAt } | null` (`nameEditedAt` — a person renamed the contact, WhatsApp syncs keep that name; `keywordAt` — time of the message whose opt-out / opt-in keyword set the current state, so keywords apply in message order) and `source.type` + `whatsapp`; DndEntry `source` + `whatsapp` (a WhatsApp opt-out keyword — an opt-in keyword removes only these); Account `settings.inbox: { sendReadReceipts, optOutKeywords, optInKeywords, optOutReply, optOutReplyText, optInReply, optInReplyText, notifyOnNewMessage: assigned_or_all \| assigned_only \| off }` (defaults: owner decisions of 23 Oct 2026 — English + Hinglish + Hindi keywords, confirmations on, read receipts on).
 
+### 2.9 Templates & WhatsApp billing
+
+#### WhatsAppTemplate (`whatsappTemplates`) — Phase 11
+
+A WhatsApp message template on one WABA (Meta's copy is the truth; ours adds drafts, variable sources, usage). Tenant-scoped. Rows are **never hard-deleted** — Meta deletion → `status: DELETED` + `deletedAt` (history and reports keep working).
+
+| Field                | Type                                                                                                                                                                      | R   | Notes                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------------------------------------------- |
+| wabaId               | string                                                                                                                                                                    | ✓   | Meta WABA id                                                                                |
+| channelIds           | ObjectId[] → whatsappChannels                                                                                                                                             | ✓   | Our numbers on this WABA                                                                    |
+| metaTemplateId       | string \| null                                                                                                                                                            |     | `null` while a local draft                                                                  |
+| name                 | string `^[a-z0-9_]+$` (≤ 512)                                                                                                                                             | ✓   |                                                                                             |
+| language             | string                                                                                                                                                                    | ✓   | Meta code (`en`, `en_US`, `hi`, …)                                                          |
+| category             | `MARKETING \| UTILITY \| AUTHENTICATION`                                                                                                                                  | ✓   | `previousCategory` keeps the old one after Meta recategorises                               |
+| subCategory          | string \| null                                                                                                                                                            |     | Meta's, read-only                                                                           |
+| parameterFormat      | `positional \| named`                                                                                                                                                     | ✓   |                                                                                             |
+| components           | Meta JSON object[]                                                                                                                                                        | ✓   | The only `Mixed` field — validated by zod before every write. Bodies / samples never logged |
+| variables            | `{ key, component: header \| body \| button, index, example, defaultSource { kind: contact.name \| contact.phone \| contact.email \| field \| static \| ask, value } }[]` | ✓   | ≤ 20; derived from components                                                               |
+| status               | `DRAFT \| PENDING \| APPROVED \| REJECTED \| PAUSED \| DISABLED \| IN_APPEAL \| FLAGGED \| PENDING_DELETION \| DELETED \| ARCHIVED \| LIMIT_EXCEEDED`                     | ✓   | `DRAFT` = ours only                                                                         |
+| statusReason         | `{ reason, title, description }` \| null                                                                                                                                  |     | Rejection / pause reason                                                                    |
+| statusHistory        | `{ status, reason, at, source: user \| webhook \| sync }[]`                                                                                                               | ✓   | ≤ 30                                                                                        |
+| quality              | `{ score: GREEN \| YELLOW \| RED \| UNKNOWN, at }` \| null                                                                                                                |     |                                                                                             |
+| pausedUntil          | Date \| null                                                                                                                                                              |     | Meta pause (3 h / 6 h)                                                                      |
+| ttlSeconds           | number \| null                                                                                                                                                            |     | Meta `message_send_ttl_seconds`                                                             |
+| editsLog             | `{ at }[]`                                                                                                                                                                | ✓   | Approved-template edits (1 / 24 h, 10 / 30 days)                                            |
+| headerMedia          | `{ storageKey, mimeType, size, fileName, handle, handleAt }` \| null                                                                                                      |     | Example asset (our storage) + Meta upload handle                                            |
+| purpose              | `general \| call_permission`                                                                                                                                              | ✓   | `call_permission` = the ready-made Phase 12 template                                        |
+| editable             | boolean                                                                                                                                                                   | ✓   | False for authentication / carousel / unknown components                                    |
+| usage                | `{ sent, delivered, read, failed, lastSentAt }`                                                                                                                           | ✓   | Counters from our messages                                                                  |
+| createdBy, updatedBy | ObjectId \| null                                                                                                                                                          |     |                                                                                             |
+| syncedAt, deletedAt  | Date \| null                                                                                                                                                              |     |                                                                                             |
+| lastEventAt          | Date \| null                                                                                                                                                              |     | Event time of the newest applied webhook / sync (older ones ignored)                        |
+
+Indexes: `{ accountId: 1, wabaId: 1, name: 1, language: 1 }` unique partial (every status except `DELETED`), `{ wabaId: 1, metaTemplateId: 1 }` unique partial (string), `{ accountId: 1, status: 1, updatedAt: -1 }`, `{ accountId: 1, purpose: 1 }`.
+
+#### WhatsAppRateCard (`whatsappRateCards`) — Phase 11
+
+Meta's per-message rates (INR micros, before our markup). **Platform-wide, no `accountId`**, insert-only history; the card effective at send time prices a message.
+
+| Field         | Type                                                                                                                                                                                                                   | R   | Notes                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------------------------------------------------------------- |
+| effectiveFrom | Date                                                                                                                                                                                                                   | ✓   |                                                                                        |
+| currency      | `INR`                                                                                                                                                                                                                  | ✓   |                                                                                        |
+| source        | `meta_csv \| manual`                                                                                                                                                                                                   | ✓   |                                                                                        |
+| note          | string (≤ 300) \| null                                                                                                                                                                                                 |     |                                                                                        |
+| createdBy     | ObjectId \| null                                                                                                                                                                                                       |     | Superadmin                                                                             |
+| markets       | `{ market [A-Z_]{2,40}, label, callingCodes (digits 1–4)[], marketingMicros, utilityMicros, authenticationMicros, authenticationInternationalMicros \| null, serviceMicros, utilityTiers[], authenticationTiers[] }[]` | ✓   | Exactly one `OTHER` market; unique markets; no calling code in two markets; micros ≥ 0 |
+
+Indexes: `{ effectiveFrom: -1 }`. Market lookup: E.164 → the longest matching calling code → market, else `OTHER`. Seed (migration 0012): placeholder card IN + OTHER (marketing ₹0.8631, utility / authentication / service ₹0.115).
+
+#### PlatformSettings (`platformSettings`) — Phase 11
+
+One row per `key`, **no `accountId`**; reads fall back to code defaults. Key `whatsappBilling`: `value { markupBps (default 1500), platformFeeMicros (0), holdMaxAgeHours (72) }`, `updatedBy`. Indexes: `{ key: 1 }` unique.
+
+#### WhatsAppBillingDaily (`whatsappBillingDaily`) — Phase 11
+
+Superadmin reconciliation: Meta's `pricing_analytics` vs our captured charges per WABA day + category. Platform reporting rows (carry `accountId`, not tenant-scoped).
+
+| Field                             | Type                                                                                                  | R   | Notes                         |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- | --- | ----------------------------- |
+| accountId, wabaId                 | ObjectId, string                                                                                      | ✓   |                               |
+| day                               | `YYYY-MM-DD`                                                                                          | ✓   | UTC                           |
+| category                          | `marketing \| utility \| authentication \| authentication_international \| service \| marketing_lite` | ✓   |                               |
+| metaVolume, metaCostMicros        | number                                                                                                | ✓   | From Meta                     |
+| ourCaptured, ourBilledMicros      | number                                                                                                | ✓   | Our captured messages / money |
+| diffVolume, diffMicros, fetchedAt | number, number, Date                                                                                  | ✓   |                               |
+
+Indexes: `{ wabaId: 1, day: 1, category: 1 }` unique, `{ day: -1 }`, `{ accountId: 1, day: -1 }`.
+
+**Additions (Phase 11):**
+
+- **Message:** `type` + `template`; `origin` + `api` (internal API sends); `template { templateId, name, language, category, parameters { key, value }[] }` (values are customer data) — `text` keeps the rendered body for bubbles / search / preview; `billing { payer: platform \| customer, market, category, estimateMicros, priceMicros, metaCostMicros, holdId, status: none \| held \| captured \| released \| late_charged \| waived, billable, pricingType, metaCategory, categoryMismatch, at }` (the price is fixed at send; a category mismatch is flagged, never re-priced); `pricing.subtype`. Indexes `billing_held_at` `{ 'billing.at': 1 }` partial `billing.status = held` (hold reaper) and `template_contact_at` `{ accountId: 1, contactId: 1, 'template.category': 1, at: -1 }` partial `type = template` (1 marketing template / contact / 24 h).
+- **LedgerEntry:** type + `whatsapp_charge`, refType + `whatsapp_message`, usage kind + `whatsapp`; `breakdown` + `{ waCategory, waMarket, metaCostMicros, markupMicros, platformFeeMicros, waPricingType }`.
+- **Wallet:** `budgets.monthlyWhatsappMicros` (0 = none), `spend.whatsappMicros` (monthly; backfilled with 0 by migration 0012).
+- **Contact:** `whatsapp.marketing { stopped, at, source: user_preferences \| error_131050 \| manual }` \| null.
+- **Account:** `settings.templates { defaultLanguage: 'en' }`; `whatsappBilling { markupBps, fixedPrices { marketing?, utility?, authentication?, service? }, platformFeeMicros }` \| null (superadmin override; null fields use platform settings).
+- **WhatsAppChannel:** `pricingTier { category, market, tier, at }[]` (last 10 `VOLUME_BASED_PRICING_TIER_UPDATE`).
+
 ---
 
 ## 3. Embedded vs separate collection
 
-| Data                    | Decision                       | Why                                            |
-| ----------------------- | ------------------------------ | ---------------------------------------------- |
-| Agent functions         | Embedded in `aiAgents`         | Small, always edited together                  |
-| Recording metadata      | Embedded in `calls`            | One per call                                   |
-| Transcript turns        | Separate `transcriptTurns`     | Unbounded; streamed live                       |
-| Call events             | Separate `callEvents`          | Unbounded; append-only                         |
-| Campaign audience       | Separate `campaignContacts`    | Thousands per campaign; per-row status updates |
-| Tags                    | Strings on `contacts`          | No metadata needed                             |
-| Flow versions           | Separate `flowVersions`        | Immutable history; campaigns pin a version     |
-| Flow nodes/edges        | Embedded in a version          | Bounded graph, loaded together                 |
-| Wallet budgets          | Embedded in `wallets`          | One wallet per account                         |
-| WhatsApp status history | Embedded in `whatsappChannels` | Last 50, shown with the channel                |
+| Data                    | Decision                                       | Why                                            |
+| ----------------------- | ---------------------------------------------- | ---------------------------------------------- |
+| Agent functions         | Embedded in `aiAgents`                         | Small, always edited together                  |
+| Recording metadata      | Embedded in `calls`                            | One per call                                   |
+| Transcript turns        | Separate `transcriptTurns`                     | Unbounded; streamed live                       |
+| Call events             | Separate `callEvents`                          | Unbounded; append-only                         |
+| Campaign audience       | Separate `campaignContacts`                    | Thousands per campaign; per-row status updates |
+| Tags                    | Strings on `contacts`                          | No metadata needed                             |
+| Flow versions           | Separate `flowVersions`                        | Immutable history; campaigns pin a version     |
+| Flow nodes/edges        | Embedded in a version                          | Bounded graph, loaded together                 |
+| Wallet budgets          | Embedded in `wallets`                          | One wallet per account                         |
+| WhatsApp status history | Embedded in `whatsappChannels`                 | Last 50, shown with the channel                |
+| Template status history | Embedded in `whatsappTemplates`                | Last 30, shown with the template               |
+| WhatsApp message charge | Embedded `billing` in `messages` + ledger rows | One per message; money rows stay in the ledger |
 
 ## 4. Open questions
 

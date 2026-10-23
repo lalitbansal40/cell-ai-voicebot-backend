@@ -13,6 +13,7 @@ export const LEDGER_TYPES = [
   'refund',
   'subscription',
   'recording_charge',
+  'whatsapp_charge',
 ] as const;
 export type LedgerType = (typeof LEDGER_TYPES)[number];
 
@@ -30,6 +31,7 @@ export const LEDGER_REF_TYPES = [
   'simulator',
   'usage',
   'seed',
+  'whatsapp_message',
 ] as const;
 export type LedgerRefType = (typeof LEDGER_REF_TYPES)[number];
 
@@ -50,6 +52,13 @@ export interface LedgerBreakdown {
   embeddingTokens?: number;
   model?: string;
   kind?: LedgerUsageKind;
+  /** Phase 11 WhatsApp charges (selling price = Meta cost + markup + platform fee). */
+  waCategory?: string;
+  waMarket?: string;
+  metaCostMicros?: number;
+  markupMicros?: number;
+  platformFeeMicros?: number;
+  waPricingType?: string;
 }
 
 export const LEDGER_USAGE_KINDS = [
@@ -58,6 +67,7 @@ export const LEDGER_USAGE_KINDS = [
   'call',
   'flow_simulator',
   'flow_intent',
+  'whatsapp',
 ] as const;
 export type LedgerUsageKind = (typeof LEDGER_USAGE_KINDS)[number];
 
@@ -123,6 +133,12 @@ const schema = new Schema<LedgerEntryDoc>({
         embeddingTokens: { type: Number, min: 0, validate: Number.isSafeInteger },
         model: { type: String, maxlength: 64 },
         kind: { type: String, enum: LEDGER_USAGE_KINDS },
+        waCategory: { type: String, maxlength: 40 },
+        waMarket: { type: String, maxlength: 40 },
+        metaCostMicros: { type: Number, min: 0, validate: Number.isSafeInteger },
+        markupMicros: { type: Number, min: 0, validate: Number.isSafeInteger },
+        platformFeeMicros: { type: Number, min: 0, validate: Number.isSafeInteger },
+        waPricingType: { type: String, maxlength: 40 },
       },
       { _id: false },
     ),

@@ -61,6 +61,14 @@ export interface WaStatusReason {
   step?: ConnectStep | null;
 }
 
+/** Meta volume pricing tier (`VOLUME_BASED_PRICING_TIER_UPDATE`, Phase 11) — newest last. */
+export interface WaPricingTier {
+  category: string;
+  market: string | null;
+  tier: string;
+  at: Date;
+}
+
 export interface WaHistoryEntry {
   status: WaChannelStatus;
   reason: string | null;
@@ -138,6 +146,8 @@ export interface WhatsAppChannelDoc {
   statusReason: WaStatusReason | null;
   restriction: { type: string; until: Date | null } | null;
   webhook: { lastEventAt: Date | null; lastField: string | null };
+  /** Last 10 volume pricing tier updates (Phase 11). */
+  pricingTier?: WaPricingTier[];
   history: WaHistoryEntry[];
   connectedBy: Types.ObjectId | null;
   connectedAt: Date | null;
@@ -232,6 +242,20 @@ const schema = new Schema<WhatsAppChannelDoc>({
   webhook: {
     lastEventAt: { type: Date, default: null },
     lastField: nullableString,
+  },
+  pricingTier: {
+    type: [
+      new Schema<WaPricingTier>(
+        {
+          category: { type: String, required: true, maxlength: 60 },
+          market: { type: String, default: null, maxlength: 60 },
+          tier: { type: String, required: true, maxlength: 60 },
+          at: { type: Date, required: true },
+        },
+        { _id: false },
+      ),
+    ],
+    default: [],
   },
   history: {
     type: [
