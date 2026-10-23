@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 11 · Batch 2 (T11.5–T11.6) — template sends, API, superadmin WhatsApp billing, dev tools** — 2026-10-23
+  - Template sends from the inbox and the contact page (window bypass, variables from contact fields formatted like the app, media / location headers, buttons), marketing rules (opt-out / DND / stopped marketing, 1 per contact per 24 h), every sent message priced and held first (service replies, retries, confirmations), template error effects, usage counters, `POST /whatsapp/price-preview`.
+  - `/api/v1/whatsapp/templates` (list without bodies, detail, create / edit / submit / delete, variables, media example, call permission, sync; rate limits), wallet WhatsApp prices / budget / usage, superadmin rate card import + diff + save, global settings, account override, margin + reconciliation reports; simulator 58 kinds; Demo Finance templates in `db:seed`; ADR 0039, api.md §14e, security §12, compliance §11, setup guide §14 (real-WABA checklist).
+  - Hardening: 500 sends on a wallet that runs out, 10,000 billable statuses, a 1,000-template sync, a 250-market CSV, the reaper over 5,000 stale holds (now one transaction per account).
+  - Fixed (found by the manual HTTP check): Meta's APPROVED after an edit was dropped as a duplicate webhook (template values carry no time) — the entry time is now part of the key for template fields.
+  - Tests: 2881 → 2928.
+
 - **Phase 11 · Batch 1 (T11.1–T11.4) — WhatsApp templates + message charges foundation** — 2026-10-23
   - Models: templates, Meta rate cards, platform settings, daily Meta reconciliation; template / billing fields on messages, ledger, wallets, contacts, accounts and numbers; migration `0012-templates-billing` (placeholder INR card IN + OTHER, 15 % markup, 72-hour holds); env `FAKE_META_TEMPLATE_REVIEW_MS`; 10 error codes (69), 12 audit actions (118), 7 notification types (26), the `whatsapp.template.updated` WS event, `templates.read` / `templates.manage`.
   - Meta client: template list (paged) / create / edit / delete, header example upload, pricing analytics, the template message payload, template error mapping and webhook schemas (re-checked on Meta's references); the fake reviews templates (name knobs), reports PMP pricing and has number knobs `00010`–`00013`.
