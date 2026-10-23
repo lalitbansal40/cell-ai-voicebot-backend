@@ -1,0 +1,1028 @@
+{
+  "_comment": "Shared with the frontend (src/test/fixtures/template-validate-cases.json): both validators must give exactly these error paths.",
+  "cases": [
+    {
+      "name": "a plain utility body is valid",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "name with capitals",
+      "input": {
+        "name": "EMI_Reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": [
+        "name"
+      ]
+    },
+    {
+      "name": "name with a space",
+      "input": {
+        "name": "emi reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": [
+        "name"
+      ]
+    },
+    {
+      "name": "empty name",
+      "input": {
+        "name": "",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": [
+        "name"
+      ]
+    },
+    {
+      "name": "bad language code",
+      "input": {
+        "name": "emi_reminder",
+        "language": "english",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": [
+        "language"
+      ]
+    },
+    {
+      "name": "language with region is fine",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en_US",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "authentication is created in WhatsApp Manager",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "AUTHENTICATION",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": [
+        "category"
+      ]
+    },
+    {
+      "name": "ttl too short",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "ttlSeconds": 10,
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": [
+        "ttlSeconds"
+      ]
+    },
+    {
+      "name": "ttl too long",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "ttlSeconds": 2592001,
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": [
+        "ttlSeconds"
+      ]
+    },
+    {
+      "name": "ttl in range",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "ttlSeconds": 3600,
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "ttl null is fine",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "ttlSeconds": null,
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Your EMI is due soon."
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "no body",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "FOOTER",
+            "text": "Thanks"
+          }
+        ]
+      },
+      "paths": [
+        "components.body"
+      ]
+    },
+    {
+      "name": "two bodies",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "One."
+          },
+          {
+            "type": "BODY",
+            "text": "Two."
+          }
+        ]
+      },
+      "paths": [
+        "components.body"
+      ]
+    },
+    {
+      "name": "two footers",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hi there."
+          },
+          {
+            "type": "FOOTER",
+            "text": "a"
+          },
+          {
+            "type": "FOOTER",
+            "text": "b"
+          }
+        ]
+      },
+      "paths": [
+        "components"
+      ]
+    },
+    {
+      "name": "positional variables with examples",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hi {{1}}, pay {{2}} today.",
+            "example": {
+              "body_text": [
+                [
+                  "Asha",
+                  "₹100"
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "positional variables out of order",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hi {{2}}, pay {{1}} today.",
+            "example": {
+              "body_text": [
+                [
+                  "a",
+                  "b"
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "paths": [
+        "components.body.text"
+      ]
+    },
+    {
+      "name": "body starts with a variable",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "{{1}} pay today.",
+            "example": {
+              "body_text": [
+                [
+                  "Asha"
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "paths": [
+        "components.body.text"
+      ]
+    },
+    {
+      "name": "body ends with a variable",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Pay today {{1}}",
+            "example": {
+              "body_text": [
+                [
+                  "Asha"
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "paths": [
+        "components.body.text"
+      ]
+    },
+    {
+      "name": "two variables side by side",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hi {{1}} {{2}} pay.",
+            "example": {
+              "body_text": [
+                [
+                  "a",
+                  "b"
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "paths": [
+        "components.body.text"
+      ]
+    },
+    {
+      "name": "missing body examples",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hi {{1}}, pay {{2}} today.",
+            "example": {
+              "body_text": [
+                [
+                  "Asha"
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "paths": [
+        "components.body.example"
+      ]
+    },
+    {
+      "name": "named variables with examples",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "named",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hi {{first_name}}, pay today.",
+            "example": {
+              "body_text_named_params": [
+                {
+                  "param_name": "first_name",
+                  "example": "Asha"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "named format with a number key",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "named",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hi {{1}}, pay today."
+          }
+        ]
+      },
+      "paths": [
+        "components.body.example",
+        "components.body.text"
+      ]
+    },
+    {
+      "name": "named variable without example",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "named",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hi {{first_name}}, pay today."
+          }
+        ]
+      },
+      "paths": [
+        "components.body.example"
+      ]
+    },
+    {
+      "name": "text header with a variable and example",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "HEADER",
+            "format": "TEXT",
+            "text": "EMI {{1}}",
+            "example": {
+              "header_text": [
+                "Oct"
+              ]
+            }
+          },
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "text header variable without example",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "HEADER",
+            "format": "TEXT",
+            "text": "EMI {{1}}"
+          },
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          }
+        ]
+      },
+      "paths": [
+        "components.header.example"
+      ]
+    },
+    {
+      "name": "text header with two variables",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "HEADER",
+            "format": "TEXT",
+            "text": "{{1}} and {{2}}",
+            "example": {
+              "header_text": [
+                "a"
+              ]
+            }
+          },
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          }
+        ]
+      },
+      "paths": [
+        "components.header.text"
+      ]
+    },
+    {
+      "name": "location header on utility",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "HEADER",
+            "format": "LOCATION"
+          },
+          {
+            "type": "BODY",
+            "text": "Visit us."
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "image header",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "MARKETING",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "HEADER",
+            "format": "IMAGE"
+          },
+          {
+            "type": "BODY",
+            "text": "See the offer."
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "footer with a variable",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          },
+          {
+            "type": "FOOTER",
+            "text": "Ref {{1}}"
+          }
+        ]
+      },
+      "paths": [
+        "components.footer.text"
+      ]
+    },
+    {
+      "name": "quick replies before other buttons",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "QUICK_REPLY",
+                "text": "Yes"
+              },
+              {
+                "type": "QUICK_REPLY",
+                "text": "No"
+              },
+              {
+                "type": "URL",
+                "text": "Pay",
+                "url": "https://pay.example.com/now"
+              }
+            ]
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "quick replies split by another button",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "QUICK_REPLY",
+                "text": "Yes"
+              },
+              {
+                "type": "URL",
+                "text": "Pay",
+                "url": "https://pay.example.com/now"
+              },
+              {
+                "type": "QUICK_REPLY",
+                "text": "No"
+              }
+            ]
+          }
+        ]
+      },
+      "paths": [
+        "components.buttons"
+      ]
+    },
+    {
+      "name": "three website buttons",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "URL",
+                "text": "Pay",
+                "url": "https://pay.example.com/now"
+              },
+              {
+                "type": "URL",
+                "text": "Pay",
+                "url": "https://pay.example.com/now"
+              },
+              {
+                "type": "URL",
+                "text": "Pay",
+                "url": "https://pay.example.com/now"
+              }
+            ]
+          }
+        ]
+      },
+      "paths": [
+        "components.buttons"
+      ]
+    },
+    {
+      "name": "two phone buttons",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Call us."
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "PHONE_NUMBER",
+                "text": "Call",
+                "phone_number": "+919000000001"
+              },
+              {
+                "type": "PHONE_NUMBER",
+                "text": "Call 2",
+                "phone_number": "+919000000002"
+              }
+            ]
+          }
+        ]
+      },
+      "paths": [
+        "components.buttons"
+      ]
+    },
+    {
+      "name": "URL with a suffix and example",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "URL",
+                "text": "Pay",
+                "url": "https://pay.example.com/{{1}}",
+                "example": [
+                  "https://pay.example.com/LN1"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "URL variable not at the end",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "URL",
+                "text": "Pay",
+                "url": "https://pay.example.com/{{1}}/x",
+                "example": [
+                  "https://pay.example.com/LN1/x"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "paths": [
+        "components.buttons.0.url"
+      ]
+    },
+    {
+      "name": "URL variable without example",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Pay today."
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "URL",
+                "text": "Pay",
+                "url": "https://pay.example.com/{{1}}"
+              }
+            ]
+          }
+        ]
+      },
+      "paths": [
+        "components.buttons.0.example"
+      ]
+    },
+    {
+      "name": "copy code button",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "MARKETING",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Use the code."
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "COPY_CODE",
+                "example": "SAVE10"
+              }
+            ]
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "call permission template",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "purpose": "call_permission",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "May we call you on WhatsApp?"
+          },
+          {
+            "type": "call_permission_request"
+          }
+        ]
+      },
+      "paths": []
+    },
+    {
+      "name": "call permission must be utility",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "MARKETING",
+        "parameterFormat": "positional",
+        "purpose": "call_permission",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "May we call you on WhatsApp?"
+          },
+          {
+            "type": "call_permission_request"
+          }
+        ]
+      },
+      "paths": [
+        "category"
+      ]
+    },
+    {
+      "name": "call permission without the request",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "purpose": "call_permission",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "May we call you?"
+          }
+        ]
+      },
+      "paths": [
+        "components"
+      ]
+    },
+    {
+      "name": "call permission with buttons",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "purpose": "call_permission",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "May we call you?"
+          },
+          {
+            "type": "call_permission_request"
+          },
+          {
+            "type": "BUTTONS",
+            "buttons": [
+              {
+                "type": "QUICK_REPLY",
+                "text": "Yes"
+              }
+            ]
+          }
+        ]
+      },
+      "paths": [
+        "components.buttons"
+      ]
+    },
+    {
+      "name": "call request in a general template",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "May we call you?"
+          },
+          {
+            "type": "call_permission_request"
+          }
+        ]
+      },
+      "paths": [
+        "components"
+      ]
+    },
+    {
+      "name": "more than 20 variables",
+      "input": {
+        "name": "emi_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "parameterFormat": "positional",
+        "components": [
+          {
+            "type": "BODY",
+            "text": "Hi {{1}} and {{2}} and {{3}} and {{4}} and {{5}} and {{6}} and {{7}} and {{8}} and {{9}} and {{10}} and {{11}} and {{12}} and {{13}} and {{14}} and {{15}} and {{16}} and {{17}} and {{18}} and {{19}} and {{20}} and {{21}} end.",
+            "example": {
+              "body_text": [
+                [
+                  "1",
+                  "2",
+                  "3",
+                  "4",
+                  "5",
+                  "6",
+                  "7",
+                  "8",
+                  "9",
+                  "10",
+                  "11",
+                  "12",
+                  "13",
+                  "14",
+                  "15",
+                  "16",
+                  "17",
+                  "18",
+                  "19",
+                  "20",
+                  "21"
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "paths": [
+        "components"
+      ]
+    }
+  ]
+}

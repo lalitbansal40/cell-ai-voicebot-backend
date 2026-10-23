@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { isEditable } from '../../src/modules/templates/components';
@@ -394,5 +397,22 @@ describe('variables', () => {
     expect(isEditable('MARKETING', [{ type: 'CAROUSEL' }])).toBe(false);
     expect(isEditable('MARKETING', [{ type: 'BUTTONS', buttons: [{ type: 'OTP' }] }])).toBe(false);
     expect(isEditable('MARKETING', [{ type: 'BUTTONS', buttons: [{ type: 'URL' }] }])).toBe(true);
+  });
+});
+
+interface SharedCase {
+  name: string;
+  input: TemplateDraftInput;
+  paths: string[];
+}
+const SHARED = (
+  JSON.parse(readFileSync(join(__dirname, '../fixtures/template-validate-cases.json'), 'utf8')) as {
+    cases: SharedCase[];
+  }
+).cases;
+
+describe('validateTemplate shared cases (the frontend validator runs the same file)', () => {
+  it.each(SHARED.map((c) => [c.name, c] as const))('%s', (_name, c) => {
+    expect(paths(c.input).sort()).toEqual(c.paths);
   });
 });
