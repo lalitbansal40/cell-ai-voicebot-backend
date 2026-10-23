@@ -623,7 +623,7 @@ OpenAPI for every path; error codes:
   - notification types: `template.approved`, `.rejected`, `.paused`, `.disabled`, `.category_changed`, `.quality_low`, `wallet.whatsapp_late_charge`;
   - WS event `whatsapp.template.updated`;
   - permissions;
-  - job names (`template.sync`, `templates.backfill`, `wa-billing.reaper`, `wa-billing.reconcile`);
+  - job names (`template.sync`, `templates.backfill`, `billing.whatsapp_reap_holds`, `billing.whatsapp_reconcile`);
   - schedules.
 - [ ] Tests: models, migration up / down, catalogue counts, roles snapshot.
 
@@ -656,7 +656,7 @@ OpenAPI for every path; error codes:
 - [ ] `rates.ts`: effective WhatsApp rate card (cache + invalidate), market lookup (libphonenumber → calling code → longest match → OTHER), price math (§1f) with paise rounding, account override, platform fee, payer.
 - [ ] Engine: `holdForWhatsApp`, `captureWhatsApp` (exact held price; category mismatch path), `releaseWhatsApp`, `chargeWhatsAppLate` (direct, may go negative within / beyond credit limit — documented), budgets (`monthlyWhatsappMicros`), wallet events.
 - [ ] Phase 10 status hook: status service calls billing with the stored `pricing` (first billable → capture; `billable:false` → release; failed → release), idempotent per message.
-- [ ] Reaper job `wa-billing.reaper` (every 30 min: holds older than `holdMaxAgeHours` without a billable status → release, mark `released`; message later billable → late charge).
+- [ ] Reaper job `billing.whatsapp_reap_holds` (billing queue, every 30 min: holds older than `holdMaxAgeHours` without a billable status → release, mark `released`; message later billable → late charge).
 - [ ] CSV import parser for Meta's rate card (columns: Market, Currency, Marketing, Utility, Authentication, Authentication-International, Service; tolerant headers; INR only → else refuse) + diff vs current.
 - [ ] Money-writes test extended; engine invariants tests (balance + hold sums).
 - [ ] Tests: §1p billing integration list, including 200 concurrent sends with a small wallet (no overspend), replays, out-of-order statuses.
@@ -678,7 +678,7 @@ OpenAPI for every path; error codes:
 ### T11.6 — API, dev tools, hardening, docs
 
 - [ ] Routes + OpenAPI (§1m), rate limiters, permissions, impersonation read-only, WhatsApp-off 503.
-- [ ] Wallet routes: rates incl. WhatsApp selling prices, budgets field, ledger filters; superadmin routes; reports (margin: messages × Meta cost (analytics or list) × billed × margin; reconciliation: daily `wa-billing.reconcile` job pulls `pricing_analytics` for platform WABAs, stores per WABA × day × category counts / cost, diff vs our captures).
+- [ ] Wallet routes: rates incl. WhatsApp selling prices, budgets field, ledger filters; superadmin routes; reports (margin: messages × Meta cost (analytics or list) × billed × margin; reconciliation: daily `billing.whatsapp_reconcile` job pulls `pricing_analytics` for platform WABAs, stores per WABA × day × category counts / cost, diff vs our captures).
 - [ ] Simulator kinds (§1n) + `GET /dev/meta/templates`; seed; `dev:templates`.
 - [ ] Hardening: 500 template sends in parallel across 50 contacts with a wallet that runs out mid-way (exact holds, no overspend, refused sends clean); 10,000 status webhooks with pricing (capture once each); sync of 1,000 templates (paging); CSV with 250 markets.
 - [ ] Docs: ADR 0039 (templates + WhatsApp billing), data-model §2.9, api.md §14e, security / compliance (marketing consent + opt-out, India INR deadline), setup guide (template permissions, app id, credit line currency, webhook field added), README section, CHANGELOG, real-WABA checklist §14 (create template on the test WABA, approval, send outside window, delivered charge vs Meta's analytics).
@@ -765,7 +765,7 @@ Batch 1 (backend core: T11.1–T11.4) → `P11-B1-DONE` → Batch 2 (send + API 
 
 ## 7. Decisions and open questions
 
-**Need the owner's answer (defaults used until then):**
+**Answered by the project lead on 23 Oct 2026 — all defaults accepted (locked):**
 
 | #   | Question                                                                                         | Default                                                                                                                                                                                                      |
 | --- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -791,3 +791,5 @@ Batch 1 (backend core: T11.1–T11.4) → `P11-B1-DONE` → Batch 2 (send + API 
 ## Changelog
 
 - 2026-10-23: Plan created after the Phase 10 sign-off and merge (BUILD_PLAN_V2 → Phase 11). Meta facts re-checked 23 Oct 2026 (pricing page, template guides, call permissions): per-message pricing on delivery; 1,000 free service messages / number / month; from 1 Oct 2026 service beyond the free tier and utility inside the window are charged; pricing webhook `subtype` from 12 Oct 2026; India INR billing since 1 Jan 2026 with a 31 Dec 2026 deadline; template limits (name 512, header 60, body 1,024, footer 60, 10 buttons, URL ≤ 2, phone ≤ 1, copy code ≤ 1, labels 25, 250 / 6,000 per WABA, 100 creations / hour, edit rules, 30-day name reuse); call permission template component and limits. Billing follows Meta's `pricing.billable`, never our own free / paid guess.
+- 2026-10-23: Open questions §7 #1–#14 answered by the project lead — every default accepted and locked (15 % markup, service replies charged when Meta bills them, empty wallet refuses templates and replies, ₹0 platform fee for customer-pays accounts, utility allowed to opted-out non-DND contacts, 1 marketing template / contact / 24 h, managers manage templates, no OTP template creation, prices rounded up to the paisa, Meta INR CSV rate card with placeholders, 72 h hold release + late charge, `en` default language, consent warning only, utility call permission template). WhatsApp billing jobs named after the existing billing queue (`billing.whatsapp_reap_holds`, `billing.whatsapp_reconcile`).
+- 2026-10-23: Run prompt prepared ([PHASE_11_PROMPT.md](../prompts/PHASE_11_PROMPT.md)) — refinements locked (the prompt's §1 wins where it differs from the text above): the call-hold reaper limited to `call_charge` (today it releases every held row after 2 h); separate WhatsApp engine functions and a `whatsapp` budget; the price fixed at send (a Meta category mismatch is flagged, never re-priced); the hold taken inside `sendMessage` keyed by the clientId; the billing hook in `applyStatuses`; reactions billed per Meta's docs; templates never hard-deleted; a backend variable formatter mirroring the frontend; module layout `modules/templates` + `core/billing/whatsapp.ts` + `modules/whatsapp-billing`; fake pricing knobs `00010`–`00013`; simulator kinds 44 → 58.
