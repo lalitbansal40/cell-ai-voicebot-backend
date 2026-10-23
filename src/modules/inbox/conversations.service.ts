@@ -263,6 +263,46 @@ export interface MessagesInput {
 const messageCursor = (m: MessageDoc) =>
   Buffer.from(`${m.at.toISOString()}|${m._id.toString()}`).toString('base64url');
 
+/**
+ * Message views with their reply quotes and sender names (list pages and the
+ * send / retry responses — the same shape as `inbox.message.created`).
+ */
+export const messageViews = async (actor: Pick<InboxActor, 'accountId'>, items: MessageDoc[]) => {
+  const replyIds = [
+    ...new Set(
+      items.flatMap((m) =>
+        m.context?.replyToMessageId ? [m.context.replyToMessageId.toString()] : [],
+      ),
+    ),
+  ];
+  const senderIds = [...new Set(items.flatMap((m) => (m.sentBy ? [m.sentBy.toString()] : [])))];
+  const [quoted, senders] = await Promise.all([
+    MessageModel.find({ _id: { $in: replyIds.map(oid) }, accountId: actor.accountId }).lean<
+      MessageDoc[]
+    >(),
+    UserModel.find({ _id: { $in: senderIds.map(oid) } })
+      .select({ name: 1 })
+      .lean<{ _id: Types.ObjectId; name: string }[]>(),
+  ]);
+  const quotes = new Map<string, ReplyToView>(
+    quoted.map((q) => [
+      q._id.toString(),
+      { id: q._id.toString(), type: q.type, direction: q.direction, preview: buildPreview(q) },
+    ]),
+  );
+  const names = new Map(senders.map((u) => [u._id.toString(), u.name]));
+  return items.map((m) =>
+    toMessageView(m, {
+      replyTo: m.context?.replyToMessageId
+        ? (quotes.get(m.context.replyToMessageId.toString()) ?? null)
+        : null,
+      sentBy: m.sentBy
+        ? { id: m.sentBy.toString(), name: names.get(m.sentBy.toString()) ?? '' }
+        : null,
+    }),
+  );
+};
+
 /** Messages oldest → newest; `before` pages back, `around` centres on a message (jump to a reply). */
 export const listMessages = async (
   _ix: InboxContext,
@@ -320,40 +360,8 @@ export const listMessages = async (
     items = rows.slice(0, input.limit).reverse();
   }
   // reply quotes + sender names in two queries
-  const replyIds = [
-    ...new Set(
-      items.flatMap((m) =>
-        m.context?.replyToMessageId ? [m.context.replyToMessageId.toString()] : [],
-      ),
-    ),
-  ];
-  const senderIds = [...new Set(items.flatMap((m) => (m.sentBy ? [m.sentBy.toString()] : [])))];
-  const [quoted, senders] = await Promise.all([
-    MessageModel.find({ _id: { $in: replyIds.map(oid) }, accountId: actor.accountId }).lean<
-      MessageDoc[]
-    >(),
-    UserModel.find({ _id: { $in: senderIds.map(oid) } })
-      .select({ name: 1 })
-      .lean<{ _id: Types.ObjectId; name: string }[]>(),
-  ]);
-  const quotes = new Map<string, ReplyToView>(
-    quoted.map((q) => [
-      q._id.toString(),
-      { id: q._id.toString(), type: q.type, direction: q.direction, preview: buildPreview(q) },
-    ]),
-  );
-  const names = new Map(senders.map((u) => [u._id.toString(), u.name]));
   return {
-    items: items.map((m) =>
-      toMessageView(m, {
-        replyTo: m.context?.replyToMessageId
-          ? (quotes.get(m.context.replyToMessageId.toString()) ?? null)
-          : null,
-        sentBy: m.sentBy
-          ? { id: m.sentBy.toString(), name: names.get(m.sentBy.toString()) ?? '' }
-          : null,
-      }),
-    ),
+    items: await messageViews(actor, items),
     olderCursor: hasOlder && items[0] ? messageCursor(items[0]) : null,
     hasNewer,
   };

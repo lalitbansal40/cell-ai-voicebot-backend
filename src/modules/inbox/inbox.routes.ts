@@ -28,12 +28,12 @@ import {
   inboxSummary,
   listConversations,
   listMessages,
+  messageViews,
   setBlocked,
   setConversationStatus,
   startConversation,
   type InboxActor,
 } from './conversations.service';
-import { toMessageView } from './inbox-json';
 import {
   AssignBody,
   ConversationParams,
@@ -210,8 +210,9 @@ export const createInboxRouter = (deps: InboxRouterDeps): Router => {
     ...handle(
       { params: ConversationParams, body: SendMessageBody },
       async ({ params, body, req, res }) => {
-        const r = await sendMessage(ix(), actorOf(req), params.id, body);
-        const view = toMessageView(r.message);
+        const actor = actorOf(req);
+        const r = await sendMessage(ix(), actor, params.id, body);
+        const [view] = await messageViews(actor, [r.message]);
         if (r.created) created(res, view);
         else ok(res, view);
       },
@@ -353,7 +354,9 @@ export const createInboxRouter = (deps: InboxRouterDeps): Router => {
     ...reply,
     sendLimit,
     ...handle({ params: MessageParams }, async ({ params, req, res }) => {
-      created(res, toMessageView(await retryMessage(ix(), actorOf(req), params.id)));
+      const actor = actorOf(req);
+      const [view] = await messageViews(actor, [await retryMessage(ix(), actor, params.id)]);
+      created(res, view);
     }),
   );
   router.post(

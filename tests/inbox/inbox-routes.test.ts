@@ -590,6 +590,47 @@ describe('/inbox — start chat, uploads, media, retries', () => {
     await setupWithChat();
   });
 
+  it('send, resend and retry responses carry the quote and the sender (like the live event)', async () => {
+    const t = users.agent.token;
+    const target = app();
+    const first = (await world.messagesOf({ direction: 'in' }))[0]!;
+    const clientId = randomUUID();
+    const body = {
+      clientId,
+      type: 'text',
+      text: 'Ji, 5 tareekh ko',
+      replyToMessageId: first._id.toString(),
+    };
+    const r = await request(target)
+      .post(`${base}/conversations/${convId}/messages`)
+      .set(bearer(t))
+      .send(body);
+    expect(r.status).toBe(201);
+    const quote = {
+      id: first._id.toString(),
+      type: 'text',
+      direction: 'in',
+      preview: 'Loan ki EMI kab hai',
+    };
+    expect(r.body.data.replyTo).toEqual(quote);
+    expect(r.body.data.sentBy?.name).toBeTruthy();
+    const again = await request(target)
+      .post(`${base}/conversations/${convId}/messages`)
+      .set(bearer(t))
+      .send(body);
+    expect(again.status).toBe(200);
+    expect(again.body.data.replyTo).toEqual(quote);
+    await MessageModel.updateOne(
+      { _id: r.body.data.id },
+      { $set: { status: 'failed', error: { code: 131026, reason: 'Message undeliverable' } } },
+    );
+    const retried = await request(target)
+      .post(`${base}/messages/${r.body.data.id as string}/retry`)
+      .set(bearer(t));
+    expect(retried.status).toBe(201);
+    expect(retried.body.data.sentBy?.name).toBe(r.body.data.sentBy.name);
+  });
+
   it('start: new conversation (201) with a closed window → send 409, notes OK; existing → 200', async () => {
     const target = app();
     const contact = await ContactModel.create({
