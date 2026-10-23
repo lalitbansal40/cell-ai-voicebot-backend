@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 11 · Batch 1 (T11.1–T11.4) — WhatsApp templates + message charges foundation** — 2026-10-23
+  - Models: templates, Meta rate cards, platform settings, daily Meta reconciliation; template / billing fields on messages, ledger, wallets, contacts, accounts and numbers; migration `0012-templates-billing` (placeholder INR card IN + OTHER, 15 % markup, 72-hour holds); env `FAKE_META_TEMPLATE_REVIEW_MS`; 10 error codes (69), 12 audit actions (118), 7 notification types (26), the `whatsapp.template.updated` WS event, `templates.read` / `templates.manage`.
+  - Meta client: template list (paged) / create / edit / delete, header example upload, pricing analytics, the template message payload, template error mapping and webhook schemas (re-checked on Meta's references); the fake reviews templates (name knobs), reports PMP pricing and has number knobs `00010`–`00013`.
+  - Template management with every Meta rule, edit windows and the 30-day name lock, sync, call permission template, variable sources, header examples; the four template webhooks and marketing preferences through worker hooks with a backfill, daily sync, sync after a connect; bells to template managers + the creator, e-mails for rejected / disabled.
+  - Message charges: price per message (market × category, markup rounded up to the paisa, fixed prices, platform fee, customer-pays accounts), Meta CSV import + diff, hold → capture / release / late charge in the engine, a status hook (charged once Meta delivers), the 72-hour hold reaper and the daily Meta reconciliation; `npm run dev:templates`.
+  - Fixed: the call-hold reaper released (and logged errors for) every held ledger row, WhatsApp holds included — now `call_charge` only; a sent-then-failed WhatsApp message was charged because `sent` already carries `billable: true` — charges now wait for `delivered` / `read`; a fake status test waited on the database instead of the queue (test-only).
+  - Tests: 2712 → 2881.
+
 - **Phase 10 · Batch 3 (T10.7–T10.12) — Phase 10 complete** — 2026-10-23
   - Frontend Inbox page, composer (every free-form type incl. browser voice notes), contact panel, Settings → Inbox, business profile editor, entry points — see the frontend CHANGELOG.
   - Fixed (found by the inbox E2E run): `POST /inbox/conversations/:id/messages` (also an idempotent resend) and `POST /inbox/messages/:id/retry` answered without the reply quote and sender name the live event carries (`2cae0a2`).

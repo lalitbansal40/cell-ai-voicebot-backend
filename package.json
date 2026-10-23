@@ -52,7 +52,8 @@
     "dev:call": "tsx --env-file-if-exists=.env scripts/dev-call.ts",
     "dev:campaign": "tsx --env-file-if-exists=.env scripts/dev-campaign.ts",
     "dev:whatsapp": "tsx --env-file-if-exists=.env scripts/dev-whatsapp.ts",
-    "dev:inbox": "tsx --env-file-if-exists=.env scripts/dev-inbox.ts"
+    "dev:inbox": "tsx --env-file-if-exists=.env scripts/dev-inbox.ts",
+    "dev:templates": "tsx --env-file-if-exists=.env scripts/dev-templates.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
