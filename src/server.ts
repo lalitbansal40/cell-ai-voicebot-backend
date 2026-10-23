@@ -59,6 +59,7 @@ import { resetProgressThrottle } from './modules/campaigns/progress';
 import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { queueInboxJobs } from './modules/inbox/jobs';
+import { queueTemplateJobs } from './modules/templates/jobs';
 import { connectFakeStatusWebhooks } from './modules/whatsapp/fake-statuses';
 import { queueWhatsAppJobs } from './modules/whatsapp/jobs';
 import { getLogger, type Logger } from './shared/logger';
@@ -193,6 +194,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
         },
         jobs: queueWhatsAppJobs(whatsappQueue),
         inboxJobs: queueInboxJobs(whatsappQueue),
+        templateJobs: queueTemplateJobs(whatsappQueue),
         connectRateLimitStore: createRedisRateLimitStore(redis, 'rl:wa-connect:'),
         inboxSendRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-send:'),
         inboxUploadRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-upload:'),

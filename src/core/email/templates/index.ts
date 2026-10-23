@@ -11,6 +11,7 @@ import {
 import { campaignPaused, type CampaignPausedVars } from './campaign';
 import { systemTest, type SystemTestVars } from './system-test';
 import { teamInvite, type TeamInviteVars } from './team';
+import { templateDisabled, templateRejected, type TemplateEmailVars } from './template';
 import type { RenderedEmail } from './types';
 import {
   walletLowBalance,
@@ -46,6 +47,8 @@ export interface EmailTemplateVars {
   'whatsapp.needs_reconnect': WhatsAppChannelEmailVars;
   'whatsapp.restricted': WhatsAppChannelEmailVars;
   'whatsapp.admin_disconnected': WhatsAppChannelEmailVars;
+  'template.rejected': TemplateEmailVars;
+  'template.disabled': TemplateEmailVars;
 }
 
 export type EmailTemplateKey = keyof EmailTemplateVars;
@@ -63,6 +66,8 @@ const TEMPLATES: { [K in EmailTemplateKey]: (vars: EmailTemplateVars[K]) => Rend
   'whatsapp.needs_reconnect': whatsappNeedsReconnect,
   'whatsapp.restricted': whatsappRestricted,
   'whatsapp.admin_disconnected': whatsappAdminDisconnected,
+  'template.rejected': templateRejected,
+  'template.disabled': templateDisabled,
 };
 
 export const isEmailTemplateKey = (key: string): key is EmailTemplateKey =>

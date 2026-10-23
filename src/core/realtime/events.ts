@@ -109,7 +109,9 @@ export interface WsEventMap {
   'import.progress': { importJobId: string; processed: number; total: number; status: string };
   'export.progress': { exportJobId: string; processed: number; total: number; status: string };
   'contacts.bulk_completed': { action: string; count: number };
-  'contacts.changed': { reason: 'import' | 'bulk' | 'field_deleted' | 'list_deleted' | 'dnd' };
+  'contacts.changed': {
+    reason: 'import' | 'bulk' | 'field_deleted' | 'list_deleted' | 'dnd' | 'whatsapp_marketing';
+  };
   'notification.created': { notificationId: string; title: string };
   'presence.changed': { userId: string; status: 'online' | 'offline' };
   'session.revoked': {

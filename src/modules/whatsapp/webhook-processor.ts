@@ -95,7 +95,8 @@ export const processWebhookEvent = async (
     let status: MetaEventStatus = 'deferred';
     for (const channel of channels) {
       await touch(channel, event.field, now);
-      if (handler) status = await handler(h, channel, value, { eventId });
+      if (handler)
+        status = await handler(h, channel, value, { eventId, receivedAt: event.receivedAt });
     }
     const keepDays =
       status === 'deferred'

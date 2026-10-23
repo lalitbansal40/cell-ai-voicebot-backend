@@ -46,6 +46,7 @@ import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes
 import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
+import type { TemplateJobs } from './modules/templates/jobs';
 import { createWalletRouter } from './modules/wallet/wallet.routes';
 import { createDevSimulatorRouter } from './modules/whatsapp/dev-simulator.routes';
 import { createMetaCallbacksRouter } from './modules/whatsapp/meta-callbacks.routes';
@@ -74,6 +75,8 @@ export type WhatsAppDeps = MetaWebhooksDeps & {
   /** `rl:inbox-send:` / `rl:inbox-upload:` stores. */
   inboxSendRateLimitStore?: Store;
   inboxUploadRateLimitStore?: Store;
+  /** Phase 11: template jobs on the `whatsapp` queue (sync after a connect). */
+  templateJobs?: TemplateJobs;
 };
 
 export interface BillingDeps {
@@ -174,7 +177,14 @@ export const createApiRouter = ({
   router.use('/api-keys', createApiKeysRouter());
   router.use('/audit-logs', createAuditRouter());
   const whatsappRuntime = whatsapp?.ctx.env.WHATSAPP_ENABLED
-    ? { ...whatsapp, service: createWhatsAppService(whatsapp.ctx) }
+    ? {
+        ...whatsapp,
+        service: createWhatsAppService(whatsapp.ctx, {
+          onConnected: (channel) =>
+            whatsapp.templateJobs?.enqueueSync(channel._id.toString(), 'connect') ??
+            Promise.resolve(),
+        }),
+      }
     : undefined;
   router.use(
     '/admin',

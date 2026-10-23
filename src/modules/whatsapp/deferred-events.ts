@@ -30,7 +30,8 @@ export interface DeferredEvent {
 }
 
 export interface ListDeferredInput {
-  field: string;
+  /** One field, or several read together in arrival order (Phase 11 template events). */
+  field: string | readonly string[];
   channelId?: Types.ObjectId | string;
   limit?: number;
   /** Id of the last event of the previous page. */
@@ -44,7 +45,7 @@ export const listDeferred = async (
 ): Promise<{ items: DeferredEvent[]; nextCursor: string | null }> => {
   const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
   const rows = await MetaWebhookEventModel.find({
-    field: input.field,
+    field: typeof input.field === 'string' ? input.field : { $in: [...input.field] },
     status: 'deferred',
     ...(input.channelId ? { channelId: new Types.ObjectId(input.channelId) } : {}),
     ...(input.cursor ? { _id: { $gt: new Types.ObjectId(input.cursor) } } : {}),

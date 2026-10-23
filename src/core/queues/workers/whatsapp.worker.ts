@@ -14,6 +14,20 @@ import {
 import { downloadInboundMedia } from '../../../modules/inbox/media.service';
 import { processReadReceipt } from '../../../modules/inbox/receipts';
 import { processSend } from '../../../modules/inbox/send.job';
+import {
+  hasDeferredTemplateEvents,
+  runTemplatesBackfill,
+} from '../../../modules/templates/backfill.job';
+import type { TemplateContext } from '../../../modules/templates/context';
+import {
+  queueTemplateJobs,
+  TEMPLATE_DAILY_SYNC_CRON,
+  TEMPLATE_DAILY_SYNC_JOB,
+  TEMPLATE_JOBS,
+  type TemplateSyncJobData,
+} from '../../../modules/templates/jobs';
+import { processTemplateSync, queueDailyTemplateSyncs } from '../../../modules/templates/sync.job';
+import { createTemplateHooks } from '../../../modules/templates/webhooks';
 import type { WhatsAppContext } from '../../../modules/whatsapp/context';
 import { runHealthPass, WHATSAPP_HEALTH_CRON } from '../../../modules/whatsapp/health';
 import {
@@ -33,7 +47,7 @@ import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-facto
  * (Phase 10, with an inbox context) the inbox jobs.
  */
 export const processWhatsAppJob =
-  (h: HandlerContext, ix?: InboxContext) =>
+  (h: HandlerContext, ix?: InboxContext, tx?: TemplateContext) =>
   async (job: Job, token?: string): Promise<unknown> => {
     const finalAttempt = () => job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
     if (job.name === WEBHOOK_PROCESS_JOB) {
@@ -41,6 +55,13 @@ export const processWhatsAppJob =
       return { status: await processWebhookEvent(h, eventId, { finalAttempt: finalAttempt() }) };
     }
     if (job.name === WHATSAPP_HEALTH_JOB) return runHealthPass(h.service);
+    if (tx) {
+      if (job.name === TEMPLATE_JOBS.sync) {
+        return processTemplateSync(tx, job.data as TemplateSyncJobData);
+      }
+      if (job.name === TEMPLATE_JOBS.backfill) return runTemplatesBackfill(tx);
+      if (job.name === TEMPLATE_DAILY_SYNC_JOB) return queueDailyTemplateSyncs(tx);
+    }
     if (ix) {
       if (job.name === INBOX_JOBS.mediaDownload) {
         const { messageId } = job.data as MessageJobData;
@@ -86,12 +107,18 @@ export const startWhatsAppWorker = async (
   const ix: InboxContext | undefined = deps.storage
     ? { wa: deps.ctx, storage: deps.storage, jobs: queueInboxJobs(queue) }
     : undefined;
+  const tx: TemplateContext = {
+    wa: deps.ctx,
+    jobs: queueTemplateJobs(queue),
+    ...(deps.storage ? { storage: deps.storage } : {}),
+  };
   const h: HandlerContext = {
     ctx: deps.ctx,
     service: createWhatsAppService(deps.ctx),
     ...(ix ? { inbox: createInboxHooks(ix) } : {}),
+    templates: createTemplateHooks(tx),
   };
-  const worker = createWorker(QUEUES.whatsapp, processWhatsAppJob(h, ix), {
+  const worker = createWorker(QUEUES.whatsapp, processWhatsAppJob(h, ix, tx), {
     ...deps,
     concurrency: WHATSAPP_LIMITS.workerConcurrency,
   });
@@ -100,7 +127,15 @@ export const startWhatsAppWorker = async (
     { pattern: WHATSAPP_HEALTH_CRON, tz: 'UTC' },
     { name: WHATSAPP_HEALTH_JOB },
   );
+  // Phase 11: one template sync per WABA every day (04:10 IST)
+  await queue.upsertJobScheduler(
+    TEMPLATE_DAILY_SYNC_JOB,
+    { pattern: TEMPLATE_DAILY_SYNC_CRON, tz: 'UTC' },
+    { name: TEMPLATE_DAILY_SYNC_JOB },
+  );
   // events stored as deferred before the inbox existed (or while it was off) → once
   if (ix && (await hasDeferredInboxEvents())) await ix.jobs.enqueueBackfill();
+  // template events stored before Phase 11 → once
+  if (await hasDeferredTemplateEvents()) await tx.jobs.enqueueBackfill();
   return { queue, worker };
 };

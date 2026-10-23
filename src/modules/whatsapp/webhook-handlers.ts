@@ -3,7 +3,10 @@ import type { z } from 'zod';
 import {
   isMetaApiError,
   normalizeTier,
+  TEMPLATE_WEBHOOK_VALUE_SCHEMAS,
+  VOLUME_TIER_EVENT,
   WEBHOOK_VALUE_SCHEMAS,
+  type TemplateWebhookField,
   type WebhookField,
 } from '../../core/meta';
 import {
@@ -38,15 +41,26 @@ export interface InboxHooks {
   history(channel: WhatsAppChannelDoc, eventId: string): Promise<unknown>;
 }
 
+/**
+ * Phase 11 consumers (template webhooks, marketing preferences), injected the same way;
+ * `at` = when we received the event (orders webhooks against syncs).
+ */
+export type TemplateHooks = Record<
+  TemplateWebhookField,
+  (channel: WhatsAppChannelDoc, value: unknown, at: Date) => Promise<unknown>
+>;
+
 export interface HandlerContext {
   ctx: WhatsAppContext;
   service: Pick<WhatsAppService, 'syncChannel'>;
   inbox?: InboxHooks;
+  templates?: TemplateHooks;
 }
 
 /** The stored event being handled. */
 export interface HandlerEvent {
   eventId: string;
+  receivedAt?: Date;
 }
 
 /** A change value didn't match Meta's documented shape (event → `failed`, no retry). */
@@ -123,6 +137,31 @@ const accountUpdate = async (
   value: unknown,
 ): Promise<HandlerResult> => {
   const v = parse('account_update', value);
+  if (v.event === VOLUME_TIER_EVENT) {
+    // Phase 11: Meta's volume pricing tier (margin report info), last 10 kept
+    if (v.volume_tier_info) {
+      const info = v.volume_tier_info;
+      await WhatsAppChannelModel.updateOne(
+        { _id: channel._id },
+        {
+          $push: {
+            pricingTier: {
+              $each: [
+                {
+                  category: info.pricing_category.toLowerCase(),
+                  market: info.region ?? null,
+                  tier: info.tier,
+                  at: info.tier_update_time ? new Date(info.tier_update_time * 1000) : nowOf(h.ctx),
+                },
+              ],
+              $slice: -10,
+            },
+          },
+        },
+      );
+    }
+    return 'processed';
+  }
   if (!isNumber(channel, v.phone_number)) return 'processed';
   if (REMOVED.has(v.event)) {
     await markNeedsReconnect(h.ctx, channel, {
@@ -292,6 +331,18 @@ const appStateSync = async (
   return 'processed';
 };
 
+/** Phase 11: template / preference fields → the templates module (deferred without it). */
+const templateField =
+  (field: TemplateWebhookField): Handler =>
+  async (h, channel, value, event) => {
+    if (!TEMPLATE_WEBHOOK_VALUE_SCHEMAS[field].safeParse(value).success) {
+      throw new WebhookSchemaError(field);
+    }
+    if (!h.templates) return 'deferred';
+    await h.templates[field](channel, value, event?.receivedAt ?? nowOf(h.ctx));
+    return 'processed';
+  };
+
 type Handler = (
   h: HandlerContext,
   channel: WhatsAppChannelDoc,
@@ -299,7 +350,7 @@ type Handler = (
   event?: HandlerEvent,
 ) => Promise<HandlerResult>;
 
-/** Phase 9 handlers + the Phase 10 inbox fields; every other field is stored `deferred` for Phases 11–12. */
+/** Phase 9 handlers + the Phase 10 inbox and Phase 11 template fields; others stay `deferred` (Phase 12). */
 export const WEBHOOK_HANDLERS: Partial<Record<WebhookField, Handler>> = {
   messages,
   account_update: accountUpdate,
@@ -309,6 +360,11 @@ export const WEBHOOK_HANDLERS: Partial<Record<WebhookField, Handler>> = {
   smb_message_echoes: echoes,
   history,
   smb_app_state_sync: appStateSync,
+  message_template_status_update: templateField('message_template_status_update'),
+  message_template_quality_update: templateField('message_template_quality_update'),
+  template_category_update: templateField('template_category_update'),
+  message_template_components_update: templateField('message_template_components_update'),
+  user_preferences: templateField('user_preferences'),
 };
 
 /** Fields kept 30 days instead of 7 while deferred (the inbox consumes them). */
@@ -317,6 +373,11 @@ export const LONG_LIVED_FIELDS = new Set([
   'smb_message_echoes',
   'history',
   'smb_app_state_sync',
+  'message_template_status_update',
+  'message_template_quality_update',
+  'template_category_update',
+  'message_template_components_update',
+  'user_preferences',
 ]);
 
 export const openPayload = (ctx: Pick<WhatsAppContext, 'key'>, sealed: string): unknown =>

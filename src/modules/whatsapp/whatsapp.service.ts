@@ -165,8 +165,25 @@ const RESTRICTED_PHONE_STATUSES = new Set(['BANNED', 'RESTRICTED']);
  * retry, PIN, sync, rename, disconnect, views. Secrets stay sealed in the database
  * and never leave this module except through `getChannelToken` (server-side use).
  */
-export const createWhatsAppService = (ctx: WhatsAppContext) => {
+/** Optional effects of the service (Phase 11: a template sync after a successful connect). */
+export interface WhatsAppServiceHooks {
+  onConnected?: (channel: WhatsAppChannelDoc) => Promise<void>;
+}
+
+export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServiceHooks = {}) => {
   const log = () => getLogger();
+  /** Never fails the connect: the daily sync catches up. */
+  const connected = async (channel: WhatsAppChannelDoc) => {
+    if (!hooks.onConnected || !['connected', 'restricted'].includes(channel.status)) return;
+    try {
+      await hooks.onConnected(channel);
+    } catch (err) {
+      log().warn(
+        { channelId: channel._id.toString(), errName: (err as Error).name },
+        'whatsapp: after-connect hook failed',
+      );
+    }
+  };
   const { meta, redis } = ctx;
 
   // ── locks / rate limits ───────────────────────────────────────────────────
@@ -583,6 +600,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext) => {
         { metaPayer: run.channel.metaPayer, ...(input.manual ? { manual: true } : {}) },
       );
       await afterSetupAudits(run, input.actor);
+      await connected(run.channel);
       return {
         channel: channelListItem(run.channel),
         outcome: outcomeOf(run.channel),
@@ -609,6 +627,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext) => {
       runSetup(channel, token, resumeStep(channel), actor),
     );
     await afterSetupAudits(run, actor);
+    await connected(run.channel);
     return { channel: channelListItem(run.channel), outcome: outcomeOf(run.channel) };
   };
 
@@ -643,6 +662,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext) => {
       syncedAt: now,
     });
     await auditChannel(updated, 'whatsapp.channel_registered', actor, { manual: true });
+    await connected(updated);
     return { channel: channelListItem(updated), outcome: outcomeOf(updated) };
   };
 
