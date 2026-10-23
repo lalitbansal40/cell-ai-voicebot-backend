@@ -62,7 +62,7 @@ const lateChargeBell = async (accountId: Types.ObjectId, amountMicros: number) =
 
 /**
  * PHASE_11_PROMPT §1 "Billing hook in statuses": the first decisive signal wins —
- * `billable: true` captures the held price, `billable: false` or `failed` releases it,
+ * `billable: true` on a delivered / read status captures the held price, `billable: false` or `failed` releases it,
  * a billable status after a release charges late (once). Later contradicting signals
  * are ignored (logged with ids only). Idempotent through the engine's keys.
  */
@@ -72,7 +72,11 @@ export const onMessageStatus = async (input: BillingStatusInput): Promise<Billin
     .lean<Pick<MessageDoc, '_id' | 'accountId' | 'billing'>>();
   const b = m?.billing;
   if (!m || !b || b.status === 'none') return 'none';
-  const billable = input.pricing?.billable;
+  // Meta charges delivered messages only: `sent` already carries the expected pricing,
+  // so a billable signal counts from `delivered` / `read` (a sent-then-failed message is free)
+  const delivered = input.status === 'delivered' || input.status === 'read';
+  const billable =
+    input.pricing?.billable === true ? (delivered ? true : undefined) : input.pricing?.billable;
   const decisive = billable === true || billable === false || input.status === 'failed';
   if (!decisive) return 'none';
   const now = new Date();

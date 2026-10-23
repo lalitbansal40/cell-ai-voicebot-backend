@@ -332,7 +332,7 @@ describe('billing hook (first decisive signal wins)', () => {
     ) => onMessageStatus({ accountId, messageId: msg._id, status, pricing: p });
     expect(await on('sent', null)).toBe('none');
     expect(await on('delivered', pricing(true))).toBe('captured');
-    expect(await on('sent', pricing(true))).toBe('ignored');
+    expect(await on('sent', pricing(true))).toBe('none'); // `sent` never decides
     expect(await on('read', pricing(false))).toBe('ignored');
     expect(await billingOf(msg._id)).toMatchObject({
       status: 'captured',
@@ -348,6 +348,32 @@ describe('billing hook (first decisive signal wins)', () => {
         status: 'captured',
       }),
     ).toBe(1);
+    await expectWalletConsistent(accountId);
+  });
+
+  it('regression: billable on `sent` is not a charge — a sent then failed message is released', async () => {
+    // Meta charges delivered messages only; `sent` carries the expected pricing already
+    const accountId = await account(10);
+    const msg = await sentMessage(accountId, 'h-sent-failed');
+    expect(
+      await onMessageStatus({
+        accountId,
+        messageId: msg._id,
+        status: 'sent',
+        pricing: pricing(true),
+      }),
+    ).toBe('none');
+    expect(
+      await onMessageStatus({ accountId, messageId: msg._id, status: 'failed', pricing: null }),
+    ).toBe('released');
+    expect((await billingOf(msg._id))?.status).toBe('released');
+    expect(
+      await LedgerEntryModel.countDocuments({
+        accountId,
+        type: 'whatsapp_charge',
+        status: 'captured',
+      }),
+    ).toBe(0);
     await expectWalletConsistent(accountId);
   });
 
@@ -386,7 +412,7 @@ describe('billing hook (first decisive signal wins)', () => {
     await onMessageStatus({
       accountId,
       messageId: msg._id,
-      status: 'sent',
+      status: 'delivered',
       pricing: pricing(true, 'marketing'),
     });
     expect(await billingOf(msg._id)).toMatchObject({
