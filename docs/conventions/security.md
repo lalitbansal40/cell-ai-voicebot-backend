@@ -90,3 +90,10 @@ Never log prompts, persona text, user / assistant messages, knowledge text, func
 - **Voice parser bounds:** the WebM reader checks every size against the remaining bytes before use, caps depth and element counts, refuses unknown sizes outside Segment / Cluster and truncated elements; tested with truncated, corrupt and huge-size inputs.
 - **XSS:** message text is rendered as text; only `http(s)` links become anchors (`rel="noopener noreferrer"`); CTA links must be `https://`.
 - **Writes:** impersonating superadmins read only (no read receipts sent); rate limits `rl:inbox-send:` (60 / min / user) and `rl:inbox-upload:` (20 / min / user); dedupe on wamid / client id everywhere Meta or the browser can repeat.
+
+## 12. WhatsApp templates + charges (Phase 11)
+
+- **Variable values and rendered texts are customer data:** they stay in the message row (`text`, `template.parameters`); logs, audit meta (template name / language / category / status / reason code and variable keys only), job data (ids), notification bodies and e-mails never carry them. Template bodies and examples are not logged either. Tests capture logs of create → approve → send → capture runs with distinctive values.
+- **Money:** every WhatsApp wallet write goes through the engine (money-writes test); idempotency keys per message (`wa-hold-<clientId>`, `wa-capture-<messageId>`, `wa-late-<messageId>`); capture only from Meta's billable flag on a delivered / read status; customer-pays accounts are never charged Meta's price.
+- **Uploads:** header examples are sniffed against the header format (JPEG / PNG / MP4 / PDF only), size-capped per kind, stored under `accounts/<id>/template-media/`; the rate card CSV is capped at 2 MB, parsed without `eval` / number parsing of floats, and every row validated.
+- **Writes:** `templates.manage` only (owners, admins, managers), never while impersonating; `rl:templates:` (20 / h / user) and `rl:template-sync:` (1 / min / number); superadmin billing needs `platform.billing.manage`.

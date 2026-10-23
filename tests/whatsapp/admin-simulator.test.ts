@@ -183,7 +183,11 @@ describe('superadmin WhatsApp routes', () => {
       .patch(url)
       .set(bearer(superadmin.token))
       .send({ metaPayer: 'customer' });
-    expect(res.body.data).toEqual({ metaPayer: 'customer' });
+    expect(res.body.data).toEqual({
+      metaPayer: 'customer',
+      // Phase 11: the account's WhatsApp price override travels on the same route
+      whatsappBilling: { markupBps: null, fixedPrices: null, platformFeeMicros: null },
+    });
     await request(app()).patch(url).set(bearer(superadmin.token)).send({ metaPayer: 'customer' });
     expect(
       await AuditLogModel.countDocuments({

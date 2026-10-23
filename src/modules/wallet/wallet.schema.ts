@@ -81,6 +81,22 @@ export const RateCardViewSchema = registry.register(
     embeddingPer1kTokensMicros: z.number(),
     source: z.enum(['account', 'default']),
     effectiveFrom: z.string(),
+    whatsapp: z.object({
+      payer: z.enum(['platform', 'customer']),
+      effectiveFrom: z.string(),
+      markets: z.array(
+        z.object({
+          market: z.string(),
+          label: z.string(),
+          prices: z.object({
+            marketing: z.number(),
+            utility: z.number(),
+            authentication: z.number(),
+            service: z.number(),
+          }),
+        }),
+      ),
+    }),
   }),
 );
 
@@ -194,6 +210,7 @@ export const UsageSeriesSchema = registry.register(
         aiMicros: z.number(),
         ttsMicros: z.number(),
         otherMicros: z.number(),
+        whatsappMicros: z.number(),
         totalMicros: z.number(),
       }),
     ),
@@ -202,6 +219,7 @@ export const UsageSeriesSchema = registry.register(
       aiMicros: z.number(),
       ttsMicros: z.number(),
       otherMicros: z.number(),
+      whatsappMicros: z.number(),
       totalMicros: z.number(),
     }),
   }),

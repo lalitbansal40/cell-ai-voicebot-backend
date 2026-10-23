@@ -198,6 +198,8 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
         connectRateLimitStore: createRedisRateLimitStore(redis, 'rl:wa-connect:'),
         inboxSendRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-send:'),
         inboxUploadRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-upload:'),
+        templatesRateLimitStore: createRedisRateLimitStore(redis, 'rl:templates:'),
+        templateSyncRateLimitStore: createRedisRateLimitStore(redis, 'rl:template-sync:'),
       }
     : undefined;
   if (whatsapp) {

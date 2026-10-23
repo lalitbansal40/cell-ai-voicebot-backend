@@ -3546,7 +3546,36 @@
           "aiTextPer1kTokensMicros": { "type": "number" },
           "embeddingPer1kTokensMicros": { "type": "number" },
           "source": { "type": "string", "enum": ["account", "default"] },
-          "effectiveFrom": { "type": "string" }
+          "effectiveFrom": { "type": "string" },
+          "whatsapp": {
+            "type": "object",
+            "properties": {
+              "payer": { "type": "string", "enum": ["platform", "customer"] },
+              "effectiveFrom": { "type": "string" },
+              "markets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "market": { "type": "string" },
+                    "label": { "type": "string" },
+                    "prices": {
+                      "type": "object",
+                      "properties": {
+                        "marketing": { "type": "number" },
+                        "utility": { "type": "number" },
+                        "authentication": { "type": "number" },
+                        "service": { "type": "number" }
+                      },
+                      "required": ["marketing", "utility", "authentication", "service"]
+                    }
+                  },
+                  "required": ["market", "label", "prices"]
+                }
+              }
+            },
+            "required": ["payer", "effectiveFrom", "markets"]
+          }
         },
         "required": [
           "callPerMinuteMicros",
@@ -3558,7 +3587,8 @@
           "aiTextPer1kTokensMicros",
           "embeddingPer1kTokensMicros",
           "source",
-          "effectiveFrom"
+          "effectiveFrom",
+          "whatsapp"
         ]
       },
       "WalletEstimate": {
@@ -3700,6 +3730,7 @@
                 "aiMicros": { "type": "number" },
                 "ttsMicros": { "type": "number" },
                 "otherMicros": { "type": "number" },
+                "whatsappMicros": { "type": "number" },
                 "totalMicros": { "type": "number" }
               },
               "required": [
@@ -3708,6 +3739,7 @@
                 "aiMicros",
                 "ttsMicros",
                 "otherMicros",
+                "whatsappMicros",
                 "totalMicros"
               ]
             }
@@ -3719,9 +3751,17 @@
               "aiMicros": { "type": "number" },
               "ttsMicros": { "type": "number" },
               "otherMicros": { "type": "number" },
+              "whatsappMicros": { "type": "number" },
               "totalMicros": { "type": "number" }
             },
-            "required": ["callMicros", "aiMicros", "ttsMicros", "otherMicros", "totalMicros"]
+            "required": [
+              "callMicros",
+              "aiMicros",
+              "ttsMicros",
+              "otherMicros",
+              "whatsappMicros",
+              "totalMicros"
+            ]
           }
         },
         "required": ["from", "to", "timezone", "series", "totals"]
@@ -6177,8 +6217,21 @@
       },
       "WhatsAppBillingInput": {
         "type": "object",
-        "properties": { "metaPayer": { "type": "string", "enum": ["platform", "customer"] } },
-        "required": ["metaPayer"],
+        "properties": {
+          "metaPayer": { "type": "string", "enum": ["platform", "customer"] },
+          "markupBps": { "type": ["integer", "null"], "minimum": 0, "maximum": 100000 },
+          "fixedPrices": {
+            "type": ["object", "null"],
+            "properties": {
+              "marketing": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+              "utility": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+              "authentication": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+              "service": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+            },
+            "additionalProperties": false
+          },
+          "platformFeeMicros": { "type": ["integer", "null"], "minimum": 0, "maximum": 1000000000 }
+        },
         "additionalProperties": false
       },
       "WhatsAppManualConnectInput": {
@@ -6256,13 +6309,29 @@
               "status_failed",
               "window_expired",
               "age_messages",
-              "run_retention"
+              "run_retention",
+              "template_approved",
+              "template_rejected",
+              "template_paused",
+              "template_disabled",
+              "template_quality_red",
+              "template_category_changed",
+              "template_components_changed",
+              "user_stopped_marketing",
+              "user_resumed_marketing",
+              "pricing_tier_update",
+              "run_template_sync",
+              "run_hold_reaper",
+              "run_whatsapp_reconcile",
+              "late_billable_status"
             ]
           },
           "from": { "type": "string", "pattern": "^\\+?\\d[\\d\\s-]{5,19}$" },
           "text": { "type": "string", "minLength": 1, "maxLength": 1000 },
           "conversationId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-          "days": { "type": "integer", "minimum": 1, "maximum": 3650 }
+          "days": { "type": "integer", "minimum": 1, "maximum": 3650 },
+          "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "messageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
         },
         "required": ["channelId", "kind"],
         "additionalProperties": false
@@ -6639,6 +6708,374 @@
           }
         },
         "required": ["channelId"]
+      },
+      "WhatsAppRateCardSave": {
+        "type": "object",
+        "properties": {
+          "markets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                "callingCodes": {
+                  "type": "array",
+                  "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                  "maxItems": 50
+                },
+                "marketingMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                "utilityMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                "authenticationMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                "authenticationInternationalMicros": {
+                  "type": ["integer", "null"],
+                  "minimum": 0,
+                  "maximum": 1000000000
+                },
+                "serviceMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                "utilityTiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "fromMessages": { "type": "integer", "minimum": 0 },
+                      "micros": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+                    },
+                    "required": ["fromMessages", "micros"]
+                  },
+                  "maxItems": 10,
+                  "default": []
+                },
+                "authenticationTiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "fromMessages": { "type": "integer", "minimum": 0 },
+                      "micros": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+                    },
+                    "required": ["fromMessages", "micros"]
+                  },
+                  "maxItems": 10,
+                  "default": []
+                }
+              },
+              "required": [
+                "market",
+                "label",
+                "callingCodes",
+                "marketingMicros",
+                "utilityMicros",
+                "authenticationMicros",
+                "authenticationInternationalMicros",
+                "serviceMicros"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 300
+          },
+          "effectiveFrom": { "type": "string", "format": "date-time" },
+          "source": { "type": "string", "enum": ["meta_csv", "manual"] },
+          "note": { "type": ["string", "null"], "maxLength": 300 }
+        },
+        "required": ["markets", "source"]
+      },
+      "WhatsAppBillingSettingsPatch": {
+        "type": "object",
+        "properties": {
+          "markupBps": { "type": "integer", "minimum": 0, "maximum": 100000 },
+          "platformFeeMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+          "holdMaxAgeHours": { "type": "integer", "minimum": 1, "maximum": 720 }
+        }
+      },
+      "WhatsAppTemplateListItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "language": { "type": "string" },
+          "category": { "type": "string", "enum": ["MARKETING", "UTILITY", "AUTHENTICATION"] },
+          "previousCategory": {
+            "type": ["string", "null"],
+            "enum": ["MARKETING", "UTILITY", "AUTHENTICATION", null]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PENDING",
+              "APPROVED",
+              "REJECTED",
+              "PAUSED",
+              "DISABLED",
+              "IN_APPEAL",
+              "FLAGGED",
+              "PENDING_DELETION",
+              "DELETED",
+              "ARCHIVED",
+              "LIMIT_EXCEEDED"
+            ]
+          },
+          "statusReason": {
+            "type": ["object", "null"],
+            "properties": {
+              "reason": { "type": "string" },
+              "title": { "type": ["string", "null"] },
+              "description": { "type": ["string", "null"] }
+            },
+            "required": ["reason", "title", "description"]
+          },
+          "quality": {
+            "type": ["string", "null"],
+            "enum": ["GREEN", "YELLOW", "RED", "UNKNOWN", null]
+          },
+          "pausedUntil": { "type": ["string", "null"] },
+          "purpose": { "type": "string", "enum": ["general", "call_permission"] },
+          "editable": { "type": "boolean" },
+          "parameterFormat": { "type": "string", "enum": ["positional", "named"] },
+          "channelIds": { "type": "array", "items": { "type": "string" } },
+          "variablesCount": { "type": "number" },
+          "submitted": { "type": "boolean" },
+          "usage": {
+            "type": "object",
+            "properties": {
+              "sent": { "type": "number" },
+              "delivered": { "type": "number" },
+              "read": { "type": "number" },
+              "failed": { "type": "number" },
+              "lastSentAt": { "type": ["string", "null"] }
+            },
+            "required": ["sent", "delivered", "read", "failed", "lastSentAt"]
+          },
+          "syncedAt": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "language",
+          "category",
+          "previousCategory",
+          "status",
+          "statusReason",
+          "quality",
+          "pausedUntil",
+          "purpose",
+          "editable",
+          "parameterFormat",
+          "channelIds",
+          "variablesCount",
+          "submitted",
+          "usage",
+          "syncedAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "WhatsAppTemplate": {
+        "allOf": [
+          { "$ref": "#/components/schemas/WhatsAppTemplateListItem" },
+          {
+            "type": "object",
+            "properties": {
+              "subCategory": { "type": ["string", "null"] },
+              "components": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": { "type": { "type": "string" } },
+                  "required": ["type"],
+                  "additionalProperties": {}
+                }
+              },
+              "variables": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": { "type": "string" },
+                    "component": { "type": "string", "enum": ["header", "body", "button"] },
+                    "index": { "type": "number" },
+                    "example": { "type": "string" },
+                    "defaultSource": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "contact.name",
+                            "contact.phone",
+                            "contact.email",
+                            "field",
+                            "static",
+                            "ask"
+                          ]
+                        },
+                        "value": { "type": ["string", "null"] }
+                      },
+                      "required": ["kind", "value"]
+                    }
+                  },
+                  "required": ["key", "component", "index", "example", "defaultSource"]
+                }
+              },
+              "statusHistory": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "PENDING",
+                        "APPROVED",
+                        "REJECTED",
+                        "PAUSED",
+                        "DISABLED",
+                        "IN_APPEAL",
+                        "FLAGGED",
+                        "PENDING_DELETION",
+                        "DELETED",
+                        "ARCHIVED",
+                        "LIMIT_EXCEEDED"
+                      ]
+                    },
+                    "reason": { "type": ["string", "null"] },
+                    "at": { "type": "string" },
+                    "source": { "type": "string", "enum": ["user", "webhook", "sync"] }
+                  },
+                  "required": ["status", "reason", "at", "source"]
+                }
+              },
+              "ttlSeconds": { "type": ["number", "null"] },
+              "headerMedia": {
+                "type": ["object", "null"],
+                "properties": {
+                  "mimeType": { "type": "string" },
+                  "size": { "type": "number" },
+                  "fileName": { "type": ["string", "null"] },
+                  "uploaded": { "type": "boolean" }
+                },
+                "required": ["mimeType", "size", "fileName", "uploaded"]
+              },
+              "editsLast30Days": { "type": "number" },
+              "nextEditAt": { "type": ["string", "null"] },
+              "deletedAt": { "type": ["string", "null"] },
+              "createdBy": { "type": ["string", "null"] }
+            },
+            "required": [
+              "subCategory",
+              "components",
+              "variables",
+              "statusHistory",
+              "ttlSeconds",
+              "headerMedia",
+              "editsLast30Days",
+              "nextEditAt",
+              "deletedAt",
+              "createdBy"
+            ]
+          }
+        ]
+      },
+      "WhatsAppTemplateCreate": {
+        "type": "object",
+        "properties": {
+          "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "language": { "type": "string", "minLength": 2, "maxLength": 20 },
+          "category": { "type": "string", "enum": ["MARKETING", "UTILITY", "AUTHENTICATION"] },
+          "parameterFormat": { "type": "string", "enum": ["positional", "named"] },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "type": { "type": "string", "minLength": 1, "maxLength": 60 } },
+              "required": ["type"],
+              "additionalProperties": {}
+            },
+            "minItems": 1,
+            "maxItems": 6,
+            "description": "Meta template components (HEADER / BODY / FOOTER / BUTTONS)"
+          },
+          "ttlSeconds": { "type": ["integer", "null"], "minimum": 30, "maximum": 2592000 },
+          "submit": { "type": "boolean" }
+        },
+        "required": ["channelId", "name", "language", "category", "components"]
+      },
+      "WhatsAppTemplateSyncResult": {
+        "type": "object",
+        "properties": {
+          "created": { "type": "number" },
+          "updated": { "type": "number" },
+          "deleted": { "type": "number" },
+          "unchanged": { "type": "number" }
+        },
+        "required": ["created", "updated", "deleted", "unchanged"]
+      },
+      "WhatsAppCallPermissionTemplate": {
+        "type": "object",
+        "properties": {
+          "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "language": { "type": "string", "minLength": 2, "maxLength": 20 },
+          "body": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "submit": { "type": "boolean" }
+        },
+        "required": ["channelId"]
+      },
+      "WhatsAppTemplateEdit": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "language": { "type": "string", "minLength": 2, "maxLength": 20 },
+          "category": { "type": "string", "enum": ["MARKETING", "UTILITY", "AUTHENTICATION"] },
+          "parameterFormat": { "type": "string", "enum": ["positional", "named"] },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "type": { "type": "string", "minLength": 1, "maxLength": 60 } },
+              "required": ["type"],
+              "additionalProperties": {}
+            },
+            "minItems": 1,
+            "maxItems": 6,
+            "description": "Meta template components (HEADER / BODY / FOOTER / BUTTONS)"
+          },
+          "ttlSeconds": { "type": ["integer", "null"], "minimum": 30, "maximum": 2592000 }
+        }
+      },
+      "WhatsAppTemplateVariableSources": {
+        "type": "object",
+        "properties": {
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": { "type": "string", "minLength": 1, "maxLength": 60 },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "contact.name",
+                    "contact.phone",
+                    "contact.email",
+                    "field",
+                    "static",
+                    "ask"
+                  ]
+                },
+                "value": { "type": ["string", "null"], "maxLength": 1024 }
+              },
+              "required": ["key", "kind"]
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "required": ["sources"]
       }
     },
     "parameters": {}
@@ -21311,7 +21748,7 @@
     "/api/v1/admin/accounts/{id}/whatsapp-billing": {
       "patch": {
         "tags": ["Superadmin"],
-        "summary": "Who pays Meta for numbers connected from now on (a credit line can’t be removed later)",
+        "summary": "Who pays Meta for numbers connected from now on (a credit line can’t be removed later) and the account WhatsApp price override: markup, fixed prices, platform fee (Phase 11)",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -21340,9 +21777,26 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "metaPayer": { "type": "string", "enum": ["platform", "customer"] }
+                        "metaPayer": { "type": "string", "enum": ["platform", "customer"] },
+                        "whatsappBilling": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": ["number", "null"] },
+                            "fixedPrices": {
+                              "type": ["object", "null"],
+                              "properties": {
+                                "marketing": { "type": "number" },
+                                "utility": { "type": "number" },
+                                "authentication": { "type": "number" },
+                                "service": { "type": "number" }
+                              }
+                            },
+                            "platformFeeMicros": { "type": ["number", "null"] }
+                          },
+                          "required": ["markupBps", "fixedPrices", "platformFeeMicros"]
+                        }
                       },
-                      "required": ["metaPayer"]
+                      "required": ["metaPayer", "whatsappBilling"]
                     }
                   },
                   "required": ["success", "data"]
@@ -23421,6 +23875,1679 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp-rates": {
+      "get": {
+        "tags": ["Admin · WhatsApp billing"],
+        "summary": "Meta's WhatsApp rate card in force, scheduled ones and history (platform.billing.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "current": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "id": { "type": "string" },
+                            "effectiveFrom": { "type": "string" },
+                            "currency": { "type": "string", "enum": ["INR"] },
+                            "source": { "type": "string", "enum": ["meta_csv", "manual"] },
+                            "note": { "type": ["string", "null"] },
+                            "createdAt": { "type": "string" },
+                            "markets": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                                  "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                                  "callingCodes": {
+                                    "type": "array",
+                                    "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                                    "maxItems": 50
+                                  },
+                                  "marketingMicros": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 1000000000
+                                  },
+                                  "utilityMicros": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 1000000000
+                                  },
+                                  "authenticationMicros": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 1000000000
+                                  },
+                                  "authenticationInternationalMicros": {
+                                    "type": ["integer", "null"],
+                                    "minimum": 0,
+                                    "maximum": 1000000000
+                                  },
+                                  "serviceMicros": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 1000000000
+                                  },
+                                  "utilityTiers": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "fromMessages": { "type": "integer", "minimum": 0 },
+                                        "micros": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 1000000000
+                                        }
+                                      },
+                                      "required": ["fromMessages", "micros"]
+                                    },
+                                    "maxItems": 10,
+                                    "default": []
+                                  },
+                                  "authenticationTiers": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "fromMessages": { "type": "integer", "minimum": 0 },
+                                        "micros": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 1000000000
+                                        }
+                                      },
+                                      "required": ["fromMessages", "micros"]
+                                    },
+                                    "maxItems": 10,
+                                    "default": []
+                                  }
+                                },
+                                "required": [
+                                  "market",
+                                  "label",
+                                  "callingCodes",
+                                  "marketingMicros",
+                                  "utilityMicros",
+                                  "authenticationMicros",
+                                  "authenticationInternationalMicros",
+                                  "serviceMicros"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "effectiveFrom",
+                            "currency",
+                            "source",
+                            "note",
+                            "createdAt",
+                            "markets"
+                          ]
+                        },
+                        "scheduled": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string" },
+                              "effectiveFrom": { "type": "string" },
+                              "currency": { "type": "string", "enum": ["INR"] },
+                              "source": { "type": "string", "enum": ["meta_csv", "manual"] },
+                              "note": { "type": ["string", "null"] },
+                              "createdAt": { "type": "string" },
+                              "markets": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                                    "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                                    "callingCodes": {
+                                      "type": "array",
+                                      "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                                      "maxItems": 50
+                                    },
+                                    "marketingMicros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    },
+                                    "utilityMicros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    },
+                                    "authenticationMicros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    },
+                                    "authenticationInternationalMicros": {
+                                      "type": ["integer", "null"],
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    },
+                                    "serviceMicros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    },
+                                    "utilityTiers": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "fromMessages": { "type": "integer", "minimum": 0 },
+                                          "micros": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 1000000000
+                                          }
+                                        },
+                                        "required": ["fromMessages", "micros"]
+                                      },
+                                      "maxItems": 10,
+                                      "default": []
+                                    },
+                                    "authenticationTiers": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "fromMessages": { "type": "integer", "minimum": 0 },
+                                          "micros": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 1000000000
+                                          }
+                                        },
+                                        "required": ["fromMessages", "micros"]
+                                      },
+                                      "maxItems": 10,
+                                      "default": []
+                                    }
+                                  },
+                                  "required": [
+                                    "market",
+                                    "label",
+                                    "callingCodes",
+                                    "marketingMicros",
+                                    "utilityMicros",
+                                    "authenticationMicros",
+                                    "authenticationInternationalMicros",
+                                    "serviceMicros"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "effectiveFrom",
+                              "currency",
+                              "source",
+                              "note",
+                              "createdAt",
+                              "markets"
+                            ]
+                          }
+                        },
+                        "history": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string" },
+                              "effectiveFrom": { "type": "string" },
+                              "source": { "type": "string" },
+                              "note": { "type": ["string", "null"] },
+                              "markets": { "type": "number" }
+                            },
+                            "required": ["id", "effectiveFrom", "source", "note", "markets"]
+                          }
+                        }
+                      },
+                      "required": ["current", "scheduled", "history"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Admin · WhatsApp billing"],
+        "summary": "Save a rate card (insert-only history; effectiveFrom now or later)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppRateCardSave" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "effectiveFrom": { "type": "string" },
+                        "currency": { "type": "string", "enum": ["INR"] },
+                        "source": { "type": "string", "enum": ["meta_csv", "manual"] },
+                        "note": { "type": ["string", "null"] },
+                        "createdAt": { "type": "string" },
+                        "markets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                              "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                              "callingCodes": {
+                                "type": "array",
+                                "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                                "maxItems": 50
+                              },
+                              "marketingMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "utilityMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "authenticationMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "authenticationInternationalMicros": {
+                                "type": ["integer", "null"],
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "serviceMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "utilityTiers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "fromMessages": { "type": "integer", "minimum": 0 },
+                                    "micros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    }
+                                  },
+                                  "required": ["fromMessages", "micros"]
+                                },
+                                "maxItems": 10,
+                                "default": []
+                              },
+                              "authenticationTiers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "fromMessages": { "type": "integer", "minimum": 0 },
+                                    "micros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    }
+                                  },
+                                  "required": ["fromMessages", "micros"]
+                                },
+                                "maxItems": 10,
+                                "default": []
+                              }
+                            },
+                            "required": [
+                              "market",
+                              "label",
+                              "callingCodes",
+                              "marketingMicros",
+                              "utilityMicros",
+                              "authenticationMicros",
+                              "authenticationInternationalMicros",
+                              "serviceMicros"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "effectiveFrom",
+                        "currency",
+                        "source",
+                        "note",
+                        "createdAt",
+                        "markets"
+                      ]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp-rates/import": {
+      "post": {
+        "tags": ["Admin · WhatsApp billing"],
+        "summary": "Preview Meta's INR rate card CSV (multipart `file`, ≤ 2 MB): markets, row errors, diff — nothing saved",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": { "file": { "type": "string", "format": "binary" } },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "markets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                              "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                              "callingCodes": {
+                                "type": "array",
+                                "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                                "maxItems": 50
+                              },
+                              "marketingMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "utilityMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "authenticationMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "authenticationInternationalMicros": {
+                                "type": ["integer", "null"],
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "serviceMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "utilityTiers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "fromMessages": { "type": "integer", "minimum": 0 },
+                                    "micros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    }
+                                  },
+                                  "required": ["fromMessages", "micros"]
+                                },
+                                "maxItems": 10,
+                                "default": []
+                              },
+                              "authenticationTiers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "fromMessages": { "type": "integer", "minimum": 0 },
+                                    "micros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    }
+                                  },
+                                  "required": ["fromMessages", "micros"]
+                                },
+                                "maxItems": 10,
+                                "default": []
+                              }
+                            },
+                            "required": [
+                              "market",
+                              "label",
+                              "callingCodes",
+                              "marketingMicros",
+                              "utilityMicros",
+                              "authenticationMicros",
+                              "authenticationInternationalMicros",
+                              "serviceMicros"
+                            ]
+                          }
+                        },
+                        "errors": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "row": { "type": "number" },
+                              "message": { "type": "string" }
+                            },
+                            "required": ["row", "message"]
+                          }
+                        },
+                        "diff": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "added": { "type": "array", "items": { "type": "string" } },
+                            "removed": { "type": "array", "items": { "type": "string" } },
+                            "changed": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "market": { "type": "string" },
+                                  "field": { "type": "string" },
+                                  "fromMicros": { "type": ["number", "null"] },
+                                  "toMicros": { "type": ["number", "null"] }
+                                },
+                                "required": ["market", "field", "fromMicros", "toMicros"]
+                              }
+                            }
+                          },
+                          "required": ["added", "removed", "changed"]
+                        }
+                      },
+                      "required": ["markets", "errors", "diff"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "413": {
+            "description": "Body or file too large (PAYLOAD_TOO_LARGE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp-billing": {
+      "get": {
+        "tags": ["Admin · WhatsApp billing"],
+        "summary": "Global WhatsApp markup / platform fee / hold age + platform-paid numbers not billed in INR (deadline 31 Dec 2026)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "settings": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": "number" },
+                            "platformFeeMicros": { "type": "number" },
+                            "holdMaxAgeHours": { "type": "number" }
+                          },
+                          "required": ["markupBps", "platformFeeMicros", "holdMaxAgeHours"]
+                        },
+                        "defaults": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": "number" },
+                            "platformFeeMicros": { "type": "number" },
+                            "holdMaxAgeHours": { "type": "number" }
+                          },
+                          "required": ["markupBps", "platformFeeMicros", "holdMaxAgeHours"]
+                        },
+                        "nonInrPlatformChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channelId": { "type": "string" },
+                              "accountId": { "type": "string" },
+                              "label": { "type": "string" },
+                              "wabaCurrency": { "type": "string" }
+                            },
+                            "required": ["channelId", "accountId", "label", "wabaCurrency"]
+                          }
+                        }
+                      },
+                      "required": ["settings", "defaults", "nonInrPlatformChannels"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Admin · WhatsApp billing"],
+        "summary": "Change the global WhatsApp price settings",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppBillingSettingsPatch" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "settings": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": "number" },
+                            "platformFeeMicros": { "type": "number" },
+                            "holdMaxAgeHours": { "type": "number" }
+                          },
+                          "required": ["markupBps", "platformFeeMicros", "holdMaxAgeHours"]
+                        },
+                        "defaults": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": "number" },
+                            "platformFeeMicros": { "type": "number" },
+                            "holdMaxAgeHours": { "type": "number" }
+                          },
+                          "required": ["markupBps", "platformFeeMicros", "holdMaxAgeHours"]
+                        },
+                        "nonInrPlatformChannels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channelId": { "type": "string" },
+                              "accountId": { "type": "string" },
+                              "label": { "type": "string" },
+                              "wabaCurrency": { "type": "string" }
+                            },
+                            "required": ["channelId", "accountId", "label", "wabaCurrency"]
+                          }
+                        }
+                      },
+                      "required": ["settings", "defaults", "nonInrPlatformChannels"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reports/whatsapp-margin": {
+      "get": {
+        "tags": ["Admin · WhatsApp billing"],
+        "summary": "Per account × category for a month: messages, billed, Meta cost (analytics or list), margin, mismatches; `format=csv` downloads",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" },
+            "required": true,
+            "name": "month",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": false,
+            "name": "accountId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["json", "csv"], "default": "json" },
+            "required": false,
+            "name": "format",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "accountId": { "type": "string" },
+                          "accountName": { "type": "string" },
+                          "category": { "type": "string" },
+                          "messages": { "type": "number" },
+                          "billedMicros": { "type": "number" },
+                          "metaCostMicros": { "type": "number" },
+                          "metaCostSource": { "type": "string", "enum": ["analytics", "list"] },
+                          "marginMicros": { "type": "number" },
+                          "marginBps": { "type": ["number", "null"] },
+                          "mismatches": { "type": "number" }
+                        },
+                        "required": [
+                          "accountId",
+                          "accountName",
+                          "category",
+                          "messages",
+                          "billedMicros",
+                          "metaCostMicros",
+                          "metaCostSource",
+                          "marginMicros",
+                          "marginBps",
+                          "mismatches"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reports/whatsapp-reconciliation": {
+      "get": {
+        "tags": ["Admin · WhatsApp billing"],
+        "summary": "Daily rows: Meta's pricing analytics vs our captured charges per WABA × category",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$" },
+            "required": true,
+            "name": "month",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": false,
+            "name": "accountId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["json", "csv"], "default": "json" },
+            "required": false,
+            "name": "format",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "accountId": { "type": "string" },
+                          "wabaId": { "type": "string" },
+                          "day": { "type": "string" },
+                          "category": { "type": "string" },
+                          "metaVolume": { "type": "number" },
+                          "metaCostMicros": { "type": "number" },
+                          "ourCaptured": { "type": "number" },
+                          "ourBilledMicros": { "type": "number" },
+                          "diffVolume": { "type": "number" },
+                          "diffMicros": { "type": "number" },
+                          "fetchedAt": { "type": "string" }
+                        },
+                        "required": [
+                          "accountId",
+                          "wabaId",
+                          "day",
+                          "category",
+                          "metaVolume",
+                          "metaCostMicros",
+                          "ourCaptured",
+                          "ourBilledMicros",
+                          "diffVolume",
+                          "diffMicros",
+                          "fetchedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/templates": {
+      "get": {
+        "tags": ["WhatsApp templates"],
+        "summary": "Templates of the account — list rows carry no bodies or examples (templates.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          },
+          { "schema": { "type": "string" }, "required": false, "name": "status", "in": "query" },
+          {
+            "schema": { "type": "string", "enum": ["MARKETING", "UTILITY", "AUTHENTICATION"] },
+            "required": false,
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["general", "call_permission"] },
+            "required": false,
+            "name": "purpose",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 100 },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "required": false,
+            "name": "includeDeleted",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/WhatsAppTemplateListItem" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      },
+      "post": {
+        "tags": ["WhatsApp templates"],
+        "summary": "Create a template: draft (`submit: false`) or submitted to Meta (templates.manage, rl:templates: 20 / h / user)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppTemplateCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppTemplate" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta refused (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/templates/sync": {
+      "post": {
+        "tags": ["WhatsApp templates"],
+        "summary": "Sync the number's WABA templates from Meta (templates.manage, 1 / min / number)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" } },
+                "required": ["channelId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppTemplateSyncResult" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta refused (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/templates/call-permission": {
+      "post": {
+        "tags": ["WhatsApp templates"],
+        "summary": "The ready-made \"may we call you?\" template — utility, one per number × language (templates.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppCallPermissionTemplate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppTemplate" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta refused (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/templates/{id}": {
+      "get": {
+        "tags": ["WhatsApp templates"],
+        "summary": "Template detail: components, variables + sources, history, usage, edit window (templates.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppTemplate" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      },
+      "patch": {
+        "tags": ["WhatsApp templates"],
+        "summary": "Edit — drafts freely; Meta templates when approved / rejected / paused (approved: 1 / 24 h, 10 / 30 days, category fixed) (templates.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppTemplateEdit" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppTemplate" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta refused (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      },
+      "delete": {
+        "tags": ["WhatsApp templates"],
+        "summary": "Delete at Meta — this language or every language of the name; rows stay as DELETED, the name is locked 30 days (templates.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "enum": ["language", "name"], "default": "language" },
+            "required": false,
+            "name": "scope",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "deleted": { "type": "number" } },
+                      "required": ["deleted"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta refused (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/templates/{id}/submit": {
+      "post": {
+        "tags": ["WhatsApp templates"],
+        "summary": "Submit a draft to Meta for review (templates.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppTemplate" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta refused (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/templates/{id}/variables": {
+      "patch": {
+        "tags": ["WhatsApp templates"],
+        "summary": "Default source per variable: contact name / phone / email, a custom field, a text, ask (templates.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppTemplateVariableSources" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppTemplate" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta refused (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/templates/{id}/media": {
+      "post": {
+        "tags": ["WhatsApp templates"],
+        "summary": "Media header example (multipart `file`: JPEG / PNG 5 MB, MP4 16 MB, PDF 100 MB) → storage + Meta handle (templates.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": { "file": { "type": "string", "format": "binary" } },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppTemplate" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "413": {
+            "description": "Body or file too large (PAYLOAD_TOO_LARGE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta refused (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
         }
       }
     }

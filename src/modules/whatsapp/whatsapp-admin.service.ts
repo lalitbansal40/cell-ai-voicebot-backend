@@ -187,26 +187,6 @@ export const accountWhatsApp = async (accountId: Types.ObjectId) => {
   };
 };
 
-/** Who pays Meta for numbers connected from now on (audited in both accounts). */
-export const setWhatsAppBilling = async (req: Request, accountId: string, metaPayer: MetaPayer) => {
-  const account = await customerAccount(accountId);
-  const from = account.whatsapp?.metaPayer ?? DEFAULT_ACCOUNT_WHATSAPP.metaPayer;
-  await AccountModel.updateOne({ _id: account._id }, { $set: { 'whatsapp.metaPayer': metaPayer } });
-  if (from !== metaPayer) {
-    const auth = requireAuth(req);
-    const base = {
-      actor: { type: 'user' as const, id: auth.userId ?? null, platform: true },
-      action: 'whatsapp.billing_mode_changed' as const,
-      target: { type: 'account', id: account._id.toString() },
-      meta: { from, to: metaPayer },
-      ip: req.ip ?? null,
-    };
-    await recordAudit({ ...base, accountId: account._id });
-    await recordAudit({ ...base, accountId: auth.accountId });
-  }
-  return { metaPayer };
-};
-
 /** Force disconnect with a reason (notification + email to owners / admins, audit both sides). */
 export const adminDisconnect = async (
   req: Request,

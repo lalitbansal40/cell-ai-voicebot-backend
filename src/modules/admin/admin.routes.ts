@@ -8,6 +8,7 @@ import { requirePlatformAdmin } from '../../shared/middlewares/require-permissio
 import { handle } from '../../shared/middlewares/validate';
 import { createWhatsAppAdminRouter } from '../whatsapp/whatsapp-admin.routes';
 import type { WhatsAppAdminDeps } from '../whatsapp/whatsapp-admin.service';
+import { createWhatsAppBillingAdminRouter } from '../whatsapp-billing/admin.routes';
 
 import { createAdminAiRouter } from './admin-ai.routes';
 import { createAdminBillingRouter } from './admin-billing.routes';
@@ -111,5 +112,6 @@ export const createAdminRouter = ({
   router.use(createAdminBillingRouter({ env }));
   router.use(createAdminAiRouter({ env, provider }));
   router.use(createWhatsAppAdminRouter({ whatsapp }));
+  router.use(createWhatsAppBillingAdminRouter());
   return router;
 };

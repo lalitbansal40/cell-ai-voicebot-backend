@@ -497,6 +497,7 @@ describe('GET /wallet/usage', () => {
         aiMicros: 0,
         ttsMicros: 0,
         otherMicros: 0,
+        whatsappMicros: 0,
         totalMicros: 0,
       },
       {
@@ -505,6 +506,7 @@ describe('GET /wallet/usage', () => {
         aiMicros: 4 * RUPEE,
         ttsMicros: RUPEE,
         otherMicros: 0,
+        whatsappMicros: 0,
         totalMicros: 10 * RUPEE,
       },
       {
@@ -513,6 +515,7 @@ describe('GET /wallet/usage', () => {
         aiMicros: 2 * RUPEE,
         ttsMicros: RUPEE,
         otherMicros: 3 * RUPEE,
+        whatsappMicros: 0,
         totalMicros: 12 * RUPEE,
       },
     ]);
@@ -521,6 +524,7 @@ describe('GET /wallet/usage', () => {
       aiMicros: 6 * RUPEE,
       ttsMicros: 2 * RUPEE,
       otherMicros: 3 * RUPEE,
+      whatsappMicros: 0,
       totalMicros: 22 * RUPEE,
     });
   });

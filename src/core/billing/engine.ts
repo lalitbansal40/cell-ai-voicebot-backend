@@ -829,6 +829,53 @@ export const releaseWhatsApp = async (input: {
 };
 
 /**
+ * Releases many WhatsApp holds of one account in one transaction (the 72-hour reaper):
+ * only rows still `held` are released; the wallet's hold drops by their sum. Returns
+ * the released hold ids.
+ */
+export const releaseWhatsAppMany = async (input: {
+  accountId: Types.ObjectId | string;
+  holdIds: (Types.ObjectId | string)[];
+  reason: string;
+}): Promise<{ released: Types.ObjectId[] }> => {
+  const accountId = oid(input.accountId);
+  if (!input.holdIds.length) return { released: [] };
+  let released: Types.ObjectId[] = [];
+  const out = await run(async (session) => {
+    released = [];
+    const rows = await LedgerEntryModel.find({
+      _id: { $in: input.holdIds.map(oid) },
+      accountId,
+      type: 'whatsapp_charge',
+      direction: 'debit',
+      status: 'held',
+      holdId: null,
+    })
+      .select({ amountMicros: 1 })
+      .session(session)
+      .lean<{ _id: Types.ObjectId; amountMicros: number }[]>();
+    if (!rows.length) return replay(accountId, [], session);
+    await releaseRows(
+      rows.map((r) => r._id),
+      input.reason.slice(0, 60),
+      session,
+    );
+    const total = rows.reduce((sum, r) => sum + r.amountMicros, 0);
+    released = rows.map((r) => r._id);
+    const month = await accountMonth(accountId, session);
+    const wallet = await updateWallet(accountId, session, moneyPipeline(month, { hold: -total }));
+    if (!wallet) throw new NotFoundError('Wallet not found');
+    return {
+      result: { entries: [], wallet, replay: false },
+      change: change(accountId, wallet, 0, -total),
+    };
+  });
+  released = out.result.replay ? [] : released;
+  await finish(out);
+  return { released };
+};
+
+/**
  * A billable status after the hold was released (72 h reaper, an early `failed`):
  * a direct captured debit at the price fixed at send. May take the balance below 0
  * (Meta billed us already). Key `wa-late-<messageId>`.

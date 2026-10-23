@@ -35,6 +35,7 @@ import { SEED_CAMPAIGN_NAMES, SEED_CAMPAIGN_SEGMENT, seedCampaigns } from './see
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
 import { SEED_FLOW_NAMES, seedFlows } from './seed-flows';
 import { seedInbox } from './seed-inbox';
+import { seedTemplates } from './seed-templates';
 import { SEED_WHATSAPP_NUMBER, seedWhatsApp } from './seed-whatsapp';
 
 const ROLES: SystemRoleKey[] = ['owner', 'admin', 'manager', 'agent', 'viewer'];
@@ -153,6 +154,19 @@ const main = async (): Promise<void> => {
       demoInbox.skipped
         ? `Inbox: skipped (${demoInbox.skipped})`
         : `Inbox: ${String(demoInbox.conversations)} demo conversations, ${String(demoInbox.messages)} messages (fake Meta)`,
+    );
+
+    const demoTemplates = await seedTemplates(account._id, {
+      env,
+      ownerId: owner?._id ?? account._id,
+      redis: getAppRedis(env.REDIS_URL, logger),
+      logger,
+      storage: createStorage(env, logger),
+    });
+    console.info(
+      demoTemplates.skipped
+        ? `Templates: skipped (${demoTemplates.skipped})`
+        : `Templates: ${String(demoTemplates.templates)} WhatsApp templates, ${String(demoTemplates.charged)} charged template send (fake Meta)`,
     );
 
     console.info(

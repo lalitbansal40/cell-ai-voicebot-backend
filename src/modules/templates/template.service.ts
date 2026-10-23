@@ -626,6 +626,10 @@ const mirror = (m: MetaTemplate) => {
     rejectedReason: m.rejectedReason && m.rejectedReason !== 'NONE' ? m.rejectedReason : null,
     ttlSeconds: m.ttlSeconds,
     editable: components.success && isEditable(category, list),
+    // a template made in WhatsApp Manager (or before a reset) with the call request
+    purpose: list.some((c) => String(c.type).toLowerCase() === 'call_permission_request')
+      ? ('call_permission' as const)
+      : ('general' as const),
   };
 };
 

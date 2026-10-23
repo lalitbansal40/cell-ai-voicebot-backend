@@ -74,3 +74,9 @@ export const recordingTemplateJobs = (): TemplateJobs & {
   };
   return jobs;
 };
+
+/** Where no queue runs (scripts / tests without one): queueing is skipped (the daily sync catches up). */
+export const unavailableTemplateJobs: TemplateJobs = {
+  enqueueSync: () => Promise.resolve(),
+  enqueueBackfill: () => Promise.resolve(),
+};

@@ -9,14 +9,18 @@ import {
 } from '../../db/models/platform-settings.model';
 import { getLogger } from '../../shared/logger';
 
-import { releaseWhatsApp } from './engine';
+import { releaseWhatsAppMany } from './engine';
 
 /**
  * `billing.whatsapp_reap_holds` (every 30 min): WhatsApp holds older than
  * `holdMaxAgeHours` (72 h) without a decisive status are released (`no_delivery`) and
  * their message marked `released`. A billable status that still arrives charges late.
  */
-export const reapWhatsAppHolds = async (now = new Date()): Promise<{ released: number }> => {
+export const reapWhatsAppHolds = async (
+  now = new Date(),
+  /** Dev simulator: only this account's holds. */
+  scope: { accountId?: Types.ObjectId } = {},
+): Promise<{ released: number }> => {
   const settings = await PlatformSettingsModel.findOne({ key: 'whatsappBilling' }).lean<{
     value?: { holdMaxAgeHours?: number };
   }>();
@@ -27,26 +31,33 @@ export const reapWhatsAppHolds = async (now = new Date()): Promise<{ released: n
     type: 'whatsapp_charge',
     status: 'held',
     createdAt: { $lt: cutoff },
+    ...(scope.accountId ? { accountId: scope.accountId } : {}),
   })
     .select({ accountId: 1 })
     .limit(WHATSAPP_BILLING_LIMITS.reapBatch)
     .lean<{ _id: Types.ObjectId; accountId: Types.ObjectId }[]>();
-  let released = 0;
+  // one transaction per account (5,000 stale holds of a busy day → a few transactions)
+  const byAccount = new Map<string, { accountId: Types.ObjectId; ids: Types.ObjectId[] }>();
   for (const r of rows) {
+    const k = r.accountId.toString();
+    const entry = byAccount.get(k) ?? { accountId: r.accountId, ids: [] };
+    entry.ids.push(r._id);
+    byAccount.set(k, entry);
+  }
+  let released = 0;
+  for (const { accountId, ids } of byAccount.values()) {
     try {
-      const res = await releaseWhatsApp({
-        accountId: r.accountId,
-        holdId: r._id,
-        reason: 'no_delivery',
-      });
-      await MessageModel.updateOne(
-        { accountId: r.accountId, 'billing.holdId': r._id, 'billing.status': 'held' },
-        { $set: { 'billing.status': 'released', 'billing.at': now } },
-      );
-      if (!res.replay) released += 1;
+      const res = await releaseWhatsAppMany({ accountId, holdIds: ids, reason: 'no_delivery' });
+      if (res.released.length) {
+        await MessageModel.updateMany(
+          { accountId, 'billing.holdId': { $in: res.released }, 'billing.status': 'held' },
+          { $set: { 'billing.status': 'released', 'billing.at': now } },
+        );
+      }
+      released += res.released.length;
     } catch (err) {
       getLogger().error(
-        { errName: (err as Error).name, holdId: r._id.toString() },
+        { errName: (err as Error).name, accountId: accountId.toString(), holds: ids.length },
         'billing: whatsapp hold release failed',
       );
     }

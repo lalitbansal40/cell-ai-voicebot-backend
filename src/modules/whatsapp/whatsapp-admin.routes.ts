@@ -3,13 +3,13 @@ import { Router } from 'express';
 import { AppError } from '../../shared/errors/app-error';
 import { ok } from '../../shared/http/envelope';
 import { handle } from '../../shared/middlewares/validate';
+import { updateAccountWhatsAppBilling } from '../whatsapp-billing/admin.service';
 
 import {
   adminDisconnect,
   listEvents,
   manualConnect,
   replayEvent,
-  setWhatsAppBilling,
   whatsappStatus,
   type WhatsAppAdminDeps,
 } from './whatsapp-admin.service';
@@ -67,7 +67,7 @@ export const createWhatsAppAdminRouter = ({
     ...handle(
       { params: ChannelParams, body: WhatsAppBillingBody },
       async ({ params, body, req, res }) => {
-        ok(res, await setWhatsAppBilling(req, params.id, body.metaPayer));
+        ok(res, await updateAccountWhatsAppBilling(req, params.id, body));
       },
     ),
   );

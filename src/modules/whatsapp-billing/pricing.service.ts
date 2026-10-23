@@ -193,3 +193,42 @@ export const releaseMessageCharge = async (
   if (!holdId) return;
   await releaseWhatsApp({ accountId, holdId, reason: 'send_aborted' });
 };
+
+/** Selling prices per market × category for an account (Wallet → Prices; never Meta's rates). */
+export const sellingPriceTable = async (
+  accountId: Types.ObjectId,
+  payer: 'platform' | 'customer',
+) => {
+  const [card, settings, override] = await Promise.all([
+    effectiveWhatsAppRateCard(),
+    whatsAppBillingSettings(),
+    accountWhatsAppPricing(accountId),
+  ]);
+  const markupBps = override?.markupBps ?? settings.markupBps;
+  const fee = override?.platformFeeMicros ?? settings.platformFeeMicros;
+  const price = (
+    market: RateCardMarket,
+    category: 'marketing' | 'utility' | 'authentication' | 'service',
+  ) =>
+    sellingPrice({
+      metaRateMicros: metaRate(market, category),
+      markupBps,
+      fixedPriceMicros: override?.fixedPrices?.[category] ?? null,
+      platformFeeMicros: fee,
+      payer,
+    }).priceMicros;
+  return {
+    payer,
+    effectiveFrom: card.effectiveFrom.toISOString(),
+    markets: card.markets.map((m) => ({
+      market: m.market,
+      label: m.label,
+      prices: {
+        marketing: price(m, 'marketing'),
+        utility: price(m, 'utility'),
+        authentication: price(m, 'authentication'),
+        service: price(m, 'service'),
+      },
+    })),
+  };
+};

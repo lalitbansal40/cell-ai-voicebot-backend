@@ -35,6 +35,7 @@ import { buildSimulatorPayload } from '../src/modules/whatsapp/simulator';
 import { processWebhookEvent } from '../src/modules/whatsapp/webhook-processor';
 import { receiveWebhook } from '../src/modules/whatsapp/webhooks.service';
 import { createWhatsAppService } from '../src/modules/whatsapp/whatsapp.service';
+import { createWhatsAppBillingHook } from '../src/modules/whatsapp-billing/billing-hook';
 import type { Logger } from '../src/shared/logger';
 
 import { SEED_WHATSAPP_NUMBER } from './seed-whatsapp';
@@ -87,7 +88,8 @@ export const seedInbox = async (
     key: secretBoxKey(env),
   };
   const jobs = recordingInboxJobs();
-  const ix: InboxContext = { wa: ctx, storage, jobs };
+  // Phase 11: the demo reply is priced, held and released by its (free) statuses
+  const ix: InboxContext = { wa: ctx, storage, jobs, billing: createWhatsAppBillingHook() };
   const h = { ctx, service: createWhatsAppService(ctx), inbox: createInboxHooks(ix) };
   const queued: string[] = [];
   const waJobs = { enqueueEvent: (id: string) => (queued.push(id), Promise.resolve()) };

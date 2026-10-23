@@ -10,6 +10,7 @@ import { AccountModel } from '../../db/models/account.model';
 import type { WalletDoc } from '../../db/models/wallet.model';
 import { tenantFilter } from '../../shared/auth/tenant';
 import { auditRequest } from '../audit/audit.service';
+import { sellingPriceTable } from '../whatsapp-billing/pricing.service';
 
 import type { EstimateBody, WalletSettingsBody } from './wallet.schema';
 
@@ -100,7 +101,13 @@ export const updateSettings = async (req: Request, body: z.infer<typeof WalletSe
 };
 
 export const getRates = async (req: Request) => {
-  const card = await effectiveRateCard(tenantFilter(req).accountId);
+  const { accountId } = tenantFilter(req);
+  const [card, account] = await Promise.all([
+    effectiveRateCard(accountId),
+    AccountModel.findById(accountId)
+      .select({ whatsapp: 1 })
+      .lean<{ whatsapp?: { metaPayer?: 'platform' | 'customer' } }>(),
+  ]);
   return {
     callPerMinuteMicros: card.callPerMinuteMicros,
     pulseSeconds: card.pulseSeconds,
@@ -112,6 +119,8 @@ export const getRates = async (req: Request) => {
     embeddingPer1kTokensMicros: card.embeddingPer1kTokensMicros,
     source: card.source,
     effectiveFrom: card.effectiveFrom.toISOString(),
+    // Phase 11: what one WhatsApp message costs this account (selling prices only)
+    whatsapp: await sellingPriceTable(accountId, account?.whatsapp?.metaPayer ?? 'platform'),
   };
 };
 

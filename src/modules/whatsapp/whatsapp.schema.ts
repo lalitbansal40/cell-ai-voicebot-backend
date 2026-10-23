@@ -1,9 +1,10 @@
 import { WHATSAPP_LIMITS } from '../../config/limits';
 import { META_EVENT_STATUSES } from '../../db/models/meta-webhook-event.model';
-import { META_PAYERS, WA_CHANNEL_STATUSES, WA_MODES } from '../../db/models/whatsapp-channel.model';
+import { WA_CHANNEL_STATUSES, WA_MODES } from '../../db/models/whatsapp-channel.model';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
 import { INBOX_SIMULATOR_KINDS } from '../inbox/simulator-kinds';
+import { TEMPLATE_SIMULATOR_KINDS } from '../templates/simulator-kinds';
 
 import { SIMULATOR_KINDS } from './simulator';
 
@@ -49,9 +50,8 @@ export const AdminDisconnectBody = z
   .strictObject({ reason: z.string().trim().min(3).max(200) })
   .openapi('WhatsAppAdminDisconnectInput');
 
-export const WhatsAppBillingBody = z
-  .strictObject({ metaPayer: z.enum(META_PAYERS) })
-  .openapi('WhatsAppBillingInput');
+/** Phase 9 `metaPayer` + the Phase 11 price override (schema in `whatsapp-billing`). */
+export { AccountWhatsAppBillingBody as WhatsAppBillingBody } from '../whatsapp-billing/admin.schema';
 
 export const ManualConnectBody = z
   .strictObject({
@@ -74,10 +74,11 @@ export const ListEventsQuery = z.strictObject({
 
 // ── dev simulator ──────────────────────────────────────────────────────────
 
-/** Phase 9 kinds + the Phase 10 inbox kinds (one endpoint). */
+/** Phase 9 kinds + the Phase 10 inbox kinds + the Phase 11 template / billing kinds (one endpoint). */
 export const ALL_SIMULATOR_KINDS = [
   ...SIMULATOR_KINDS,
   ...INBOX_SIMULATOR_KINDS.filter((k) => !(SIMULATOR_KINDS as readonly string[]).includes(k)),
+  ...TEMPLATE_SIMULATOR_KINDS,
 ] as const;
 
 export const SimulatorBody = z
@@ -93,5 +94,8 @@ export const SimulatorBody = z
     text: z.string().trim().min(1).max(1000).optional(),
     conversationId: ObjectIdSchema.optional(),
     days: z.number().int().min(1).max(3650).optional(),
+    /** Phase 11 template kinds: our template id; `late_billable_status`: our message id. */
+    templateId: ObjectIdSchema.optional(),
+    messageId: ObjectIdSchema.optional(),
   })
   .openapi('WhatsAppSimulatorInput');

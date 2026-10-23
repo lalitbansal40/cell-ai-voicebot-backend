@@ -101,3 +101,22 @@ With the real app and a test number, from two phones (Android + iPhone):
 8. Coexistence number: a message sent from the Business app phone appears as "Sent from the WhatsApp Business app"; history import shows past chats without unread.
 9. Typing indicator visible on the customer's phone while an agent types.
 10. Server logs for the whole session contain no message texts, numbers, names, file names, media URLs or tokens.
+
+## 14. Templates + charges (Phase 11)
+
+- **Permissions:** template management uses `whatsapp_business_management` (already requested for Embedded Signup); header example uploads use the Resumable Upload API with `META_APP_ID` (already set).
+- **Webhooks:** make sure `message_template_components_update` is subscribed (§5) — Phase 9 apps subscribed before it existed.
+- **Credit line:** platform-paid numbers must use an **INR** credit line (deadline 31 Dec 2026); **Admin → WhatsApp billing → Settings** lists numbers billed in another currency.
+- **Rate card:** import Meta's published INR rate card CSV (**Admin → WhatsApp billing → Rates**); regional markets need a `Calling codes` column. Until then the placeholder card (IN + OTHER) applies.
+
+### Real-WABA checklist
+
+1. Create a template on the test WABA from the app (utility, two variables) → Meta approves → the app shows "Approved" without a manual sync (webhook).
+2. Create one with a deliberate mistake → rejected; the reason shows in the app and the bell / e-mail arrive.
+3. Send the approved template to a customer whose 24-hour window is closed → delivered / read; the wallet shows one WhatsApp charge at the previewed price.
+4. Next day, **Admin → WhatsApp billing → Reconciliation**: Meta's volume and cost for that day match our captured charge (difference ≤ 2 %).
+5. A service reply inside the window → released when Meta reports it free (first 1,000 / number / month).
+6. Pause / quality: trigger a low-quality report on a test template if possible (or check the webhook in Meta's test tool) → status "Paused" and the bell.
+7. Create the call permission template → approved (Phase 12 uses it).
+8. A customer turns off marketing in WhatsApp (Settings → Business → stop offers) → the contact shows "Stopped marketing"; a marketing send is refused, a utility send still goes.
+9. Server logs for the session contain no variable values, rendered texts, phone numbers or names.

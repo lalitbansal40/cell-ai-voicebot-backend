@@ -16,9 +16,17 @@ interface DayRow {
   aiMicros: number;
   ttsMicros: number;
   otherMicros: number;
+  whatsappMicros: number;
 }
 
-const zero = () => ({ callMicros: 0, aiMicros: 0, ttsMicros: 0, otherMicros: 0, totalMicros: 0 });
+const zero = () => ({
+  callMicros: 0,
+  aiMicros: 0,
+  ttsMicros: 0,
+  otherMicros: 0,
+  whatsappMicros: 0,
+  totalMicros: 0,
+});
 
 /**
  * Daily usage from captured debits (same split as the wallet's month spend:
@@ -45,7 +53,9 @@ export const getUsage = async (req: Request, query: z.infer<typeof UsageQuery>) 
         accountId,
         status: 'captured',
         direction: 'debit',
-        type: { $in: ['call_charge', 'ai_charge', 'tts_charge', 'recording_charge'] },
+        type: {
+          $in: ['call_charge', 'ai_charge', 'tts_charge', 'recording_charge', 'whatsapp_charge'],
+        },
         createdAt: {
           $gte: startOfDayInZone(from, tz),
           $lt: startOfDayInZone(addDays(to, 1), tz),
@@ -87,6 +97,7 @@ export const getUsage = async (req: Request, query: z.infer<typeof UsageQuery>) 
           ],
         },
         other: { $cond: [{ $eq: ['$type', 'recording_charge'] }, '$amountMicros', 0] },
+        whatsapp: { $cond: [{ $eq: ['$type', 'whatsapp_charge'] }, '$amountMicros', 0] },
       },
     },
     {
@@ -96,6 +107,7 @@ export const getUsage = async (req: Request, query: z.infer<typeof UsageQuery>) 
         aiMicros: { $sum: '$ai' },
         ttsMicros: { $sum: '$tts' },
         otherMicros: { $sum: '$other' },
+        whatsappMicros: { $sum: '$whatsapp' },
       },
     },
   ]);
@@ -110,13 +122,20 @@ export const getUsage = async (req: Request, query: z.infer<typeof UsageQuery>) 
       aiMicros: r?.aiMicros ?? 0,
       ttsMicros: r?.ttsMicros ?? 0,
       otherMicros: r?.otherMicros ?? 0,
+      whatsappMicros: r?.whatsappMicros ?? 0,
       totalMicros: 0,
     };
-    point.totalMicros = point.callMicros + point.aiMicros + point.ttsMicros + point.otherMicros;
+    point.totalMicros =
+      point.callMicros +
+      point.aiMicros +
+      point.ttsMicros +
+      point.otherMicros +
+      point.whatsappMicros;
     totals.callMicros += point.callMicros;
     totals.aiMicros += point.aiMicros;
     totals.ttsMicros += point.ttsMicros;
     totals.otherMicros += point.otherMicros;
+    totals.whatsappMicros += point.whatsappMicros;
     totals.totalMicros += point.totalMicros;
     return point;
   });

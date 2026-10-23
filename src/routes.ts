@@ -46,7 +46,8 @@ import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes
 import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
-import type { TemplateJobs } from './modules/templates/jobs';
+import { unavailableTemplateJobs, type TemplateJobs } from './modules/templates/jobs';
+import { createTemplatesRouter } from './modules/templates/templates.routes';
 import { createWalletRouter } from './modules/wallet/wallet.routes';
 import { createDevSimulatorRouter } from './modules/whatsapp/dev-simulator.routes';
 import { createMetaCallbacksRouter } from './modules/whatsapp/meta-callbacks.routes';
@@ -78,6 +79,9 @@ export type WhatsAppDeps = MetaWebhooksDeps & {
   inboxUploadRateLimitStore?: Store;
   /** Phase 11: template jobs on the `whatsapp` queue (sync after a connect). */
   templateJobs?: TemplateJobs;
+  /** `rl:templates:` / `rl:template-sync:` stores. */
+  templatesRateLimitStore?: Store;
+  templateSyncRateLimitStore?: Store;
 };
 
 export interface BillingDeps {
@@ -221,6 +225,20 @@ export const createApiRouter = ({
     router.use('/meta', createMetaCallbacksRouter(whatsappRuntime));
     router.use('/whatsapp', createBusinessProfileRouter(whatsappRuntime.ctx));
     router.use('/whatsapp', createPricePreviewRouter());
+    router.use(
+      '/whatsapp',
+      createTemplatesRouter({
+        ctx: whatsappRuntime.ctx,
+        jobs: whatsappRuntime.templateJobs ?? unavailableTemplateJobs,
+        storage: whatsappRuntime.storage ?? contacts.storage,
+        ...(whatsappRuntime.templatesRateLimitStore
+          ? { rateLimitStore: whatsappRuntime.templatesRateLimitStore }
+          : {}),
+        ...(whatsappRuntime.templateSyncRateLimitStore
+          ? { syncRateLimitStore: whatsappRuntime.templateSyncRateLimitStore }
+          : {}),
+      }),
+    );
     router.use('/whatsapp', createWhatsAppRouter(whatsappRuntime));
     router.use(
       '/inbox',

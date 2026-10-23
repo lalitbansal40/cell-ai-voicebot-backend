@@ -28,7 +28,8 @@ export const setMarketingPreference = async (input: {
         { 'whatsapp.marketing': null },
         { 'whatsapp.marketing': { $exists: false } },
         { 'whatsapp.marketing.at': null },
-        { 'whatsapp.marketing.at': { $lt: input.at } },
+        // same second: the later event wins (a stop then a resume)
+        { 'whatsapp.marketing.at': { $lte: input.at } },
       ],
     },
     { $set: { 'whatsapp.marketing': marketing } },

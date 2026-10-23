@@ -11,6 +11,8 @@ import { authenticate } from '../../shared/middlewares/authenticate';
 import { handle } from '../../shared/middlewares/validate';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
 import { isInboxSimulatorKind, runInboxSimulator } from '../inbox/simulator';
+import { runTemplateSimulator } from '../templates/simulator';
+import { isTemplateSimulatorKind, templateSimulatorPermission } from '../templates/simulator-kinds';
 
 import type { WhatsAppContext } from './context';
 import type { WhatsAppJobs } from './jobs';
@@ -50,7 +52,8 @@ export const createDevSimulatorRouter = (deps: {
   router.use(authenticate());
   const allowed = async (
     channelId: string,
-    permission: 'whatsapp.manage' | 'inbox.reply' | 'whatsapp.read',
+    permission:
+      'whatsapp.manage' | 'inbox.reply' | 'whatsapp.read' | 'templates.manage' | 'templates.read',
     auth: ReturnType<typeof requireAuth>,
   ) => {
     const channel = await WhatsAppChannelModel.findById(channelId)
@@ -68,6 +71,18 @@ export const createDevSimulatorRouter = (deps: {
     '/webhooks',
     ...handle({ body: SimulatorBody }, async ({ body, req, res }) => {
       const auth = requireAuth(req);
+      if (isTemplateSimulatorKind(body.kind)) {
+        await allowed(body.channelId, templateSimulatorPermission(body.kind), auth);
+        ok(
+          res,
+          await runTemplateSimulator(deps, new Types.ObjectId(body.channelId), body.kind, {
+            templateId: body.templateId,
+            messageId: body.messageId,
+            from: body.from,
+          }),
+        );
+        return;
+      }
       const inbox = isInboxSimulatorKind(body.kind);
       await allowed(body.channelId, inbox ? 'inbox.reply' : 'whatsapp.manage', auth);
       const channelId = new Types.ObjectId(body.channelId);
@@ -99,6 +114,31 @@ export const createDevSimulatorRouter = (deps: {
       );
     }),
   );
+
+  // Phase 11: the fake's templates of a number's WABA (names / statuses — no bodies)
+  router.get('/templates', async (req, res) => {
+    const auth = requireAuth(req);
+    const parsed = ObjectIdSchema.safeParse(req.query.channelId);
+    if (!parsed.success)
+      throw new ValidationError([{ path: 'channelId', message: 'Must be an id' }]);
+    await allowed(parsed.data, 'templates.read', auth);
+    const channel = await WhatsAppChannelModel.findById(parsed.data)
+      .select({ wabaId: 1 })
+      .lean<{ wabaId: string }>();
+    const fake = deps.ctx.meta.provider === 'fake' ? (deps.ctx.meta as FakeMetaClient) : null;
+    const templates = fake && channel ? await fake.templates(channel.wabaId) : [];
+    ok(
+      res,
+      templates.map((t) => ({
+        id: t.id,
+        name: t.name,
+        language: t.language,
+        status: t.status,
+        category: t.category,
+        quality: t.quality_score?.score ?? null,
+      })),
+    );
+  });
 
   // what the fake recorded for a number: sends (no texts) and read receipts
   router.get('/sent', async (req, res) => {

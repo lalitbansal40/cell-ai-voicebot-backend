@@ -132,6 +132,13 @@ What the product does today (ADR 0032) — **to be confirmed with the client's C
 - **Voice recording:** agents record voice notes in the browser only while pressing record (browser mic indicator visible); recordings are kept in memory until sent, then stored like any media.
 - **DPDP:** WhatsApp messages are personal data processed for the account (the data fiduciary); purpose = customer service on the business's number; access by role; no message text in notifications or logs.
 
+## 11. WhatsApp templates + charges (Phase 11)
+
+- **Marketing consent:** marketing templates are refused for contacts who opted out (STOP keywords), are on the DND list or stopped marketing in WhatsApp (`user_preferences`, error 131050); the builder warns that marketing needs the customer's opt-in (owner decision: a warning, not a hard consent gate). Utility / authentication templates may reach opted-out contacts that are not DND (owner decision) — the legal team should confirm this for loan reminders.
+- **Frequency:** at most one marketing template per contact per 24 h (owner default) on top of Meta's own per-user marketing limits (131049).
+- **Charges:** customers see the price before sending; a message is charged only when Meta reports it billable on delivery; GST on wallet recharges is unchanged (Phase 4 §8).
+- **INR billing:** Meta moves Indian businesses to INR by **31 Dec 2026**; numbers we pay Meta for must be on an INR credit line before then (superadmin page lists the others).
+
 ## Sources
 
 - TRAI Press Release 11/2025 — <https://cms.trai.gov.in/sites/default/files/2025-02/PR_No.11of2025.pdf>

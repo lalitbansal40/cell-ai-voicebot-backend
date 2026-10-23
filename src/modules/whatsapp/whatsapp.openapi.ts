@@ -441,11 +441,28 @@ registry.registerPath({
   method: 'patch',
   path: '/api/v1/admin/accounts/{id}/whatsapp-billing',
   tags: adminTags,
-  summary: 'Who pays Meta for numbers connected from now on (a credit line can’t be removed later)',
+  summary:
+    'Who pays Meta for numbers connected from now on (a credit line can’t be removed later) and the account WhatsApp price override: markup, fixed prices, platform fee (Phase 11)',
   security: bearer,
   request: { params: ChannelParams, ...json(WhatsAppBillingBody) },
   responses: {
-    200: ok(z.object({ metaPayer: z.enum(META_PAYERS) })),
+    200: ok(
+      z.object({
+        metaPayer: z.enum(META_PAYERS),
+        whatsappBilling: z.object({
+          markupBps: z.number().nullable(),
+          fixedPrices: z
+            .object({
+              marketing: z.number().optional(),
+              utility: z.number().optional(),
+              authentication: z.number().optional(),
+              service: z.number().optional(),
+            })
+            .nullable(),
+          platformFeeMicros: z.number().nullable(),
+        }),
+      }),
+    ),
     401: errors[401],
     403: errors[403],
     404: errors[404],
