@@ -212,6 +212,14 @@ Write to customers outside the 24-hour window with Meta-approved templates, and 
 - **E2E** (frontend repo): `templates-done-when`, `templates-billing`, `templates-marketing-rules`, `templates-roles-entry` (backend started with `FAKE_META_TEMPLATE_REVIEW_MS=1000`); the fake's `_reject` template is approved after an edit. Sign-off: [PHASE_11_SIGNOFF.md](docs/phases/PHASE_11_SIGNOFF.md).
 - **Env:** `FAKE_META_TEMPLATE_REVIEW_MS` — see the table below.
 
+## WhatsApp calling (Phase 12 — in progress)
+
+Voice calls on WhatsApp numbers: WebRTC media in our own process (`werift`, Opus via WASM), the Phase 7 call leg / AI pipeline on top — [ADR 0040](docs/adr/0040-whatsapp-call-media.md).
+
+- **Batch 1 (done):** models + migration `0013-whatsapp-calling`, Meta calling client + fake Meta calling (knobs `00020`–`00030`), `WhatsAppCallLeg`, the call-control bus (hangups reach the server running any call: `POST /api/v1/calls/:id/hangup` → 202 when forwarded).
+- **Try it:** `npm run poc:wa-call` (media PoC numbers: 20 runs, keep-alive, 1 / 10 / 20 parallel calls); `npm run dev:calls-wa -- --poc` (a business call to the fake customer on loopback: tones both ways, a key, numbers only); `GET /api/v1/dev/meta/calls?channelId=…` (the fake customer's side of each call).
+- **Env:** `WA_MEDIA_ENABLED`, `WA_MEDIA_PUBLIC_IP`, `WA_MEDIA_PORT_MIN` / `WA_MEDIA_PORT_MAX`, `WA_STUN_URLS`, `WA_MEDIA_MAX_CALLS`, `FAKE_META_CALL_DELAYS_MS` — see the table below.
+
 ## Database (MongoDB)
 
 - Connection: `src/db/mongo.ts` (Mongoose 9, `strictQuery`, `autoIndex` off in production, credentials never logged). Indexes are synced at startup in development/test; in production run `npm run db:sync-indexes` as a deploy step.

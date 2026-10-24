@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 12 · Batch 1 (T12.1–T12.4) — WhatsApp calling foundation** — 2026-10-24
+  - PoC gate passed (ADR 0040): `werift` WebRTC in our process + Opus (WASM) + the Phase 7 resampler on loopback against a Meta-like ICE-lite peer — 20 / 20 runs, setup ≈ 140 ms, 30 s silent keep-alive, 1 / 10 / 20 parallel calls at ≈ 1–2 % of one core and < 6 MB each; `npm run poc:wa-call`.
+  - Models: channel `calling` (Meta's call-hours rules, routing, permission request text), call permissions per account × number × contact, WhatsApp call fields, call bubbles and call interactive kinds, contact BSUID, user call availability, account call settings + price override, calling rate cards, call price settings, the `whatsapp_call_charge` ledger type; migration `0013-whatsapp-calling`; 83 error codes, 127 audit actions, 31 notification types, 4 WS events, `calls.answer` + `whatsapp.calling.manage`; `WA_MEDIA_*` env.
+  - Meta client: connect / pre_accept / accept / reject / terminate, call settings, call permissions (phone or BSUID), call analytics, call webhooks and payload builders (re-checked on Meta's pages), `mapCallError`, SDP / ICE scrubbing; the fake Meta places and takes calls with a WebRTC customer (`FakeWaUser`), Meta's permission limits and knobs `00020`–`00030`; `GET /dev/meta/calls`.
+  - `WhatsAppCallLeg` (a Phase 7 call leg for WhatsApp: jitter buffer, paced audio, silent keep-alive, keys, media timeout, terminate on hang-up) and the call-control bus (call owners, inbound claims, first-wins answers); hangups now reach the server running any call (`POST /calls/:id/hangup` → 202 when forwarded); calls webhook fast path; Phase 9 `calls` events marked ignored.
+  - Fixed: the opusscript wrapper corrupted audio once ~100 codecs were alive (stale WASM heap views, byte pointers on 16-bit views) — the codec drives the WASM module directly; a lone ICE candidate line in a Meta error kept its IP after scrubbing.
+  - `npm run dev:calls-wa -- --poc`: a business call to the fake customer on loopback — both tones heard, a key received, numbers only. Tests: 2972 → 3074.
+
 - **Phase 11 · Batch 3 (T11.7–T11.12) — frontend, E2E, sign-off** — 2026-10-24
   - Backend for the screens: the account WhatsApp price override on `GET /admin/accounts/:id`, the chat id on WhatsApp ledger rows (`breakdown.waConversationId`) and the WhatsApp breakdown fields in the ledger schema, validator cases shared with the frontend, the fake's `_reject` knob approves an edited template.
   - Fixed: the account ledger exposed Meta's cost, the markup and the platform fee of WhatsApp charges (account views now show the selling price only; superadmin views keep the split).
