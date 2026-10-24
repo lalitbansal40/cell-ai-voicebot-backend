@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import type { Redis } from 'ioredis';
+import { Redis } from 'ioredis';
 import { Types } from 'mongoose';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -27,6 +27,7 @@ import { TranscriptTurnModel } from '../../src/db/models/transcript-turn.model';
 import { CallManager } from '../../src/modules/calls/call.service';
 import { CallRegistry } from '../../src/modules/calls/registry';
 import type { CallIO } from '../../src/modules/calls/session';
+import { CallControlBus } from '../../src/modules/whatsapp-calling/bus';
 import { buildOpenApiDocument } from '../../src/openapi';
 import { createLogger } from '../../src/shared/logger';
 import { createTestAccount, tokenFor, type TestAccount, type TestUser } from '../helpers/auth';
@@ -594,5 +595,77 @@ describe('without a voice runtime', () => {
   it('the /calls routes are not mounted', async () => {
     const plain = buildTestApp();
     expect((await request(plain).get(BASE).set(auth(owner))).status).toBe(404);
+  });
+});
+
+describe('cross-process hangup over the call bus (Phase 12)', () => {
+  it('a hangup on another server is handed to the process running the call (202)', async () => {
+    const url = (await requireRedis()).url;
+    const subA = new Redis(url);
+    const subB = new Redis(url);
+    const busA = new CallControlBus({ redis, subscriber: subA, prefix, nodeId: 'node-a' });
+    const busB = new CallControlBus({ redis, subscriber: subB, prefix, nodeId: 'node-b' });
+    await busA.start();
+    await busB.start();
+    manager.attachBus(busA);
+    const other = new CallManager({
+      logger: silent,
+      registry,
+      tts: new TtsCache({ tts: new FakeTts(), storage }),
+      storage,
+      recordingDir,
+      scriptFor: () =>
+        Promise.resolve({ script: scriptOf(waitLong), voice: 'alloy', language: 'hi' }),
+    });
+    other.attachBus(busB);
+    const appB = buildTestApp(
+      {},
+      {
+        storage,
+        aiProvider: createFakeProvider(),
+        calls: { manager: other, registry, textInput: true, voiceProvider: 'fake' },
+      },
+    );
+    try {
+      const caller = await t.addUser('admin');
+      const started = await web(caller, { flowId, contactId });
+      expect(started.status, JSON.stringify(started.body)).toBe(201);
+      const { call, mediaTicket, wsPath } = started.body.data;
+      const port = (server.address() as AddressInfo).port;
+      const ws = await connect(
+        `ws://127.0.0.1:${String(port)}${wsPath as string}?ticket=${mediaTicket as string}`,
+      );
+      await vi.waitFor(
+        async () => expect((await CallModel.findById(call.id).lean())?.status).toBe('in_progress'),
+        { timeout: 10_000 },
+      );
+      expect(await busB.nodeOfCall(call.id as string)).toBe('node-a');
+      const hung = await request(appB)
+        .post(`${BASE}/${call.id as string}/hangup`)
+        .set(auth(caller));
+      expect(hung.status, JSON.stringify(hung.body)).toBe(202);
+      await vi.waitFor(
+        async () =>
+          expect((await CallModel.findById(call.id).lean())?.endReason).toBe('customer_hangup'),
+        { timeout: 10_000 },
+      );
+      await vi.waitFor(async () => expect(await busB.nodeOfCall(call.id as string)).toBeNull());
+      const audit = await AuditLogModel.findOne({
+        action: 'call.hung_up_remotely',
+        'target.id': call.id,
+      }).lean<{ meta: Record<string, unknown> }>();
+      expect(audit?.meta).toMatchObject({ forwarded: true });
+      // nobody holds it any more → 409 from either server
+      const again = await request(appB)
+        .post(`${BASE}/${call.id as string}/hangup`)
+        .set(auth(caller));
+      expect([again.status, again.body.error.code]).toEqual([409, 'CALL_NOT_ACTIVE']);
+      ws.close();
+    } finally {
+      await busA.stop();
+      await busB.stop();
+      subA.disconnect();
+      subB.disconnect();
+    }
   });
 });

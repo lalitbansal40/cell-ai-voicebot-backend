@@ -353,7 +353,11 @@ export const recordingLink = async (req: Request, id: string, deps: Pick<CallsDe
 export const hangupCall = async (req: Request, id: string, deps: Pick<CallsDeps, 'manager'>) => {
   const { accountId } = tenantFilter(req);
   await findCall(accountId, id);
-  await deps.manager.hangup(accountId.toString(), id);
-  await auditRequest(req, 'call.hung_up_remotely', { target: { type: 'call', id } });
-  return viewOne(await findCall(accountId, id));
+  // Phase 12: a call running on another process is handed to it over the call bus
+  const where = await deps.manager.hangupAnywhere(accountId.toString(), id);
+  await auditRequest(req, 'call.hung_up_remotely', {
+    target: { type: 'call', id },
+    meta: { forwarded: where === 'forwarded' },
+  });
+  return { call: await viewOne(await findCall(accountId, id)), forwarded: where === 'forwarded' };
 };

@@ -12,6 +12,18 @@ export interface WhatsAppContext {
   /** Secret-box key (`secretBoxKey(env)`) — seals business tokens and PINs. */
   key: Buffer;
   now?: () => Date;
+  /**
+   * Phase 12 webhook fast path: a newly stored `calls` event is handed to the call
+   * bus at once (ids + kinds only). The worker still processes the stored row.
+   */
+  callsFastPath?: (event: CallsFastPathEvent) => Promise<void>;
+}
+
+export interface CallsFastPathEvent {
+  eventId: string;
+  waCallId: string;
+  /** `connect` / `terminate` / `RINGING` / `ACCEPTED` / `REJECTED` … */
+  kind: string;
 }
 
 export const nowOf = (ctx: Pick<WhatsAppContext, 'now'>): Date => ctx.now?.() ?? new Date();

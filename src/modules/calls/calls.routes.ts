@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Store } from 'express-rate-limit';
 
 import { CALL_LIMITS, CAMPAIGN_LIMITS } from '../../config/limits';
-import { created, ok } from '../../shared/http/envelope';
+import { accepted, created, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { idempotency } from '../../shared/middlewares/idempotency';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
@@ -111,7 +111,10 @@ export const createCallsRouter = (deps: CallsRouterDeps): Router => {
     '/:id/hangup',
     ...trigger,
     ...handle({ params: CallParams }, async ({ params, req, res }) => {
-      ok(res, await hangupCall(req, params.id, deps));
+      const { call, forwarded } = await hangupCall(req, params.id, deps);
+      // forwarded: the owning process ends it shortly (the view may still show it live)
+      if (forwarded) accepted(res, call);
+      else ok(res, call);
     }),
   );
   return router;

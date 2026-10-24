@@ -60,8 +60,10 @@ import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { queueInboxJobs } from './modules/inbox/jobs';
 import { queueTemplateJobs } from './modules/templates/jobs';
+import type { CallsFastPathEvent } from './modules/whatsapp/context';
 import { connectFakeStatusWebhooks } from './modules/whatsapp/fake-statuses';
 import { queueWhatsAppJobs } from './modules/whatsapp/jobs';
+import { CallControlBus } from './modules/whatsapp-calling/bus';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
 
@@ -182,6 +184,22 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       }),
     }),
   });
+  // Phase 12: call-control bus — cross-process hangups (every provider) and the
+  // owner of each WhatsApp call's media; its own subscriber connection
+  const callBus = new CallControlBus({
+    redis,
+    subscriber: createSubscriber(env.REDIS_URL, logger),
+  });
+  await callBus.start();
+  callManager.attachBus(callBus);
+  lifecycle.onShutdown('call-bus', () => callBus.stop(), 7);
+  /** A new `calls` webhook event reaches the call's owner at once (else every node). */
+  const callsFastPath = async (event: CallsFastPathEvent): Promise<void> => {
+    const message = { type: 'calls_event', ...event } as const;
+    if ((await callBus.toOwner(event.waCallId, message)) === 'no_owner') {
+      await callBus.toAll(message);
+    }
+  };
   // Phase 9: WhatsApp (Meta webhooks now; the channel API joins in T9.6)
   const whatsappQueue = env.WHATSAPP_ENABLED ? createQueue(QUEUES.whatsapp, queueDeps) : undefined;
   const whatsapp = whatsappQueue
@@ -191,6 +209,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
           meta: createMetaClient(env, { redis, logger }),
           redis,
           key: secretBoxKey(env),
+          callsFastPath,
         },
         jobs: queueWhatsAppJobs(whatsappQueue),
         inboxJobs: queueInboxJobs(whatsappQueue),

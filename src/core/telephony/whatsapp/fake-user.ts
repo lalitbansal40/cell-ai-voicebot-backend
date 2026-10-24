@@ -6,7 +6,7 @@ import { Resampler } from '../../voice/audio/resample';
 import { readWav } from '../../voice/audio/wav';
 
 import { createOpusCodec, OPUS_FRAME_SAMPLES, OPUS_RATE, type OpusCodec } from './codec';
-import { dtmfPackets, DTMF_DIGITS } from './dtmf';
+import { DtmfReceiver, dtmfPackets, DTMF_DIGITS } from './dtmf';
 import { DTMF_PT, OPUS_PT, WhatsAppPeer } from './peer';
 import { hasTone } from './tones';
 
@@ -51,6 +51,8 @@ export interface FakeWaUserStats {
   heardLevel: number | null;
   /** Digits sent so far (dev view; never logged). */
   dtmfSent: string;
+  /** Digits the business pressed (agent keypad). */
+  dtmfHeard: string;
   packetsIn: number;
   packetsOut: number;
 }
@@ -69,6 +71,7 @@ export class FakeWaUser {
     heardTone: false,
     heardLevel: null,
     dtmfSent: '',
+    dtmfHeard: '',
     packetsIn: 0,
     packetsOut: 0,
   };
@@ -78,8 +81,16 @@ export class FakeWaUser {
       if (state === 'connected') this.stats.connected = true;
       if (state === 'failed' || state === 'closed') this.finish();
     });
+    const keys = new DtmfReceiver((d) => {
+      this.stats.dtmfHeard += d;
+    });
     this.peer.onPacket((p) => {
-      if (this.closed || p.payloadType !== OPUS_PT) return;
+      if (this.closed) return;
+      if (p.payloadType === DTMF_PT) {
+        keys.push(p.payload, p.timestamp);
+        return;
+      }
+      if (p.payloadType !== OPUS_PT) return;
       this.stats.packetsIn += 1;
       const pcm = this.codec.decode(p.payload);
       if (pcm.length) {

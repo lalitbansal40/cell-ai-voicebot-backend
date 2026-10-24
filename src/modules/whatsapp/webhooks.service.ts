@@ -90,6 +90,40 @@ const unavailable = (err: unknown) =>
  * Events stored earlier but not processed yet are queued again (Redis was down) —
  * the job id keeps that to one job. Mongo / Redis failure → 503 (Meta retries).
  */
+/** Call ids + kinds of a `calls` value (connect / terminate events, call statuses). */
+export const callsOf = (value: unknown): { waCallId: string; kind: string }[] => {
+  const v = value as {
+    calls?: { id?: unknown; event?: unknown }[] | null;
+    statuses?: { id?: unknown; status?: unknown; type?: unknown }[] | null;
+  } | null;
+  const out: { waCallId: string; kind: string }[] = [];
+  for (const c of Array.isArray(v?.calls) ? v.calls : []) {
+    if (typeof c.id === 'string' && typeof c.event === 'string') {
+      out.push({ waCallId: c.id, kind: c.event });
+    }
+  }
+  for (const st of Array.isArray(v?.statuses) ? v.statuses : []) {
+    if (typeof st.id === 'string' && typeof st.status === 'string') {
+      out.push({ waCallId: st.id, kind: st.status.toUpperCase() });
+    }
+  }
+  return out;
+};
+
+/** Never blocks Meta's 200: a failed publish is logged with ids, the worker path still runs. */
+const fastPath = (ctx: WhatsAppContext, eventId: string, value: unknown): void => {
+  const send = ctx.callsFastPath;
+  if (!send) return;
+  for (const { waCallId, kind } of callsOf(value)) {
+    void send({ eventId, waCallId, kind }).catch((err: unknown) => {
+      getLogger().warn(
+        { eventId, waCallId, kind, errName: (err as Error).name },
+        'meta webhook: calls fast path failed',
+      );
+    });
+  }
+};
+
 export const receiveWebhook = async (
   ctx: WhatsAppContext,
   jobs: WhatsAppJobs,
@@ -153,6 +187,7 @@ export const receiveWebhook = async (
         if (res.upsertedId) {
           received += 1;
           await jobs.enqueueEvent(res.upsertedId.toString());
+          if (change.field === 'calls') fastPath(ctx, res.upsertedId.toString(), change.value);
           continue;
         }
         duplicates += 1;

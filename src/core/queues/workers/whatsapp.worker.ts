@@ -39,6 +39,15 @@ import type { HandlerContext } from '../../../modules/whatsapp/webhook-handlers'
 import { processWebhookEvent } from '../../../modules/whatsapp/webhook-processor';
 import { createWhatsAppService } from '../../../modules/whatsapp/whatsapp.service';
 import { createWhatsAppBillingHook } from '../../../modules/whatsapp-billing/billing-hook';
+import {
+  hasDeferredCallEvents,
+  ignoreStaleCallEvents,
+} from '../../../modules/whatsapp-calling/backfill';
+import {
+  CALLING_JOB_OPTIONS,
+  CALLING_JOBS,
+  CALLS_BACKFILL_IGNORE_JOB_ID,
+} from '../../../modules/whatsapp-calling/jobs';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -56,6 +65,10 @@ export const processWhatsAppJob =
       return { status: await processWebhookEvent(h, eventId, { finalAttempt: finalAttempt() }) };
     }
     if (job.name === WHATSAPP_HEALTH_JOB) return runHealthPass(h.service);
+    // Phase 12: calls events stored before calling existed are never replayed
+    if (job.name === CALLING_JOBS.backfillIgnore) {
+      return { ignored: await ignoreStaleCallEvents(h.ctx) };
+    }
     if (tx) {
       if (job.name === TEMPLATE_JOBS.sync) {
         return processTemplateSync(tx, job.data as TemplateSyncJobData);
@@ -144,5 +157,13 @@ export const startWhatsAppWorker = async (
   if (ix && (await hasDeferredInboxEvents())) await ix.jobs.enqueueBackfill();
   // template events stored before Phase 11 → once
   if (await hasDeferredTemplateEvents()) await tx.jobs.enqueueBackfill();
+  // calls events stored before Phase 12 → ignored once (same job id = one run)
+  if (await hasDeferredCallEvents()) {
+    await queue.add(
+      CALLING_JOBS.backfillIgnore,
+      {},
+      { ...CALLING_JOB_OPTIONS, jobId: CALLS_BACKFILL_IGNORE_JOB_ID },
+    );
+  }
   return { queue, worker };
 };

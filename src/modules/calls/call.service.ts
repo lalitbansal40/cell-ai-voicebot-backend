@@ -22,6 +22,7 @@ import { CallModel, type CallDoc, type CallSource } from '../../db/models/call.m
 import { AppError } from '../../shared/errors/app-error';
 import type { Logger } from '../../shared/logger';
 import { DialSlots, type SlotLease } from '../campaigns/slots';
+import type { CallControlBus } from '../whatsapp-calling/bus';
 
 import { CallBilling } from './billing';
 import { issueMediaTicket } from './media-tickets';
@@ -102,12 +103,41 @@ export class CallManager {
   private readonly campaignCalls = new Map<string, string>();
   /** Campaign calls hung up before their session existed — ended right after it starts. */
   private readonly endRequested = new Set<string>();
+  /** Phase 12: routes hangups between processes (`attachBus`). */
+  private bus: CallControlBus | null = null;
 
   constructor(private readonly deps: CallManagerDeps) {
     this.clock = deps.clock ?? systemClock;
     this.slots =
       deps.slots ??
       new DialSlots(deps.registry.redis, deps.registry.prefix, () => this.clock.now());
+  }
+
+  /**
+   * Phase 12: this process's live calls are found by other processes (cross-process
+   * hangup for every provider) and their hangups reach the session here.
+   */
+  attachBus(bus: CallControlBus): void {
+    this.bus = bus;
+    bus.onHangup(async (callId) => {
+      const session = this.sessions.get(callId);
+      if (!session || session.ended) return false;
+      await session.end('customer_hangup');
+      return true;
+    });
+    for (const callId of this.sessions.keys()) void bus.ownCall(callId);
+  }
+
+  private track(callId: string, session: CallSession): void {
+    this.sessions.set(callId, session);
+    void this.bus
+      ?.ownCall(callId)
+      .catch((err: unknown) => this.deps.logger.warn({ err }, 'call: bus register failed'));
+  }
+
+  private untrack(callId: string): void {
+    this.sessions.delete(callId);
+    void this.bus?.releaseCall(callId).catch(() => undefined);
   }
 
   /** Keeps a call's slot lease alive until `releaseLease`. */
@@ -347,7 +377,7 @@ export class CallManager {
       ...(choice.maxDurationSec !== undefined ? { maxDurationSec: choice.maxDurationSec } : {}),
       media: 'none',
       onEnded: (summary) => {
-        this.sessions.delete(callId);
+        this.untrack(callId);
         this.campaignCalls.delete(callId);
         this.endRequested.delete(callId);
         void this.releaseLease(callId);
@@ -355,7 +385,7 @@ export class CallManager {
         resolveEnded(summary);
       },
     });
-    this.sessions.set(callId, session);
+    this.track(callId, session);
     await session.start();
     if (this.endRequested.delete(callId)) await session.end('campaign_canceled');
     else leg.ring();
@@ -400,12 +430,12 @@ export class CallManager {
       language,
       maxDurationSec,
       onEnded: (summary) => {
-        this.sessions.delete(input.callId);
+        this.untrack(input.callId);
         void this.releaseLease(input.callId);
         this.emitEnded(summary);
       },
     });
-    this.sessions.set(input.callId, session);
+    this.track(input.callId, session);
     await session.start();
     return { ok: true };
   };
@@ -417,6 +447,21 @@ export class CallManager {
       throw new AppError('CALL_NOT_ACTIVE');
     }
     return session.end('customer_hangup');
+  }
+
+  /**
+   * Hang up from any process (Phase 12): here when the call runs here, else handed
+   * to its process over the call bus (`forwarded`). 409 when no process holds it.
+   * The caller has checked the call belongs to the account.
+   */
+  async hangupAnywhere(accountId: string, callId: string): Promise<'local' | 'forwarded'> {
+    if (this.sessions.has(callId) || !this.bus) {
+      await this.hangup(accountId, callId);
+      return 'local';
+    }
+    const result = await this.bus.hangup(callId, 'customer_hangup');
+    if (result === 'not_live') throw new AppError('CALL_NOT_ACTIVE');
+    return result;
   }
 
   /** Ends every live call of a campaign on this process (cancel with hang-up). */

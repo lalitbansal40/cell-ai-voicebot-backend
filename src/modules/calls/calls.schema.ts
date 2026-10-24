@@ -306,10 +306,11 @@ registry.registerPath({
   method: 'post',
   path: `${base}/{id}/hangup`,
   tags,
-  summary: 'Hang up a live call from another tab (calls.trigger; 409 CALL_NOT_ACTIVE)',
+  summary:
+    'Hang up a live call from another tab (calls.trigger; 409 CALL_NOT_ACTIVE). 202 when the call runs on another server — handed to it over the call bus (Phase 12), it ends shortly',
   security: bearer,
   request: { params: CallParams },
-  responses: { 200: ok(CallSchema), ...read, 409: errors[409] },
+  responses: { 200: ok(CallSchema), 202: ok(CallSchema), ...read, 409: errors[409] },
 });
 
 registry.registerPath({

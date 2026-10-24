@@ -195,6 +195,8 @@ describe('startServer (e2e)', () => {
       'fake-meta-calls',
       'calls',
       'whatsapp',
+      // Phase 12: the call bus stops after the calls (their hangups no longer route)
+      'call-bus',
       'http',
       'ws',
       'queues',

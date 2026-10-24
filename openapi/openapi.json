@@ -19001,7 +19001,7 @@
     "/api/v1/calls/{id}/hangup": {
       "post": {
         "tags": ["Calls"],
-        "summary": "Hang up a live call from another tab (calls.trigger; 409 CALL_NOT_ACTIVE)",
+        "summary": "Hang up a live call from another tab (calls.trigger; 409 CALL_NOT_ACTIVE). 202 when the call runs on another server — handed to it over the call bus (Phase 12), it ends shortly",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -19013,6 +19013,21 @@
         ],
         "responses": {
           "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Call" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "202": {
             "description": "OK",
             "content": {
               "application/json": {
