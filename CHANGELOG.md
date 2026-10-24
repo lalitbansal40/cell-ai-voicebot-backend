@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 11 · Batch 3 (T11.7–T11.12) — frontend, E2E, sign-off** — 2026-10-24
+  - Backend for the screens: the account WhatsApp price override on `GET /admin/accounts/:id`, the chat id on WhatsApp ledger rows (`breakdown.waConversationId`) and the WhatsApp breakdown fields in the ledger schema, validator cases shared with the frontend, the fake's `_reject` knob approves an edited template.
+  - Fixed: the account ledger exposed Meta's cost, the markup and the platform fee of WhatsApp charges (account views now show the selling price only; superadmin views keep the split).
+  - E2E (frontend repo): 4 template / billing specs, 125 tests green twice; logs clean. ADR 0039, docs and the [Phase 11 sign-off](docs/phases/PHASE_11_SIGNOFF.md).
+
 - **Phase 11 · Batch 2 (T11.5–T11.6) — template sends, API, superadmin WhatsApp billing, dev tools** — 2026-10-23
   - Template sends from the inbox and the contact page (window bypass, variables from contact fields formatted like the app, media / location headers, buttons), marketing rules (opt-out / DND / stopped marketing, 1 per contact per 24 h), every sent message priced and held first (service replies, retries, confirmations), template error effects, usage counters, `POST /whatsapp/price-preview`.
   - `/api/v1/whatsapp/templates` (list without bodies, detail, create / edit / submit / delete, variables, media example, call permission, sync; rate limits), wallet WhatsApp prices / budget / usage, superadmin rate card import + diff + save, global settings, account override, margin + reconciliation reports; simulator 58 kinds; Demo Finance templates in `db:seed`; ADR 0039, api.md §14e, security §12, compliance §11, setup guide §14 (real-WABA checklist).

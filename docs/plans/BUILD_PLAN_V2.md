@@ -158,7 +158,7 @@ Frontend:
 
 ---
 
-### Phase 11 — Templates + WhatsApp billing (M)
+### Phase 11 — Templates + WhatsApp billing (M) ✅
 
 **Goal:** Templates app se bano / submit / approve status track ho; har WhatsApp charge wallet se Meta price + markup pe kate.
 
@@ -381,3 +381,4 @@ Bulk WhatsApp calling (client promise "Bulk calling"):
 - 2026-10-23: Phase 10 detailed plan + run prompt written ([plan](../phases/PHASE_10_PLAN.md)) — owner answers 23 Oct 2026: 90-day message retention, no message text in notifications, Hinglish / Hindi opt-out keywords, STOP confirmation on, read receipts on, browser voice notes in Phase 10.
 - 2026-10-23: **Phase 10 done** ([sign-off](../phases/PHASE_10_SIGNOFF.md)) — every free-form WhatsApp type both ways (incl. browser voice notes), 24-hour window, statuses, opt-out keywords, 90-day retention and coexistence, proven by Playwright on the fake Meta provider; the real-number checklist runs in Phase 13. **Next: Phase 11 (Templates + WhatsApp billing).**
 - 2026-10-23: Phase 11 detailed plan written ([plan](../phases/PHASE_11_PLAN.md)) — Meta facts re-checked: per-message pricing on delivery, 1,000 free service messages / number / month, from 1 Oct 2026 service beyond the free tier and utility inside the window are charged, India INR billing (deadline 31 Dec 2026); billing follows Meta's `pricing.billable`; 14 owner questions with defaults (§7).
+- 2026-10-24: **Phase 11 done** ([sign-off](../phases/PHASE_11_SIGNOFF.md)) — templates built, reviewed, edited, synced and sent outside the window from the app; every WhatsApp message held at send and charged only when Meta bills it (rate card + markup, INR), superadmin rate card / margin / reconciliation; proven by Playwright on the fake Meta provider; the real-WABA checklist runs in Phase 13. **Next: Phase 12 (WhatsApp Calling).**
