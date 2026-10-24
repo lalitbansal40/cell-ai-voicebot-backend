@@ -16,7 +16,7 @@ import {
   type EmailProvider,
 } from './core/email';
 import { createLifecycle, type Lifecycle } from './core/lifecycle';
-import { createMetaClient } from './core/meta';
+import { createMetaClient, type FakeMetaClient } from './core/meta';
 import { createPaymentProvider } from './core/payments';
 import { QUEUES } from './core/queues/names';
 import { closeAllQueues, createQueue, DEFAULT_QUEUE_PREFIX } from './core/queues/queue-factory';
@@ -206,6 +206,11 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     logger.info({ provider: whatsapp.ctx.meta.provider }, 'whatsapp: meta provider ready');
     // fake provider: auto status webhooks through the real receiver (Phase 10)
     lifecycle.onShutdown('fake-meta-statuses', connectFakeStatusWebhooks(whatsapp), 5);
+    // fake provider: hang up the fake customers' WebRTC peers, cancel pending call events (Phase 12)
+    if (whatsapp.ctx.meta.provider === 'fake') {
+      const fake = whatsapp.ctx.meta as FakeMetaClient;
+      lifecycle.onShutdown('fake-meta-calls', () => fake.stopCalls(), 5);
+    }
   }
   const app = createApp({
     env,

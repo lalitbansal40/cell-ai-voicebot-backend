@@ -1,12 +1,15 @@
 /**
  * Generates the audio test fixtures (`tests/fixtures/audio/`), the sample
- * prompt `docs/samples/audio/welcome.wav` and `customer-silence.wav` (Chromium's
- * fake mic in the Playwright call tests): `npm run fixtures:audio`.
+ * prompt `docs/samples/audio/welcome.wav`, `customer-silence.wav` (Chromium's
+ * fake mic in the Playwright call tests) and the WhatsApp call tones (Phase 12):
+ * `customer-tone.wav` (440 Hz, 3 s — the fake WhatsApp user) and `agent-tone.wav`
+ * (1 kHz, 30 s — the agent's fake mic): `npm run fixtures:audio`.
  * Deterministic — committed byte-exact.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { tone } from '../src/core/voice/audio/pcm';
 import { wavBuffer } from '../src/core/voice/audio/wav';
 
 import { makeCbrMp3, makeVbriMp3, makeWav, makeXingMp3 } from './lib/audio';
@@ -42,6 +45,15 @@ for (const [name, data] of Object.entries(files)) writeFileSync(path.join(FIXTUR
 mkdirSync(SAMPLES, { recursive: true });
 writeFileSync(path.join(SAMPLES, 'welcome.wav'), makeWav({ sampleRate: 8000, seconds: 2 }));
 writeFileSync(path.join(SAMPLES, 'customer-silence.wav'), customerSilence());
+// WhatsApp calls: distinct tones each way so "heard" checks can tell the sides apart
+writeFileSync(
+  path.join(SAMPLES, 'customer-tone.wav'),
+  wavBuffer(tone(3_000, 24_000, { hz: 440, amplitude: 8_000 }), 24_000),
+);
+writeFileSync(
+  path.join(SAMPLES, 'agent-tone.wav'),
+  wavBuffer(tone(30_000, 24_000, { hz: 1_000, amplitude: 8_000 }), 24_000),
+);
 console.info(
-  `Wrote ${String(Object.keys(files).length)} fixtures and docs/samples/audio/{welcome,customer-silence}.wav`,
+  `Wrote ${String(Object.keys(files).length)} fixtures and docs/samples/audio/{welcome,customer-silence,customer-tone,agent-tone}.wav`,
 );

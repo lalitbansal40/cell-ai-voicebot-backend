@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { WHATSAPP_LIMITS } from '../../config/limits';
 
 import { graphError, mediaRefused, META_ERROR_CODES } from './errors';
+import { createFakeCalling, type FakeCallView, type FakePhoneRef } from './fake-calling';
 import {
   blockUsersSchema,
   businessProfileSchema,
@@ -284,6 +285,33 @@ export interface FakeMetaClient extends MetaClient {
     templateId: string,
     patch: Partial<Omit<FakeTemplate, 'id' | 'seq'>>,
   ): Promise<FakeTemplate | null>;
+  /* ── Phase 12: calling (see `fake-calling.ts`) ── */
+  /** The customer calls the number (`connect` webhook with the customer's offer). */
+  userCall(
+    phoneNumberId: string,
+    waId: string,
+    options?: { name?: string | null; bsuid?: string | null; ctaPayload?: string | null },
+  ): Promise<{ waCallId: string }>;
+  /** The customer hangs up (terminate webhook). False when the call is not live. */
+  userHangup(waCallId: string): Promise<boolean>;
+  /** The customer presses keys (RFC 4733 on the media). False when not answered. */
+  userDtmf(waCallId: string, digits: string): Promise<boolean>;
+  /** Sets the customer's permission at Meta (simulator). */
+  setCallPermission(
+    phoneNumberId: string,
+    waId: string,
+    status: 'no_permission' | 'temporary' | 'permanent',
+    expiresAt?: Date | null,
+  ): Promise<void>;
+  /** Adds (or clears with null) a calling restriction on the number (simulator). */
+  setCallingRestriction(
+    phoneNumberId: string,
+    restriction: { type: string; reason?: string | null; expiresAt?: Date | null } | null,
+  ): Promise<void>;
+  /** Calls of a number, newest first (dev route `GET /dev/meta/calls`). */
+  fakeCalls(phoneNumberId: string): Promise<FakeCallView[]>;
+  /** Hangs up every fake customer and cancels pending call events (shutdown). */
+  stopCalls(): Promise<void>;
 }
 
 export interface FakeMetaOptions {
@@ -297,6 +325,8 @@ export interface FakeMetaOptions {
   mediaBaseUrl?: string;
   /** Template review webhook after this many ms; null / omitted = templates stay in review. */
   templateReviewMs?: number | null;
+  /** `[connect, ringing, accepted]` ms for calls; null / omitted = one after another at once. */
+  callDelaysMs?: readonly [number, number, number] | null;
 }
 
 interface Identity extends FakeSignup {
@@ -347,6 +377,7 @@ export const createFakeMetaClient = ({
   statusDelaysMs = null,
   mediaBaseUrl = 'http://localhost:5100',
   templateReviewMs = null,
+  callDelaysMs = null,
 }: FakeMetaOptions): FakeMetaClient => {
   const key = (name: string) => `${prefix}fake-meta-${name}`;
   const calls: FakeMetaCall[] = [];
@@ -532,13 +563,15 @@ export const createFakeMetaClient = ({
     waMessageId: string,
     to: string,
     pricing: FakePricing,
+    forceFail = false,
   ) => {
     if (!statusDelaysMs) return;
-    const plan: string[] = to.endsWith(FAKE_INBOX_KNOBS.undeliverable)
-      ? ['sent', 'failed']
-      : to.endsWith(FAKE_INBOX_KNOBS.neverRead)
-        ? ['sent', 'delivered']
-        : ['sent', 'delivered', 'read'];
+    const plan: string[] =
+      forceFail || to.endsWith(FAKE_INBOX_KNOBS.undeliverable)
+        ? ['sent', 'failed']
+        : to.endsWith(FAKE_INBOX_KNOBS.neverRead)
+          ? ['sent', 'delivered']
+          : ['sent', 'delivered', 'read'];
     plan.forEach((status, i) => {
       const timer = setTimeout(() => {
         timers.delete(timer);
@@ -752,9 +785,49 @@ export const createFakeMetaClient = ({
         };
   };
 
+  /* ── Phase 12: calling ── */
+
+  const phoneRef = (identity: Identity): FakePhoneRef => {
+    const ids = fakeIds(identity.businessName, identity.phone);
+    return {
+      phoneNumberId: ids.phoneNumberId,
+      wabaId: ids.wabaId,
+      displayPhone: identity.phone,
+      onBizApp: identity.mode === 'coexistence',
+    };
+  };
+
+  const calling = createFakeCalling({
+    redis,
+    key,
+    track,
+    phoneOf: async (token, phoneNumberId) => phoneRef(await owned(token, phoneNumberId, 'phone')),
+    phoneById: async (phoneNumberId) => {
+      const h = hOf(phoneNumberId, 'phone');
+      const identity = h ? await loadIdentity(h) : null;
+      return identity ? phoneRef(identity) : null;
+    },
+    emit: async (body) => {
+      await emitter?.(body);
+    },
+    fail: (status, code, message) => fail(status, code, message, undefined, 'OAuthException'),
+    phoneOfWaba: async (token, wabaId) => phoneRef(await owned(token, wabaId, 'waba')),
+    delaysMs: callDelaysMs,
+  });
+
   return {
     provider: 'fake',
     appSecret,
+    ...calling.methods,
+    userCall: (phoneNumberId, waId, options) => calling.userCall(phoneNumberId, waId, options),
+    userHangup: (waCallId) => calling.userHangup(waCallId),
+    userDtmf: (waCallId, d) => calling.userDtmf(waCallId, d),
+    setCallPermission: (phoneNumberId, waId, status, expiresAt) =>
+      calling.setPermission(phoneNumberId, waId, status, expiresAt),
+    setCallingRestriction: (phoneNumberId, restriction) =>
+      calling.setRestriction(phoneNumberId, restriction),
+    fakeCalls: (phoneNumberId) => calling.calls(phoneNumberId),
+    stopCalls: () => calling.stopCalls(),
     calls,
 
     failNext(op, error) {
@@ -1055,11 +1128,21 @@ export const createFakeMetaClient = ({
           );
         }
       }
+      // Phase 12: permission requests (limits, reply knobs) and call buttons (old client)
+      const callEffect = await calling.beforeSend(phoneRef(identity), payload);
       const wabaId = fakeIds(identity.businessName, identity.phone).wabaId;
       const pricing = await pricingFor(wabaId, payload, to);
       const waMessageId = `wamid.FAKE${randomBytes(12).toString('hex').toUpperCase()}`;
       await recordSend(phoneNumberId, waMessageId, payload, pricing);
-      scheduleStatuses(identity, phoneNumberId, waMessageId, to, pricing);
+      scheduleStatuses(
+        identity,
+        phoneNumberId,
+        waMessageId,
+        to,
+        pricing,
+        callEffect === 'old_client',
+      );
+      calling.afterSend(phoneRef(identity), payload, waMessageId);
       return {
         waMessageId:
           sendMessageSchema.parse({ messages: [{ id: waMessageId }] }).messages[0]?.id ??

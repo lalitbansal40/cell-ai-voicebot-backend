@@ -1,0 +1,46 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "time": 1761300000,
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919000000010",
+              "phone_number_id": "106540352242922"
+            },
+            "contacts": [
+              {
+                "profile": {
+                  "name": "Test Customer"
+                },
+                "wa_id": "919000000101",
+                "user_id": "IN.1234567890123456"
+              }
+            ],
+            "calls": [
+              {
+                "id": "wacid.HBgMOTE5MDAwMDAwMTAxFQIAEhggRDEyMzQ1Njc4OUFCQ0RFRjAA",
+                "to": "919000000101",
+                "to_user_id": "IN.1234567890123456",
+                "from": "919000000010",
+                "event": "terminate",
+                "direction": "BUSINESS_INITIATED",
+                "biz_opaque_callback_data": "call_6716a0000000000000000001",
+                "timestamp": "1761300100",
+                "status": "COMPLETED",
+                "start_time": "1761300010",
+                "end_time": "1761300100",
+                "duration": 90
+              }
+            ]
+          },
+          "field": "calls"
+        }
+      ]
+    }
+  ]
+}

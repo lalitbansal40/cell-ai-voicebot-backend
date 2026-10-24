@@ -147,6 +147,8 @@ export const inboundMessageSchema = z.looseObject({
   from: z.string().min(1),
   /** Echoes only: the customer. */
   to: optStr,
+  /** Meta's business-scoped user id (Phase 12 — calls, permission replies). */
+  from_user_id: optStr,
   timestamp: z.union([z.string(), z.number()]),
   type: z.string().min(1),
   context: inboundContextSchema.nullish(),
@@ -174,6 +176,15 @@ export const inboundMessageSchema = z.looseObject({
       button_reply: z.looseObject({ id: optStr, title: optStr }).nullish(),
       list_reply: z.looseObject({ id: optStr, title: optStr, description: optStr }).nullish(),
       nfm_reply: z.looseObject({ response_json: optStr, body: optStr, name: optStr }).nullish(),
+      /** Phase 12: the customer's answer to a call permission request. */
+      call_permission_reply: z
+        .looseObject({
+          response: optStr,
+          is_permanent: z.boolean().nullish(),
+          expiration_timestamp: z.union([z.string(), z.number()]).nullish(),
+          response_source: optStr,
+        })
+        .nullish(),
     })
     .nullish(),
   button: z.looseObject({ payload: optStr, text: optStr }).nullish(),

@@ -1,0 +1,19 @@
+{
+  "call_analytics": {
+    "granularity": "DAILY",
+    "directions": "BUSINESS_INITIATED",
+    "data_points": [
+      {
+        "start": 1761264000,
+        "end": 1761350400,
+        "direction": "BUSINESS_INITIATED",
+        "country": "IN",
+        "cost": 0.47795,
+        "count": 35,
+        "average_duration": 106
+      },
+      { "start": 1761177600, "end": 1761264000, "count": 20, "average_duration": 103 }
+    ]
+  },
+  "id": "102290129340398"
+}

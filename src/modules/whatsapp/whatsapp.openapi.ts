@@ -503,3 +503,38 @@ registry.registerPath({
     422: errors[422],
   },
 });
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/dev/meta/calls',
+  tags: ['Dev'],
+  summary:
+    "DEV ONLY — the fake customer's side of each WhatsApp call on a number (heard tone / level, keys sent, duration; no SDP)",
+  security: bearer,
+  request: { query: z.object({ channelId: z.string() }) },
+  responses: {
+    200: ok(
+      z.object({
+        calls: z.array(
+          z.object({
+            waCallId: z.string(),
+            phoneNumberId: z.string(),
+            toLast4: z.string(),
+            direction: z.enum(['BUSINESS_INITIATED', 'USER_INITIATED']),
+            state: z.enum(['ringing', 'accepted', 'ended']),
+            endStatus: z.enum(['COMPLETED', 'FAILED']).nullable(),
+            durationSec: z.number().nullable(),
+            heardTone: z.boolean(),
+            heardLevel: z.number().nullable(),
+            dtmfSent: z.string(),
+            connected: z.boolean(),
+          }),
+        ),
+      }),
+    ),
+    401: errors[401],
+    403: errors[403],
+    404: errors[404],
+    422: errors[422],
+  },
+});

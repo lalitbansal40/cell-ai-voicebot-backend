@@ -235,6 +235,8 @@ export const toAllocation = (raw: z.infer<typeof allocationSchema>): MetaAllocat
 export const WEBHOOK_FIELDS = [
   'messages',
   'calls',
+  /** Phase 12: call settings changed (status / icon / callback / SIP). */
+  'account_settings_update',
   'account_update',
   'phone_number_quality_update',
   'phone_number_name_update',
@@ -364,8 +366,15 @@ export const WEBHOOK_VALUE_SCHEMAS = {
   calls: routedValueSchema,
 } as const;
 
-/** `value.metadata.phone_number_id` when present (routing), else `null`. */
+/**
+ * The number a change is about (routing): `value.metadata.phone_number_id`, or
+ * `phone_number_settings.phone_number_id` (`account_settings_update`, Phase 12), else `null`.
+ */
 export const phoneNumberIdOf = (value: unknown): string | null => {
   const parsed = z.looseObject({ metadata: metadataSchema }).safeParse(value);
-  return parsed.success ? parsed.data.metadata.phone_number_id : null;
+  if (parsed.success) return parsed.data.metadata.phone_number_id;
+  const settings = z
+    .looseObject({ phone_number_settings: z.looseObject({ phone_number_id: id }) })
+    .safeParse(value);
+  return settings.success ? settings.data.phone_number_settings.phone_number_id : null;
 };

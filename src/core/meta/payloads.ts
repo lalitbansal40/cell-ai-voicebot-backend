@@ -1,4 +1,4 @@
-import { INBOX_LIMITS, TEMPLATE_LIMITS } from '../../config/limits';
+import { INBOX_LIMITS, TEMPLATE_LIMITS, WHATSAPP_CALL_LIMITS } from '../../config/limits';
 import { ValidationError, type ErrorDetail } from '../../shared/errors/app-error';
 
 import type { MetaMessagePayload } from './types';
@@ -58,7 +58,20 @@ export type OutboundContent =
       url: string;
     }
   /** `emoji: ''` removes the reaction. */
-  | { type: 'reaction'; messageId: string; emoji: string };
+  | { type: 'reaction'; messageId: string; emoji: string }
+  /** Phase 12: asks the customer to allow calls (inside the 24-hour window). */
+  | { type: 'call_permission_request'; body?: string | null }
+  /** Phase 12: a "Call now" button that calls this number on WhatsApp. */
+  | {
+      type: 'voice_call';
+      body: string;
+      displayText?: string | null;
+      ttlMinutes?: number | null;
+      payload?: string | null;
+    };
+
+/** Meta's payload limit for call buttons (`cta_payload` in the call webhooks). */
+export const CALL_BUTTON_PAYLOAD_MAX = 512;
 
 const URL_IN_TEXT = /https?:\/\/\S/i;
 
@@ -139,6 +152,24 @@ const check = (content: OutboundContent): ErrorDetail[] => {
       break;
     case 'reaction':
       if ([...content.emoji].length > 8) errors.push({ path: 'emoji', message: 'One emoji' });
+      break;
+    case 'call_permission_request':
+      len('body', content.body, WHATSAPP_CALL_LIMITS.requestBodyMax);
+      break;
+    case 'voice_call':
+      len('body', content.body, L.bodyMax, 1);
+      len('displayText', content.displayText, WHATSAPP_CALL_LIMITS.voiceCallButtonTextMax);
+      len('payload', content.payload, CALL_BUTTON_PAYLOAD_MAX);
+      if (
+        content.ttlMinutes !== null &&
+        content.ttlMinutes !== undefined &&
+        !(
+          Number.isInteger(content.ttlMinutes) &&
+          content.ttlMinutes >= 1 &&
+          content.ttlMinutes <= WHATSAPP_CALL_LIMITS.voiceCallTtlMinutesMax
+        )
+      )
+        errors.push({ path: 'ttlMinutes', message: 'Must be 1–43200 minutes' });
       break;
     default:
       break;
@@ -247,14 +278,43 @@ const body = (content: OutboundContent): Record<string, unknown> => {
       };
     case 'reaction':
       return { reaction: { message_id: content.messageId, emoji: content.emoji } };
+    case 'call_permission_request':
+      return {
+        interactive: {
+          type: 'call_permission_request',
+          action: { name: 'call_permission_request' },
+          ...(content.body ? { body: text(content.body) } : {}),
+        },
+      };
+    case 'voice_call':
+      return {
+        interactive: {
+          type: 'voice_call',
+          body: text(content.body),
+          action: {
+            name: 'voice_call',
+            parameters: {
+              ...opt('display_text', content.displayText),
+              ...opt('ttl_minutes', content.ttlMinutes),
+              ...opt('payload', content.payload),
+            },
+          },
+        },
+      };
   }
 };
 
-/** Meta's type name for the content (`buttons` / `list` / `cta_url` → `interactive`). */
+const INTERACTIVE_TYPES: ReadonlySet<OutboundContent['type']> = new Set([
+  'buttons',
+  'list',
+  'cta_url',
+  'call_permission_request',
+  'voice_call',
+]);
+
+/** Meta's type name for the content (`buttons` / `list` / `cta_url` / call kinds → `interactive`). */
 export const metaTypeOf = (content: OutboundContent): string =>
-  content.type === 'buttons' || content.type === 'list' || content.type === 'cta_url'
-    ? 'interactive'
-    : content.type;
+  INTERACTIVE_TYPES.has(content.type) ? 'interactive' : content.type;
 
 /**
  * Exact `POST /{phone}/messages` body (Cloud API reference). `to` = the customer's
@@ -308,7 +368,9 @@ export type TemplateButtonParam =
   /** `text` = the URL suffix (percent-encoded here). */
   | { subType: 'url'; index: number; text: string }
   | { subType: 'copy_code'; index: number; code: string }
-  | { subType: 'quick_reply'; index: number; payload: string };
+  | { subType: 'quick_reply'; index: number; payload: string }
+  /** Phase 12 call button: optional TTL override and payload (`cta_payload`); no index. */
+  | { subType: 'voice_call'; ttlMinutes?: number | null; payload?: string | null };
 
 /** Resolved values of one template send (customer data — never logged). */
 export interface TemplateSendInput {
@@ -357,6 +419,21 @@ const checkTemplate = (input: TemplateSendInput): ErrorDetail[] => {
       add(`body.${v.key}`, 'Not a variable name');
   }
   for (const b of input.buttons ?? []) {
+    if (b.subType === 'voice_call') {
+      if (
+        b.ttlMinutes !== null &&
+        b.ttlMinutes !== undefined &&
+        !(
+          Number.isInteger(b.ttlMinutes) &&
+          b.ttlMinutes >= 1 &&
+          b.ttlMinutes <= WHATSAPP_CALL_LIMITS.voiceCallTtlMinutesMax
+        )
+      )
+        add('buttons.voice_call', 'Must be 1–43200 minutes');
+      if ((b.payload?.length ?? 0) > CALL_BUTTON_PAYLOAD_MAX)
+        add('buttons.voice_call', `At most ${String(CALL_BUTTON_PAYLOAD_MAX)} characters`);
+      continue;
+    }
     const path = `buttons.${String(b.index)}`;
     if (!Number.isInteger(b.index) || b.index < 0 || b.index >= TEMPLATE_LIMITS.buttonsMax)
       add(path, 'Not a button index');
@@ -393,7 +470,9 @@ const headerParameter = (h: TemplateHeaderParam, named: boolean): Record<string,
   }
 };
 
-const buttonParameter = (b: TemplateButtonParam): Record<string, unknown> => {
+type IndexedButton = Exclude<TemplateButtonParam, { subType: 'voice_call' }>;
+
+const buttonParameter = (b: IndexedButton): Record<string, unknown> => {
   switch (b.subType) {
     case 'url':
       return { type: 'text', text: encodeURIComponent(b.text) };
@@ -430,13 +509,24 @@ export const buildTemplatePayload = (to: string, input: TemplateSendInput): Meta
       })),
     });
   }
-  for (const b of [...(input.buttons ?? [])].sort((x, y) => x.index - y.index)) {
+  const buttons = input.buttons ?? [];
+  const indexed = buttons.filter((b): b is IndexedButton => b.subType !== 'voice_call');
+  for (const b of indexed.sort((x, y) => x.index - y.index)) {
     components.push({
       type: 'button',
       sub_type: b.subType,
       index: String(b.index),
       parameters: [buttonParameter(b)],
     });
+  }
+  // the call button carries no index (Meta's "Send call button template" sample)
+  for (const b of buttons) {
+    if (b.subType !== 'voice_call') continue;
+    const parameters = [
+      ...(b.ttlMinutes ? [{ type: 'ttl_minutes', ttl_minutes: b.ttlMinutes }] : []),
+      ...(b.payload ? [{ type: 'payload', payload: b.payload }] : []),
+    ];
+    if (parameters.length) components.push({ type: 'button', sub_type: 'voice_call', parameters });
   }
   return {
     messaging_product: 'whatsapp',

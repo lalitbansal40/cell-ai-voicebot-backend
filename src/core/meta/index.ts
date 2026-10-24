@@ -14,6 +14,8 @@ export * from './schemas';
 export * from './message-schemas';
 export * from './template-schemas';
 export * from './payloads';
+export * from './call-schemas';
+export { FAKE_CALL_KNOBS, type FakeCallView } from './fake-calling';
 export {
   buildFakeCode,
   createFakeMetaClient,
@@ -50,7 +52,9 @@ export type MetaEnv = Pick<
   | 'FAKE_META_STATUS_DELAYS_MS'
   | 'FAKE_META_TEMPLATE_REVIEW_MS'
   | 'APP_URL'
->;
+> &
+  /** Phase 12 (optional so older callers / tests keep compiling). */
+  Partial<Pick<Env, 'FAKE_META_CALL_DELAYS_MS'>>;
 
 export interface MetaDeps {
   redis: Redis;
@@ -72,6 +76,7 @@ export const createMetaClient = (env: MetaEnv, deps: MetaDeps): MetaClient => {
       appSecret: metaAppSecret(env),
       statusDelaysMs: env.FAKE_META_STATUS_DELAYS_MS,
       templateReviewMs: env.FAKE_META_TEMPLATE_REVIEW_MS,
+      callDelaysMs: env.FAKE_META_CALL_DELAYS_MS ?? null,
       mediaBaseUrl: env.APP_URL,
       ...(deps.prefix ? { prefix: deps.prefix } : {}),
     });

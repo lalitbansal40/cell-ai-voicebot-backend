@@ -22037,6 +22037,103 @@
         }
       }
     },
+    "/api/v1/dev/meta/calls": {
+      "get": {
+        "tags": ["Dev"],
+        "summary": "DEV ONLY — the fake customer's side of each WhatsApp call on a number (heard tone / level, keys sent, duration; no SDP)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "schema": { "type": "string" }, "required": true, "name": "channelId", "in": "query" }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "calls": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "waCallId": { "type": "string" },
+                              "phoneNumberId": { "type": "string" },
+                              "toLast4": { "type": "string" },
+                              "direction": {
+                                "type": "string",
+                                "enum": ["BUSINESS_INITIATED", "USER_INITIATED"]
+                              },
+                              "state": {
+                                "type": "string",
+                                "enum": ["ringing", "accepted", "ended"]
+                              },
+                              "endStatus": {
+                                "type": ["string", "null"],
+                                "enum": ["COMPLETED", "FAILED", null]
+                              },
+                              "durationSec": { "type": ["number", "null"] },
+                              "heardTone": { "type": "boolean" },
+                              "heardLevel": { "type": ["number", "null"] },
+                              "dtmfSent": { "type": "string" },
+                              "connected": { "type": "boolean" }
+                            },
+                            "required": [
+                              "waCallId",
+                              "phoneNumberId",
+                              "toLast4",
+                              "direction",
+                              "state",
+                              "endStatus",
+                              "durationSec",
+                              "heardTone",
+                              "heardLevel",
+                              "dtmfSent",
+                              "connected"
+                            ]
+                          }
+                        }
+                      },
+                      "required": ["calls"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/inbox/config": {
       "get": {
         "tags": ["Inbox"],

@@ -1,0 +1,54 @@
+{
+  "calling": {
+    "status": "ENABLED",
+    "call_icon_visibility": "DEFAULT",
+    "call_icons": {
+      "restrict_to_user_countries": [
+        "IN"
+      ]
+    },
+    "callback_permission_status": "ENABLED",
+    "call_hours": {
+      "status": "ENABLED",
+      "timezone_id": "Asia/Kolkata",
+      "weekly_operating_hours": [
+        {
+          "day_of_week": "MONDAY",
+          "open_time": "0900",
+          "close_time": "1300"
+        },
+        {
+          "day_of_week": "MONDAY",
+          "open_time": "1400",
+          "close_time": "1800"
+        },
+        {
+          "day_of_week": "SATURDAY",
+          "open_time": "1000",
+          "close_time": "1400"
+        }
+      ],
+      "holiday_schedule": [
+        {
+          "date": "2026-12-25",
+          "start_time": "0000",
+          "end_time": "2359"
+        }
+      ]
+    },
+    "sip": {
+      "status": "DISABLED",
+      "servers": []
+    },
+    "restrictions": {
+      "restrictions_list": [
+        {
+          "type": "RESTRICTED_BUSINESS_INITIATED_CALLING",
+          "reason": "Paused after negative feedback",
+          "expiration": 1761905000
+        }
+      ]
+    }
+  },
+  "id": "106540352242922"
+}

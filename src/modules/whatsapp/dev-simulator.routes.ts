@@ -157,5 +157,18 @@ export const createDevSimulatorRouter = (deps: {
       readReceipts: await fake.readReceipts(channel.phoneNumberId),
     });
   });
+
+  // Phase 12: what the fake customer's phone did on each call (no SDP, last 4 digits only)
+  router.get('/calls', async (req, res) => {
+    const auth = requireAuth(req);
+    const parsed = ObjectIdSchema.safeParse(req.query.channelId);
+    if (!parsed.success)
+      throw new ValidationError([{ path: 'channelId', message: 'Must be an id' }]);
+    const channel = await allowed(parsed.data, 'whatsapp.read', auth);
+    const fake = deps.ctx.meta.provider === 'fake' ? (deps.ctx.meta as FakeMetaClient) : null;
+    ok(res, {
+      calls: fake && channel.phoneNumberId ? await fake.fakeCalls(channel.phoneNumberId) : [],
+    });
+  });
   return router;
 };

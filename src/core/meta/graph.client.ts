@@ -7,6 +7,17 @@ import { WHATSAPP_LIMITS } from '../../config/limits';
 import { getLogger, type Logger } from '../../shared/logger';
 
 import {
+  callActionSchema,
+  callAnalyticsSchema,
+  toCallAnalyticsPoints,
+  callingSettingsBody,
+  callPermissionsSchema,
+  phoneSettingsSchema,
+  startCallSchema,
+  toCallingSettings,
+  toCallPermission,
+} from './call-schemas';
+import {
   graphError,
   invalidResponse,
   mediaRefused,
@@ -277,6 +288,18 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
     });
     return raw.h;
   };
+
+  /** `pre_accept` / `accept` / `reject` / `terminate` on a call (same body shape, `success` answer). */
+  const callAction = (
+    token: string,
+    phoneNumberId: string,
+    action: 'pre_accept' | 'accept' | 'reject' | 'terminate',
+    waCallId: string,
+    extra: Record<string, unknown> = {},
+  ) =>
+    bearer(`calls.${action}`, 'POST', `${seg(phoneNumberId)}/calls`, token, callActionSchema, {
+      body: { messaging_product: 'whatsapp', call_id: waCallId, action, ...extra },
+    });
 
   return {
     provider: 'meta',
@@ -703,6 +726,103 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
         },
       );
       return toPricingPoints(raw);
+    },
+
+    /* ── Phase 12: calling (SDP goes in the body only — never in logs or errors) ── */
+
+    async startCall(token, phoneNumberId, call) {
+      const raw = await bearer(
+        'calls.connect',
+        'POST',
+        `${seg(phoneNumberId)}/calls`,
+        token,
+        startCallSchema,
+        {
+          body: {
+            messaging_product: 'whatsapp',
+            ...(call.to ? { to: call.to } : { recipient: call.recipient }),
+            action: 'connect',
+            session: { sdp_type: 'offer', sdp: call.sdpOffer },
+            ...(call.bizOpaque ? { biz_opaque_callback_data: call.bizOpaque } : {}),
+          },
+        },
+      );
+      return { waCallId: raw.calls[0]?.id ?? '' };
+    },
+
+    async preAcceptCall(token, phoneNumberId, waCallId, sdpAnswer) {
+      await callAction(token, phoneNumberId, 'pre_accept', waCallId, {
+        session: { sdp_type: 'answer', sdp: sdpAnswer },
+      });
+    },
+
+    async acceptCall(token, phoneNumberId, waCallId, sdpAnswer, bizOpaque) {
+      await callAction(token, phoneNumberId, 'accept', waCallId, {
+        session: { sdp_type: 'answer', sdp: sdpAnswer },
+        ...(bizOpaque ? { biz_opaque_callback_data: bizOpaque } : {}),
+      });
+    },
+
+    async rejectCall(token, phoneNumberId, waCallId) {
+      await callAction(token, phoneNumberId, 'reject', waCallId);
+    },
+
+    async terminateCall(token, phoneNumberId, waCallId) {
+      await callAction(token, phoneNumberId, 'terminate', waCallId);
+    },
+
+    async getPhoneSettings(token, phoneNumberId) {
+      const raw = await bearer(
+        'settings.get',
+        'GET',
+        `${seg(phoneNumberId)}/settings`,
+        token,
+        phoneSettingsSchema,
+      );
+      return toCallingSettings(raw.calling);
+    },
+
+    async updateCallingSettings(token, phoneNumberId, calling) {
+      await bearer(
+        'settings.update',
+        'POST',
+        `${seg(phoneNumberId)}/settings`,
+        token,
+        successSchema,
+        {
+          body: { calling: callingSettingsBody(calling) },
+        },
+      );
+    },
+
+    async getCallAnalytics(token, wabaId, range) {
+      // same field-expansion style as pricing_analytics (comma lists, no brackets)
+      const raw = await bearer(
+        'waba.call_analytics',
+        'GET',
+        seg(wabaId),
+        token,
+        callAnalyticsSchema,
+        {
+          query: {
+            fields: `call_analytics.start(${unix(range.start)}).end(${unix(range.end)}).granularity(DAILY).directions(BUSINESS_INITIATED).dimensions(COUNTRY,DIRECTION)`,
+          },
+        },
+      );
+      return toCallAnalyticsPoints(raw);
+    },
+
+    async getCallPermissions(token, phoneNumberId, waId) {
+      const bsuid = !/^\d+$/.test(waId);
+      const raw = await bearer(
+        'call_permissions.get',
+        'GET',
+        `${seg(phoneNumberId)}/call_permissions`,
+        token,
+        callPermissionsSchema,
+        { query: bsuid ? { recipient: waId } : { user_wa_id: waId } },
+      );
+      return toCallPermission(raw);
     },
   };
 };

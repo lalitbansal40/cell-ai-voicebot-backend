@@ -1,0 +1,32 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "time": 1761300000,
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919000000010",
+              "phone_number_id": "106540352242922"
+            },
+            "statuses": [
+              {
+                "id": "wacid.HBgMOTE5MDAwMDAwMTAxFQIAEhggRDEyMzQ1Njc4OUFCQ0RFRjAA",
+                "timestamp": "1761300005",
+                "type": "call",
+                "status": "RINGING",
+                "recipient_id": "919000000101",
+                "recipient_user_id": "IN.1234567890123456",
+                "biz_opaque_callback_data": "call_6716a0000000000000000001"
+              }
+            ]
+          },
+          "field": "calls"
+        }
+      ]
+    }
+  ]
+}

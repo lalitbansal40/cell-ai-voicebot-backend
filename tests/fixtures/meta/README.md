@@ -1,4 +1,4 @@
-# Meta fixtures (Phases 9–11)
+# Meta fixtures (Phases 9–12)
 
 Shapes copied from Meta's documented sample payloads; every id, number, name and text is a **test value** (`+91 90000 …`, `Test Business`, `Test Customer`). No real data, no AutoChatix data. Re-check against the docs when bumping `META_GRAPH_VERSION`.
 
@@ -29,6 +29,17 @@ Shapes copied from Meta's documented sample payloads; every id, number, name and
 | `webhook-messages-text.json`, `-status`   | whatsapp/cloud-api/webhooks/payload-examples                                 |
 | `webhook-calls-connect.json`              | whatsapp/cloud-api/calling/user-initiated-calls (`calls` connect)            |
 | `calls-sdp-answer.txt`                    | whatsapp/cloud-api/calling/reference (answer: ICE-lite, `setup:active`)      |
+| `calls-sdp-offer.txt` (Phase 12) | same (Meta's offer in user-initiated calls: ICE-lite, `setup:actpass`) |
+| `calls-connect-bic.json`, `calls-connect-uic.json` | whatsapp/calling/reference + business- / user-initiated-calls (`connect` with the SDP answer / offer, `to_user_id` / `from_user_id`, `cta_payload`) |
+| `calls-status-ringing.json`, `calls-status-accepted.json`, `calls-status-rejected.json` | whatsapp/calling/reference (`statuses[]` with `type: call`, `biz_opaque_callback_data`) |
+| `calls-terminate-completed.json`, `calls-terminate-failed.json` | same (`terminate`: `status`, `start_time`, `end_time`, `duration`; value-level `errors[]`) |
+| `call-permission-reply-temporary.json`, `call-permission-reply-permanent.json`, `call-permission-reply-reject.json`, `call-permission-reply-automatic.json` | whatsapp/calling/user-call-permissions (`interactive.call_permission_reply`, `context.id` = request / missed call) |
+| `account-settings-update.json` | whatsapp/calling/call-settings (`account_settings_update`, `phone_number_settings.calling`) |
+| `account-update-calling-restriction.json`, `account-update-calling-violation.json` | same page (`ACCOUNT_RESTRICTION` / `ACCOUNT_VIOLATION` calling types) |
+| `graph-call-permissions.json` | whatsapp/calling/user-call-permissions (`GET call_permissions`: `permission`, `actions[].limits`) |
+| `graph-phone-settings.json` | whatsapp/calling/call-settings (`GET settings`: `calling` + `restrictions.restrictions_list`) |
+| `graph-call-connect.json`, `graph-error-call-permission.json` | whatsapp/calling/reference (`connect` answer) + troubleshooting (138006) |
+| `graph-call-analytics.json` | whatsapp/analytics (`call_analytics`: daily points with `count`, `cost`, `average_duration`; cost left out on one point) |
 | `webhook-template-status.json`            | whatsapp/business-management-api/webhooks/components (template status)      |
 | `messages-*.json` (Phase 10) | whatsapp/cloud-api/webhooks/payload-examples — text (link), image, video, audio, voice (`audio.voice: true`), document, sticker (+ animated), location, contacts, interactive `button_reply` / `list_reply` / `nfm_reply`, template `button`, reaction (+ removed), reply `context`, forwarded, ad `referral`, order, system (number changed), unsupported (`errors`) |
 | `statuses-*.json` (sent, delivered, read, played, failed, deleted) | same page (status webhooks with `conversation` / `pricing`, `errors` on failed) |

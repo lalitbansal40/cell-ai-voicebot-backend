@@ -191,6 +191,8 @@ describe('startServer (e2e)', () => {
     expect(hooks).toEqual([
       'campaigns',
       'fake-meta-statuses',
+      // Phase 12: the fake customers' WebRTC peers hang up with the status timers
+      'fake-meta-calls',
       'calls',
       'whatsapp',
       'http',

@@ -63,6 +63,9 @@ const PHASE_10_GRAPH = new Set([
 
 const PHASE_11_FIXTURE =
   /^(templates-|user-preferences-|pricing-|graph-templates-|graph-template-created|graph-pricing-analytics)/;
+/** Phase 12 (calling) — parsed in tests/calls-wa/meta-call-schemas.test.ts. */
+const PHASE_12_FIXTURE =
+  /^(calls-|call-permission-reply-|account-settings-update|account-update-calling-|graph-call-|graph-phone-settings)/;
 
 describe('Meta fixtures', () => {
   it('every fixture is covered and documented', () => {
@@ -86,7 +89,8 @@ describe('Meta fixtures', () => {
           file.startsWith('statuses-') ||
           PHASE_10_GRAPH.has(file) ||
           // Phase 11 (templates / pricing) — parsed in tests/templates/meta-*.test.ts
-          PHASE_11_FIXTURE.test(file),
+          PHASE_11_FIXTURE.test(file) ||
+          PHASE_12_FIXTURE.test(file),
         file,
       ).toBe(true);
     }

@@ -24,6 +24,12 @@ const SECRET_PATTERNS: RegExp[] = [
   /Bearer\s+[^\s"]+/gi,
   /OAuth\s+[^\s"]+/g,
 ];
+/** SDP bodies / ICE credentials / candidates / fingerprints (they carry IPs and keys). */
+const SDP_PATTERNS: RegExp[] = [
+  /v=0[\s\S]*/g,
+  // the rest of the line: a candidate carries the IP / port, a fingerprint its hash after a space
+  /a=(?:ice-pwd|ice-ufrag|fingerprint|candidate):[^\r\n"]*/g,
+];
 /** Media URLs (they authorise a download for a while) are never kept in messages. */
 const MEDIA_URL = /https?:\/\/[^\s"]*(?:fbsbx|fbcdn|whatsapp\.net)[^\s"]*/gi;
 
@@ -38,7 +44,10 @@ export const scrubSecrets = (text: string): string =>
             ? 'OAuth ***'
             : `${match.slice(0, match.indexOf('=') + 1)}***`,
       ),
-    text.replace(MEDIA_URL, '<media url>'),
+    SDP_PATTERNS.reduce((out, re) => out.replace(re, '<sdp>'), text).replace(
+      MEDIA_URL,
+      '<media url>',
+    ),
   ).slice(0, 500);
 
 interface GraphErrorBody {
@@ -324,3 +333,96 @@ export const mapTemplateError = (
       n === null ? 'Meta refused the template' : `Meta refused the template (code ${String(n)})`,
   };
 };
+
+/* ── Phase 12: calling ─────────────────────────────────────────────────────── */
+
+export type CallErrorCode =
+  | 'WHATSAPP_CALLING_DISABLED'
+  | 'WHATSAPP_CALLING_UNAVAILABLE'
+  | 'WHATSAPP_CALLING_RESTRICTED'
+  | 'WHATSAPP_CALL_PERMISSION_MISSING'
+  | 'WHATSAPP_CALL_PERMISSION_CHECK_FAILED'
+  | 'WHATSAPP_CALL_PERMISSION_LIMIT'
+  | 'WHATSAPP_CALL_PERMISSION_EXISTS'
+  | 'WHATSAPP_CALL_LIMIT_REACHED'
+  | 'WHATSAPP_CALL_ACTIVE'
+  | 'WHATSAPP_CALL_FAILED'
+  | 'RATE_LIMITED'
+  | 'META_API_ERROR';
+
+/** A failed calling Graph call → our error (PHASE_12_PROMPT §1). Reasons are ours, never Meta's text. */
+export interface CallErrorMapping {
+  code: CallErrorCode;
+  reason: string | null;
+  /** Meta's wait hint (138002 / 138005) or the next allowed time (138012), when given. */
+  retryAfterSec: number | null;
+  /** 613: retry once after 1 s, then `WHATSAPP_CALL_PERMISSION_CHECK_FAILED`. */
+  retryOnce: boolean;
+}
+
+const CALL_FAILED_REASONS: Record<number, string> = {
+  138001: "The customer can't take WhatsApp calls",
+  138004: 'WhatsApp could not connect the call',
+  138007: 'The call could not be set up (media)',
+  138019: 'The call was not connected',
+  138020: 'The call was not connected',
+  138021: 'The call was not connected',
+  138022: 'The call was not connected',
+  138023: 'The call was not connected',
+  131030: 'Test number not on the allowed list',
+  131044: 'Payment method missing at Meta',
+};
+
+const CALL_ERROR_CODES: Partial<Record<number, CallErrorCode>> = {
+  138000: 'WHATSAPP_CALLING_DISABLED',
+  138002: 'RATE_LIMITED',
+  138005: 'RATE_LIMITED',
+  138003: 'WHATSAPP_CALL_ACTIVE',
+  138006: 'WHATSAPP_CALL_PERMISSION_MISSING',
+  138009: 'WHATSAPP_CALL_PERMISSION_LIMIT',
+  138012: 'WHATSAPP_CALL_LIMIT_REACHED',
+  138013: 'WHATSAPP_CALLING_UNAVAILABLE',
+  138015: 'WHATSAPP_CALLING_UNAVAILABLE',
+  138018: 'WHATSAPP_CALLING_UNAVAILABLE',
+  138014: 'WHATSAPP_CALLING_RESTRICTED',
+  138017: 'WHATSAPP_CALL_PERMISSION_EXISTS',
+  131055: 'WHATSAPP_CALLING_UNAVAILABLE',
+};
+
+/** Whole seconds from Meta's `error_data` hint (seconds or a unix time), if any. */
+export const callRetryAfterSec = (
+  hint: number | string | null | undefined,
+  now = Date.now(),
+): number | null => {
+  const n = Number(hint);
+  if (hint === null || hint === undefined || hint === '' || !Number.isFinite(n) || n <= 0)
+    return null;
+  // a unix time (after 2001) → seconds from now; else already seconds
+  return n > 1_000_000_000 ? Math.max(0, Math.ceil(n - now / 1000)) : Math.ceil(n);
+};
+
+export const mapCallError = (
+  err: Pick<MetaApiError, 'code' | 'subcode' | 'status' | 'retryable' | 'tokenInvalid'>,
+  hint?: number | string | null,
+): CallErrorMapping => {
+  const n = err.code;
+  const base = { reason: null, retryAfterSec: null, retryOnce: false };
+  if (n === 613) return { ...base, code: 'WHATSAPP_CALL_PERMISSION_CHECK_FAILED', retryOnce: true };
+  if (n !== null && n in CALL_FAILED_REASONS) {
+    return { ...base, code: 'WHATSAPP_CALL_FAILED', reason: CALL_FAILED_REASONS[n] ?? null };
+  }
+  const code = n === null ? undefined : CALL_ERROR_CODES[n];
+  if (code) {
+    const timed = code === 'RATE_LIMITED' || code === 'WHATSAPP_CALL_LIMIT_REACHED';
+    return {
+      ...base,
+      code,
+      reason: n === 131055 ? 'SIP is enabled on this number' : null,
+      retryAfterSec: timed ? callRetryAfterSec(hint) : null,
+    };
+  }
+  return { ...base, code: 'META_API_ERROR' };
+};
+
+/** 131026 on a call permission request / call button → the bubble reason. */
+export const CALL_MESSAGE_OLD_CLIENT_REASON = "Customer's WhatsApp is too old";

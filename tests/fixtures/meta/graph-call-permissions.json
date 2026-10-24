@@ -1,0 +1,37 @@
+{
+  "messaging_product": "whatsapp",
+  "permission": {
+    "status": "temporary",
+    "expiration_time": 1761905000
+  },
+  "actions": [
+    {
+      "action_name": "send_call_permission_request",
+      "can_perform_action": true,
+      "limits": [
+        {
+          "time_period": "PT24H",
+          "max_allowed": 1,
+          "current_usage": 0
+        },
+        {
+          "time_period": "P7D",
+          "max_allowed": 2,
+          "current_usage": 1
+        }
+      ]
+    },
+    {
+      "action_name": "start_call",
+      "can_perform_action": false,
+      "limits": [
+        {
+          "time_period": "PT24H",
+          "max_allowed": 100,
+          "current_usage": 100,
+          "limit_expiration_time": 1761386400
+        }
+      ]
+    }
+  ]
+}

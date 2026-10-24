@@ -1,0 +1,12 @@
+{
+  "error": {
+    "message": "No approved call permission from the recipient",
+    "type": "OAuthException",
+    "code": 138006,
+    "error_data": {
+      "messaging_product": "whatsapp",
+      "details": "No approved call permission from the recipient"
+    },
+    "fbtrace_id": "AbCdEfGhIjKlMn"
+  }
+}
