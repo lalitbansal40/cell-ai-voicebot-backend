@@ -1,5 +1,10 @@
 import { INBOX_LIMITS } from '../../config/limits';
-import { mapSendError, metaTime, type MetaStatus } from '../../core/meta';
+import {
+  CALL_MESSAGE_OLD_CLIENT_REASON,
+  mapSendError,
+  metaTime,
+  type MetaStatus,
+} from '../../core/meta';
 import { MessageModel, type MessageDoc } from '../../db/models/message.model';
 import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
 import { getLogger } from '../../shared/logger';
@@ -46,8 +51,13 @@ const applyOne = async (
       channelId: channel._id,
       waMessageId: s.id,
     })
-      .select({ status: 1, direction: 1, conversationId: 1, pricing: 1 })
-      .lean<Pick<MessageDoc, '_id' | 'status' | 'direction' | 'conversationId' | 'pricing'>>();
+      .select({ status: 1, direction: 1, conversationId: 1, pricing: 1, 'interactive.kind': 1 })
+      .lean<
+        Pick<
+          MessageDoc,
+          '_id' | 'status' | 'direction' | 'conversationId' | 'pricing' | 'interactive'
+        >
+      >();
     if (!current) return 'unknown';
     const pricing = pricingOf(s);
     // Phase 11: every billing-relevant status reaches billing (idempotent — a retried
@@ -80,10 +90,14 @@ const applyOne = async (
     if (next === 'failed') {
       const err = s.errors?.[0];
       const mapped = mapSendError({ code: err?.code ?? null });
+      // Phase 12: an old WhatsApp can't show call permission requests / call buttons
+      const callKind =
+        current.interactive?.kind === 'call_permission_request' ||
+        current.interactive?.kind === 'voice_call';
       set.error = {
         code: err?.code ?? null,
         title: err?.title?.slice(0, 300) ?? null,
-        reason: mapped.reason,
+        reason: callKind && err?.code === 131026 ? CALL_MESSAGE_OLD_CLIENT_REASON : mapped.reason,
       };
       effect = mapped.channelEffect;
     } else if (current.status === 'failed') {

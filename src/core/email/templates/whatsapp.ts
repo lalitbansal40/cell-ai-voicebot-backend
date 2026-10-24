@@ -45,6 +45,14 @@ export const whatsappRestricted = (v: WhatsAppChannelEmailVars): RenderedEmail =
     v,
   );
 
+/** Meta paused WhatsApp calling on the number (Phase 12, `whatsapp.calling_restricted`). */
+export const whatsappCallingRestricted = (v: WhatsAppChannelEmailVars): RenderedEmail =>
+  render(
+    `${v.accountName}: WhatsApp paused calling on ${numberText(v)}`,
+    `WhatsApp paused calling on the number ${numberText(v)}: ${v.reason}. Messages keep working; calls start again when the pause ends.`,
+    v,
+  );
+
 /** A platform superadmin disconnected the number. */
 export const whatsappAdminDisconnected = (v: WhatsAppChannelEmailVars): RenderedEmail =>
   render(

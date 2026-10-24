@@ -230,6 +230,40 @@ export const normalizeContent = (
           mediaId: null,
         };
       }
+      // Phase 12: the customer's answer to a call permission request (or `automatic`)
+      if (i?.type === 'call_permission_reply' && i.call_permission_reply) {
+        const r = i.call_permission_reply;
+        if (r.response === 'accept' || r.response === 'reject') {
+          return {
+            content: {
+              ...emptyContent('interactive'),
+              interactive: {
+                kind: 'call_permission_reply',
+                header: null,
+                body: null,
+                footer: null,
+                buttons: [],
+                listButton: null,
+                sections: [],
+                cta: null,
+                reply: null,
+                nfmResponse: null,
+                nfmTruncated: false,
+                callPermission: {
+                  response: r.response,
+                  isPermanent: r.is_permanent ?? false,
+                  expiresAt: metaTime(r.expiration_timestamp),
+                  source: clip(r.response_source, 40),
+                  requestWaMessageId: ctx?.replyToWaMessageId ?? null,
+                },
+                voiceCall: null,
+              },
+              context: ctx,
+            },
+            mediaId: null,
+          };
+        }
+      }
       if (i?.type === 'nfm_reply' && i.nfm_reply) {
         const response = i.nfm_reply.response_json ?? '';
         const truncated = Buffer.byteLength(response) > INBOX_LIMITS.nfmResponseMaxBytes;

@@ -217,6 +217,8 @@ describe('views and helpers', () => {
       qualityRating: undefined,
       messagingLimitTier: undefined,
       nameStatus: undefined,
+      // Phase 12: calling summary (a channel without the sub-document = defaults)
+      calling: { status: 'disabled', unavailableReason: null, restricted: false },
     });
     expect(channelListItem(channel()).restriction).toBeNull();
   });

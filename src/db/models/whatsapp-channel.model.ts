@@ -26,6 +26,8 @@ export const WA_LIMIT_TIERS = [
   'TIER_50',
   'TIER_250',
   'TIER_1K',
+  // Meta's tier since late 2025 (replaces 1K); calling needs 2,000 or more
+  'TIER_2K',
   'TIER_10K',
   'TIER_100K',
   'TIER_UNLIMITED',

@@ -135,6 +135,21 @@ export const processCustomerMessage = async (
     conversation = (await touchLastMessage(conversation._id, stored)) ?? conversation;
   }
   if (n.mediaId) await ix.jobs.enqueueMediaDownload(stored._id.toString());
+  const permission = stored.interactive?.callPermission;
+  if (ix.calling && stored.interactive?.kind === 'call_permission_reply' && permission) {
+    await ix.calling.onPermissionReply({
+      channel,
+      contactId: contact._id,
+      reply: {
+        response: permission.response,
+        isPermanent: permission.isPermanent,
+        expiresAt: permission.expiresAt,
+        source: permission.source,
+      },
+      contextId: permission.requestWaMessageId,
+      at,
+    });
+  }
   emitConversation(conversation);
   await emitSummary(conversation.accountId);
   const keywordText =

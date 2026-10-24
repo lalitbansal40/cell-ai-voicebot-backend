@@ -1,4 +1,4 @@
-import { INBOX_LIMITS as L } from '../../config/limits';
+import { INBOX_LIMITS as L, WHATSAPP_CALL_LIMITS } from '../../config/limits';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
 
@@ -135,6 +135,17 @@ export const ReactionBody = z.object({
 
 export const NoteBody = z.object({ ...base, type: z.literal('note'), text: text(L.textMax) });
 
+/** Phase 12: a "Call now" button that calls this number on WhatsApp (inside the window). */
+export const VoiceCallBody = z.object({
+  ...base,
+  type: z.literal('voice_call'),
+  body: text(L.bodyMax),
+  displayText: optText(WHATSAPP_CALL_LIMITS.voiceCallButtonTextMax),
+  ttlMinutes: z.number().int().min(1).max(WHATSAPP_CALL_LIMITS.voiceCallTtlMinutesMax).optional(),
+  /** Comes back as `cta_payload` on the call (≤ 512). */
+  payload: optText(512),
+});
+
 /** Phase 11: an approved template (works outside the 24-hour window). */
 export const TemplateBody = z.object({
   ...base,
@@ -174,9 +185,21 @@ export const SendMessageBody = z
     ReactionBody,
     NoteBody,
     TemplateBody,
+    VoiceCallBody,
   ])
   .openapi('InboxSendMessage');
-export type SendMessageInput = z.infer<typeof SendMessageBody>;
+/**
+ * What `sendMessage` takes: the API body, plus the call permission request that only
+ * the calling module sends (its rules run first — never a plain API send).
+ */
+export type SendMessageInput =
+  | z.infer<typeof SendMessageBody>
+  | {
+      type: 'call_permission_request';
+      body: string;
+      clientId: string;
+      replyToMessageId?: undefined;
+    };
 
 export const SEND_TYPES = [
   'text',
@@ -194,4 +217,5 @@ export const SEND_TYPES = [
   'reaction',
   'note',
   'template',
+  'voice_call',
 ] as const;

@@ -41,7 +41,8 @@ describe('seedWhatsApp', () => {
       label: 'Demo Finance',
       displayPhoneNumber: SEED_WHATSAPP_NUMBER,
       qualityRating: 'GREEN',
-      messagingLimitTier: 'TIER_1K',
+      // the fake's numbers report Meta's 2,000 tier (enough for calling, Phase 12)
+      messagingLimitTier: 'TIER_2K',
       nameStatus: 'APPROVED',
     });
     const events = await MetaWebhookEventModel.find({ channelId: channel?._id }).lean();

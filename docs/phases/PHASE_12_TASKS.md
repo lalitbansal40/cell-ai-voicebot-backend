@@ -8,7 +8,7 @@ Plan: [PHASE_12_PLAN.md](PHASE_12_PLAN.md) · Overview: [BUILD_PLAN_V2.md](../pl
 | [x] | T12.2  | Models (channel calling, call permissions, Call / Message / contact / user / account fields, calling rate card), migration 0013, limits, env, catalogue      | BE   | M    |
 | [x] | T12.3  | Meta core: Graph calling + settings + call permissions API, schemas + fixtures, error mapping, `account_settings_update`; fake Meta calling + `FakeWaUser`   | BE   | L    |
 | [x] | T12.4  | `WhatsAppCallLeg` (media, codec, pacer, DTMF, keep-alive, metrics) + call-control bus (owner registry, pub / sub, inbound claim, cross-process hangup)       | BE   | L    |
-| [ ] | T12.5  | Calling settings service + permissions service (request, reply, status API, counters, sweep, streak, restrictions) + webhooks                                | BE   | M    |
+| [x] | T12.5  | Calling settings service + permissions service (request, reply, status API, counters, sweep, streak, restrictions) + webhooks                                | BE   | M    |
 | [ ] | T12.6  | Outbound calls: dial guard, provider `whatsapp`, agent leg bridge, AI calls, statuses, end / settle, call bubbles, call button sends                         | BE   | L    |
 | [ ] | T12.7  | Inbound calls: claim, routing (team ring / AI / AI → team), answer race, missed calls, call hours, transfer                                                  | BE   | L    |
 | [ ] | T12.8  | Billing (calling rate card, pulses, holds, settle, margin), API + OpenAPI, simulator, seed, `dev:calls-wa`, hardening, ADR 0041, docs, real-device checklist | BE   | M    |

@@ -62,6 +62,7 @@ import {
 } from './modules/whatsapp/whatsapp.routes';
 import { createWhatsAppService } from './modules/whatsapp/whatsapp.service';
 import { createPricePreviewRouter } from './modules/whatsapp-billing/price-preview.routes';
+import type { CallingJobs } from './modules/whatsapp-calling/jobs';
 
 /** Everything under /api/v1. Add each module router here. */
 /** What the contact modules need: file storage + the background job queue (Phase 3). */
@@ -82,6 +83,8 @@ export type WhatsAppDeps = MetaWebhooksDeps & {
   /** `rl:templates:` / `rl:template-sync:` stores. */
   templatesRateLimitStore?: Store;
   templateSyncRateLimitStore?: Store;
+  /** Phase 12: calling jobs on the `whatsapp` queue (settings sync after a connect). */
+  callingJobs?: CallingJobs;
 };
 
 export interface BillingDeps {
@@ -185,9 +188,11 @@ export const createApiRouter = ({
     ? {
         ...whatsapp,
         service: createWhatsAppService(whatsapp.ctx, {
-          onConnected: (channel) =>
-            whatsapp.templateJobs?.enqueueSync(channel._id.toString(), 'connect') ??
-            Promise.resolve(),
+          onConnected: async (channel) => {
+            await whatsapp.templateJobs?.enqueueSync(channel._id.toString(), 'connect');
+            // Phase 12: read the new number's call settings from Meta
+            await whatsapp.callingJobs?.enqueueSettingsSync(channel._id.toString(), 'connect');
+          },
         }),
       }
     : undefined;

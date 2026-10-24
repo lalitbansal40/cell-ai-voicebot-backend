@@ -22,6 +22,7 @@ import {
 import {
   whatsappAdminDisconnected,
   whatsappNeedsReconnect,
+  whatsappCallingRestricted,
   whatsappRestricted,
   type WhatsAppChannelEmailVars,
 } from './whatsapp';
@@ -46,6 +47,7 @@ export interface EmailTemplateVars {
   'campaign.paused': CampaignPausedVars;
   'whatsapp.needs_reconnect': WhatsAppChannelEmailVars;
   'whatsapp.restricted': WhatsAppChannelEmailVars;
+  'whatsapp.calling_restricted': WhatsAppChannelEmailVars;
   'whatsapp.admin_disconnected': WhatsAppChannelEmailVars;
   'template.rejected': TemplateEmailVars;
   'template.disabled': TemplateEmailVars;
@@ -65,6 +67,7 @@ const TEMPLATES: { [K in EmailTemplateKey]: (vars: EmailTemplateVars[K]) => Rend
   'campaign.paused': campaignPaused,
   'whatsapp.needs_reconnect': whatsappNeedsReconnect,
   'whatsapp.restricted': whatsappRestricted,
+  'whatsapp.calling_restricted': whatsappCallingRestricted,
   'whatsapp.admin_disconnected': whatsappAdminDisconnected,
   'template.rejected': templateRejected,
   'template.disabled': templateDisabled,

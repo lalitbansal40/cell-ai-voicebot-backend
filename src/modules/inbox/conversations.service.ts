@@ -367,7 +367,7 @@ export const listMessages = async (
   };
 };
 
-export const getContactPanel = async (_ix: InboxContext, actor: InboxActor, id: string) => {
+export const getContactPanel = async (ix: InboxContext, actor: InboxActor, id: string) => {
   const c = await findConversation(actor, id);
   const contact = await ContactModel.findOne(
     { _id: c.contactId, accountId: actor.accountId },
@@ -438,8 +438,17 @@ export const getContactPanel = async (_ix: InboxContext, actor: InboxActor, id: 
       durationSec: call.durationSec ?? null,
       disposition: call.disposition ?? null,
     })),
-    /** Phase 12 (WhatsApp calling permission). */
-    callPermission: null,
+    /** Phase 12: WhatsApp call permission state (null without the calling module / contact). */
+    callPermission:
+      ix.calling && contact && !contact.deletedAt
+        ? await ix.calling
+            .permissionPanel({
+              accountId: actor.accountId,
+              channelId: c.channelId,
+              contactId: contact._id,
+            })
+            .catch(() => null)
+        : null,
     otherConversations: others.map((o) => ({
       id: o._id.toString(),
       channelId: o.channelId.toString(),

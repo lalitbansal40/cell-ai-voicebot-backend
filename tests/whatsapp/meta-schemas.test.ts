@@ -186,7 +186,9 @@ describe('Meta mappers', () => {
     expect(normalizeQuality('NA')).toBe('UNKNOWN');
     expect(normalizeQuality(null)).toBe('UNKNOWN');
     expect(normalizeTier('tier_250')).toBe('TIER_250');
-    expect(normalizeTier('TIER_2K')).toBeNull();
+    // Phase 12: Meta's 2,000 tier (late 2025) is known; others stay unknown
+    expect(normalizeTier('TIER_2K')).toBe('TIER_2K');
+    expect(normalizeTier('TIER_5K')).toBeNull();
     expect(normalizeTier(undefined)).toBeNull();
   });
 

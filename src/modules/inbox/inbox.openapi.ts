@@ -15,6 +15,7 @@ import {
   MESSAGE_BILLING_STATUSES,
   MESSAGE_PAYERS,
 } from '../../db/models/message.model';
+import { CALL_PERMISSION_STATUSES } from '../../db/models/whatsapp-call-permission.model';
 import { WA_CHANNEL_STATUSES, WA_MODES } from '../../db/models/whatsapp-channel.model';
 import { TEMPLATE_CATEGORIES } from '../../db/models/whatsapp-template.model';
 import { registry } from '../../shared/openapi/registry';
@@ -95,6 +96,22 @@ export const InboxMessageSchema = registry.register(
         reply: z.object({ id: s, title: s, description: s }).nullable(),
         nfmResponse: s,
         nfmTruncated: z.boolean(),
+        callPermission: z
+          .object({
+            response: z.enum(['accept', 'reject']),
+            isPermanent: z.boolean(),
+            expiresAt: z.string().nullable(),
+            source: z.string().nullable(),
+          })
+          .nullable()
+          .openapi({ description: 'Phase 12: a permission reply / the answer on a request' }),
+        voiceCall: z
+          .object({ displayText: z.string(), ttlMinutes: z.number().nullable() })
+          .nullable(),
+        requestState: z
+          .enum(['sent', 'answered', 'expired', 'failed'])
+          .nullable()
+          .openapi({ description: 'Call permission request bubbles only' }),
       })
       .nullable(),
     reaction: z.object({ targetMessageId: s, emoji: z.string() }).nullable(),
@@ -234,7 +251,20 @@ const ContactPanelSchema = registry.register(
         disposition: s,
       }),
     ),
-    callPermission: z.null().openapi({ description: 'WhatsApp calling permission (Phase 12)' }),
+    callPermission: z
+      .object({
+        status: z.enum(CALL_PERMISSION_STATUSES),
+        expiresAt: z.string().nullable(),
+        canCall: z.boolean(),
+        canRequest: z.boolean(),
+        nextRequestAt: z.string().nullable(),
+        reason: z.string().nullable().openapi({
+          description:
+            'Why not: not_connected / calling_disabled / calling_unavailable / country / restricted / dnd / opted_out / blocked / check_failed / no_permission / call_limit',
+        }),
+      })
+      .nullable()
+      .openapi({ description: 'WhatsApp call permission on this number (Phase 12)' }),
     otherConversations: z.array(
       z.object({
         id: z.string(),

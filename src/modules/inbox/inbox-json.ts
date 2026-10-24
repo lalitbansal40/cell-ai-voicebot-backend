@@ -16,6 +16,19 @@ export interface ReplyToView {
  * A message as the inbox shows it (topic events + API). Never storage keys or Meta
  * media ids — media is fetched through `GET /inbox/messages/:id/media`.
  */
+/**
+ * State of a call permission request bubble (Phase 12): failed (e.g. 131026 old
+ * WhatsApp) → answered (the reply marked it) → expired (Meta: 7 days after delivery
+ * without an answer) → sent.
+ */
+const REQUEST_LIFETIME_MS = 7 * 86_400_000;
+const requestState = (m: MessageDoc): 'sent' | 'answered' | 'expired' | 'failed' => {
+  if (m.status === 'failed') return 'failed';
+  if (m.interactive?.callPermission) return 'answered';
+  if (Date.now() - m.at.getTime() > REQUEST_LIFETIME_MS) return 'expired';
+  return 'sent';
+};
+
 export const toMessageView = (
   m: MessageDoc,
   extra: { replyTo?: ReplyToView | null; sentBy?: { id: string; name: string } | null } = {},
@@ -59,6 +72,22 @@ export const toMessageView = (
         reply: m.interactive.reply,
         nfmResponse: m.interactive.nfmResponse,
         nfmTruncated: m.interactive.nfmTruncated,
+        // Phase 12: permission request / reply and call buttons
+        callPermission: m.interactive.callPermission
+          ? {
+              response: m.interactive.callPermission.response,
+              isPermanent: m.interactive.callPermission.isPermanent,
+              expiresAt: m.interactive.callPermission.expiresAt?.toISOString() ?? null,
+              source: m.interactive.callPermission.source,
+            }
+          : null,
+        voiceCall: m.interactive.voiceCall
+          ? {
+              displayText: m.interactive.voiceCall.displayText,
+              ttlMinutes: m.interactive.voiceCall.ttlMinutes,
+            }
+          : null,
+        requestState: m.interactive.kind === 'call_permission_request' ? requestState(m) : null,
       }
     : null,
   reaction: m.reaction

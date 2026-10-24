@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 
 import {
+  accountSettingsUpdateValueSchema,
   isMetaApiError,
   normalizeTier,
   TEMPLATE_WEBHOOK_VALUE_SCHEMAS,
@@ -50,11 +51,26 @@ export type TemplateHooks = Record<
   (channel: WhatsAppChannelDoc, value: unknown, at: Date) => Promise<unknown>
 >;
 
+/**
+ * Phase 12 consumers (calling), injected the same way. `accountUpdate` returns true when
+ * the event was a calling one (then the number itself is not restricted).
+ */
+export interface CallingHooks {
+  settingsUpdate(channel: WhatsAppChannelDoc, value: unknown): Promise<unknown>;
+  accountUpdate(
+    channel: WhatsAppChannelDoc,
+    value: z.infer<(typeof WEBHOOK_VALUE_SCHEMAS)['account_update']>,
+  ): Promise<boolean>;
+  /** `calls` events (T12.6 / T12.7) — absent until the calls service is wired. */
+  calls?(channel: WhatsAppChannelDoc, value: unknown, event?: HandlerEvent): Promise<unknown>;
+}
+
 export interface HandlerContext {
   ctx: WhatsAppContext;
   service: Pick<WhatsAppService, 'syncChannel'>;
   inbox?: InboxHooks;
   templates?: TemplateHooks;
+  calling?: CallingHooks;
 }
 
 /** The stored event being handled. */
@@ -163,6 +179,8 @@ const accountUpdate = async (
     return 'processed';
   }
   if (!isNumber(channel, v.phone_number)) return 'processed';
+  // Phase 12: calling pauses / warnings belong to calling, not to the whole number
+  if (h.calling && (await h.calling.accountUpdate(channel, v))) return 'processed';
   if (REMOVED.has(v.event)) {
     await markNeedsReconnect(h.ctx, channel, {
       code: 'partner_removed',
@@ -331,6 +349,32 @@ const appStateSync = async (
   return 'processed';
 };
 
+/** Phase 12: Meta changed the number's call settings → calling re-reads them. */
+const accountSettingsUpdate = async (
+  h: HandlerContext,
+  channel: WhatsAppChannelDoc,
+  value: unknown,
+): Promise<HandlerResult> => {
+  if (!accountSettingsUpdateValueSchema.safeParse(value).success) {
+    throw new WebhookSchemaError('account_settings_update');
+  }
+  if (!h.calling) return 'deferred';
+  await h.calling.settingsUpdate(channel, value);
+  return 'processed';
+};
+
+/** Phase 12: `calls` events → the calls service (deferred without it). */
+const calls = async (
+  h: HandlerContext,
+  channel: WhatsAppChannelDoc,
+  value: unknown,
+  event?: HandlerEvent,
+): Promise<HandlerResult> => {
+  if (!h.calling?.calls) return 'deferred';
+  await h.calling.calls(channel, value, event);
+  return 'processed';
+};
+
 /** Phase 11: template / preference fields → the templates module (deferred without it). */
 const templateField =
   (field: TemplateWebhookField): Handler =>
@@ -365,6 +409,8 @@ export const WEBHOOK_HANDLERS: Partial<Record<WebhookField, Handler>> = {
   template_category_update: templateField('template_category_update'),
   message_template_components_update: templateField('message_template_components_update'),
   user_preferences: templateField('user_preferences'),
+  account_settings_update: accountSettingsUpdate,
+  calls,
 };
 
 /** Fields kept 30 days instead of 7 while deferred (the inbox consumes them). */

@@ -214,6 +214,18 @@ const contentOf = async (
           url: i.cta.url,
         };
       }
+      if (i.kind === 'call_permission_request') {
+        return { type: 'call_permission_request', body: i.body };
+      }
+      if (i.kind === 'voice_call') {
+        return {
+          type: 'voice_call',
+          body: i.body ?? '',
+          displayText: i.voiceCall?.displayText ?? null,
+          ttlMinutes: i.voiceCall?.ttlMinutes ?? null,
+          payload: i.voiceCall?.payload ?? null,
+        };
+      }
       throw new NotSendable('This interactive message cannot be sent');
     }
     default:

@@ -436,7 +436,8 @@ export const createFakeMetaClient = ({
       verified_name: identity.displayName,
       name_status: /pending/i.test(identity.displayName) ? 'PENDING_REVIEW' : 'APPROVED',
       quality_rating: 'GREEN',
-      messaging_limit_tier: 'TIER_1K',
+      // 2,000 / day: enough for WhatsApp calling (Phase 12)
+      messaging_limit_tier: 'TIER_2K',
       code_verification_status: 'VERIFIED',
       platform_type: 'CLOUD_API',
       throughput: { level: 'STANDARD' },

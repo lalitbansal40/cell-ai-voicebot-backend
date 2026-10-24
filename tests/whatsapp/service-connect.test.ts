@@ -77,7 +77,7 @@ describe('connect — happy paths', () => {
       phoneE164: `+${signup.phone.replace(/\D/g, '')}`,
       label: 'Test Business',
       qualityRating: 'GREEN',
-      messagingLimitTier: 'TIER_1K',
+      messagingLimitTier: 'TIER_2K',
       nameStatus: 'APPROVED',
       billing: { metaPayer: 'platform', creditLine: { status: 'attached' }, paymentMethodOk: null },
       registration: { status: 'registered' },

@@ -40,3 +40,26 @@ export const CALLING_JOB_OPTIONS = {
   removeOnComplete: true,
   removeOnFail: { age: 7 * 86_400 },
 } as const;
+
+export interface CallingSettingsSyncJobData {
+  /** One number; omitted = every number (the daily run). */
+  channelId?: string;
+  reason: CallingSettingsSyncReason;
+}
+
+/** Enqueues calling jobs (the API / webhooks depend on this, not on BullMQ). */
+export interface CallingJobs {
+  enqueueSettingsSync(channelId: string, reason: CallingSettingsSyncReason): Promise<void>;
+}
+
+export const queueCallingJobs = (queue: {
+  add(name: string, data: unknown, opts: Record<string, unknown>): Promise<unknown>;
+}): CallingJobs => ({
+  async enqueueSettingsSync(channelId, reason) {
+    await queue.add(
+      CALLING_JOBS.settingsSync,
+      { channelId, reason } satisfies CallingSettingsSyncJobData,
+      { ...CALLING_JOB_OPTIONS, jobId: callingSettingsSyncJobId(channelId) },
+    );
+  },
+});

@@ -133,7 +133,7 @@ describe('fake Meta — WABA and phone', () => {
     ]);
     expect(await fake.getPhoneNumber(token, ids.phoneNumberId)).toMatchObject({
       qualityRating: 'GREEN',
-      messagingLimitTier: 'TIER_1K',
+      messagingLimitTier: 'TIER_2K',
       nameStatus: 'APPROVED',
       status: 'PENDING',
       isOnBizApp: false,

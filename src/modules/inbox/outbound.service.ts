@@ -311,6 +311,38 @@ const buildContent = async (
         reactionTarget: target,
       };
     }
+    // Phase 12: call permission request (calling module only) / call button
+    case 'call_permission_request':
+    case 'voice_call':
+      return {
+        content: {
+          ...empty('interactive'),
+          interactive: {
+            kind: input.type,
+            header: null,
+            body: input.body,
+            footer: null,
+            buttons: [],
+            listButton: null,
+            sections: [],
+            cta: null,
+            reply: null,
+            nfmResponse: null,
+            nfmTruncated: false,
+            callPermission: null,
+            voiceCall:
+              input.type === 'voice_call'
+                ? {
+                    displayText: input.displayText?.trim() || 'Call now',
+                    ttlMinutes: input.ttlMinutes ?? null,
+                    payload: input.payload?.trim() || null,
+                  }
+                : null,
+          },
+        },
+        uploads,
+        reactionTarget: null,
+      };
   }
 };
 

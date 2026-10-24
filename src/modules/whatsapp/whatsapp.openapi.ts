@@ -6,6 +6,8 @@ import {
   REGISTRATION_STATUSES,
   CREDIT_LINE_STATUSES,
   SYNC_STATUSES,
+  WA_CALLING_STATUSES,
+  WA_CALLING_UNAVAILABLE_REASONS,
   WA_CHANNEL_STATUSES,
   WA_LIMIT_TIERS,
   WA_MODES,
@@ -61,6 +63,11 @@ export const WhatsAppChannelSchema = registry.register(
     isOnBizApp: z
       .boolean()
       .openapi({ description: 'WhatsApp Business app number (coexistence) — no calling' }),
+    calling: z.object({
+      status: z.enum(WA_CALLING_STATUSES),
+      unavailableReason: z.enum(WA_CALLING_UNAVAILABLE_REASONS).nullable(),
+      restricted: z.boolean().openapi({ description: 'Meta paused calling on the number now' }),
+    }),
     billing: z.object({
       metaPayer: z.enum(META_PAYERS),
       creditLine: z.object({ status: z.enum(CREDIT_LINE_STATUSES) }),

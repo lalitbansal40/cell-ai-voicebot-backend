@@ -64,6 +64,7 @@ import type { CallsFastPathEvent } from './modules/whatsapp/context';
 import { connectFakeStatusWebhooks } from './modules/whatsapp/fake-statuses';
 import { queueWhatsAppJobs } from './modules/whatsapp/jobs';
 import { CallControlBus } from './modules/whatsapp-calling/bus';
+import { queueCallingJobs } from './modules/whatsapp-calling/jobs';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
 
@@ -214,6 +215,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
         jobs: queueWhatsAppJobs(whatsappQueue),
         inboxJobs: queueInboxJobs(whatsappQueue),
         templateJobs: queueTemplateJobs(whatsappQueue),
+        callingJobs: queueCallingJobs(whatsappQueue),
         connectRateLimitStore: createRedisRateLimitStore(redis, 'rl:wa-connect:'),
         inboxSendRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-send:'),
         inboxUploadRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-upload:'),

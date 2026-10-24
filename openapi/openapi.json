@@ -5185,6 +5185,7 @@
               "TIER_50",
               "TIER_250",
               "TIER_1K",
+              "TIER_2K",
               "TIER_10K",
               "TIER_100K",
               "TIER_UNLIMITED",
@@ -5194,6 +5195,21 @@
           "isOnBizApp": {
             "type": "boolean",
             "description": "WhatsApp Business app number (coexistence) — no calling"
+          },
+          "calling": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string", "enum": ["disabled", "enabled", "unavailable"] },
+              "unavailableReason": {
+                "type": ["string", "null"],
+                "enum": ["coexistence", "country", "messaging_limit", "not_cloud_api", null]
+              },
+              "restricted": {
+                "type": "boolean",
+                "description": "Meta paused calling on the number now"
+              }
+            },
+            "required": ["status", "unavailableReason", "restricted"]
           },
           "billing": {
             "type": "object",
@@ -5282,6 +5298,7 @@
           "qualityRating",
           "messagingLimitTier",
           "isOnBizApp",
+          "calling",
           "billing",
           "coexistence",
           "registration",
@@ -5672,7 +5689,31 @@
                 "required": ["id", "title", "description"]
               },
               "nfmResponse": { "type": ["string", "null"] },
-              "nfmTruncated": { "type": "boolean" }
+              "nfmTruncated": { "type": "boolean" },
+              "callPermission": {
+                "type": ["object", "null"],
+                "properties": {
+                  "response": { "type": "string", "enum": ["accept", "reject"] },
+                  "isPermanent": { "type": "boolean" },
+                  "expiresAt": { "type": ["string", "null"] },
+                  "source": { "type": ["string", "null"] }
+                },
+                "required": ["response", "isPermanent", "expiresAt", "source"],
+                "description": "Phase 12: a permission reply / the answer on a request"
+              },
+              "voiceCall": {
+                "type": ["object", "null"],
+                "properties": {
+                  "displayText": { "type": "string" },
+                  "ttlMinutes": { "type": ["number", "null"] }
+                },
+                "required": ["displayText", "ttlMinutes"]
+              },
+              "requestState": {
+                "type": ["string", "null"],
+                "enum": ["sent", "answered", "expired", "failed", null],
+                "description": "Call permission request bubbles only"
+              }
             },
             "required": [
               "kind",
@@ -5685,7 +5726,10 @@
               "cta",
               "reply",
               "nfmResponse",
-              "nfmTruncated"
+              "nfmTruncated",
+              "callPermission",
+              "voiceCall",
+              "requestState"
             ]
           },
           "reaction": {
@@ -6099,8 +6143,31 @@
             }
           },
           "callPermission": {
-            "type": "null",
-            "description": "WhatsApp calling permission (Phase 12)"
+            "type": ["object", "null"],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "requested",
+                  "temporary",
+                  "permanent",
+                  "declined",
+                  "expired",
+                  "revoked"
+                ]
+              },
+              "expiresAt": { "type": ["string", "null"] },
+              "canCall": { "type": "boolean" },
+              "canRequest": { "type": "boolean" },
+              "nextRequestAt": { "type": ["string", "null"] },
+              "reason": {
+                "type": ["string", "null"],
+                "description": "Why not: not_connected / calling_disabled / calling_unavailable / country / restricted / dnd / opted_out / blocked / check_failed / no_permission / call_limit"
+              }
+            },
+            "required": ["status", "expiresAt", "canCall", "canRequest", "nextRequestAt", "reason"],
+            "description": "WhatsApp call permission on this number (Phase 12)"
           },
           "otherConversations": {
             "type": "array",
@@ -6719,6 +6786,23 @@
               }
             },
             "required": ["clientId", "type", "templateId"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "clientId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "6f1c2b8e-9d1a-4c55-8a3e-2b1f0c9d7e61"
+              },
+              "replyToMessageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "type": { "type": "string", "enum": ["voice_call"] },
+              "body": { "type": "string", "minLength": 1, "maxLength": 1024 },
+              "displayText": { "type": ["string", "null"], "maxLength": 20 },
+              "ttlMinutes": { "type": "integer", "minimum": 1, "maximum": 43200 },
+              "payload": { "type": ["string", "null"], "maxLength": 512 }
+            },
+            "required": ["clientId", "type", "body"]
           }
         ]
       },
