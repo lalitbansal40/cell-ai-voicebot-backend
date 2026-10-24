@@ -42,6 +42,7 @@
     "samples:contacts": "tsx scripts/make-contact-samples.ts",
     "fixtures:knowledge": "tsx scripts/make-knowledge-fixtures.ts",
     "fixtures:audio": "tsx scripts/make-audio-fixtures.ts",
+    "poc:wa-call": "tsx scripts/poc-wa-call.ts",
     "bench:flow": "tsx scripts/bench-flow.ts",
     "bench:voice": "tsx --env-file-if-exists=.env scripts/bench-voice.ts",
     "bench:campaign": "tsx --env-file-if-exists=.env scripts/bench-campaign.ts",
@@ -135,6 +136,7 @@
     "mpg123-decoder": "1.0.3",
     "multer": "^2.4.0",
     "nodemailer": "^10.0.16",
+    "opusscript": "0.1.1",
     "pdfkit": "0.20.2",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
@@ -142,6 +144,7 @@
     "read-excel-file": "^9.3.12",
     "swagger-ui-dist": "^5.33.1",
     "unpdf": "1.8.1",
+    "werift": "0.25.0",
     "write-excel-file": "^4.1.1",
     "ws": "^8.22.0",
     "zod": "^4.6.5"

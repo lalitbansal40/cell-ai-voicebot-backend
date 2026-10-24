@@ -28,6 +28,7 @@ Shapes copied from Meta's documented sample payloads; every id, number, name and
 | `webhook-smb-app-state-sync.json`         | same page (`smb_app_state_sync` contacts)                                    |
 | `webhook-messages-text.json`, `-status`   | whatsapp/cloud-api/webhooks/payload-examples                                 |
 | `webhook-calls-connect.json`              | whatsapp/cloud-api/calling/user-initiated-calls (`calls` connect)            |
+| `calls-sdp-answer.txt`                    | whatsapp/cloud-api/calling/reference (answer: ICE-lite, `setup:active`)      |
 | `webhook-template-status.json`            | whatsapp/business-management-api/webhooks/components (template status)      |
 | `messages-*.json` (Phase 10) | whatsapp/cloud-api/webhooks/payload-examples — text (link), image, video, audio, voice (`audio.voice: true`), document, sticker (+ animated), location, contacts, interactive `button_reply` / `list_reply` / `nfm_reply`, template `button`, reaction (+ removed), reply `context`, forwarded, ad `referral`, order, system (number changed), unsupported (`errors`) |
 | `statuses-*.json` (sent, delivered, read, played, failed, deleted) | same page (status webhooks with `conversation` / `pricing`, `errors` on failed) |
