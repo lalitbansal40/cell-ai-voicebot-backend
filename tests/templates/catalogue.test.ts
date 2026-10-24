@@ -52,8 +52,7 @@ import { AppError } from '../../src/shared/errors/app-error';
 import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 11 catalogue', () => {
-  it('has 69 error codes incl. the ten template / frequency codes', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(69);
+  it('has the ten template / frequency error codes (count: Phase 12 catalogue test)', () => {
     const added = [
       'TEMPLATE_NOT_FOUND',
       'TEMPLATE_NOT_APPROVED',
@@ -75,9 +74,8 @@ describe('Phase 11 catalogue', () => {
     expect(new AppError('TEMPLATE_NAME_TAKEN').message).toContain('deleted recently');
   });
 
-  it('has 118 audit actions incl. the twelve Phase 11 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(118);
-    expect(AUDIT_ACTIONS.slice(-12)).toEqual([
+  it('has the twelve Phase 11 audit actions (count: Phase 12 catalogue test)', () => {
+    expect(AUDIT_ACTIONS.slice(-21, -9)).toEqual([
       'template.created',
       'template.submitted',
       'template.updated',
@@ -94,9 +92,9 @@ describe('Phase 11 catalogue', () => {
     expect(new Set(AUDIT_ACTIONS).size).toBe(AUDIT_ACTIONS.length);
   });
 
-  it('has 26 notification types (19 + 7) with titles, audiences, links and e-mail flags', () => {
-    expect(NOTIFICATION_TYPES).toHaveLength(26);
-    const added = NOTIFICATION_TYPES.slice(-7);
+  it('has the 7 Phase 11 notification types with titles, audiences, links and e-mail flags', () => {
+    // count: Phase 12 catalogue test
+    const added = NOTIFICATION_TYPES.slice(-12, -5);
     expect(added).toEqual([
       'template.approved',
       'template.rejected',
@@ -188,7 +186,7 @@ describe('Phase 11 catalogue', () => {
       'static',
       'ask',
     ]);
-    expect(MESSAGE_TYPES).toHaveLength(16);
+    // `call` arrives in Phase 12 (count: Phase 12 catalogue test)
     expect(MESSAGE_TYPES).toContain('template');
     expect(MESSAGE_ORIGINS).toEqual([
       'customer',

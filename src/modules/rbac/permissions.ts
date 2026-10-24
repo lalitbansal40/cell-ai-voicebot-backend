@@ -1,6 +1,6 @@
 /**
  * Permission catalogue (PHASE_2_PLAN §1b) — the ONLY place permissions are
- * defined. Format `domain.action`. Later phases use these; they don't add
+ * defined. Format `domain.action` (or `domain.area.action`, Phase 12). Later phases use these; they don't add
  * new strings without updating this file, the role matrix and the plan.
  */
 export const PERMISSION_INFO = {
@@ -32,6 +32,7 @@ export const PERMISSION_INFO = {
   'calls.trigger': { group: 'Calls', description: 'Start single calls' },
   'calls.listen': { group: 'Calls', description: 'Play call recordings' },
   'calls.export': { group: 'Calls', description: 'Export call records' },
+  'calls.answer': { group: 'Calls', description: 'Answer incoming WhatsApp calls' },
   'campaigns.read': { group: 'Campaigns', description: 'View campaigns' },
   'campaigns.write': { group: 'Campaigns', description: 'Create and edit campaigns' },
   'campaigns.run': { group: 'Campaigns', description: 'Start, pause and stop campaigns' },
@@ -40,6 +41,10 @@ export const PERMISSION_INFO = {
   'whatsapp.manage': {
     group: 'WhatsApp',
     description: 'Connect, sync and disconnect WhatsApp numbers',
+  },
+  'whatsapp.calling.manage': {
+    group: 'WhatsApp',
+    description: 'Turn WhatsApp calling on or off and change call hours and call routing',
   },
   'inbox.read': { group: 'Inbox', description: 'Read WhatsApp conversations' },
   'inbox.reply': {

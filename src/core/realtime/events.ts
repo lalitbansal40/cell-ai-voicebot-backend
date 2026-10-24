@@ -97,6 +97,22 @@ export interface WsEventMap {
     quality: TemplateQuality | null;
     category: TemplateCategory;
   };
+  /** Account level (Phase 12): the call rings for eligible users (filtered by the client). */
+  'whatsapp.call.incoming': {
+    callId: string;
+    conversationId: string | null;
+    contactId: string | null;
+    channelId: string;
+    ringUntil: string;
+  };
+  'whatsapp.call.taken': { callId: string; byUserId: string };
+  'whatsapp.call.ended_ringing': { callId: string; reason: string };
+  'whatsapp.call_permission.updated': {
+    contactId: string;
+    channelId: string;
+    status: string;
+    expiresAt: string | null;
+  };
   'wallet.updated': {
     balanceMicros: number;
     holdMicros: number;
@@ -152,6 +168,10 @@ export const WS_EVENT_TYPES = [
   'inbox.message.updated',
   'inbox.typing',
   'whatsapp.template.updated',
+  'whatsapp.call.incoming',
+  'whatsapp.call.taken',
+  'whatsapp.call.ended_ringing',
+  'whatsapp.call_permission.updated',
   'wallet.updated',
   'wallet.low_balance',
   'wallet.exhausted',

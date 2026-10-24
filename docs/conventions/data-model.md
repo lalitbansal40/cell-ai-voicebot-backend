@@ -956,6 +956,40 @@ Indexes: `{ wabaId: 1, day: 1, category: 1 }` unique, `{ day: -1 }`, `{ accountI
 - **Account:** `settings.templates { defaultLanguage: 'en' }`; `whatsappBilling { markupBps, fixedPrices { marketing?, utility?, authentication?, service? }, platformFeeMicros }` \| null (superadmin override; null fields use platform settings).
 - **WhatsAppChannel:** `pricingTier { category, market, tier, at }[]` (last 10 `VOLUME_BASED_PRICING_TIER_UPDATE`).
 
+### 2.10 WhatsApp calling
+
+#### WhatsAppCallPermission (`whatsappCallPermissions`) — Phase 12
+
+Our view of a customer's call permission per number. Tenant-scoped. **Meta's `GET call_permissions` is the source of truth** before every business-initiated call and every request (60 s Redis cache); this row is the UI state and the history.
+
+| Field                 | Type                                                                                          | R   | Notes                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------------- |
+| channelId, contactId  | ObjectId                                                                                      | ✓   |                                                               |
+| status                | `none \| requested \| temporary \| permanent \| declined \| expired \| revoked`               | ✓   | Meta `no_permission / temporary / permanent` mapped           |
+| expiresAt             | Date \| null                                                                                  |     | Temporary: approval + 7 days (Meta's timestamp wins)          |
+| source                | `request_reply \| callback \| profile \| unknown` \| null                                     |     | Meta `response_source` / `context.id`                         |
+| lastRequest           | `{ messageId, kind: interactive \| template, at, by }` \| null                                |     |                                                               |
+| requests              | `{ day: Date[], week: Date[] }`                                                               | ✓   | Our counters (1 / 24 h, 2 / 7 days); Meta is authoritative    |
+| unansweredStreak      | number                                                                                        | ✓   | Business-initiated calls not picked up in a row (4 → revoked) |
+| connectedCallsLast24h | number                                                                                        | ✓   | Meta cap 100 / 24 h per pair                                  |
+| metaCheckedAt         | Date \| null                                                                                  |     | Last `GET call_permissions`                                   |
+| metaActions           | `{ action, canPerform, limits { timePeriod, maxAllowed, currentUsage, limitExpiresAt }[] }[]` | ✓   | Meta's answer                                                 |
+| history               | `{ status, at, source }[]`                                                                    | ✓   | ≤ 30 — contact panel timeline                                 |
+
+Indexes: `{ accountId: 1, channelId: 1, contactId: 1 }` unique, `{ accountId: 1, expiresAt: 1 }` partial (date), `temporary_expiry` `{ status: 1, expiresAt: 1 }` partial `status = temporary` (hourly sweep).
+
+**Additions (Phase 12):**
+
+- **WhatsAppChannel:** `calling { status: disabled \| enabled \| unavailable, unavailableReason: coexistence \| country \| messaging_limit \| not_cloud_api \| null, callIconVisibility: DEFAULT \| DISABLE_ALL, iconCountries (ISO-2)[], callHours { enabled, timezone, weekly { day MONDAY…SUNDAY, open HHMM, close HHMM }[], holidays { date YYYY-MM-DD, start, end }[] }, callbackPermission, inbound { route: team \| ai \| ai_then_team, aiProgram { kind: flow \| agent, id } \| null, ringTimeoutSec (10–60, default 30), ringUserIds ObjectId[] \| null (≤ 50; null = every eligible online user) }, permissionRequestBody (≤ 1,024), restrictions { type, reason, expiresAt }[], syncedAt, lastError }` — at most 2 time ranges per day, no overlaps, ≤ 20 holidays (Meta's rules); coexistence numbers start `unavailable`.
+- **Call:** provider + `whatsapp`; `mode: ai \| human` (default `ai`; human calls have `source.kind = null`); `agentUserId`; `whatsapp { channelId, waCallId, direction: BUSINESS_INITIATED \| USER_INITIATED, conversationId, permissionId, timeline { event, at }[], metaStatus, metaDuration, metaStartTime, metaEndTime, metaErrors { code }[], ctaPayload, deeplinkPayload, ringUserIds, answeredBy, transferredTo }` \| null — never SDP, ICE data or phones; `billing.whatsapp { payer, market, pulses, perMinuteMicros, metaCostMicros, markupMicros, platformFeeMicros, status: free \| held \| settled \| released }` \| null; end reasons + `rejected_by_customer`, `not_answered`, `meta_failed`, `permission_missing`, `calling_restricted`, `no_agent_available`, `outside_call_hours`. Indexes `wa_call_id` `{ 'whatsapp.waCallId': 1 }` unique partial (string), `wa_channel_calls` `{ accountId: 1, 'whatsapp.channelId': 1, createdAt: -1 }` partial `provider = whatsapp`.
+- **Message:** type + `call` (`call { callId, direction, outcome: missed \| completed \| rejected \| failed \| no_answer, durationSec, mode }`, index `call_bubble` `{ accountId: 1, 'call.callId': 1 }` unique partial `type = call`); interactive kinds + `call_permission_request`, `call_permission_reply` (`callPermission { response: accept \| reject, isPermanent, expiresAt, source, requestWaMessageId }`), `voice_call` (`voiceCall { displayText ≤ 20, ttlMinutes ≤ 43,200, payload }`).
+- **Contact:** `whatsapp.bsuid` (Meta business-scoped user id; matched after the phone), index `whatsapp_bsuid` `{ accountId: 1, 'whatsapp.bsuid': 1 }` partial (string).
+- **User:** `callAvailability: available \| busy \| offline` (default `available`; `busy` while on a call).
+- **Account:** `settings.whatsappCalling { recordCalls (true), recordingNotice (the account's Phase 7 notice), transcribeHumanCalls (false), maxCallMinutes (30, ≤ 60) }`; `whatsappCallingBilling { markupBps, fixedPerMinuteMicros, platformFeePerMinuteMicros }` \| null (superadmin override).
+- **WhatsAppRateCard:** `kind: messaging \| calling` (rows before 0013 = `messaging`); calling cards carry `callingMarkets { market, label, callingCodes, perMinuteMicros, tiers { fromMinutes, perMinuteMicros }[] }[]` and no `markets`; index `kind_effective_from`. Seed (migration 0013): placeholder calling card IN ₹0.3885 / min + OTHER ₹1 / min.
+- **PlatformSettings:** key + `whatsappCalling { markupBps (1500), platformFeePerMinuteMicros (0), holdMinutes (5), holdExtendMinutes (5) }`; the value is validated per key.
+- **LedgerEntry:** type + `whatsapp_call_charge` (ref type `call`), usage kind + `whatsapp_call`; `breakdown` + `{ waPulses, waPerMinuteMicros }`.
+
 ---
 
 ## 3. Embedded vs separate collection

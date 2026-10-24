@@ -495,6 +495,8 @@ describe('loadEnv — WhatsApp (Phase 9)', () => {
     META_APP_SECRET: 'test-meta-app-secret-0123456789abcdef',
     META_ES_CONFIG_ID: '987654321',
     META_WEBHOOK_VERIFY_TOKEN: 'test-meta-verify-token-0123456789',
+    // Phase 12: call media needs the public IP with the meta provider
+    WA_MEDIA_PUBLIC_IP: '203.0.113.10',
   };
 
   it('defaults: on outside production with the fake provider, dev token and fake secret', () => {
@@ -653,5 +655,77 @@ describe('loadEnv — WhatsApp inbox (Phase 10)', () => {
         (i) => i.variable,
       ),
     ).toEqual(['FAKE_META_TEMPLATE_REVIEW_MS']);
+  });
+});
+
+describe('loadEnv — WhatsApp calling (Phase 12)', () => {
+  it('defaults: media on with WhatsApp, ports 40000–40999, 50 calls, Google STUN outside tests', () => {
+    const env = loadEnv({});
+    expect(env.WA_MEDIA_ENABLED).toBe(true);
+    expect(env.WA_MEDIA_PUBLIC_IP).toBeUndefined();
+    expect([env.WA_MEDIA_PORT_MIN, env.WA_MEDIA_PORT_MAX]).toEqual([40_000, 40_999]);
+    expect(env.WA_MEDIA_MAX_CALLS).toBe(50);
+    expect(env.WA_STUN_URLS).toEqual(['stun:stun.l.google.com:19302']);
+    expect(loadEnv({ NODE_ENV: 'test' }).WA_STUN_URLS).toEqual([]);
+    expect(loadEnv({ WA_STUN_URLS: 'off' }).WA_STUN_URLS).toEqual([]);
+    expect(
+      loadEnv({ WA_STUN_URLS: 'stun:a.example.com:3478, stun:b.example.com:19302' }).WA_STUN_URLS,
+    ).toEqual(['stun:a.example.com:3478', 'stun:b.example.com:19302']);
+    expect(loadEnv({ WHATSAPP_ENABLED: 'false' }).WA_MEDIA_ENABLED).toBe(false);
+    expect(loadEnv({ WHATSAPP_ENABLED: 'false', WA_MEDIA_ENABLED: 'true' }).WA_MEDIA_ENABLED).toBe(
+      false,
+    );
+    expect(loadEnv({ WA_MEDIA_ENABLED: 'false' }).WA_MEDIA_ENABLED).toBe(false);
+    expect(loadEnv({ WA_MEDIA_PUBLIC_IP: '203.0.113.10' }).WA_MEDIA_PUBLIC_IP).toBe('203.0.113.10');
+  });
+
+  it('rejects bad values (never echoing them)', () => {
+    const cases: [NodeJS.ProcessEnv, string][] = [
+      [{ WA_MEDIA_PUBLIC_IP: 'not-an-ip' }, 'WA_MEDIA_PUBLIC_IP'],
+      [{ WA_MEDIA_PUBLIC_IP: '::1' }, 'WA_MEDIA_PUBLIC_IP'],
+      [{ WA_MEDIA_PORT_MIN: '40000', WA_MEDIA_PORT_MAX: '40050' }, 'WA_MEDIA_PORT_MAX'],
+      [{ WA_MEDIA_PORT_MIN: '80' }, 'WA_MEDIA_PORT_MIN'],
+      [{ WA_STUN_URLS: 'turn:x.example.com:3478' }, 'WA_STUN_URLS'],
+      [{ WA_STUN_URLS: 'stun:x.example.com' }, 'WA_STUN_URLS'],
+      [{ WA_MEDIA_MAX_CALLS: '0' }, 'WA_MEDIA_MAX_CALLS'],
+      [{ WA_MEDIA_ENABLED: 'yes' }, 'WA_MEDIA_ENABLED'],
+    ];
+    for (const [source, variable] of cases) {
+      const err = issuesOf(source);
+      expect(err.issues.map((i) => i.variable)).toEqual([variable]);
+      expect(err.message).not.toContain('not-an-ip');
+    }
+  });
+
+  it('the meta provider needs the public media IP (unless media is off)', () => {
+    const META = {
+      META_PROVIDER: 'meta',
+      META_APP_ID: '1234567890',
+      META_APP_SECRET: 'test-meta-app-secret-0123456789abcdef',
+      META_ES_CONFIG_ID: '987654321',
+      META_WEBHOOK_VERIFY_TOKEN: 'test-meta-verify-token-0123456789',
+    };
+    expect(issuesOf(META).issues.map((i) => i.variable)).toEqual(['WA_MEDIA_PUBLIC_IP']);
+    expect(loadEnv({ ...META, WA_MEDIA_PUBLIC_IP: '203.0.113.10' }).WA_MEDIA_ENABLED).toBe(true);
+    expect(loadEnv({ ...META, WA_MEDIA_ENABLED: 'false' }).WA_MEDIA_ENABLED).toBe(false);
+  });
+
+  it('fake call delays: 100,200,800 in development, off in tests, never in production', () => {
+    expect(loadEnv({}).FAKE_META_CALL_DELAYS_MS).toEqual([100, 200, 800]);
+    expect(loadEnv({ NODE_ENV: 'test' }).FAKE_META_CALL_DELAYS_MS).toBeNull();
+    expect(loadEnv({ FAKE_META_CALL_DELAYS_MS: 'off' }).FAKE_META_CALL_DELAYS_MS).toBeNull();
+    expect(
+      loadEnv({ NODE_ENV: 'test', FAKE_META_CALL_DELAYS_MS: '1,2,3' }).FAKE_META_CALL_DELAYS_MS,
+    ).toEqual([1, 2, 3]);
+    for (const bad of ['1,2', 'soon', '1,2,60001']) {
+      expect(issuesOf({ FAKE_META_CALL_DELAYS_MS: bad }).issues.map((i) => i.variable)).toEqual([
+        'FAKE_META_CALL_DELAYS_MS',
+      ]);
+    }
+    const prod = { ...validProduction, WHATSAPP_ENABLED: 'false' };
+    expect(loadEnv(prod).FAKE_META_CALL_DELAYS_MS).toBeNull();
+    expect(
+      issuesOf({ ...prod, FAKE_META_CALL_DELAYS_MS: '1,2,3' }).issues.map((i) => i.variable),
+    ).toEqual(['FAKE_META_CALL_DELAYS_MS']);
   });
 });

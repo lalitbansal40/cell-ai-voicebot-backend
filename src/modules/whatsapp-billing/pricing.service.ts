@@ -17,6 +17,7 @@ import {
   type WhatsAppBillingSettings,
 } from '../../db/models/platform-settings.model';
 import {
+  MESSAGING_CARDS,
   PLACEHOLDER_MARKETS,
   WhatsAppRateCardModel,
   type RateCardMarket,
@@ -41,7 +42,10 @@ export const invalidateWhatsAppPricingCache = (): void => {
 export const effectiveWhatsAppRateCard = async (at?: Date): Promise<EffectiveWhatsAppRateCard> => {
   const now = Date.now();
   if (!at && cached && now - cached.at < BILLING_LIMITS.rateCardCacheMs) return cached.card;
-  const doc = await WhatsAppRateCardModel.findOne({ effectiveFrom: { $lte: at ?? new Date(now) } })
+  const doc = await WhatsAppRateCardModel.findOne({
+    ...MESSAGING_CARDS,
+    effectiveFrom: { $lte: at ?? new Date(now) },
+  })
     .sort({ effectiveFrom: -1, _id: -1 })
     .lean<WhatsAppRateCardDoc>();
   // before migration 0012 ran: the placeholder card (never a free message by accident)

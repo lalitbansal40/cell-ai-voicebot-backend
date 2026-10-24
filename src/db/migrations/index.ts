@@ -12,6 +12,7 @@ import { campaignsMigration } from './0009-campaigns';
 import { whatsappMigration } from './0010-whatsapp';
 import { inboxMigration } from './0011-inbox';
 import { templatesBillingMigration } from './0012-templates-billing';
+import { whatsappCallingMigration } from './0013-whatsapp-calling';
 
 /** Ordered migration registry. Add new files here (no fs globbing — keeps builds simple). */
 export const MIGRATIONS: Migration[] = [
@@ -27,4 +28,5 @@ export const MIGRATIONS: Migration[] = [
   whatsappMigration,
   inboxMigration,
   templatesBillingMigration,
+  whatsappCallingMigration,
 ];

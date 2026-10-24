@@ -53,6 +53,8 @@ describe('Phase 9 catalogue', () => {
       AUDIT_ACTIONS.filter(
         (a) =>
           (a.startsWith('whatsapp.') &&
+            // Phase 12 calling actions: tests/calls-wa/catalogue.test.ts
+            !a.includes('call') &&
             ![
               'whatsapp.profile_updated',
               'whatsapp.rate_card_saved',
@@ -77,7 +79,10 @@ describe('Phase 9 catalogue', () => {
   });
 
   it('has the six WhatsApp notification types, the WS event, the queue and the permissions per role', () => {
-    expect(NOTIFICATION_TYPES.filter((t) => t.startsWith('whatsapp.'))).toEqual([
+    // Phase 12 calling types: tests/calls-wa/catalogue.test.ts
+    expect(
+      NOTIFICATION_TYPES.filter((t) => t.startsWith('whatsapp.') && !t.includes('call')),
+    ).toEqual([
       'whatsapp.channel_needs_reconnect',
       'whatsapp.channel_restricted',
       'whatsapp.quality_low',

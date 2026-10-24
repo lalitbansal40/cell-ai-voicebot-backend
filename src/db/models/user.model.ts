@@ -7,6 +7,13 @@ import { tenantPlugin } from '../plugins/tenant';
 export type UserStatus = 'invited' | 'active' | 'disabled';
 export type PlatformRole = 'superadmin';
 
+/**
+ * WhatsApp calls (Phase 12): `available` users who are online ring for incoming
+ * calls; `busy` is set automatically while on a call; `offline` never rings.
+ */
+export const CALL_AVAILABILITY = ['available', 'busy', 'offline'] as const;
+export type CallAvailability = (typeof CALL_AVAILABILITY)[number];
+
 export interface UserInvite {
   tokenHash: string;
   expiresAt: Date;
@@ -30,6 +37,8 @@ export interface UserDoc {
   invite?: UserInvite | null;
   lastLoginAt?: Date | null;
   passwordChangedAt?: Date | null;
+  /** Phase 12 — absent on users created before migration 0013 (= `available`). */
+  callAvailability?: CallAvailability;
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -62,6 +71,7 @@ const schema = new Schema<UserDoc>({
   },
   lastLoginAt: { type: Date, default: null },
   passwordChangedAt: { type: Date, default: null },
+  callAvailability: { type: String, enum: CALL_AVAILABILITY, default: 'available' },
 });
 schema.plugin(basePlugin, { hide: USER_SECRET_FIELDS });
 schema.plugin(tenantPlugin);

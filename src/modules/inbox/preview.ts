@@ -19,6 +19,7 @@ export const TYPE_LABELS: Record<MessageType, string> = {
   unsupported: 'Unsupported message',
   note: 'Internal note',
   template: 'Template',
+  call: 'WhatsApp call',
 };
 
 type PreviewSource = Pick<

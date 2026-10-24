@@ -16,6 +16,7 @@ import {
 import { WhatsAppBillingDailyModel } from '../../db/models/whatsapp-billing-daily.model';
 import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
 import {
+  MESSAGING_CARDS,
   rateCardProblems,
   WhatsAppRateCardModel,
   type RateCardMarket,
@@ -66,7 +67,7 @@ const cardView = (c: WhatsAppRateCardDoc) => ({
 /* ── rate cards ──────────────────────────────────────────────────────────── */
 
 export const listRateCards = async () => {
-  const cards = await WhatsAppRateCardModel.find()
+  const cards = await WhatsAppRateCardModel.find(MESSAGING_CARDS)
     .sort({ effectiveFrom: -1, _id: -1 })
     .limit(50)
     .lean<WhatsAppRateCardDoc[]>();

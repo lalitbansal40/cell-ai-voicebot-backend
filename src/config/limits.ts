@@ -497,3 +497,37 @@ export const WHATSAPP_BILLING_LIMITS = {
   rateCardMarketsMax: 300,
   csvMaxBytes: 2 * MB,
 } as const;
+
+/** WhatsApp calling (Phase 12): Meta's limits + our timings (PHASE_12_PLAN §1d / §1h). */
+export const WHATSAPP_CALL_LIMITS = {
+  permissionRequestsPerDay: 1,
+  permissionRequestsPerWeek: 2,
+  temporaryPermissionDays: 7,
+  connectedCallsPer24h: 100,
+  unansweredNudge: 2,
+  unansweredRevoke: 4,
+  concurrentPerNumber: 1_000,
+  initiationsPer24hPerNumber: 10_000,
+  permissionCacheSec: 60,
+  bicRingTimeoutSec: 45,
+  uicRingTimeoutSec: 30,
+  uicAnswerDeadlineSec: 30, // Meta: 30–60 s
+  firstMediaWithinMs: 1_000, // Meta drops at ≈ 20 s
+  keepAliveEveryMs: 20, // always send a frame (silence when idle)
+  rtcpEverySec: 5,
+  jitterBufferMs: 60,
+  ownerTtlSec: 30,
+  claimTtlSec: 120,
+  pulseSec: 6,
+  holdMinutes: 5,
+  holdExtendMinutes: 5,
+  lateTerminateGraceSec: 120,
+  maxCallMinutesDefault: 30,
+  requestBodyMax: 1_024,
+  voiceCallButtonTextMax: 20,
+  voiceCallTtlMinutesMax: 43_200,
+  callHoursEntriesPerDayMax: 2,
+  holidaysMax: 20,
+  ringTargetsMax: 50,
+  sdpMaxBytes: 16_384,
+} as const;

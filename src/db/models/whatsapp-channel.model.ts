@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Model, type Types } from 'mongoose';
 
-import { WHATSAPP_LIMITS } from '../../config/limits';
+import { WHATSAPP_CALL_LIMITS, WHATSAPP_LIMITS } from '../../config/limits';
 import { basePlugin } from '../plugins/base';
 import { tenantPlugin } from '../plugins/tenant';
 
@@ -68,6 +68,142 @@ export interface WaPricingTier {
   tier: string;
   at: Date;
 }
+
+/* ── WhatsApp calling (Phase 12, PHASE_12_PLAN §1c) ───────────────────────── */
+
+export const WA_CALLING_STATUSES = ['disabled', 'enabled', 'unavailable'] as const;
+export type WaCallingStatus = (typeof WA_CALLING_STATUSES)[number];
+
+export const WA_CALLING_UNAVAILABLE_REASONS = [
+  'coexistence',
+  'country',
+  'messaging_limit',
+  'not_cloud_api',
+] as const;
+export type WaCallingUnavailableReason = (typeof WA_CALLING_UNAVAILABLE_REASONS)[number];
+
+export const CALL_ICON_VISIBILITY = ['DEFAULT', 'DISABLE_ALL'] as const;
+export const WEEK_DAYS = [
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+  'SUNDAY',
+] as const;
+export type WeekDay = (typeof WEEK_DAYS)[number];
+
+export const INBOUND_ROUTES = ['team', 'ai', 'ai_then_team'] as const;
+export type InboundRoute = (typeof INBOUND_ROUTES)[number];
+
+/** Meta's time format (`HHMM`, 24 h). */
+export const HHMM_PATTERN = /^([01]\d|2[0-3])[0-5]\d$/;
+export const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+export const ISO2_PATTERN = /^[A-Z]{2}$/;
+
+export interface CallHoursEntry {
+  day: WeekDay;
+  open: string;
+  close: string;
+}
+
+export interface CallHoliday {
+  date: string;
+  start: string;
+  end: string;
+}
+
+export interface CallHours {
+  enabled: boolean;
+  timezone: string;
+  weekly: CallHoursEntry[];
+  holidays: CallHoliday[];
+}
+
+export interface WaCallingRestriction {
+  type: string;
+  reason: string | null;
+  expiresAt: Date | null;
+}
+
+export interface WaCallingInbound {
+  route: InboundRoute;
+  aiProgram: { kind: 'flow' | 'agent'; id: Types.ObjectId } | null;
+  ringTimeoutSec: number;
+  /** `null` = every eligible online team member. */
+  ringUserIds: Types.ObjectId[] | null;
+}
+
+export interface WaCalling {
+  status: WaCallingStatus;
+  unavailableReason: WaCallingUnavailableReason | null;
+  callIconVisibility: (typeof CALL_ICON_VISIBILITY)[number];
+  /** ISO-2 countries where the call icon shows (`[]` = everywhere). */
+  iconCountries: string[];
+  callHours: CallHours;
+  callbackPermission: boolean;
+  inbound: WaCallingInbound;
+  /** Body of the call permission request (owner default §7 #15, editable per number). */
+  permissionRequestBody: string;
+  restrictions: WaCallingRestriction[];
+  syncedAt: Date | null;
+  lastError: string | null;
+}
+
+export const DEFAULT_PERMISSION_REQUEST_BODY =
+  'Kya hum aapko WhatsApp par call kar sakte hain? Aapke loan / account ke baare mein baat karni hai.';
+
+export const defaultCalling = (
+  unavailableReason: WaCallingUnavailableReason | null = null,
+): WaCalling => ({
+  status: unavailableReason ? 'unavailable' : 'disabled',
+  unavailableReason,
+  callIconVisibility: 'DEFAULT',
+  iconCountries: [],
+  callHours: { enabled: false, timezone: 'Asia/Kolkata', weekly: [], holidays: [] },
+  callbackPermission: false,
+  inbound: {
+    route: 'team',
+    aiProgram: null,
+    ringTimeoutSec: WHATSAPP_CALL_LIMITS.uicRingTimeoutSec,
+    ringUserIds: null,
+  },
+  permissionRequestBody: DEFAULT_PERMISSION_REQUEST_BODY,
+  restrictions: [],
+  syncedAt: null,
+  lastError: null,
+});
+
+/** Problems of call hours (empty = valid) — Meta's rules, shared by the model and the API. */
+export const callHoursProblems = (hours: Pick<CallHours, 'weekly' | 'holidays'>): string[] => {
+  const problems: string[] = [];
+  for (const day of WEEK_DAYS) {
+    const entries = hours.weekly.filter((e) => e.day === day);
+    if (entries.length > WHATSAPP_CALL_LIMITS.callHoursEntriesPerDayMax) {
+      problems.push(
+        `At most ${String(WHATSAPP_CALL_LIMITS.callHoursEntriesPerDayMax)} time ranges on ${day}`,
+      );
+    }
+    const sorted = [...entries].sort((a, b) => a.open.localeCompare(b.open));
+    for (const [i, e] of sorted.entries()) {
+      if (e.open >= e.close)
+        problems.push(`${day}: the opening time must be before the closing time`);
+      const next = sorted[i + 1];
+      if (next && next.open < e.close) problems.push(`${day}: time ranges overlap`);
+    }
+  }
+  if (hours.holidays.length > WHATSAPP_CALL_LIMITS.holidaysMax) {
+    problems.push(`At most ${String(WHATSAPP_CALL_LIMITS.holidaysMax)} holidays`);
+  }
+  const dates = new Set<string>();
+  for (const h of hours.holidays) {
+    if (h.start >= h.end) problems.push(`${h.date}: the start time must be before the end time`);
+    if (dates.has(h.date)) problems.push(`${h.date} is listed twice`);
+    dates.add(h.date);
+  }
+  return problems;
+};
 
 export interface WaHistoryEntry {
   status: WaChannelStatus;
@@ -148,6 +284,8 @@ export interface WhatsAppChannelDoc {
   webhook: { lastEventAt: Date | null; lastField: string | null };
   /** Last 10 volume pricing tier updates (Phase 11). */
   pricingTier?: WaPricingTier[];
+  /** WhatsApp calling (Phase 12) — absent on channels created before migration 0013. */
+  calling?: WaCalling;
   history: WaHistoryEntry[];
   connectedBy: Types.ObjectId | null;
   connectedAt: Date | null;
@@ -159,6 +297,114 @@ export interface WhatsAppChannelDoc {
 }
 
 const nullableString = { type: String, default: null };
+
+const hhmm = { type: String, required: true, match: HHMM_PATTERN };
+
+const callingSchema = new Schema<WaCalling>(
+  {
+    status: { type: String, enum: WA_CALLING_STATUSES, default: 'disabled' },
+    unavailableReason: {
+      type: String,
+      enum: [...WA_CALLING_UNAVAILABLE_REASONS, null],
+      default: null,
+    },
+    callIconVisibility: { type: String, enum: CALL_ICON_VISIBILITY, default: 'DEFAULT' },
+    iconCountries: {
+      type: [{ type: String, match: ISO2_PATTERN }],
+      default: [],
+      validate: {
+        validator: (v: string[]) => new Set(v).size === v.length && v.length <= 250,
+        message: 'Countries must be unique',
+      },
+    },
+    callHours: {
+      type: new Schema<CallHours>(
+        {
+          enabled: { type: Boolean, default: false },
+          timezone: { type: String, default: 'Asia/Kolkata', maxlength: 64 },
+          weekly: {
+            type: [
+              new Schema<CallHoursEntry>(
+                { day: { type: String, enum: WEEK_DAYS, required: true }, open: hhmm, close: hhmm },
+                { _id: false },
+              ),
+            ],
+            default: [],
+          },
+          holidays: {
+            type: [
+              new Schema<CallHoliday>(
+                {
+                  date: { type: String, required: true, match: ISO_DATE_PATTERN },
+                  start: hhmm,
+                  end: hhmm,
+                },
+                { _id: false },
+              ),
+            ],
+            default: [],
+          },
+        },
+        { _id: false },
+      ),
+      default: () => defaultCalling().callHours,
+      validate: {
+        validator: (v: CallHours) => callHoursProblems(v).length === 0,
+        message: (props: { value: CallHours }) => callHoursProblems(props.value).join('; '),
+      },
+    },
+    callbackPermission: { type: Boolean, default: false },
+    inbound: {
+      route: { type: String, enum: INBOUND_ROUTES, default: 'team' },
+      aiProgram: {
+        type: new Schema(
+          {
+            kind: { type: String, enum: ['flow', 'agent'], required: true },
+            id: { type: Schema.Types.ObjectId, required: true },
+          },
+          { _id: false },
+        ),
+        default: null,
+      },
+      ringTimeoutSec: {
+        type: Number,
+        default: WHATSAPP_CALL_LIMITS.uicRingTimeoutSec,
+        min: 10,
+        max: 60,
+      },
+      ringUserIds: {
+        type: [Schema.Types.ObjectId],
+        default: null,
+        validate: {
+          validator: (v: Types.ObjectId[] | null) =>
+            v === null || v.length <= WHATSAPP_CALL_LIMITS.ringTargetsMax,
+          message: `At most ${String(WHATSAPP_CALL_LIMITS.ringTargetsMax)} team members`,
+        },
+      },
+    },
+    permissionRequestBody: {
+      type: String,
+      default: DEFAULT_PERMISSION_REQUEST_BODY,
+      maxlength: WHATSAPP_CALL_LIMITS.requestBodyMax,
+    },
+    restrictions: {
+      type: [
+        new Schema<WaCallingRestriction>(
+          {
+            type: { type: String, required: true, maxlength: 60 },
+            reason: { type: String, default: null, maxlength: 300 },
+            expiresAt: { type: Date, default: null },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    syncedAt: { type: Date, default: null },
+    lastError: { type: String, default: null, maxlength: 300 },
+  },
+  { _id: false },
+);
 
 const schema = new Schema<WhatsAppChannelDoc>({
   label: { type: String, required: true, trim: true, maxlength: WHATSAPP_LIMITS.labelMax },
@@ -257,6 +503,7 @@ const schema = new Schema<WhatsAppChannelDoc>({
     ],
     default: [],
   },
+  calling: { type: callingSchema, default: () => defaultCalling() },
   history: {
     type: [
       new Schema<WaHistoryEntry>(
@@ -276,6 +523,13 @@ const schema = new Schema<WhatsAppChannelDoc>({
   syncedAt: { type: Date, default: null },
   disconnectedBy: { type: Schema.Types.ObjectId, default: null },
   disconnectedAt: { type: Date, default: null },
+});
+// coexistence numbers (WhatsApp Business app) can't use calling (Meta)
+schema.pre('validate', function () {
+  if (this.isNew && this.mode === 'coexistence' && this.calling?.status === 'disabled') {
+    this.calling.status = 'unavailable';
+    this.calling.unavailableReason = 'coexistence';
+  }
 });
 schema.plugin(tenantPlugin);
 schema.plugin(basePlugin, { hide: ['tokenSealed'] });

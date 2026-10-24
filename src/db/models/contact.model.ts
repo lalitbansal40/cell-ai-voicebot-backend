@@ -22,6 +22,8 @@ export interface ContactWhatsApp {
   keywordAt: Date | null;
   /** The customer stopped marketing messages in WhatsApp (Phase 11) — marketing templates are refused. */
   marketing?: ContactWhatsAppMarketing | null;
+  /** Meta's business-scoped user id (`from_user_id` / `to_user_id`, Phase 12) — matched after the phone. */
+  bsuid?: string | null;
 }
 
 export const MARKETING_STOP_SOURCES = ['user_preferences', 'error_131050', 'manual'] as const;
@@ -127,6 +129,7 @@ const schema = new Schema<ContactDoc>({
           ),
           default: null,
         },
+        bsuid: { type: String, default: null, maxlength: 128 },
       },
       { _id: false },
     ),
@@ -148,6 +151,11 @@ schema.index({ accountId: 1, deletedAt: 1, createdAt: -1 });
 schema.index({ accountId: 1, listIds: 1 });
 schema.index({ accountId: 1, tags: 1 });
 schema.index({ accountId: 1, dnd: 1 });
+// Phase 12: WhatsApp calls name the customer by BSUID
+schema.index(
+  { accountId: 1, 'whatsapp.bsuid': 1 },
+  { partialFilterExpression: { 'whatsapp.bsuid': { $type: 'string' } }, name: 'whatsapp_bsuid' },
+);
 schema.index({ accountId: 1, name: 1 }, { collation: { locale: 'en', strength: 2 } });
 
 /** Contacts (data-model.md §2.2). PII: phone, name, email, variables. */

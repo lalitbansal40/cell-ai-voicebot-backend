@@ -46,13 +46,20 @@ describe('Phase 7 catalogue', () => {
   it('call permissions per role are unchanged (read for all, trigger / listen not for viewers)', () => {
     const callsOf = (key: keyof typeof SYSTEM_ROLES) =>
       SYSTEM_ROLES[key].permissions.filter((p) => p.startsWith('calls.')).sort();
+    // `calls.answer` arrives in Phase 12 (WhatsApp calls)
     expect(callsOf('manager')).toEqual([
+      'calls.answer',
       'calls.export',
       'calls.listen',
       'calls.read',
       'calls.trigger',
     ]);
-    expect(callsOf('agent')).toEqual(['calls.listen', 'calls.read', 'calls.trigger']);
+    expect(callsOf('agent')).toEqual([
+      'calls.answer',
+      'calls.listen',
+      'calls.read',
+      'calls.trigger',
+    ]);
     expect(callsOf('viewer')).toEqual(['calls.read']);
   });
 

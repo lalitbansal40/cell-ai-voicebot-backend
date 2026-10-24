@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Model, type Types } from 'mongoose';
 
-import { INBOX_LIMITS } from '../../config/limits';
+import { INBOX_LIMITS, WHATSAPP_CALL_LIMITS } from '../../config/limits';
 import { basePlugin } from '../plugins/base';
 import { tenantPlugin } from '../plugins/tenant';
 
@@ -39,6 +39,7 @@ export const MESSAGE_TYPES = [
   'unsupported',
   'note',
   'template',
+  'call',
 ] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
@@ -65,6 +66,10 @@ export const INTERACTIVE_KINDS = [
   'button_reply',
   'list_reply',
   'nfm_reply',
+  // WhatsApp calling (Phase 12)
+  'call_permission_request',
+  'call_permission_reply',
+  'voice_call',
 ] as const;
 export type InteractiveKind = (typeof INTERACTIVE_KINDS)[number];
 
@@ -146,6 +151,40 @@ export interface MessageInteractive {
   /** WhatsApp Flows `response_json` (≤ `INBOX_LIMITS.nfmResponseMaxBytes`). */
   nfmResponse: string | null;
   nfmTruncated: boolean;
+  /** `call_permission_reply` (Phase 12): the customer's answer. */
+  callPermission?: InteractiveCallPermission | null;
+  /** `voice_call` (Phase 12): the call button we sent. */
+  voiceCall?: { displayText: string; ttlMinutes: number | null; payload: string | null } | null;
+}
+
+export const CALL_PERMISSION_RESPONSES = ['accept', 'reject'] as const;
+
+export interface InteractiveCallPermission {
+  response: (typeof CALL_PERMISSION_RESPONSES)[number];
+  isPermanent: boolean;
+  expiresAt: Date | null;
+  /** Meta's `response_source` (`user_action` / `automatic`). */
+  source: string | null;
+  /** The request message this answers (`context.id`). */
+  requestWaMessageId: string | null;
+}
+
+export const CALL_MESSAGE_OUTCOMES = [
+  'missed',
+  'completed',
+  'rejected',
+  'failed',
+  'no_answer',
+] as const;
+export type CallMessageOutcome = (typeof CALL_MESSAGE_OUTCOMES)[number];
+
+/** `type: 'call'` bubble (Phase 12) — one per WhatsApp call in the chat. */
+export interface MessageCall {
+  callId: Types.ObjectId;
+  direction: 'in' | 'out';
+  outcome: CallMessageOutcome;
+  durationSec: number;
+  mode: 'ai' | 'human';
 }
 
 export interface MessageReactionInfo {
@@ -282,6 +321,8 @@ export interface MessageDoc {
   order: MessageOrder | null;
   button: MessageButton | null;
   system: MessageSystem | null;
+  /** `type: 'call'` (Phase 12). */
+  call?: MessageCall | null;
   status: MessageStatus;
   statusHistory: MessageStatusEntry[];
   error: MessageError | null;
@@ -414,6 +455,33 @@ const interactiveSchema = sub<MessageInteractive>({
   },
   nfmResponse: { type: String, default: null, maxlength: INBOX_LIMITS.nfmResponseMaxBytes },
   nfmTruncated: { type: Boolean, default: false },
+  callPermission: {
+    type: sub<InteractiveCallPermission>({
+      response: { type: String, enum: CALL_PERMISSION_RESPONSES, required: true },
+      isPermanent: { type: Boolean, default: false },
+      expiresAt: { type: Date, default: null },
+      source: { type: String, default: null, maxlength: 40 },
+      requestWaMessageId: { type: String, default: null, maxlength: 256 },
+    }),
+    default: null,
+  },
+  voiceCall: {
+    type: sub({
+      displayText: {
+        type: String,
+        required: true,
+        maxlength: WHATSAPP_CALL_LIMITS.voiceCallButtonTextMax,
+      },
+      ttlMinutes: {
+        type: Number,
+        default: null,
+        min: 1,
+        max: WHATSAPP_CALL_LIMITS.voiceCallTtlMinutesMax,
+      },
+      payload: { type: String, default: null, maxlength: 512 },
+    }),
+    default: null,
+  },
 });
 
 const reactionInfoSchema = sub<MessageReactionInfo>({
@@ -555,6 +623,16 @@ const schema = new Schema<MessageDoc>({
     }),
     default: null,
   },
+  call: {
+    type: sub<MessageCall>({
+      callId: { type: Schema.Types.ObjectId, required: true },
+      direction: { type: String, enum: MESSAGE_DIRECTIONS, required: true },
+      outcome: { type: String, enum: CALL_MESSAGE_OUTCOMES, required: true },
+      durationSec: { type: Number, default: 0, min: 0 },
+      mode: { type: String, enum: ['ai', 'human'], required: true },
+    }),
+    default: null,
+  },
   metaTimestamp: { type: Date, default: null },
   at: { type: Date, required: true },
 });
@@ -582,6 +660,11 @@ schema.index(
 schema.index(
   { accountId: 1, contactId: 1, 'template.category': 1, at: -1 },
   { partialFilterExpression: { type: 'template' }, name: 'template_contact_at' },
+);
+// Phase 12: one call bubble per call
+schema.index(
+  { accountId: 1, 'call.callId': 1 },
+  { unique: true, partialFilterExpression: { type: 'call' }, name: 'call_bubble' },
 );
 // search; no stemming so Hinglish words match as typed
 schema.index({ accountId: 1, text: 'text' }, { default_language: 'none' });

@@ -140,6 +140,54 @@ export const ERROR_CODES = {
     status: 429,
     message: 'This customer already got a marketing template recently. Try again later.',
   },
+  // Phase 12 — WhatsApp calling
+  WHATSAPP_CALLING_DISABLED: {
+    status: 409,
+    message: 'Calling is turned off for this WhatsApp number.',
+  },
+  WHATSAPP_CALLING_UNAVAILABLE: {
+    status: 409,
+    message: "WhatsApp calling isn't available for this number.",
+  },
+  WHATSAPP_CALLING_RESTRICTED: {
+    status: 409,
+    message: 'WhatsApp has paused calling on this number for now.',
+  },
+  WHATSAPP_CALL_PERMISSION_MISSING: {
+    status: 409,
+    message: "This customer hasn't allowed calls from this number yet.",
+  },
+  WHATSAPP_CALL_PERMISSION_CHECK_FAILED: {
+    status: 502,
+    message: "Couldn't check the customer's call permission with WhatsApp. Try again.",
+  },
+  WHATSAPP_CALL_PERMISSION_LIMIT: {
+    status: 429,
+    message: 'You can ask this customer for call permission again later.',
+  },
+  WHATSAPP_CALL_PERMISSION_EXISTS: {
+    status: 409,
+    message: 'This customer already allows calls.',
+  },
+  WHATSAPP_CALL_PERMISSION_TEMPLATE_MISSING: {
+    status: 409,
+    message: 'Create and get the call permission template approved first.',
+  },
+  WHATSAPP_CALL_LIMIT_REACHED: {
+    status: 429,
+    message: "WhatsApp's call limit for this customer is reached. Try again later.",
+  },
+  WHATSAPP_CALL_ACTIVE: {
+    status: 409,
+    message: 'A call with this customer is already in progress.',
+  },
+  WHATSAPP_CALL_TAKEN: { status: 409, message: 'Someone else already answered this call.' },
+  WHATSAPP_CALL_NOT_RINGING: { status: 409, message: "This call isn't ringing any more." },
+  WHATSAPP_CALL_FAILED: { status: 502, message: "WhatsApp couldn't connect the call." },
+  CALL_AGENT_UNAVAILABLE: {
+    status: 409,
+    message: 'No team member is available to take the call.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

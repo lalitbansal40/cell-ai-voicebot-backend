@@ -4,7 +4,7 @@ import { basePlugin } from '../plugins/base';
 import { tenantPlugin } from '../plugins/tenant';
 
 export const CALL_DIRECTIONS = ['outbound', 'inbound'] as const;
-export const CALL_PROVIDERS = ['webcall', 'sip', 'notifynow', 'dryrun'] as const;
+export const CALL_PROVIDERS = ['webcall', 'sip', 'notifynow', 'dryrun', 'whatsapp'] as const;
 export type CallProvider = (typeof CALL_PROVIDERS)[number];
 
 export const CALL_STATUSES = [
@@ -39,11 +39,64 @@ export const CALL_END_REASONS = [
   'no_answer',
   'invalid_number',
   'campaign_canceled',
+  // WhatsApp calls (Phase 12)
+  'rejected_by_customer',
+  'not_answered',
+  'meta_failed',
+  'permission_missing',
+  'calling_restricted',
+  'no_agent_available',
+  'outside_call_hours',
 ] as const;
 export type CallEndReason = (typeof CALL_END_REASONS)[number];
 
+/** `ai` = a flow / AI agent talks; `human` = a team member (WhatsApp calls, Phase 12). */
+export const CALL_MODES = ['ai', 'human'] as const;
+export type CallMode = (typeof CALL_MODES)[number];
+
+export const WA_CALL_DIRECTIONS = ['BUSINESS_INITIATED', 'USER_INITIATED'] as const;
+export type WaCallDirection = (typeof WA_CALL_DIRECTIONS)[number];
+
+/** Money state of a WhatsApp call (`free` = user-initiated, Meta does not bill it). */
+export const WA_CALL_BILLING_STATUSES = ['free', 'held', 'settled', 'released'] as const;
+export type WaCallBillingStatus = (typeof WA_CALL_BILLING_STATUSES)[number];
+
+/** WhatsApp side of a call (PHASE_12_PLAN §1c). Never SDP, ICE data or phone numbers. */
+export interface CallWhatsApp {
+  channelId: Types.ObjectId;
+  /** Meta's call id (`wacid.…`). */
+  waCallId: string | null;
+  direction: WaCallDirection;
+  conversationId: Types.ObjectId | null;
+  permissionId: Types.ObjectId | null;
+  timeline: { event: string; at: Date }[];
+  metaStatus: string | null;
+  metaDuration: number | null;
+  metaStartTime: Date | null;
+  metaEndTime: Date | null;
+  metaErrors: { code: number }[];
+  ctaPayload: string | null;
+  deeplinkPayload: string | null;
+  ringUserIds: Types.ObjectId[];
+  answeredBy: Types.ObjectId | null;
+  transferredTo: Types.ObjectId | null;
+}
+
+/** Price of a business-initiated WhatsApp call (6-second pulses, plan §1j). */
+export interface CallWhatsAppBilling {
+  payer: 'platform' | 'customer';
+  market: string;
+  pulses: number;
+  perMinuteMicros: number;
+  metaCostMicros: number;
+  markupMicros: number;
+  platformFeeMicros: number;
+  status: WaCallBillingStatus;
+}
+
 export interface CallSource {
-  kind: 'flow' | 'agent';
+  /** `null` for human WhatsApp calls (`mode: 'human'`). */
+  kind: 'flow' | 'agent' | null;
   flowId?: Types.ObjectId;
   /** `'draft'` or a published version number. */
   flowVersionRef?: 'draft' | number;
@@ -102,7 +155,12 @@ export interface CallDoc {
   from: string;
   to: string;
   isTest: boolean;
+  mode: CallMode;
   source: CallSource;
+  /** The team member on a human call (Phase 12). */
+  agentUserId: Types.ObjectId | null;
+  whatsapp: CallWhatsApp | null;
+  billing: { whatsapp: CallWhatsAppBilling | null };
   contactId: Types.ObjectId | null;
   campaignId: Types.ObjectId | null;
   /** Campaign contact + 1-based attempt (unique together: never dial an attempt twice). */
@@ -170,6 +228,58 @@ export const emptyCallCost = (): CallCost => ({
   totalMicros: 0,
 });
 
+const objectIds = { type: [Schema.Types.ObjectId], default: [] };
+
+const whatsappSchema = new Schema<CallWhatsApp>(
+  {
+    channelId: { type: Schema.Types.ObjectId, required: true },
+    waCallId: { type: String, default: null, maxlength: 200 },
+    direction: { type: String, enum: WA_CALL_DIRECTIONS, required: true },
+    conversationId: { type: Schema.Types.ObjectId, default: null },
+    permissionId: { type: Schema.Types.ObjectId, default: null },
+    timeline: {
+      type: [
+        new Schema(
+          {
+            event: { type: String, required: true, maxlength: 40 },
+            at: { type: Date, required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    metaStatus: { type: String, default: null, maxlength: 40 },
+    metaDuration: { type: Number, default: null, min: 0 },
+    metaStartTime: { type: Date, default: null },
+    metaEndTime: { type: Date, default: null },
+    metaErrors: {
+      type: [new Schema({ code: { type: Number, required: true } }, { _id: false })],
+      default: [],
+    },
+    ctaPayload: { type: String, default: null, maxlength: 512 },
+    deeplinkPayload: { type: String, default: null, maxlength: 512 },
+    ringUserIds: objectIds,
+    answeredBy: { type: Schema.Types.ObjectId, default: null },
+    transferredTo: { type: Schema.Types.ObjectId, default: null },
+  },
+  { _id: false },
+);
+
+const whatsappBillingSchema = new Schema<CallWhatsAppBilling>(
+  {
+    payer: { type: String, enum: ['platform', 'customer'], required: true },
+    market: { type: String, required: true, maxlength: 10 },
+    pulses: { type: Number, default: 0, min: 0 },
+    perMinuteMicros: { type: Number, required: true, min: 0 },
+    metaCostMicros: { type: Number, default: 0, min: 0 },
+    markupMicros: { type: Number, default: 0, min: 0 },
+    platformFeeMicros: { type: Number, default: 0, min: 0 },
+    status: { type: String, enum: WA_CALL_BILLING_STATUSES, required: true },
+  },
+  { _id: false },
+);
+
 const schema = new Schema<CallDoc>(
   {
     direction: { type: String, enum: CALL_DIRECTIONS, required: true },
@@ -178,7 +288,13 @@ const schema = new Schema<CallDoc>(
     from: { type: String, required: true, maxlength: 64 },
     to: { type: String, required: true, maxlength: 64 },
     isTest: { type: Boolean, default: false },
+    mode: { type: String, enum: CALL_MODES, default: 'ai' },
     source: { type: Schema.Types.Mixed, required: true },
+    agentUserId: { type: Schema.Types.ObjectId, default: null },
+    whatsapp: { type: whatsappSchema, default: null },
+    billing: {
+      whatsapp: { type: whatsappBillingSchema, default: null },
+    },
     contactId: { type: Schema.Types.ObjectId, default: null },
     campaignId: { type: Schema.Types.ObjectId, default: null },
     campaignContactId: { type: Schema.Types.ObjectId, default: null },
@@ -233,9 +349,21 @@ schema.index(
 );
 schema.index({ accountId: 1, contactId: 1, provider: 1, createdAt: -1 });
 schema.index({ status: 1, updatedAt: 1 });
+schema.index(
+  { 'whatsapp.waCallId': 1 },
+  {
+    unique: true,
+    partialFilterExpression: { 'whatsapp.waCallId': { $type: 'string' } },
+    name: 'wa_call_id',
+  },
+);
+schema.index(
+  { accountId: 1, 'whatsapp.channelId': 1, createdAt: -1 },
+  { partialFilterExpression: { provider: 'whatsapp' }, name: 'wa_channel_calls' },
+);
 schema.index({ createdAt: 1 });
 
-/** One phone / web call (data-model.md §2 Call — Phase 7). */
+/** One phone / web / WhatsApp call (data-model.md §2 Call — Phase 7, WhatsApp Phase 12). */
 export const CallModel: Model<CallDoc> =
   (mongoose.models.Call as Model<CallDoc> | undefined) ??
   mongoose.model<CallDoc>('Call', schema, 'calls');

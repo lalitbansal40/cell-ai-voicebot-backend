@@ -195,6 +195,9 @@ describe('Message model', () => {
         reply: { id: 'r1', title: 'Row', description: 'Desc' },
         nfmResponse: '{"a":1}',
         nfmTruncated: false,
+        // Phase 12 call kinds
+        callPermission: null,
+        voiceCall: null,
       },
       reaction: { targetWaMessageId: 'wamid.T', targetMessageId, emoji: '👍' },
       context: {
@@ -330,6 +333,7 @@ describe('Contact / account additions', () => {
       nameEditedAt: null,
       keywordAt: null,
       marketing: null,
+      bsuid: null,
     });
     const plain = await ContactModel.create({
       accountId,

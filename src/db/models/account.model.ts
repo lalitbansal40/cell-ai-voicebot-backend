@@ -79,6 +79,8 @@ export interface AccountSettings {
   inbox: AccountInboxSettings;
   /** Phase 11 — absent on accounts created before migration 0012. */
   templates?: AccountTemplateSettings;
+  /** Phase 12 — absent on accounts created before migration 0013. */
+  whatsappCalling?: AccountWhatsAppCallingSettings;
 }
 
 /** GST billing details (PHASE_4_PLAN §1d) — buyer on invoices. Latin text only (PDF). */
@@ -128,6 +130,8 @@ export interface AccountDoc {
   whatsapp: AccountWhatsApp;
   /** WhatsApp prices (Phase 11, superadmin): override of the platform markup. */
   whatsappBilling?: AccountWhatsAppBilling | null;
+  /** WhatsApp call prices (Phase 12, superadmin): override of the platform calling settings. */
+  whatsappCallingBilling?: AccountWhatsAppCallingBilling | null;
   billing?: (BillingProfile & { updatedAt: Date }) | null;
   createdAt: Date;
   updatedAt: Date;
@@ -179,6 +183,40 @@ export const DEFAULT_ACCOUNT_WHATSAPP_BILLING: AccountWhatsAppBilling = {
   markupBps: null,
   fixedPrices: null,
   platformFeeMicros: null,
+};
+
+/** WhatsApp call settings of the account (Phase 12, owner defaults §7 #6 / #10 / #14). */
+export interface AccountWhatsAppCallingSettings {
+  /** Record WhatsApp calls on our server (AI and human), with the notice below. */
+  recordCalls: boolean;
+  recordingNotice: string;
+  /** Transcribe human (agent) WhatsApp calls. AI calls always have a transcript. */
+  transcribeHumanCalls: boolean;
+  /** Longest WhatsApp call (minutes), at most `CALL_LIMITS.maxCallSecHard`. */
+  maxCallMinutes: number;
+}
+
+export const DEFAULT_WHATSAPP_CALLING_SETTINGS: AccountWhatsAppCallingSettings = {
+  recordCalls: true,
+  recordingNotice: CALL_LINES.recordingNotice,
+  transcribeHumanCalls: false,
+  maxCallMinutes: 30,
+};
+
+/**
+ * Per-account WhatsApp call price override (superadmin, Phase 12). `null` fields
+ * use the platform calling settings; `fixedPerMinuteMicros` wins over the markup.
+ */
+export interface AccountWhatsAppCallingBilling {
+  markupBps: number | null;
+  fixedPerMinuteMicros: number | null;
+  platformFeePerMinuteMicros: number | null;
+}
+
+export const DEFAULT_ACCOUNT_WHATSAPP_CALLING_BILLING: AccountWhatsAppCallingBilling = {
+  markupBps: null,
+  fixedPerMinuteMicros: null,
+  platformFeePerMinuteMicros: null,
 };
 
 export const DEFAULT_ACCOUNT_WHATSAPP: AccountWhatsApp = { metaPayer: 'platform' };
@@ -262,6 +300,24 @@ const schema = new Schema<AccountDoc>({
         maxlength: 20,
       },
     },
+    whatsappCalling: {
+      recordCalls: { type: Boolean, default: DEFAULT_WHATSAPP_CALLING_SETTINGS.recordCalls },
+      recordingNotice: {
+        type: String,
+        default: DEFAULT_WHATSAPP_CALLING_SETTINGS.recordingNotice,
+        maxlength: CALL_LIMITS.recordingNoticeMaxChars,
+      },
+      transcribeHumanCalls: {
+        type: Boolean,
+        default: DEFAULT_WHATSAPP_CALLING_SETTINGS.transcribeHumanCalls,
+      },
+      maxCallMinutes: {
+        type: Number,
+        default: DEFAULT_WHATSAPP_CALLING_SETTINGS.maxCallMinutes,
+        min: 1,
+        max: CALL_LIMITS.maxCallSecHard / 60,
+      },
+    },
   },
   limits: {
     maxConcurrentCalls: { type: Number, default: DEFAULT_ACCOUNT_LIMITS.maxConcurrentCalls },
@@ -286,6 +342,17 @@ const schema = new Schema<AccountDoc>({
           default: null,
         },
         platformFeeMicros: { type: Number, default: null, min: 0 },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
+  whatsappCallingBilling: {
+    type: new Schema<AccountWhatsAppCallingBilling>(
+      {
+        markupBps: { type: Number, default: null, min: 0, max: 100_000 },
+        fixedPerMinuteMicros: { type: Number, default: null, min: 0 },
+        platformFeePerMinuteMicros: { type: Number, default: null, min: 0 },
       },
       { _id: false },
     ),

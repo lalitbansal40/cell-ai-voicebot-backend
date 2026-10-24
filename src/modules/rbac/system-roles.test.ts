@@ -8,7 +8,8 @@ const WRITE = /\.(write|manage|update|invite|remove|topup|publish|run|export|imp
 describe('permission catalogue', () => {
   it('uses domain.action keys with a group and description', () => {
     for (const key of PERMISSIONS) {
-      expect(key).toMatch(/^[a-z]+\.[a-z_]+$/);
+      // `domain.action`, or `domain.area.action` (Phase 12: `whatsapp.calling.manage`)
+      expect(key).toMatch(/^[a-z]+(\.[a-z_]+){1,2}$/);
       expect(PERMISSION_INFO[key].group.length).toBeGreaterThan(0);
       expect(PERMISSION_INFO[key].description.length).toBeGreaterThan(5);
     }

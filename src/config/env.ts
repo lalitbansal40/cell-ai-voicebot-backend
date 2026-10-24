@@ -145,6 +145,21 @@ const RawEnvSchema = z.object({
    * Default `3000` in development, off in tests (Phase 11).
    */
   FAKE_META_TEMPLATE_REVIEW_MS: optionalString,
+  /** WhatsApp call media in this process (Phase 12). Default: on when WhatsApp is on. */
+  WA_MEDIA_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+  /** Public IPv4 of this server (1:1 NAT) added as a host candidate; required with META_PROVIDER=meta. */
+  WA_MEDIA_PUBLIC_IP: z.ipv4({ message: 'must be an IPv4 address' }).optional(),
+  WA_MEDIA_PORT_MIN: z.coerce.number().int().min(1024).max(65535).default(40_000),
+  WA_MEDIA_PORT_MAX: z.coerce.number().int().min(1024).max(65535).default(40_999),
+  /** Comma list of `stun:host:port` (or `off`). Default Google's STUN; none in tests. */
+  WA_STUN_URLS: optionalString,
+  /** WhatsApp calls with media per process. */
+  WA_MEDIA_MAX_CALLS: z.coerce.number().int().min(1).max(1000).default(50),
+  /**
+   * DEV / E2E ONLY — fake Meta call timings (`connect,ringing,accepted` ms, or `off` =
+   * immediate). Default `100,200,800` in development, off in tests (Phase 12).
+   */
+  FAKE_META_CALL_DELAYS_MS: optionalString,
 
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./uploads'),
@@ -239,6 +254,9 @@ export type Env = Readonly<
     | 'FAKE_META_APP_SECRET'
     | 'FAKE_META_STATUS_DELAYS_MS'
     | 'FAKE_META_TEMPLATE_REVIEW_MS'
+    | 'WA_MEDIA_ENABLED'
+    | 'WA_STUN_URLS'
+    | 'FAKE_META_CALL_DELAYS_MS'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -278,6 +296,10 @@ export type Env = Readonly<
     FAKE_META_STATUS_DELAYS_MS: readonly [number, number, number] | null;
     /** Fake Meta template review delay; null = off (templates stay in review). */
     FAKE_META_TEMPLATE_REVIEW_MS: number | null;
+    WA_MEDIA_ENABLED: boolean;
+    WA_STUN_URLS: readonly string[];
+    /** Fake Meta call timings `[connect, ringing, accepted]`; null = immediate. */
+    FAKE_META_CALL_DELAYS_MS: readonly [number, number, number] | null;
   }
 >;
 
@@ -328,6 +350,16 @@ const parseStatusDelays = (value: string): readonly [number, number, number] | n
   const [sent, delivered, read] = parts.map(Number) as [number, number, number];
   if ([sent, delivered, read].some((n) => n > 60_000)) return undefined;
   return Object.freeze([sent, delivered, read] as const);
+};
+
+const DEFAULT_STUN_URL = 'stun:stun.l.google.com:19302';
+const STUN_URL = /^stun:[A-Za-z0-9.-]+:\d{1,5}$/;
+
+/** `off` → []; `stun:host:port[,…]` → list; anything else → undefined (invalid). */
+const parseStunUrls = (value: string): string[] | undefined => {
+  if (value.trim().toLowerCase() === 'off') return [];
+  const urls = value.split(',').map((u) => u.trim());
+  return urls.every((u) => STUN_URL.test(u)) ? urls : undefined;
 };
 
 /** `off` → null; ms 0–600000 → number; anything else → undefined (invalid). */
@@ -594,6 +626,47 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     });
   }
 
+  const waMediaEnabled =
+    raw.WA_MEDIA_ENABLED !== undefined ? raw.WA_MEDIA_ENABLED === 'true' : whatsappEnabled;
+  check(
+    'WA_MEDIA_PORT_MAX',
+    'must be at least WA_MEDIA_PORT_MIN + 99 (100 ports or more)',
+    raw.WA_MEDIA_PORT_MAX >= raw.WA_MEDIA_PORT_MIN + 99,
+  );
+  if (whatsappEnabled && waMediaEnabled && metaProvider === 'meta') {
+    check(
+      'WA_MEDIA_PUBLIC_IP',
+      'required when META_PROVIDER=meta',
+      Boolean(raw.WA_MEDIA_PUBLIC_IP),
+    );
+  }
+  const stunUrls = parseStunUrls(
+    raw.WA_STUN_URLS ?? (raw.NODE_ENV === 'test' ? 'off' : DEFAULT_STUN_URL),
+  );
+  if (stunUrls === undefined) {
+    issues.push({
+      variable: 'WA_STUN_URLS',
+      reason: 'must be off or a comma list of stun:host:port',
+    });
+  }
+  if (production) {
+    check(
+      'FAKE_META_CALL_DELAYS_MS',
+      'must not be set in production',
+      raw.FAKE_META_CALL_DELAYS_MS === undefined,
+    );
+  }
+  const callDelays = parseStatusDelays(
+    raw.FAKE_META_CALL_DELAYS_MS ??
+      (raw.NODE_ENV === 'development' && metaProvider === 'fake' ? '100,200,800' : 'off'),
+  );
+  if (callDelays === undefined) {
+    issues.push({
+      variable: 'FAKE_META_CALL_DELAYS_MS',
+      reason: 'must be off or three delays in ms (connect,ringing,accepted), each 0–60000',
+    });
+  }
+
   if (issues.length) throw new EnvValidationError(issues);
 
   const defaultLogLevel: Record<NodeEnv, LogLevel> = {
@@ -649,6 +722,9 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       metaProvider === 'fake' && !production ? (statusDelays ?? null) : null,
     FAKE_META_TEMPLATE_REVIEW_MS:
       metaProvider === 'fake' && !production ? (reviewDelay ?? null) : null,
+    WA_MEDIA_ENABLED: whatsappEnabled && waMediaEnabled,
+    WA_STUN_URLS: Object.freeze(stunUrls ?? []),
+    FAKE_META_CALL_DELAYS_MS: metaProvider === 'fake' && !production ? (callDelays ?? null) : null,
   });
 };
 

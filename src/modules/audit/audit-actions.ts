@@ -122,6 +122,16 @@ export const AUDIT_ACTIONS = [
   'whatsapp.billing_settings_updated',
   'account.whatsapp_billing_updated',
   'contact.whatsapp_marketing_changed',
+  // Phase 12 — WhatsApp calling
+  'whatsapp.calling_settings_updated',
+  'whatsapp.call_permission_requested',
+  'whatsapp.call_permission_granted',
+  'whatsapp.call_permission_declined',
+  'whatsapp.call_permission_revoked',
+  'call.whatsapp_started',
+  'call.whatsapp_answered',
+  'call.whatsapp_transferred',
+  'whatsapp.calling_restricted',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -132,8 +132,19 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `whatsapp.billing_settings_updated`  | superadmin        | platform_settings  | `fields` (names only) (platform account)                                                                                      |
 | `account.whatsapp_billing_updated`   | superadmin        | account            | `fields` (names only) — on the account and on the platform account                                                            |
 | `contact.whatsapp_marketing_changed` | system / user     | contact            | `stopped` (boolean), `source` (`user_preferences` / `error_131050` / `manual`)                                                |
+| `whatsapp.calling_settings_updated`  | user              | whatsapp_channel   | `fields` (names only), `status`                                                                                               |
+| `whatsapp.call_permission_requested` | user              | contact            | `channelId`, `kind` (`interactive` / `template`)                                                                              |
+| `whatsapp.call_permission_granted`   | system            | contact            | `channelId`, `permanent` (boolean), `source`                                                                                  |
+| `whatsapp.call_permission_declined`  | system            | contact            | `channelId`, `source`                                                                                                         |
+| `whatsapp.call_permission_revoked`   | system            | contact            | `channelId`, `reason` (`unanswered` / `meta`), `unanswered` (count)                                                           |
+| `call.whatsapp_started`              | user              | call               | `channelId`, `direction`, `mode` (`ai` / `human`)                                                                             |
+| `call.whatsapp_answered`             | user              | call               | `channelId`, `ringCount` (count)                                                                                              |
+| `call.whatsapp_transferred`          | user / system     | call               | `from` (`ai` / user id), `to` (user id)                                                                                       |
+| `whatsapp.calling_restricted`        | system            | whatsapp_channel   | `type`, `until` (ISO or null)                                                                                                 |
 
 Contact actions never carry phone numbers, names or variable values in `meta` — counts, ids, keys and list / segment names only (Phase 3).
+
+WhatsApp calling actions (Phase 12) carry ids, kinds and counts — **never** phone numbers, names, SDP, ICE data or DTMF digits.
 
 Template actions carry the template **name / language / category / status / reason code**, counts and changed field names — **never** body text, samples or variable values (Phase 11).
 

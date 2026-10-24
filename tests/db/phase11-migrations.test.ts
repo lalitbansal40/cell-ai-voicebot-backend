@@ -29,7 +29,7 @@ describe('0012-templates-billing', () => {
   it('is registered right after 0011', () => {
     const names = MIGRATIONS.map((m) => m.name);
     expect(names.indexOf('0012-templates-billing')).toBe(names.indexOf('0011-inbox') + 1);
-    expect(names.at(-1)).toBe('0012-templates-billing');
+    // later migrations follow (Phase 12: tests/db/phase12-migrations.test.ts)
   });
 
   it('creates collections, indexes, settings, the placeholder card, backfills; idempotent', async () => {

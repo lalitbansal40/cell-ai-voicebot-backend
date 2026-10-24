@@ -7,6 +7,10 @@ import { basePlugin } from '../plugins/base';
 export const RATE_CARD_SOURCES = ['meta_csv', 'manual'] as const;
 export type RateCardSource = (typeof RATE_CARD_SOURCES)[number];
 
+/** `messaging` = per-message rates (Phase 11); `calling` = per-minute call rates (Phase 12). */
+export const RATE_CARD_KINDS = ['messaging', 'calling'] as const;
+export type RateCardKind = (typeof RATE_CARD_KINDS)[number];
+
 /** The market every unknown calling code falls back to (required on every card). */
 export const OTHER_MARKET = 'OTHER';
 export const MARKET_PATTERN = /^[A-Z_]{2,40}$/;
@@ -32,14 +36,34 @@ export interface RateCardMarket {
   authenticationTiers: RateTier[];
 }
 
+export interface CallingRateTier {
+  /** Monthly call minutes from which this rate applies (Meta volume tiers). */
+  fromMinutes: number;
+  perMinuteMicros: number;
+}
+
+/** Meta's business-initiated call rate for one market (INR micros per minute, before our markup). */
+export interface CallingRateMarket {
+  market: string;
+  label: string;
+  callingCodes: string[];
+  perMinuteMicros: number;
+  tiers: CallingRateTier[];
+}
+
 export interface WhatsAppRateCardDoc {
   _id: Types.ObjectId;
+  /** Absent on cards saved before migration 0013 (= `messaging`). */
+  kind: RateCardKind;
   effectiveFrom: Date;
   currency: 'INR';
   source: RateCardSource;
   note: string | null;
   createdBy: Types.ObjectId | null;
+  /** Messaging cards; empty on calling cards. */
   markets: RateCardMarket[];
+  /** Calling cards; empty on messaging cards. */
+  callingMarkets: CallingRateMarket[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -74,6 +98,17 @@ export const PLACEHOLDER_MARKETS: RateCardMarket[] = [
     utilityTiers: [],
     authenticationTiers: [],
   },
+];
+
+/**
+ * Seed call rates (third-party quote for India seen 24 Oct 2026, to be confirmed by
+ * the owner): IN ₹0.3885 / min, OTHER ₹1 / min — base tier only.
+ */
+export const PLACEHOLDER_CALLING_RATE_CARD_NOTE =
+  "Placeholder — replace with Meta's INR calling rate card";
+export const PLACEHOLDER_CALLING_MARKETS: CallingRateMarket[] = [
+  { market: 'IN', label: 'India', callingCodes: ['91'], perMinuteMicros: 388_500, tiers: [] },
+  { market: OTHER_MARKET, label: 'Other', callingCodes: [], perMinuteMicros: 1_000_000, tiers: [] },
 ];
 
 const microsValidator = {
@@ -113,8 +148,35 @@ const market = new Schema<RateCardMarket>(
   { _id: false },
 );
 
+const callingTier = new Schema<CallingRateTier>(
+  {
+    fromMinutes: { type: Number, required: true, min: 0 },
+    perMinuteMicros: rate,
+  },
+  { _id: false },
+);
+
+const callingMarket = new Schema<CallingRateMarket>(
+  {
+    market: { type: String, required: true, match: MARKET_PATTERN },
+    label: { type: String, required: true, trim: true, maxlength: 80 },
+    callingCodes: {
+      type: [{ type: String, match: CALLING_CODE_PATTERN }],
+      default: [],
+    },
+    perMinuteMicros: rate,
+    tiers: { type: [callingTier], default: [] },
+  },
+  { _id: false },
+);
+
+interface MarketCodes {
+  market: string;
+  callingCodes: string[];
+}
+
 /** Problems of a market list (empty = valid) — shared by the model and the import preview. */
-export const rateCardProblems = (markets: readonly RateCardMarket[]): string[] => {
+export const rateCardProblems = (markets: readonly MarketCodes[]): string[] => {
   const problems: string[] = [];
   if (markets.length > WHATSAPP_BILLING_LIMITS.rateCardMarketsMax) {
     problems.push(`At most ${String(WHATSAPP_BILLING_LIMITS.rateCardMarketsMax)} markets`);
@@ -140,22 +202,31 @@ export const rateCardProblems = (markets: readonly RateCardMarket[]): string[] =
 };
 
 const schema = new Schema<WhatsAppRateCardDoc>({
+  kind: { type: String, enum: RATE_CARD_KINDS, default: 'messaging' },
   effectiveFrom: { type: Date, required: true },
   currency: { type: String, enum: ['INR'], default: 'INR' },
   source: { type: String, enum: RATE_CARD_SOURCES, required: true },
   note: { type: String, default: null, maxlength: 300 },
   createdBy: { type: Schema.Types.ObjectId, default: null },
-  markets: {
-    type: [market],
-    required: true,
-    validate: {
-      validator: (v: RateCardMarket[]) => rateCardProblems(v).length === 0,
-      message: (props: { value: RateCardMarket[] }) => rateCardProblems(props.value).join('; '),
-    },
-  },
+  markets: { type: [market], default: [] },
+  callingMarkets: { type: [callingMarket], default: [] },
+});
+// one market list per card kind, each with exactly one OTHER and no shared calling codes
+schema.pre('validate', function () {
+  const calling = this.kind === 'calling';
+  const [used, unused] = calling
+    ? (['callingMarkets', 'markets'] as const)
+    : (['markets', 'callingMarkets'] as const);
+  const problems = rateCardProblems(this[used]);
+  if (problems.length) this.invalidate(used, problems.join('; '));
+  if (this[unused].length) this.invalidate(unused, `Not used on ${this.kind} cards`);
 });
 schema.plugin(basePlugin);
 schema.index({ effectiveFrom: -1 });
+schema.index({ kind: 1, effectiveFrom: -1 }, { name: 'kind_effective_from' });
+
+/** Filter for messaging cards (cards saved before migration 0013 have no `kind`). */
+export const MESSAGING_CARDS = { kind: { $ne: 'calling' } } as const;
 
 /**
  * Meta's WhatsApp rates per market — platform-wide, insert-only history, no `accountId`

@@ -30,6 +30,11 @@ export const NOTIFICATION_TYPES = [
   'template.category_changed',
   'template.quality_low',
   'wallet.whatsapp_late_charge',
+  'call.whatsapp_missed',
+  'whatsapp.call_permission_granted',
+  'whatsapp.call_permission_declined',
+  'whatsapp.calling_restricted',
+  'whatsapp.call_permission_revoked',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

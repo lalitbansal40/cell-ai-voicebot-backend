@@ -442,7 +442,16 @@
               "whatsapp.rate_card_saved",
               "whatsapp.billing_settings_updated",
               "account.whatsapp_billing_updated",
-              "contact.whatsapp_marketing_changed"
+              "contact.whatsapp_marketing_changed",
+              "whatsapp.calling_settings_updated",
+              "whatsapp.call_permission_requested",
+              "whatsapp.call_permission_granted",
+              "whatsapp.call_permission_declined",
+              "whatsapp.call_permission_revoked",
+              "call.whatsapp_started",
+              "call.whatsapp_answered",
+              "call.whatsapp_transferred",
+              "whatsapp.calling_restricted"
             ]
           },
           "actor": {
@@ -3638,7 +3647,8 @@
               "refund",
               "subscription",
               "recording_charge",
-              "whatsapp_charge"
+              "whatsapp_charge",
+              "whatsapp_call_charge"
             ]
           },
           "direction": { "type": "string", "enum": ["credit", "debit"] },
@@ -3671,7 +3681,8 @@
                   "call",
                   "flow_simulator",
                   "flow_intent",
-                  "whatsapp"
+                  "whatsapp",
+                  "whatsapp_call"
                 ]
               },
               "waCategory": { "type": "string" },
@@ -4171,7 +4182,8 @@
                         "refund",
                         "subscription",
                         "recording_charge",
-                        "whatsapp_charge"
+                        "whatsapp_charge",
+                        "whatsapp_call_charge"
                       ]
                     },
                     "amountMicros": { "type": "number" }
@@ -4341,7 +4353,12 @@
               "template.disabled",
               "template.category_changed",
               "template.quality_low",
-              "wallet.whatsapp_late_charge"
+              "wallet.whatsapp_late_charge",
+              "call.whatsapp_missed",
+              "whatsapp.call_permission_granted",
+              "whatsapp.call_permission_declined",
+              "whatsapp.calling_restricted",
+              "whatsapp.call_permission_revoked"
             ]
           },
           "title": { "type": "string" },
@@ -4357,7 +4374,10 @@
         "properties": {
           "id": { "type": "string" },
           "direction": { "type": "string", "enum": ["outbound", "inbound"] },
-          "provider": { "type": "string", "enum": ["webcall", "sip", "notifynow", "dryrun"] },
+          "provider": {
+            "type": "string",
+            "enum": ["webcall", "sip", "notifynow", "dryrun", "whatsapp"]
+          },
           "isTest": { "type": "boolean" },
           "charged": {
             "type": "boolean",
@@ -4405,6 +4425,13 @@
               "no_answer",
               "invalid_number",
               "campaign_canceled",
+              "rejected_by_customer",
+              "not_answered",
+              "meta_failed",
+              "permission_missing",
+              "calling_restricted",
+              "no_agent_available",
+              "outside_call_hours",
               null
             ]
           },
@@ -5498,7 +5525,8 @@
               "system",
               "unsupported",
               "note",
-              "template"
+              "template",
+              "call"
             ],
             "description": "`note` = internal team note, never sent"
           },
@@ -5575,7 +5603,17 @@
             "properties": {
               "kind": {
                 "type": "string",
-                "enum": ["button", "list", "cta_url", "button_reply", "list_reply", "nfm_reply"]
+                "enum": [
+                  "button",
+                  "list",
+                  "cta_url",
+                  "button_reply",
+                  "list_reply",
+                  "nfm_reply",
+                  "call_permission_request",
+                  "call_permission_reply",
+                  "voice_call"
+                ]
               },
               "header": {
                 "type": ["object", "null"],
@@ -5701,7 +5739,8 @@
                   "system",
                   "unsupported",
                   "note",
-                  "template"
+                  "template",
+                  "call"
                 ]
               },
               "direction": { "type": "string", "enum": ["in", "out"] },
@@ -5905,7 +5944,8 @@
                   "system",
                   "unsupported",
                   "note",
-                  "template"
+                  "template",
+                  "call"
                 ]
               },
               "preview": { "type": "string" },
@@ -18556,7 +18596,10 @@
             "in": "query"
           },
           {
-            "schema": { "type": "string", "enum": ["webcall", "sip", "notifynow", "dryrun"] },
+            "schema": {
+              "type": "string",
+              "enum": ["webcall", "sip", "notifynow", "dryrun", "whatsapp"]
+            },
             "required": false,
             "name": "provider",
             "in": "query"

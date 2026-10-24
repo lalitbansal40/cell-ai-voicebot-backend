@@ -14,6 +14,7 @@ export const LEDGER_TYPES = [
   'subscription',
   'recording_charge',
   'whatsapp_charge',
+  'whatsapp_call_charge',
 ] as const;
 export type LedgerType = (typeof LEDGER_TYPES)[number];
 
@@ -61,6 +62,9 @@ export interface LedgerBreakdown {
   waPricingType?: string;
   /** The chat of the message (wallet → "open the chat"). */
   waConversationId?: string;
+  /** Phase 12 WhatsApp calls: 6-second pulses billed and Meta's per-minute rate. */
+  waPulses?: number;
+  waPerMinuteMicros?: number;
 }
 
 export const LEDGER_USAGE_KINDS = [
@@ -70,6 +74,7 @@ export const LEDGER_USAGE_KINDS = [
   'flow_simulator',
   'flow_intent',
   'whatsapp',
+  'whatsapp_call',
 ] as const;
 export type LedgerUsageKind = (typeof LEDGER_USAGE_KINDS)[number];
 
