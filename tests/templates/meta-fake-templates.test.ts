@@ -129,6 +129,9 @@ describe('fake Meta — templates', () => {
     });
     expect(byName.promo_recategorize?.category).toBe('MARKETING');
     expect(byName.promo_slow?.status).toBe('PENDING');
+    // Edit and resubmit: the edited `_reject` template is approved
+    await fake.editTemplate(token, rejected.id, { components: body('promo_reject').components });
+    await vi.waitFor(() => expect(statusEvents(rejected.id)).toEqual(['REJECTED', 'APPROVED']));
   });
 
   it('_pause: approved, then paused 1 s later (fake timers)', async () => {

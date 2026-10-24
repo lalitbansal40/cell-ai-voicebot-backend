@@ -104,7 +104,7 @@ export const FAKE_TEMPLATE_KNOBS = {
 export const FAKE_TEMPLATE_NAME_KNOBS = {
   /** Approved at once (no review event). */
   instant: 'instant',
-  /** Rejected `INVALID_FORMAT` after the review delay. */
+  /** Rejected `INVALID_FORMAT` after the first review; an edit is approved (Edit and resubmit). */
   reject: '_reject',
   /** Approved, then recategorised UTILITY → MARKETING. */
   recategorize: '_recategorize',
@@ -133,6 +133,8 @@ export interface FakeTemplate {
   message_send_ttl_seconds: number | null;
   /** Creation order (paging). */
   seq: number;
+  /** Edited after submitting (the `_reject` knob only rejects the first review). */
+  edited?: boolean;
 }
 
 /** What the fake's status webhooks report as Meta pricing (PMP). */
@@ -623,7 +625,7 @@ export const createFakeMetaClient = ({
   const scheduleReview = (wabaId: string, t: FakeTemplate) => {
     if (templateReviewMs === null || t.name.includes(FAKE_TEMPLATE_NAME_KNOBS.slow)) return;
     later(templateReviewMs, async () => {
-      if (t.name.includes(FAKE_TEMPLATE_NAME_KNOBS.reject)) {
+      if (t.name.includes(FAKE_TEMPLATE_NAME_KNOBS.reject) && !t.edited) {
         await setStatus(wabaId, t.id, 'REJECTED', {
           rejection_info: {
             reason: 'Invalid format',
@@ -1248,6 +1250,7 @@ export const createFakeMetaClient = ({
       if (body.ttlSeconds) t.message_send_ttl_seconds = body.ttlSeconds;
       t.status = 'PENDING';
       t.rejected_reason = null;
+      t.edited = true;
       await saveTemplate(wabaId, t);
       scheduleReview(wabaId, t);
     },
