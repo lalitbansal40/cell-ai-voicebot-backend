@@ -13,6 +13,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   - API §14f (settings, permissions, calls, answer / decline / hold / transfer, media ticket, availability), simulator 12 calling kinds + `POST /dev/meta/calls/user-call`, Demo Finance calling seed, `npm run dev:calls-wa` (the real server over HTTP), ADR 0041, security §13, compliance §12, setup guide §15 (real-device checklist).
   - Hardening (laptop): 50 concurrent loopback calls with recording ≈ 1.4 s (setup 0.4 s, 1.7 s CPU, +90 MB); 1,000 permission replies ≈ 0.5 s; 200 calls × 10 racing settles ≈ 7.9 s, each charged once; 3 nodes on one Redis with an owner killed — every orphan failed and terminated once.
   - Fixed before commit: the calling router answered 401 for every unknown `/api/v1` path; an agent's claim stayed after a failed Meta connect; the calling seed wrote a partial calling settings block on numbers saved before migration 0013.
+  - Fixed (found by the manual check): a missed call with nobody online to ring sent no bell (now everyone who can answer, or the number's ring list); the WhatsApp seed tests shared the dev server's fake Meta state.
+  - Manual HTTP + media check (two server processes, one Redis): every item of the Batch 2 list passed; logs clean. Tests: 3074 → 3141, coverage 96.08 / 87.55 / 95.77 / 97.66.
 
 - **Phase 12 · Batch 1 (T12.1–T12.4) — WhatsApp calling foundation** — 2026-10-24
   - PoC gate passed (ADR 0040): `werift` WebRTC in our process + Opus (WASM) + the Phase 7 resampler on loopback against a Meta-like ICE-lite peer — 20 / 20 runs, setup ≈ 140 ms, 30 s silent keep-alive, 1 / 10 / 20 parallel calls at ≈ 1–2 % of one core and < 6 MB each; `npm run poc:wa-call`.
