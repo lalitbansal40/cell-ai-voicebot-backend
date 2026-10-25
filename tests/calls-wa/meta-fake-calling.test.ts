@@ -17,6 +17,7 @@ import { DTMF_PT, OPUS_PT, WhatsAppPeer } from '../../src/core/telephony/whatsap
 import { hasTone } from '../../src/core/telephony/whatsapp/tones';
 import { tone } from '../../src/core/voice/audio/pcm';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
+import { expectNoUdpHandles } from '../helpers/udp';
 
 let redis: Redis;
 let fake: FakeMetaClient;
@@ -44,6 +45,7 @@ afterAll(async () => {
   await Promise.all(peers.map((p) => p.close()));
   await flushPrefix(redis, prefix);
   redis.disconnect();
+  await expectNoUdpHandles();
 });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

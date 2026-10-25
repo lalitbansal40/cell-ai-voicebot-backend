@@ -116,6 +116,15 @@ export interface CallLatency {
 }
 
 export interface CallMetrics {
+  /** Safe WebRTC counters; never SDP, ICE credentials or addresses. */
+  whatsapp?: {
+    setupMs: number | null;
+    packetsIn: number;
+    packetsOut: number;
+    lossPct: number;
+    jitterMs: number;
+    rttMs: number | null;
+  };
   latency: CallLatency;
   bargeIns: number;
   silencePrompts: number;

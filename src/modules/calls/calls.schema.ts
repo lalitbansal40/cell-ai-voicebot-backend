@@ -159,6 +159,16 @@ export const CallSchema = registry.register(
     disposition: z.string().nullable(),
     languageDetected: z.string().nullable(),
     metrics: z.object({
+      whatsapp: z
+        .object({
+          setupMs: z.number().nullable(),
+          packetsIn: z.number(),
+          packetsOut: z.number(),
+          lossPct: z.number(),
+          jitterMs: z.number(),
+          rttMs: z.number().nullable(),
+        })
+        .optional(),
       latency: z.object({
         p50Ms: z.number().nullable(),
         p95Ms: z.number().nullable(),

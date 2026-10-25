@@ -144,9 +144,9 @@ export const createMediaServer = (deps: MediaServerDeps): MediaServer => {
       }
       leg.receiveControl(parsed);
     };
-    ws.on('close', () => {
+    ws.on('close', (code) => {
       live.delete(callId);
-      leg.socketClosed('customer_hangup');
+      leg.socketClosed(code === 1006 ? 'media_error' : 'customer_hangup');
     });
     ws.on('error', (err) => log.warn({ err, callId }, 'media: socket error'));
     const attached = await deps.attach({ callId, accountId, userId }, leg);

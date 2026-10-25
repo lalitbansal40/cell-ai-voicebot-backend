@@ -4538,6 +4538,18 @@
           "metrics": {
             "type": "object",
             "properties": {
+              "whatsapp": {
+                "type": "object",
+                "properties": {
+                  "setupMs": { "type": ["number", "null"] },
+                  "packetsIn": { "type": "number" },
+                  "packetsOut": { "type": "number" },
+                  "lossPct": { "type": "number" },
+                  "jitterMs": { "type": "number" },
+                  "rttMs": { "type": ["number", "null"] }
+                },
+                "required": ["setupMs", "packetsIn", "packetsOut", "lossPct", "jitterMs", "rttMs"]
+              },
               "latency": {
                 "type": "object",
                 "properties": {

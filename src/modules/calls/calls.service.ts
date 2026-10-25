@@ -150,6 +150,7 @@ export const toCallView = (c: CallDoc, names: Names) => {
     disposition: c.disposition,
     languageDetected: c.languageDetected,
     metrics: {
+      ...(c.metrics.whatsapp ? { whatsapp: { ...c.metrics.whatsapp } } : {}),
       latency: { ...c.metrics.latency },
       bargeIns: c.metrics.bargeIns,
       silencePrompts: c.metrics.silencePrompts,

@@ -25,6 +25,7 @@ import { MessageModel } from '../../src/db/models/message.model';
 import { WalletModel } from '../../src/db/models/wallet.model';
 import { WhatsAppCallPermissionModel } from '../../src/db/models/whatsapp-call-permission.model';
 import { WhatsAppChannelModel } from '../../src/db/models/whatsapp-channel.model';
+import { viewOne } from '../../src/modules/calls/calls.service';
 import { CallRegistry } from '../../src/modules/calls/registry';
 import type { CallIO, CallScript } from '../../src/modules/calls/session';
 import { CallControlBus } from '../../src/modules/whatsapp-calling/bus';
@@ -32,13 +33,14 @@ import {
   createCallingRuntime,
   type CallingRuntime,
 } from '../../src/modules/whatsapp-calling/runtime';
-import { createLogger } from '../../src/shared/logger';
+import { createLogger, setLogger } from '../../src/shared/logger';
 import { ensureRateCard } from '../helpers/calls';
 import { useTestDb } from '../helpers/db';
 import { useCapturedEmail } from '../helpers/email';
 import { createAgentDoc } from '../helpers/flows';
 import { useInboxWorld } from '../helpers/inbox';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
+import { expectNoUdpHandles } from '../helpers/udp';
 
 useTestDb();
 useCapturedEmail();
@@ -46,7 +48,15 @@ const world = useInboxWorld();
 const { state } = world;
 const prefix = `${uniquePrefix('wa-out')}:`;
 const recordingDir = mkdtempSync(path.join(tmpdir(), 'cav-wa-out-'));
-const logger = createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'silent' });
+const logs: string[] = [];
+const logger = createLogger(
+  { NODE_ENV: 'test', LOG_LEVEL: 'info' },
+  {
+    write: (line: string) => {
+      logs.push(line);
+    },
+  },
+);
 const RATE = 24_000;
 
 /** Real time shifted to 12:00 IST today (inside every calling window). */
@@ -176,6 +186,7 @@ const keyScript = (): CallScript => {
 };
 
 beforeAll(async () => {
+  setLogger(logger);
   ({ client: redis } = await requireRedis());
   await ensureRateCard();
   const url = (await requireRedis()).url;
@@ -221,6 +232,8 @@ afterAll(async () => {
   sub2.disconnect();
   await flushPrefix(redis, prefix);
   rmSync(recordingDir, { recursive: true, force: true });
+  setLogger(undefined);
+  await expectNoUdpHandles();
 });
 
 const calls = () => {
@@ -377,6 +390,21 @@ describe('business-initiated WhatsApp calls', () => {
       { timeout: 10_000 },
     );
     const after = await callOf(res.callId);
+    expect(after?.metrics).toMatchObject({
+      whatsapp: {
+        setupMs: expect.any(Number) as number,
+        packetsIn: expect.any(Number) as number,
+        packetsOut: expect.any(Number) as number,
+        lossPct: expect.any(Number) as number,
+        jitterMs: expect.any(Number) as number,
+        rttMs: null,
+      },
+    });
+    expect((await viewOne(after!)).metrics.whatsapp).toEqual(after?.metrics.whatsapp);
+    const text = logs.join('');
+    expect(text).not.toMatch(/a=fingerprint|ice-pwd|ice-ufrag|a=candidate|v=0|"digits?"\s*:/);
+    expect(text).not.toContain(contact.phoneE164);
+    expect(text).not.toContain(contact.phoneE164.replace(/\D/g, ''));
     const rows = await ledger(res.callId);
     const charge = rows.find((r) => r.type === 'whatsapp_call_charge' && r.status === 'captured');
     expect(charge?.breakdown).toMatchObject({

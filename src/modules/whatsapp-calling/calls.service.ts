@@ -336,6 +336,12 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
 
   const onEnded = async (call: LiveCall, s: CallEndedSummary) => {
     call.summary = s;
+    await CallModel.updateOne(
+      { _id: new Types.ObjectId(call.callId) },
+      { $set: { 'metrics.whatsapp': call.leg.metrics } },
+    ).catch((err: unknown) => {
+      deps.logger.warn({ err, callId: call.callId }, 'whatsapp call: metrics save failed');
+    });
     if (call.agentUserId)
       await deps.bus.releaseAgent(call.accountId, call.agentUserId.toString(), call.callId);
     if (call.ring) finishRing(call, false, 'ended');

@@ -27,6 +27,7 @@ import { useTestDb } from '../helpers/db';
 import { useCapturedEmail } from '../helpers/email';
 import { useInboxWorld } from '../helpers/inbox';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
+import { expectNoUdpHandles } from '../helpers/udp';
 
 useTestDb();
 useCapturedEmail();
@@ -54,6 +55,7 @@ beforeAll(async () => {
 afterAll(async () => {
   for (const s of subs) s.disconnect();
   await flushPrefix(redis, prefix);
+  await expectNoUdpHandles();
 });
 
 describe('WhatsApp calling hardening', () => {
@@ -94,6 +96,7 @@ describe('WhatsApp calling hardening', () => {
     const closed = await Promise.all(
       calls.map(async (c) => {
         await c.leg.hangup('normal');
+        await c.user.hangup();
         return c.recorder.close();
       }),
     );

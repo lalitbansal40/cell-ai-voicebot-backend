@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join as joinPath } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   createOpusCodec,
@@ -20,12 +20,14 @@ import { createLegResamplers, LEG_RATE } from '../../src/core/telephony/whatsapp
 import { describeSdp, scrubSdp, withPtime } from '../../src/core/telephony/whatsapp/sdp';
 import { hasTone, tonePower } from '../../src/core/telephony/whatsapp/tones';
 import { tone } from '../../src/core/voice/audio/pcm';
+import { expectNoUdpHandles } from '../helpers/udp';
 
 const frames = (pcm: Int16Array, size: number): Int16Array[] => {
   const out: Int16Array[] = [];
   for (let i = 0; i + size <= pcm.length; i += size) out.push(pcm.subarray(i, i + size));
   return out;
 };
+afterEach(expectNoUdpHandles);
 const join = (parts: Int16Array[]): Int16Array => {
   const all = new Int16Array(parts.reduce((n, p) => n + p.length, 0));
   let o = 0;

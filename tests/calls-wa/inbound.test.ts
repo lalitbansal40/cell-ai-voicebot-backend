@@ -28,13 +28,14 @@ import {
   createCallingRuntime,
   type CallingRuntime,
 } from '../../src/modules/whatsapp-calling/runtime';
-import { createLogger } from '../../src/shared/logger';
+import { createLogger, setLogger } from '../../src/shared/logger';
 import { ensureRateCard, emptyResult, fakeChannel } from '../helpers/calls';
 import { useTestDb } from '../helpers/db';
 import { useCapturedEmail } from '../helpers/email';
 import { createAgentDoc } from '../helpers/flows';
 import { useInboxWorld } from '../helpers/inbox';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
+import { expectNoUdpHandles } from '../helpers/udp';
 
 useTestDb();
 useCapturedEmail();
@@ -42,6 +43,15 @@ const world = useInboxWorld({ FAKE_META_CALL_DELAYS_MS: '20,40,80' });
 const { state } = world;
 const prefix = `${uniquePrefix('wa-in')}:`;
 const recordingDir = mkdtempSync(join(tmpdir(), 'cav-wa-in-'));
+const logs: string[] = [];
+const captureLogger = createLogger(
+  { NODE_ENV: 'test', LOG_LEVEL: 'info' },
+  {
+    write: (line: string) => {
+      logs.push(line);
+    },
+  },
+);
 let redis: Redis;
 let sub: Redis;
 let otherSub: Redis;
@@ -78,6 +88,7 @@ const program = (): CallScript => {
 };
 
 beforeAll(async () => {
+  setLogger(captureLogger);
   const connection = await requireRedis();
   redis = connection.client;
   sub = new Redis(connection.url);
@@ -94,7 +105,7 @@ beforeAll(async () => {
     inbox: state.ix,
     bus,
     calls: {
-      logger: createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }),
+      logger: captureLogger,
       registry: new CallRegistry(redis, prefix),
       tts,
       storage: world.storage,
@@ -123,6 +134,8 @@ afterAll(async () => {
   otherSub.disconnect();
   await flushPrefix(redis, prefix);
   rmSync(recordingDir, { recursive: true, force: true });
+  setLogger(undefined);
+  await expectNoUdpHandles();
 });
 
 beforeEach(async () => {
@@ -209,6 +222,10 @@ describe('user-initiated WhatsApp calls', () => {
     ).toBe(0);
     const chat = await ConversationModel.findById(call.call.whatsapp?.conversationId).lean();
     expect(chat?.windowExpiresAt).toBeNull();
+    expect(logs.join('')).not.toMatch(
+      /a=fingerprint|ice-pwd|ice-ufrag|a=candidate|v=0|"digits?"\s*:/,
+    );
+    expect(logs.join('')).not.toContain(call.call.from);
   });
 
   it('declines for one user, then ends as missed when everyone declines', async () => {

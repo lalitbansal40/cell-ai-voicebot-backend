@@ -5,6 +5,7 @@ import { WhatsAppCallLeg } from '../../src/core/telephony/whatsapp/leg';
 import { WhatsAppPeer, type ReceivedPacket } from '../../src/core/telephony/whatsapp/peer';
 import { hasTone } from '../../src/core/telephony/whatsapp/tones';
 import { tone } from '../../src/core/voice/audio/pcm';
+import { expectNoUdpHandles } from '../helpers/udp';
 
 const RATE = 24_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -75,6 +76,7 @@ afterEach(async () => {
     await r.leg.hangup('normal');
     await r.user.hangup();
   }
+  await expectNoUdpHandles();
 });
 
 describe('WhatsAppCallLeg — media on loopback', () => {
