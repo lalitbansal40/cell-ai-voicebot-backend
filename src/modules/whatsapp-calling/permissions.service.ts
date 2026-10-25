@@ -288,6 +288,14 @@ export const createCallPermissions = (deps: PermissionDeps) => {
       ours.nextAt?.getTime() ?? 0,
       metaReq.can ? 0 : (metaReq.nextAt?.getTime() ?? 0),
     ].reduce((a, b) => Math.max(a, b), 0);
+    // not allowed: why there is no call — the customer said no, the answer is awaited,
+    // a request was sent too recently, or nothing asked yet
+    const notAllowed =
+      status === 'declined' || status === 'requested'
+        ? status
+        : canRequest
+          ? 'no_permission'
+          : 'request_limit';
     return {
       status:
         allowed && !valid(row, now)
@@ -299,7 +307,7 @@ export const createCallPermissions = (deps: PermissionDeps) => {
       canCall,
       canRequest,
       nextRequestAt: !canRequest && next ? new Date(next).toISOString() : null,
-      reason: canCall ? null : !allowed ? 'no_permission' : !metaCall.can ? 'call_limit' : null,
+      reason: canCall ? null : !allowed ? notAllowed : !metaCall.can ? 'call_limit' : null,
     };
   };
 

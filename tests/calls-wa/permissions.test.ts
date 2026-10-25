@@ -133,6 +133,10 @@ describe('call permissions', () => {
       body: expect.stringContaining('WhatsApp par call') as string,
     });
     expect(request?.billing).not.toBeNull();
+    // waiting for the answer: the panel says why there is no new request
+    expect(
+      await permissions.statusFor(actor.accountId, state.channel._id, contact._id),
+    ).toMatchObject({ status: 'requested', canRequest: false, reason: 'requested' });
     await runSends();
     await vi.waitFor(async () =>
       expect(
@@ -243,7 +247,12 @@ describe('call permissions', () => {
     expect(err.code).toBe('WHATSAPP_CALL_PERMISSION_LIMIT');
     expect(Date.parse(err.details[0]?.message ?? '')).toBeGreaterThan(Date.now() + 23 * 3_600_000);
     const panel = await permissions.statusFor(actor.accountId, state.channel._id, declines._id);
-    expect(panel).toMatchObject({ status: 'declined', canRequest: false, canCall: false });
+    expect(panel).toMatchObject({
+      status: 'declined',
+      canRequest: false,
+      canCall: false,
+      reason: 'declined',
+    });
     expect(panel.nextRequestAt).not.toBeNull();
     // Meta's own counter refuses even when ours would allow (request sent from another app)
     const other = await writes(customer('00057'));
