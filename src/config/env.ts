@@ -160,6 +160,14 @@ const RawEnvSchema = z.object({
    * immediate). Default `100,200,800` in development, off in tests (Phase 12).
    */
   FAKE_META_CALL_DELAYS_MS: optionalString,
+  /**
+   * DEV / E2E ONLY — WhatsApp calls with the fake Meta skip the calling window (TRAI
+   * 09:00–21:00 + the account window) so night-time test runs can call the fake phone.
+   * Works only with META_PROVIDER=fake; refused in production (Phase 12).
+   */
+  WA_CALL_WINDOW_IGNORED: z
+    .enum(['true', 'false'], { message: 'must be true or false' })
+    .optional(),
 
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./uploads'),
@@ -257,6 +265,7 @@ export type Env = Readonly<
     | 'WA_MEDIA_ENABLED'
     | 'WA_STUN_URLS'
     | 'FAKE_META_CALL_DELAYS_MS'
+    | 'WA_CALL_WINDOW_IGNORED'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -300,6 +309,8 @@ export type Env = Readonly<
     WA_STUN_URLS: readonly string[];
     /** Fake Meta call timings `[connect, ringing, accepted]`; null = immediate. */
     FAKE_META_CALL_DELAYS_MS: readonly [number, number, number] | null;
+    /** True only with the fake Meta outside production (E2E at night). */
+    WA_CALL_WINDOW_IGNORED: boolean;
   }
 >;
 
@@ -542,6 +553,11 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     check('AI_PROVIDER', 'must be openai in production', aiProvider === 'openai');
     check('AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS', 'must be false in production', !allowPrivateHosts);
     check('MOCK_APIS_ENABLED', 'must be false in production', !mockApis);
+    check(
+      'WA_CALL_WINDOW_IGNORED',
+      'must not be set in production',
+      raw.WA_CALL_WINDOW_IGNORED !== 'true',
+    );
   }
 
   const whatsappEnabled =
@@ -725,6 +741,8 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     WA_MEDIA_ENABLED: whatsappEnabled && waMediaEnabled,
     WA_STUN_URLS: Object.freeze(stunUrls ?? []),
     FAKE_META_CALL_DELAYS_MS: metaProvider === 'fake' && !production ? (callDelays ?? null) : null,
+    WA_CALL_WINDOW_IGNORED:
+      raw.WA_CALL_WINDOW_IGNORED === 'true' && metaProvider === 'fake' && !production,
   });
 };
 

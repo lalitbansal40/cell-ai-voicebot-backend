@@ -728,4 +728,25 @@ describe('loadEnv — WhatsApp calling (Phase 12)', () => {
       issuesOf({ ...prod, FAKE_META_CALL_DELAYS_MS: '1,2,3' }).issues.map((i) => i.variable),
     ).toEqual(['FAKE_META_CALL_DELAYS_MS']);
   });
+
+  it('WA_CALL_WINDOW_IGNORED: fake Meta outside production only', () => {
+    expect(loadEnv({}).WA_CALL_WINDOW_IGNORED).toBe(false);
+    expect(loadEnv({ WA_CALL_WINDOW_IGNORED: 'true' }).WA_CALL_WINDOW_IGNORED).toBe(true);
+    // the real Meta never skips the calling window
+    expect(
+      loadEnv({
+        WA_CALL_WINDOW_IGNORED: 'true',
+        META_PROVIDER: 'meta',
+        WHATSAPP_ENABLED: 'false',
+      }).WA_CALL_WINDOW_IGNORED,
+    ).toBe(false);
+    const prod = { ...validProduction, WHATSAPP_ENABLED: 'false' };
+    expect(loadEnv(prod).WA_CALL_WINDOW_IGNORED).toBe(false);
+    expect(
+      issuesOf({ ...prod, WA_CALL_WINDOW_IGNORED: 'true' }).issues.map((i) => i.variable),
+    ).toEqual(['WA_CALL_WINDOW_IGNORED']);
+    expect(issuesOf({ WA_CALL_WINDOW_IGNORED: 'yes' }).issues.map((i) => i.variable)).toEqual([
+      'WA_CALL_WINDOW_IGNORED',
+    ]);
+  });
 });

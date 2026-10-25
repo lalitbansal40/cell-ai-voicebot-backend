@@ -463,6 +463,21 @@ describe('business-initiated WhatsApp calls', () => {
     expect(c?.billing.whatsapp?.pulses).toBe(1);
   });
 
+  it('WA_CALL_WINDOW_IGNORED (fake Meta, dev / E2E): a night call is placed', async () => {
+    const env = world.w.ctx.env;
+    const night = await contactFor(customer(FAKE_CALL_KNOBS.rejects));
+    offset = NOON_OFFSET + 10.5 * 3_600_000; // 22:30 IST
+    try {
+      await expect(start(night._id)).rejects.toMatchObject({ code: 'CALL_OUTSIDE_WINDOW' });
+      world.w.ctx.env = { ...env, WA_CALL_WINDOW_IGNORED: true };
+      const res = await start(night._id);
+      expect((await ended(res.callId)).endReason).toBe('rejected_by_customer');
+    } finally {
+      world.w.ctx.env = env;
+      offset = NOON_OFFSET;
+    }
+  });
+
   it('refusals before dialing: connect failure, no permission, wallet, DND, opt-out, window, active call, limits', async () => {
     const fails = await contactFor(customer(FAKE_CALL_KNOBS.connectFails));
     await expect(start(fails._id)).rejects.toMatchObject({ code: 'WHATSAPP_CALL_FAILED' });

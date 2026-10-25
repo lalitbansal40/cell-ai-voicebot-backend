@@ -35,6 +35,8 @@ export interface DialGuardInput {
   capacity: { active: number; max: number };
   /** Live calls of the account (every provider) — `maxConcurrentCalls`. */
   liveCalls: () => Promise<number>;
+  /** DEV / E2E only (`WA_CALL_WINDOW_IGNORED`, fake Meta): no calling window. */
+  ignoreWindow?: boolean;
 }
 
 const no = (code: ErrorCode, reason: string, nextAt?: Date | null): DialGuardResult => ({
@@ -84,7 +86,7 @@ export const checkDial = async (input: DialGuardInput): Promise<DialGuardResult>
     live: true,
     recovery: false,
   });
-  if (!window || !canDialAt(now, window, account.timezone)) {
+  if (!input.ignoreWindow && (!window || !canDialAt(now, window, account.timezone))) {
     const next = window ? nextWindowStart(now, window, account.timezone) : null;
     return no('CALL_OUTSIDE_WINDOW', 'outside_window', next);
   }

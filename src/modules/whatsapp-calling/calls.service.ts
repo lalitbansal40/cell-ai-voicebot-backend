@@ -589,6 +589,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       permission: () => deps.permissions.statusFor(actor.accountId, channel._id, input.contactId),
       capacity: capacity(),
       liveCalls: async () => (await deps.registry.liveCalls(actor.accountId.toString())).length,
+      ignoreWindow: ctx.env.WA_CALL_WINDOW_IGNORED,
     });
     if (!contact) throw new NotFoundError('Contact not found');
     const waId = contact.whatsapp?.waId ?? contact.phoneE164.replace(/\D/g, '');
