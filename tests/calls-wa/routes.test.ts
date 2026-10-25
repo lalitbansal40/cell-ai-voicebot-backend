@@ -146,6 +146,10 @@ describe('WhatsApp calling HTTP API', () => {
     expect(
       (await request(a).patch(path).set(bearer(users.agent.token)).send({ status: 'away' })).status,
     ).toBe(422);
+    // the session shows it (the header toggle reads it)
+    await request(a).patch(path).set(bearer(users.agent.token)).send({ status: 'busy' });
+    const me = await request(a).get('/api/v1/auth/me').set(bearer(users.agent.token));
+    expect(me.body.data.user.callAvailability).toBe('busy');
   });
 
   it('call actions enforce permissions and tenant ownership before reaching media', async () => {

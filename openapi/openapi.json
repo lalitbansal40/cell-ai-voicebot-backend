@@ -120,6 +120,7 @@
           "emailVerifiedAt": { "type": ["string", "null"] },
           "lastLoginAt": { "type": ["string", "null"] },
           "platformRole": { "type": ["string", "null"], "enum": ["superadmin", null] },
+          "callAvailability": { "type": "string", "enum": ["available", "busy", "offline"] },
           "createdAt": { "type": "string" }
         },
         "required": [
@@ -131,6 +132,7 @@
           "emailVerifiedAt",
           "lastLoginAt",
           "platformRole",
+          "callAvailability",
           "createdAt"
         ]
       },

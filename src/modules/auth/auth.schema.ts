@@ -82,6 +82,8 @@ export const PublicUserSchema = registry.register(
     emailVerifiedAt: z.string().nullable(),
     lastLoginAt: z.string().nullable(),
     platformRole: z.enum(['superadmin']).nullable(),
+    /** Phase 12: WhatsApp calls ring only available users (`PATCH /users/me/call-availability`). */
+    callAvailability: z.enum(['available', 'busy', 'offline']),
     createdAt: z.string(),
   }),
 );

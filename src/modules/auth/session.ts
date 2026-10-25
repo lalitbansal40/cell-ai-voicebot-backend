@@ -25,6 +25,8 @@ export interface PublicUser {
   emailVerifiedAt: string | null;
   lastLoginAt: string | null;
   platformRole: 'superadmin' | null;
+  /** Phase 12: WhatsApp calls ring only `available` users. */
+  callAvailability: 'available' | 'busy' | 'offline';
   createdAt: string;
 }
 
@@ -74,6 +76,7 @@ export const toPublicUser = (u: UserDoc): PublicUser => ({
   emailVerifiedAt: iso(u.emailVerifiedAt),
   lastLoginAt: iso(u.lastLoginAt),
   platformRole: u.platformRole ?? null,
+  callAvailability: u.callAvailability ?? 'available',
   createdAt: u.createdAt.toISOString(),
 });
 
