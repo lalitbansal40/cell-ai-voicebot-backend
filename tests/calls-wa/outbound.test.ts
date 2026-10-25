@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { pulsesFor } from '../../src/core/billing/whatsapp-calls';
 import { FAKE_CALL_KNOBS } from '../../src/core/meta';
+import { setRealtime } from '../../src/core/realtime';
 import type { CallLeg, HangupCause, LegStatus } from '../../src/core/telephony/types';
 import { hasTone } from '../../src/core/telephony/whatsapp/tones';
 import type { PlaybackResult } from '../../src/core/voice/audio/pacer';
@@ -461,6 +462,30 @@ describe('business-initiated WhatsApp calls', () => {
     const c = await callOf(res.callId);
     expect(c?.whatsapp?.metaDuration).toBe(5);
     expect(c?.billing.whatsapp?.pulses).toBe(1);
+  });
+
+  it('every call.status event names the provider (the call bar listens for WhatsApp ones)', async () => {
+    const events: { type: string; data: Record<string, unknown> }[] = [];
+    setRealtime({
+      pushToAccount: (_t: string, type: string, data: Record<string, unknown>) => {
+        events.push({ type, data });
+        return Promise.resolve();
+      },
+      pushToUser: () => Promise.resolve(),
+      pushToTopic: () => Promise.resolve(),
+    } as never);
+    try {
+      const contact = await contactFor(customer(FAKE_CALL_KNOBS.hangsUpAfter5s));
+      const res = await start(contact._id, 'ai', { kind: 'agent', id: await agentId() });
+      await ended(res.callId);
+      const statuses = events.filter(
+        (e) => e.type === 'call.status' && e.data.callId === res.callId,
+      );
+      expect(statuses.map((e) => e.data.status)).toContain('in_progress');
+      for (const e of statuses) expect(e.data.provider).toBe('whatsapp');
+    } finally {
+      setRealtime(undefined);
+    }
   });
 
   it('WA_CALL_WINDOW_IGNORED (fake Meta, dev / E2E): a night call is placed', async () => {

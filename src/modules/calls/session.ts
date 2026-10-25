@@ -500,7 +500,11 @@ export class CallSession {
   private async setStatus(status: CallStatus, extra: Record<string, unknown>): Promise<void> {
     await CallModel.updateOne({ _id: this.deps.call._id }, { $set: { status, ...extra } });
     this.event('status', { status });
-    notifyAccount(this.accountId, 'call.status', { callId: this.callId, status });
+    notifyAccount(this.accountId, 'call.status', {
+      callId: this.callId,
+      status,
+      provider: this.deps.call.provider,
+    });
   }
 
   /** Ends the call once (any caller); resolves with the summary. */
