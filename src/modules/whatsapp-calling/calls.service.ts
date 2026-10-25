@@ -345,7 +345,15 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       const row = await CallModel.findById(call.callId)
         .select({ 'whatsapp.ringUserIds': 1 })
         .lean<CallDoc>();
-      const ids = row?.whatsapp?.ringUserIds ?? [];
+      const rang = row?.whatsapp?.ringUserIds ?? [];
+      // nobody was online to ring: everyone who could have answered (the number's ring
+      // list when it has one) still hears about the missed customer
+      const listed = (call.channel.calling ?? defaultCalling()).inbound.ringUserIds?.map(String);
+      const ids = rang.length
+        ? rang
+        : (await usersWithPermission(new Types.ObjectId(call.accountId), 'calls.answer'))
+            .map((u) => u.userId)
+            .filter((id) => !listed || listed.includes(id.toString()));
       if (ids.length)
         await notify({
           accountId: new Types.ObjectId(call.accountId),

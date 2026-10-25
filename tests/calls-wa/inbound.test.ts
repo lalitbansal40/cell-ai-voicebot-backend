@@ -307,6 +307,36 @@ describe('user-initiated WhatsApp calls', () => {
       }),
     ).rejects.toBeTruthy();
   });
+  it('nobody online: the missed call still rings a bell for everyone who can answer (and only them)', async () => {
+    online = [];
+    const call = await incoming();
+    expect((await ended(call.id)).endReason).toBe('no_agent_available');
+    const bells = async () =>
+      (
+        await NotificationModel.find({
+          accountId: state.acc.account._id,
+          type: 'call.whatsapp_missed',
+        }).lean()
+      ).map((n) => n.userId.toString());
+    await vi.waitFor(async () => expect((await bells()).length).toBeGreaterThan(0));
+    const got = await bells();
+    expect(got).toEqual(
+      expect.arrayContaining([users.agent.user._id.toString(), users.owner.user._id.toString()]),
+    );
+    expect(got).not.toContain(users.viewer.user._id.toString());
+    // a configured ring list limits the bell to that list
+    await NotificationModel.deleteMany({ accountId: state.acc.account._id });
+    await WhatsAppChannelModel.updateOne(
+      { _id: state.channel._id },
+      { $set: { 'calling.inbound.ringUserIds': [users.manager.user._id] } },
+    );
+    const listed = await incoming();
+    await ended(listed.id);
+    await vi.waitFor(async () =>
+      expect(await bells()).toEqual([users.manager.user._id.toString()]),
+    );
+  });
+
   it('times out the ring: rejected as missed with a bell for the ring list; a late answer is not ringing', async () => {
     await WhatsAppChannelModel.updateOne(
       { _id: state.channel._id },
