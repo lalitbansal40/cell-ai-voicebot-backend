@@ -7128,7 +7128,7 @@
       "WhatsAppRateCardSave": {
         "type": "object",
         "properties": {
-          "kind": { "type": "string", "enum": ["messaging", "calling"], "default": "messaging" },
+          "kind": { "type": "string", "enum": ["messaging", "calling"] },
           "markets": {
             "type": "array",
             "items": {
@@ -24623,8 +24623,20 @@
     "/api/v1/admin/whatsapp-rates": {
       "get": {
         "tags": ["Admin · WhatsApp billing"],
-        "summary": "Meta's WhatsApp rate card in force, scheduled ones and history (platform.billing.manage)",
+        "summary": "Meta's WhatsApp rate card in force, scheduled ones and history (platform.billing.manage); `kind=calling` for the per-minute calling cards",
         "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["messaging", "calling"],
+              "default": "messaging"
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -24646,6 +24658,7 @@
                             "source": { "type": "string", "enum": ["meta_csv", "manual"] },
                             "note": { "type": ["string", "null"] },
                             "createdAt": { "type": "string" },
+                            "kind": { "type": "string", "enum": ["messaging", "calling"] },
                             "markets": {
                               "type": "array",
                               "items": {
@@ -24729,6 +24742,44 @@
                                   "serviceMicros"
                                 ]
                               }
+                            },
+                            "callingMarkets": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                                  "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                                  "callingCodes": {
+                                    "type": "array",
+                                    "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                                    "maxItems": 50
+                                  },
+                                  "perMinuteMicros": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 1000000000
+                                  },
+                                  "tiers": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "fromMinutes": { "type": "integer", "minimum": 0 },
+                                        "perMinuteMicros": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 1000000000
+                                        }
+                                      },
+                                      "required": ["fromMinutes", "perMinuteMicros"]
+                                    },
+                                    "maxItems": 10,
+                                    "default": []
+                                  }
+                                },
+                                "required": ["market", "label", "callingCodes", "perMinuteMicros"]
+                              }
                             }
                           },
                           "required": [
@@ -24738,7 +24789,9 @@
                             "source",
                             "note",
                             "createdAt",
-                            "markets"
+                            "kind",
+                            "markets",
+                            "callingMarkets"
                           ]
                         },
                         "scheduled": {
@@ -24752,6 +24805,7 @@
                               "source": { "type": "string", "enum": ["meta_csv", "manual"] },
                               "note": { "type": ["string", "null"] },
                               "createdAt": { "type": "string" },
+                              "kind": { "type": "string", "enum": ["messaging", "calling"] },
                               "markets": {
                                 "type": "array",
                                 "items": {
@@ -24835,6 +24889,44 @@
                                     "serviceMicros"
                                   ]
                                 }
+                              },
+                              "callingMarkets": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                                    "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                                    "callingCodes": {
+                                      "type": "array",
+                                      "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                                      "maxItems": 50
+                                    },
+                                    "perMinuteMicros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    },
+                                    "tiers": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "fromMinutes": { "type": "integer", "minimum": 0 },
+                                          "perMinuteMicros": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 1000000000
+                                          }
+                                        },
+                                        "required": ["fromMinutes", "perMinuteMicros"]
+                                      },
+                                      "maxItems": 10,
+                                      "default": []
+                                    }
+                                  },
+                                  "required": ["market", "label", "callingCodes", "perMinuteMicros"]
+                                }
                               }
                             },
                             "required": [
@@ -24844,7 +24936,9 @@
                               "source",
                               "note",
                               "createdAt",
-                              "markets"
+                              "kind",
+                              "markets",
+                              "callingMarkets"
                             ]
                           }
                         },
@@ -24920,6 +25014,7 @@
                         "source": { "type": "string", "enum": ["meta_csv", "manual"] },
                         "note": { "type": ["string", "null"] },
                         "createdAt": { "type": "string" },
+                        "kind": { "type": "string", "enum": ["messaging", "calling"] },
                         "markets": {
                           "type": "array",
                           "items": {
@@ -25003,6 +25098,44 @@
                               "serviceMicros"
                             ]
                           }
+                        },
+                        "callingMarkets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                              "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                              "callingCodes": {
+                                "type": "array",
+                                "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                                "maxItems": 50
+                              },
+                              "perMinuteMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "tiers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "fromMinutes": { "type": "integer", "minimum": 0 },
+                                    "perMinuteMicros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    }
+                                  },
+                                  "required": ["fromMinutes", "perMinuteMicros"]
+                                },
+                                "maxItems": 10,
+                                "default": []
+                              }
+                            },
+                            "required": ["market", "label", "callingCodes", "perMinuteMicros"]
+                          }
                         }
                       },
                       "required": [
@@ -25012,7 +25145,9 @@
                         "source",
                         "note",
                         "createdAt",
-                        "markets"
+                        "kind",
+                        "markets",
+                        "callingMarkets"
                       ]
                     }
                   },
@@ -25047,6 +25182,18 @@
         "tags": ["Admin · WhatsApp billing"],
         "summary": "Preview Meta's INR rate card CSV (multipart `file`, ≤ 2 MB): markets, row errors, diff — nothing saved",
         "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["messaging", "calling"],
+              "default": "messaging"
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          }
+        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -25154,6 +25301,44 @@
                             ]
                           }
                         },
+                        "callingMarkets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                              "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                              "callingCodes": {
+                                "type": "array",
+                                "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                                "maxItems": 50
+                              },
+                              "perMinuteMicros": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000000
+                              },
+                              "tiers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "fromMinutes": { "type": "integer", "minimum": 0 },
+                                    "perMinuteMicros": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000000
+                                    }
+                                  },
+                                  "required": ["fromMinutes", "perMinuteMicros"]
+                                },
+                                "maxItems": 10,
+                                "default": []
+                              }
+                            },
+                            "required": ["market", "label", "callingCodes", "perMinuteMicros"]
+                          }
+                        },
                         "errors": {
                           "type": "array",
                           "items": {
@@ -25187,7 +25372,7 @@
                           "required": ["added", "removed", "changed"]
                         }
                       },
-                      "required": ["markets", "errors", "diff"]
+                      "required": ["markets", "callingMarkets", "errors", "diff"]
                     }
                   },
                   "required": ["success", "data"]

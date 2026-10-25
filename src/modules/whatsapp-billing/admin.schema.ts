@@ -37,7 +37,7 @@ export const RateCardKindQuery = z.object({
 export const SaveRateCardBody = z
   .object({
     /** `calling` saves `callingMarkets` (Phase 12); default `messaging` saves `markets`. */
-    kind: z.enum(['messaging', 'calling']).default('messaging'),
+    kind: z.enum(['messaging', 'calling']).optional(),
     markets: z.array(RateCardMarketBody).min(1).max(300).optional(),
     callingMarkets: z.array(CallingRateMarketBody).min(1).max(300).optional(),
     effectiveFrom: z.iso.datetime({ offset: true }).optional(),
@@ -45,11 +45,12 @@ export const SaveRateCardBody = z
     note: z.string().trim().max(300).nullable().optional(),
   })
   .superRefine((b, ctx) => {
-    const field = b.kind === 'calling' ? 'callingMarkets' : 'markets';
-    const other = b.kind === 'calling' ? 'markets' : 'callingMarkets';
+    const kind = b.kind ?? 'messaging';
+    const field = kind === 'calling' ? 'callingMarkets' : 'markets';
+    const other = kind === 'calling' ? 'markets' : 'callingMarkets';
     if (!b[field]) ctx.addIssue({ code: 'custom', path: [field], message: 'Required' });
     if (b[other])
-      ctx.addIssue({ code: 'custom', path: [other], message: `Not used on ${b.kind} cards` });
+      ctx.addIssue({ code: 'custom', path: [other], message: `Not used on ${kind} cards` });
   })
   .openapi('WhatsAppRateCardSave');
 

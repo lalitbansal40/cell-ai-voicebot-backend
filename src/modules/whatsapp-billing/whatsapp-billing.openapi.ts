@@ -4,7 +4,9 @@ import { z } from '../../shared/openapi/zod';
 
 import {
   BillingSettingsBody,
+  CallingRateMarketBody,
   MonthQuery,
+  RateCardKindQuery,
   RateCardMarketBody,
   SaveRateCardBody,
 } from './admin.schema';
@@ -39,7 +41,10 @@ const card = z.object({
   source: z.enum(['meta_csv', 'manual']),
   note: z.string().nullable(),
   createdAt: z.string(),
+  /** `messaging` cards fill `markets`, `calling` cards `callingMarkets` (Phase 12). */
+  kind: z.enum(['messaging', 'calling']),
   markets: z.array(market),
+  callingMarkets: z.array(CallingRateMarketBody),
 });
 
 registry.registerPath({
@@ -47,8 +52,9 @@ registry.registerPath({
   path: '/api/v1/admin/whatsapp-rates',
   tags: adminTags,
   summary:
-    "Meta's WhatsApp rate card in force, scheduled ones and history (platform.billing.manage)",
+    "Meta's WhatsApp rate card in force, scheduled ones and history (platform.billing.manage); `kind=calling` for the per-minute calling cards",
   security: bearer,
+  request: { query: RateCardKindQuery },
   responses: {
     200: ok(
       z.object({
@@ -76,6 +82,7 @@ registry.registerPath({
     "Preview Meta's INR rate card CSV (multipart `file`, ≤ 2 MB): markets, row errors, diff — nothing saved",
   security: bearer,
   request: {
+    query: RateCardKindQuery,
     body: {
       content: {
         'multipart/form-data': {
@@ -88,6 +95,7 @@ registry.registerPath({
     200: ok(
       z.object({
         markets: z.array(market),
+        callingMarkets: z.array(CallingRateMarketBody),
         errors: z.array(z.object({ row: z.number(), message: z.string() })),
         diff: z
           .object({

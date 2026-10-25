@@ -64,12 +64,14 @@ const auditPlatform = async (
 
 const cardView = (c: WhatsAppRateCardDoc) => ({
   id: c._id.toString(),
+  kind: 'messaging' as const,
   effectiveFrom: c.effectiveFrom.toISOString(),
   currency: c.currency,
   source: c.source,
   note: c.note,
   createdAt: c.createdAt.toISOString(),
   markets: c.markets,
+  callingMarkets: [],
 });
 
 /* ── rate cards ──────────────────────────────────────────────────────────── */
@@ -100,6 +102,7 @@ export const previewRateCardImport = async (bytes: Buffer) => {
   const current = await effectiveWhatsAppRateCard();
   return {
     markets: parsed.markets,
+    callingMarkets: [],
     errors: parsed.errors,
     diff: parsed.errors.length ? null : diffRateCards(current.markets, parsed.markets),
   };
@@ -154,6 +157,7 @@ const callingCardView = (c: WhatsAppRateCardDoc) => ({
   source: c.source,
   note: c.note,
   createdAt: c.createdAt.toISOString(),
+  markets: [],
   callingMarkets: c.callingMarkets,
 });
 
@@ -182,6 +186,7 @@ export const previewCallingRateCardImport = async (bytes: Buffer) => {
   const parsed = parseCallingRateCsv(bytes);
   const current = await effectiveCallingCard();
   return {
+    markets: [],
     callingMarkets: parsed.markets,
     errors: parsed.errors,
     diff: parsed.errors.length ? null : diffCallingCards(current.markets, parsed.markets),
