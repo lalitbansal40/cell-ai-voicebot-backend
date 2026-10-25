@@ -22,12 +22,14 @@ export const PRICE_CATEGORIES = [
 export type PriceCategory = (typeof PRICE_CATEGORIES)[number];
 
 /** The market of an E.164 number: the longest matching calling code, else `OTHER`. */
-export const marketFor = (
+export const marketFor = <
+  M extends Pick<RateCardMarket, 'market' | 'callingCodes'> = RateCardMarket,
+>(
   phoneE164: string,
-  markets: readonly RateCardMarket[],
-): RateCardMarket => {
+  markets: readonly M[],
+): M => {
   const digits = phoneE164.replace(/\D/g, '');
-  let best: { market: RateCardMarket; length: number } | null = null;
+  let best: { market: M; length: number } | null = null;
   for (const m of markets) {
     for (const code of m.callingCodes) {
       if (digits.startsWith(code) && (!best || code.length > best.length)) {

@@ -105,6 +105,9 @@ export class CallManager {
   private readonly endRequested = new Set<string>();
   /** Phase 12: routes hangups between processes (`attachBus`). */
   private bus: CallControlBus | null = null;
+  /** Phase 12: the agent's media socket of a WhatsApp call goes to the calling module. */
+  private whatsappAttach:
+    ((input: MediaAttachInput, leg: CallLeg) => Promise<AttachResult>) | null = null;
 
   constructor(private readonly deps: CallManagerDeps) {
     this.clock = deps.clock ?? systemClock;
@@ -392,6 +395,11 @@ export class CallManager {
     return { callId, ended };
   }
 
+  /** Phase 12: who takes the agent's socket of a WhatsApp call. */
+  setWhatsAppAttach(fn: (input: MediaAttachInput, leg: CallLeg) => Promise<AttachResult>): void {
+    this.whatsappAttach = fn;
+  }
+
   /** Media server hook: the call's socket arrived. */
   attach = async (input: MediaAttachInput, leg: CallLeg): Promise<AttachResult> => {
     if (!Types.ObjectId.isValid(input.callId))
@@ -401,6 +409,11 @@ export class CallManager {
       accountId: input.accountId,
     }).lean<CallDoc>();
     if (!call) return { ok: false, code: MEDIA_CLOSE.callEnded, reason: 'unknown call' };
+    if (call.provider === 'whatsapp') {
+      return this.whatsappAttach
+        ? this.whatsappAttach(input, leg)
+        : { ok: false, code: MEDIA_CLOSE.callEnded, reason: 'call not on this server' };
+    }
     if (call.startedBy?.toString() !== input.userId)
       return { ok: false, code: MEDIA_CLOSE.forbidden, reason: 'not your call' };
     if (call.status !== 'queued' || this.sessions.has(input.callId)) {

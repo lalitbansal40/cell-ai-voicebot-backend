@@ -20,7 +20,8 @@ export type CallStatus =
 
 export interface WsEventMap {
   'call.created': { callId: string; isTest: boolean; campaignId?: string };
-  'call.status': { callId: string; status: CallStatus };
+  /** `provider` (Phase 12) tells WhatsApp calls apart (`whatsapp`). */
+  'call.status': { callId: string; status: CallStatus; provider?: string };
   'call.transcript': {
     callId: string;
     seq: number;
@@ -34,6 +35,7 @@ export interface WsEventMap {
     callId: string;
     /** Campaign calls only. */
     campaignId?: string;
+    provider?: string;
     status: CallStatus;
     endReason: string | null;
     durationSec: number;

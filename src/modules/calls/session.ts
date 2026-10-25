@@ -126,6 +126,11 @@ export interface SessionDeps {
    * timeout; timers, heartbeat and the wallet check still run.
    */
   media?: 'audio' | 'none';
+  /**
+   * No answer this long after `start` → the call ends (Phase 12: WhatsApp calls ring
+   * longer than a browser takes to connect). Default `readyTimeoutSec` / `media_timeout`.
+   */
+  answerTimeout?: { sec: number; reason: CallEndReason };
   onEnded?: (summary: CallEndedSummary) => void;
 }
 
@@ -196,10 +201,14 @@ export class CallSession {
       if (ms !== null) this.event('latency', { ms });
     });
     await this.setStatus('ringing', { 'timestamps.ringingAt': new Date(clock.now()) });
+    const answerTimeout = this.deps.answerTimeout ?? {
+      sec: CALL_LIMITS.readyTimeoutSec,
+      reason: 'media_timeout' as const,
+    };
     this.timers.push(
       clock.setTimeout(() => {
-        if (this.answeredAt === null) void this.end('media_timeout');
-      }, CALL_LIMITS.readyTimeoutSec * 1000),
+        if (this.answeredAt === null) void this.end(answerTimeout.reason);
+      }, answerTimeout.sec * 1000),
     );
   }
 
@@ -601,9 +610,14 @@ export class CallSession {
       disposition: result.disposition,
       outcome: result.outcome,
     };
-    notifyAccount(this.accountId, 'call.status', { callId: this.callId, status });
+    notifyAccount(this.accountId, 'call.status', {
+      callId: this.callId,
+      status,
+      provider: this.deps.call.provider,
+    });
     notifyAccount(this.accountId, 'call.ended', {
       callId: this.callId,
+      provider: this.deps.call.provider,
       ...(this.deps.call.campaignId ? { campaignId: this.deps.call.campaignId.toString() } : {}),
       status,
       endReason: reason,

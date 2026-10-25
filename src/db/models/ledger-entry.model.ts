@@ -147,6 +147,9 @@ const schema = new Schema<LedgerEntryDoc>({
         platformFeeMicros: { type: Number, min: 0, validate: Number.isSafeInteger },
         waPricingType: { type: String, maxlength: 40 },
         waConversationId: { type: String, maxlength: 24 },
+        // Phase 12: WhatsApp calls
+        waPulses: { type: Number, min: 0 },
+        waPerMinuteMicros: { type: Number, min: 0 },
       },
       { _id: false },
     ),

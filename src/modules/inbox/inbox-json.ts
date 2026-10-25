@@ -101,6 +101,16 @@ export const toMessageView = (
         referral: m.context.referral,
       }
     : null,
+  /** Phase 12: the WhatsApp call bubble. */
+  call: m.call
+    ? {
+        callId: m.call.callId.toString(),
+        direction: m.call.direction,
+        outcome: m.call.outcome,
+        durationSec: m.call.durationSec,
+        mode: m.call.mode,
+      }
+    : null,
   replyTo: extra.replyTo ?? null,
   reactions: m.reactions.map((r) => ({ emoji: r.emoji, by: r.by, at: r.at.toISOString() })),
   order: m.order,

@@ -5761,6 +5761,21 @@
             },
             "required": ["replyToMessageId", "forwarded", "frequentlyForwarded", "referral"]
           },
+          "call": {
+            "type": ["object", "null"],
+            "properties": {
+              "callId": { "type": "string" },
+              "direction": { "type": "string", "enum": ["in", "out"] },
+              "outcome": {
+                "type": "string",
+                "enum": ["missed", "completed", "rejected", "failed", "no_answer"]
+              },
+              "durationSec": { "type": "number" },
+              "mode": { "type": "string", "enum": ["ai", "human"] }
+            },
+            "required": ["callId", "direction", "outcome", "durationSec", "mode"],
+            "description": "Phase 12: the WhatsApp call bubble (`type: call`)"
+          },
           "replyTo": {
             "type": ["object", "null"],
             "properties": {
@@ -5922,6 +5937,7 @@
           "interactive",
           "reaction",
           "context",
+          "call",
           "replyTo",
           "reactions",
           "order",

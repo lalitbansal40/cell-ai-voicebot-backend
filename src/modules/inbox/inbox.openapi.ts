@@ -125,6 +125,16 @@ export const InboxMessageSchema = registry.register(
           .nullable(),
       })
       .nullable(),
+    call: z
+      .object({
+        callId: z.string(),
+        direction: z.enum(['in', 'out']),
+        outcome: z.enum(['missed', 'completed', 'rejected', 'failed', 'no_answer']),
+        durationSec: z.number(),
+        mode: z.enum(['ai', 'human']),
+      })
+      .nullable()
+      .openapi({ description: 'Phase 12: the WhatsApp call bubble (`type: call`)' }),
     replyTo: z
       .object({
         id: z.string(),

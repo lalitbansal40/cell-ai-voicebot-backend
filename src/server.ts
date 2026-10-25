@@ -63,8 +63,11 @@ import { queueTemplateJobs } from './modules/templates/jobs';
 import type { CallsFastPathEvent } from './modules/whatsapp/context';
 import { connectFakeStatusWebhooks } from './modules/whatsapp/fake-statuses';
 import { queueWhatsAppJobs } from './modules/whatsapp/jobs';
+import { createWhatsAppService } from './modules/whatsapp/whatsapp.service';
+import { createWhatsAppBillingHook } from './modules/whatsapp-billing/billing-hook';
 import { CallControlBus } from './modules/whatsapp-calling/bus';
 import { queueCallingJobs } from './modules/whatsapp-calling/jobs';
+import { createCallingRuntime } from './modules/whatsapp-calling/runtime';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
 
@@ -162,28 +165,31 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   logger.info({ provider: voice.name, pipeline: voice.ai.pipeline }, 'voice: providers ready');
   // dry-run calls (Phase 8): always the fake voice + fake AI (no spend), TTS without the cache
   const dryRun = createDryRunPrograms({ env, storage, redis });
+  const callTts = new TtsCache({ tts: voice.tts, storage });
+  // the programs of AI calls (web, phone and — Phase 12 — WhatsApp)
+  const scriptFor = createScriptFactory({
+    env,
+    secretKey: secretBoxKey(env),
+    provider: aiProvider,
+    stt: voice.stt,
+    storage,
+    redis,
+    controller: new AiVoiceController({
+      voice: voice.ai,
+      ai: aiProvider,
+      embeddingModel: env.OPENAI_EMBEDDING_MODEL,
+      secretKey: secretBoxKey(env),
+      http: { policy: outgoingPolicy(env) },
+    }),
+  });
   const callManager = new CallManager({
     logger,
     registry: callRegistry,
     dryRun,
-    tts: new TtsCache({ tts: voice.tts, storage }),
+    tts: callTts,
     storage,
     recordingDir: env.CALL_RECORDING_TMP_DIR,
-    scriptFor: createScriptFactory({
-      env,
-      secretKey: secretBoxKey(env),
-      provider: aiProvider,
-      stt: voice.stt,
-      storage,
-      redis,
-      controller: new AiVoiceController({
-        voice: voice.ai,
-        ai: aiProvider,
-        embeddingModel: env.OPENAI_EMBEDDING_MODEL,
-        secretKey: secretBoxKey(env),
-        http: { policy: outgoingPolicy(env) },
-      }),
-    }),
+    scriptFor,
   });
   // Phase 12: call-control bus — cross-process hangups (every provider) and the
   // owner of each WhatsApp call's media; its own subscriber connection
@@ -223,6 +229,35 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
         templateSyncRateLimitStore: createRedisRateLimitStore(redis, 'rl:template-sync:'),
       }
     : undefined;
+  // Phase 12: WhatsApp calling (settings, permissions, calls with media in this process)
+  const calling =
+    whatsapp && whatsappQueue
+      ? createCallingRuntime({
+          ctx: whatsapp.ctx,
+          service: createWhatsAppService(whatsapp.ctx),
+          inbox: {
+            wa: whatsapp.ctx,
+            storage,
+            jobs: whatsapp.inboxJobs,
+            billing: createWhatsAppBillingHook(),
+            templateJobs: whatsapp.templateJobs,
+          },
+          bus: callBus,
+          calls: {
+            logger,
+            registry: callRegistry,
+            tts: callTts,
+            storage,
+            recordingDir: env.CALL_RECORDING_TMP_DIR,
+            scriptFor,
+          },
+        })
+      : null;
+  if (calling?.calls) {
+    const calls = calling.calls;
+    callManager.setWhatsAppAttach((input, leg) => calls.attachAgent(input, leg));
+    lifecycle.onShutdown('whatsapp-calls', () => calls.shutdown(), 5);
+  }
   if (whatsapp) {
     logger.info({ provider: whatsapp.ctx.meta.provider }, 'whatsapp: meta provider ready');
     // fake provider: auto status webhooks through the real receiver (Phase 10)
@@ -301,6 +336,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
         ...queueDeps,
         ctx: whatsapp.ctx,
         storage,
+        ...(calling ? { calling } : {}),
       });
       lifecycle.onShutdown('whatsapp', () => whatsappWorker.close(), 6);
     }

@@ -89,6 +89,7 @@ export class WhatsAppCallLeg implements CallLeg {
   private answeredFlag = false;
   private ended = false;
   private closing: Promise<void> | null = null;
+  private metaEnded = false;
   private jitter: ReceivedPacket[] = [];
   private nextSeq: number | null = null;
   private expected = 0;
@@ -171,6 +172,14 @@ export class WhatsAppCallLeg implements CallLeg {
     this.status('answered');
   }
 
+  /**
+   * Meta ended / refused the call (terminate webhook, REJECTED): our hangup that follows
+   * closes the media only — no terminate back. No status event (the caller ends the session).
+   */
+  endedByMeta(): void {
+    this.metaEnded = true;
+  }
+
   /** Meta ended the call (terminate webhook / REJECTED): no terminate back. */
   remoteEnded(cause: HangupCause): void {
     this.finish(cause, { terminate: false });
@@ -221,7 +230,7 @@ export class WhatsAppCallLeg implements CallLeg {
     this.ended = true;
     this.stopMedia();
     this.closing = (async () => {
-      await this.signaling.terminate().catch(() => undefined);
+      if (!this.metaEnded) await this.signaling.terminate().catch(() => undefined);
       await this.peer.close();
       this.release();
     })();

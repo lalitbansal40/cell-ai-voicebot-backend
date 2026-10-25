@@ -925,6 +925,260 @@ export const chargeWhatsAppLate = async (input: {
   });
 };
 
+// ──────────────────────── WhatsApp calls (Phase 12) ────────────────────────
+
+/** The root row of a WhatsApp call hold (never a Phase 7 call hold or a message hold). */
+export const loadWhatsAppCallHold = async (
+  accountId: Types.ObjectId | string,
+  holdId: Types.ObjectId | string,
+  session?: ClientSession,
+): Promise<{ root: LedgerEntryDoc; held: LedgerEntryDoc[] }> => {
+  const acc = oid(accountId);
+  const id = oid(holdId);
+  const q = LedgerEntryModel.findOne({ _id: id, accountId: acc, holdId: null });
+  if (session) q.session(session);
+  const root = await q.lean<LedgerEntryDoc>();
+  if (
+    root?.type !== 'whatsapp_call_charge' ||
+    root.direction !== 'debit' ||
+    root.status === 'captured'
+  ) {
+    throw new NotFoundError('Hold not found');
+  }
+  const rows = LedgerEntryModel.find({
+    accountId: acc,
+    status: 'held',
+    $or: [{ _id: id }, { holdId: id }],
+  });
+  if (session) rows.session(session);
+  return { root, held: await rows.lean<LedgerEntryDoc[]>() };
+};
+
+/**
+ * Reserves `holdMinutes` of a business-initiated WhatsApp call at dial (credit limit
+ * allowed; calls share the call budget). Key `wa-call-hold-<callId>`.
+ */
+export const holdForWhatsAppCall = async (input: {
+  accountId: Types.ObjectId | string;
+  callId: string;
+  amountMicros: number;
+  breakdown: LedgerBreakdown;
+}): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const amount = assertMicros(input.amountMicros);
+  if (amount <= 0) throw new RangeError('Hold must be positive');
+  const key = `wa-call-hold-${input.callId}`;
+  await getOrCreateWallet(accountId);
+  return raceSafe(accountId, key, async () => {
+    const out = await run(async (session) => {
+      const existing = await findByKey(accountId, key, session);
+      if (existing) return replay(accountId, [existing], session);
+      const month = await accountMonth(accountId, session);
+      const rule = { useCreditLimit: true, budget: 'call' as const, month };
+      const wallet = await updateWallet(
+        accountId,
+        session,
+        moneyPipeline(month, { hold: amount }),
+        canSpend(amount, rule),
+      );
+      if (!wallet) return insufficient(accountId, amount, session, rule);
+      const entry = await insertRow(session, {
+        accountId,
+        type: 'whatsapp_call_charge',
+        direction: 'debit',
+        status: 'held',
+        amountMicros: amount,
+        breakdown: { ...input.breakdown, kind: 'whatsapp_call' },
+        ref: { type: 'call', id: input.callId },
+        idempotencyKey: key,
+      });
+      return {
+        result: { entries: [entry], wallet, replay: false },
+        change: change(accountId, wallet, 0, amount),
+      };
+    });
+    return finish(out);
+  });
+};
+
+/** Adds to a live WhatsApp call's hold (never throws for money: `ok: false` → the call ends). */
+export const extendWhatsAppCallHold = async (input: {
+  accountId: Types.ObjectId | string;
+  holdId: Types.ObjectId | string;
+  callId: string;
+  /** 1, 2, 3 … (`wa-call-extend-<callId>-<n>`). */
+  n: number;
+  amountMicros: number;
+}): Promise<ExtendResult> => {
+  const accountId = oid(input.accountId);
+  const holdId = oid(input.holdId);
+  const amount = assertMicros(input.amountMicros);
+  if (amount <= 0) throw new RangeError('Extension must be positive');
+  const key = `wa-call-extend-${input.callId}-${String(input.n)}`;
+  const { root } = await loadWhatsAppCallHold(accountId, holdId);
+  if (root.status !== 'held') {
+    throw new ConflictError('CONFLICT_INVALID_STATE', 'This hold is already settled or released');
+  }
+  try {
+    const result = await raceSafe(accountId, key, async () => {
+      const out = await run(async (session) => {
+        const existing = await findByKey(accountId, key, session);
+        if (existing) return replay(accountId, [existing], session);
+        const month = await accountMonth(accountId, session);
+        const rule = { useCreditLimit: true, budget: 'call' as const, month };
+        const wallet = await updateWallet(
+          accountId,
+          session,
+          moneyPipeline(month, { hold: amount }),
+          canSpend(amount, rule),
+        );
+        if (!wallet) return insufficient(accountId, amount, session, rule);
+        const entry = await insertRow(session, {
+          accountId,
+          type: 'whatsapp_call_charge',
+          direction: 'debit',
+          status: 'held',
+          amountMicros: amount,
+          ref: root.ref,
+          holdId,
+          idempotencyKey: key,
+        });
+        return {
+          result: { entries: [entry], wallet, replay: false },
+          change: change(accountId, wallet, 0, amount),
+        };
+      });
+      return finish(out);
+    });
+    return { ok: true, ...result };
+  } catch (err) {
+    if (err instanceof AppError && err.code === 'WALLET_INSUFFICIENT_BALANCE') {
+      return {
+        ok: false,
+        reason: 'insufficient',
+        availableMicros: err.details?.[0]?.availableMicros ?? 0,
+      };
+    }
+    if (err instanceof AppError && err.code === 'WALLET_BUDGET_EXCEEDED') {
+      const wallet = await getOrCreateWallet(accountId);
+      return {
+        ok: false,
+        reason: 'budget',
+        availableMicros: Math.max(availableMicros(snapshot(wallet)), 0),
+      };
+    }
+    throw err;
+  }
+};
+
+/**
+ * Ends a WhatsApp call's money: every held row goes back and the real charge (pulses
+ * from Meta's `duration`) is captured — may exceed the hold (balance can go below 0,
+ * Meta billed us). 0 → only the release. Key `wa-call-settle-<callId>`.
+ */
+export const settleWhatsAppCall = async (input: {
+  accountId: Types.ObjectId | string;
+  holdId: Types.ObjectId | string;
+  callId: string;
+  amountMicros: number;
+  breakdown: LedgerBreakdown;
+  note?: string | null;
+}): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const holdId = oid(input.holdId);
+  const amount = assertMicros(input.amountMicros);
+  if (amount < 0) throw new RangeError('Charge must not be negative');
+  const key = `wa-call-settle-${input.callId}`;
+  return raceSafe(accountId, key, async () => {
+    const out = await run(async (session) => {
+      const existing = await findByKey(accountId, key, session);
+      if (existing) return replay(accountId, [existing], session);
+      const { root, held } = await loadWhatsAppCallHold(accountId, holdId, session);
+      if (root.status === 'released') {
+        if (root.releaseReason === SETTLED) return replay(accountId, [], session);
+        throw new ConflictError(
+          'CONFLICT_INVALID_STATE',
+          'This hold was released without a charge',
+        );
+      }
+      const holdTotal = held.reduce((sum, r) => sum + r.amountMicros, 0);
+      await releaseRows(
+        held.map((r) => r._id),
+        SETTLED,
+        session,
+      );
+      const month = await accountMonth(accountId, session);
+      const wallet = await updateWallet(
+        accountId,
+        session,
+        moneyPipeline(month, { balance: -amount, hold: -holdTotal, call: amount }),
+      );
+      if (!wallet) throw new NotFoundError('Wallet not found');
+      assertMicros(wallet.balanceMicros, { allowNegative: true });
+      const entries: LedgerEntryDoc[] = [];
+      if (amount > 0) {
+        entries.push(
+          await insertRow(session, {
+            accountId,
+            type: 'whatsapp_call_charge',
+            direction: 'debit',
+            status: 'captured',
+            amountMicros: amount,
+            balanceAfterMicros: wallet.balanceMicros,
+            breakdown: { ...input.breakdown, kind: 'whatsapp_call' },
+            ref: root.ref,
+            holdId,
+            idempotencyKey: key,
+            note: input.note ?? null,
+          }),
+        );
+      }
+      if (amount > holdTotal) {
+        getLogger().warn(
+          {
+            accountId: accountId.toString(),
+            holdId: holdId.toString(),
+            overrunMicros: amount - holdTotal,
+          },
+          'billing: whatsapp call charge exceeded its hold',
+        );
+      }
+      return {
+        result: { entries, wallet, replay: false },
+        change: change(accountId, wallet, -amount, -holdTotal),
+      };
+    });
+    return finish(out);
+  });
+};
+
+/** A WhatsApp call that cost nothing (never connected / failed): the hold goes back. No-op when done. */
+export const releaseWhatsAppCallHold = async (input: {
+  accountId: Types.ObjectId | string;
+  holdId: Types.ObjectId | string;
+  reason: string;
+}): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const out = await run(async (session) => {
+    const { root, held } = await loadWhatsAppCallHold(accountId, input.holdId, session);
+    if (root.status !== 'held') return replay(accountId, [], session);
+    const total = held.reduce((sum, r) => sum + r.amountMicros, 0);
+    await releaseRows(
+      held.map((r) => r._id),
+      input.reason.slice(0, 60),
+      session,
+    );
+    const month = await accountMonth(accountId, session);
+    const wallet = await updateWallet(accountId, session, moneyPipeline(month, { hold: -total }));
+    if (!wallet) throw new NotFoundError('Wallet not found');
+    return {
+      result: { entries: [], wallet, replay: false },
+      change: change(accountId, wallet, 0, -total),
+    };
+  });
+  return finish(out);
+};
+
 export interface AdjustInput {
   accountId: Types.ObjectId | string;
   direction: 'credit' | 'debit';

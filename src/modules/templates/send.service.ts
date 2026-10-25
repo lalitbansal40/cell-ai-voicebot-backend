@@ -235,6 +235,9 @@ export const templatePayloadFor = (
         buttons.push({ subType: 'quick_reply', index, payload: quickReplyPayload(t._id, index) });
       } else if (type === 'URL' && values.has(`button_${String(index)}`)) {
         buttons.push({ subType: 'url', index, text: values.get(`button_${String(index)}`) ?? '' });
+      } else if (type === 'VOICE_CALL') {
+        // Phase 12: the call this button starts comes back with `cta_payload` = the template
+        buttons.push({ subType: 'voice_call', payload: `tpl_${t._id.toString()}` });
       } else if (type === 'COPY_CODE') {
         buttons.push({
           subType: 'copy_code',

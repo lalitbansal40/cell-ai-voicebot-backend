@@ -57,18 +57,16 @@ import {
   PERMISSION_SWEEP_JOB_ID,
   type CallingSettingsSyncJobData,
 } from '../../../modules/whatsapp-calling/jobs';
+import type { CallPermissionsService } from '../../../modules/whatsapp-calling/permissions.service';
 import {
-  createCallPermissions,
-  type CallPermissionsService,
-} from '../../../modules/whatsapp-calling/permissions.service';
+  createCallingRuntime,
+  type CallingRuntime,
+} from '../../../modules/whatsapp-calling/runtime';
 import {
   createCallingSettings,
   type CallingSettingsService,
 } from '../../../modules/whatsapp-calling/settings.service';
-import {
-  createCallingHooks,
-  createInboxCallingHook,
-} from '../../../modules/whatsapp-calling/webhooks';
+import { createCallingHooks } from '../../../modules/whatsapp-calling/webhooks';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -154,7 +152,12 @@ export const processWhatsAppJob =
 
 /** Starts the `whatsapp` worker + the daily health scheduler (only where `WHATSAPP_ENABLED`). */
 export const startWhatsAppWorker = async (
-  deps: QueueFactoryDeps & { ctx: WhatsAppContext; storage?: StorageProvider },
+  deps: QueueFactoryDeps & {
+    ctx: WhatsAppContext;
+    storage?: StorageProvider;
+    /** Phase 12: the process's calling runtime (the API builds it with the call bus). */
+    calling?: CallingRuntime;
+  },
 ): Promise<{ queue: Queue; worker: Worker }> => {
   const queue = createQueue(QUEUES.whatsapp, deps);
   const ix: InboxContext | undefined = deps.storage
@@ -177,24 +180,21 @@ export const startWhatsAppWorker = async (
     ...(ix ? { inbox: createInboxHooks(ix) } : {}),
     templates: createTemplateHooks(tx),
   };
-  // Phase 12: calling settings + permissions (the inbox hook needs the inbox context)
+  // Phase 12: calling settings + permissions (+ calls where the media runs)
   const service = h.service as WhatsAppService;
-  const settings = createCallingSettings({
-    ctx: deps.ctx,
-    token: (id) => service.getChannelToken(id),
-  });
-  const cx: CallingContext | undefined = ix
-    ? {
-        settings,
-        permissions: createCallPermissions({
-          ctx: deps.ctx,
-          token: (id) => service.getChannelToken(id),
-          inbox: ix,
-        }),
-      }
+  const runtime =
+    deps.calling ?? (ix ? createCallingRuntime({ ctx: deps.ctx, service, inbox: ix }) : null);
+  const cx: CallingContext | undefined = runtime
+    ? { settings: runtime.settings, permissions: runtime.permissions }
     : undefined;
-  h.calling = createCallingHooks({ settings });
-  if (ix && cx) ix.calling = createInboxCallingHook(cx.permissions);
+  h.calling =
+    runtime?.hooks ??
+    createCallingHooks({
+      settings: createCallingSettings({
+        ctx: deps.ctx,
+        token: (id) => service.getChannelToken(id),
+      }),
+    });
   const worker = createWorker(QUEUES.whatsapp, processWhatsAppJob(h, ix, tx, cx), {
     ...deps,
     concurrency: WHATSAPP_LIMITS.workerConcurrency,

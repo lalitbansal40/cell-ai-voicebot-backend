@@ -190,6 +190,8 @@ describe('startServer (e2e)', () => {
     // cancelled before the calls / worker hooks
     expect(hooks).toEqual([
       'campaigns',
+      // Phase 12: live WhatsApp calls end politely (Meta terminate) before the fake stops
+      'whatsapp-calls',
       'fake-meta-statuses',
       // Phase 12: the fake customers' WebRTC peers hang up with the status timers
       'fake-meta-calls',

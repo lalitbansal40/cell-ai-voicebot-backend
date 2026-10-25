@@ -34,6 +34,7 @@ export type NewMessage = NormalizedContent &
       | 'statusHistory'
       | 'template'
       | 'billing'
+      | 'call'
     >
   >;
 
