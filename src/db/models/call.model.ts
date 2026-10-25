@@ -92,6 +92,10 @@ export interface CallWhatsAppBilling {
   markupMicros: number;
   platformFeeMicros: number;
   status: WaCallBillingStatus;
+  /** Which talk time was charged: Meta's terminate `duration` or ours (Meta's came late). */
+  durationSource: 'meta' | 'ours' | null;
+  /** Reconcile: Meta's pulses when its duration arrived after we charged ours (no money moves). */
+  metaLatePulses: number | null;
 }
 
 export interface CallSource {
@@ -276,6 +280,8 @@ const whatsappBillingSchema = new Schema<CallWhatsAppBilling>(
     markupMicros: { type: Number, default: 0, min: 0 },
     platformFeeMicros: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: WA_CALL_BILLING_STATUSES, required: true },
+    durationSource: { type: String, enum: ['meta', 'ours', null], default: null },
+    metaLatePulses: { type: Number, default: null, min: 0 },
   },
   { _id: false },
 );

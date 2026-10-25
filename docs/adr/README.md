@@ -44,3 +44,4 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0038 | [WhatsApp inbox: conversations, messages, statuses, media, window, voice notes, retention](0038-whatsapp-inbox.md)                                              | accepted |
 | 0039 | [WhatsApp templates + message charges: Meta as the source of truth, billed on `pricing.billable`, price fixed at send, INR](0039-whatsapp-templates-billing.md) | accepted |
 | 0040 | [WhatsApp call media: werift in our process, Opus via opusscript (WASM), the Phase 7 resampler](0040-whatsapp-call-media.md)                                    | accepted |
+| 0041 | [WhatsApp calling: Meta permission first, the Phase 7 session, a Redis call-control bus, pulse billing on Meta duration](0041-whatsapp-calling.md)              | accepted |

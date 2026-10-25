@@ -97,6 +97,13 @@ export const RateCardViewSchema = registry.register(
         }),
       ),
     }),
+    whatsappCalling: z.object({
+      payer: z.enum(['platform', 'customer']),
+      pulseSec: z.number(),
+      markets: z.array(
+        z.object({ market: z.string(), label: z.string(), perMinuteMicros: z.number() }),
+      ),
+    }),
   }),
 );
 

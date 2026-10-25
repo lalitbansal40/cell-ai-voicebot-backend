@@ -157,6 +157,12 @@ export interface FakeCalling {
   ): Promise<{ waCallId: string }>;
   userHangup(waCallId: string): Promise<boolean>;
   userDtmf(waCallId: string, digits: string): Promise<boolean>;
+  /** Simulator: the customer answers the last permission request (reply webhook). */
+  userPermissionReply(
+    phoneNumberId: string,
+    waId: string,
+    response: 'accept' | 'permanent' | 'reject',
+  ): Promise<void>;
   /** Simulator: sets the customer's permission at Meta (`permission_*` kinds). */
   setPermission(
     phoneNumberId: string,
@@ -199,6 +205,8 @@ const callKindOf = (payload: MetaMessagePayload): 'permission_request' | 'voice_
 export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
   const { redis, key, track, fail } = deps;
   const users = new Map<string, FakeWaUser>();
+  /** Last permission request per number × customer (the reply's `context.id`). */
+  const lastRequests = new Map<string, string>();
   const timers = new Set<NodeJS.Timeout>();
   let stopped = false;
 
@@ -770,6 +778,8 @@ export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
     afterSend(phone, payload, waMessageId) {
       if (callKindOf(payload) !== 'permission_request') return;
       const waId = digits(payload.to);
+      lastRequests.set(`${phone.phoneNumberId}:${waId}`, waMessageId);
+      if (lastRequests.size > 1_000) lastRequests.delete(lastRequests.keys().next().value ?? '');
       const k = FAKE_CALL_KNOBS;
       if (waId.endsWith(k.permissionTemporary) || waId.endsWith(k.permissionPermanent)) {
         later(delay(2), () =>
@@ -851,6 +861,24 @@ export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
       if (!c || c.state === 'ended') return false;
       await end(c, 'COMPLETED');
       return true;
+    },
+
+    async userPermissionReply(phoneNumberId, waIdRaw, response) {
+      const phone = await deps.phoneById(phoneNumberId);
+      if (!phone) throw fail(400, 100, 'Unknown phone number');
+      const waId = digits(waIdRaw);
+      const contextId =
+        lastRequests.get(`${phoneNumberId}:${waId}`) ??
+        `wamid.FAKE${randomBytes(12).toString('hex').toUpperCase()}`;
+      if (response !== 'reject') {
+        await grant(phone, waId, response === 'permanent', 'user_action', contextId);
+        return;
+      }
+      await replyWebhook(phone, waId, contextId, {
+        response: 'reject',
+        is_permanent: false,
+        response_source: 'user_action',
+      });
     },
 
     async userDtmf(waCallId, keys) {

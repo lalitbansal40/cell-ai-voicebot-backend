@@ -3597,6 +3597,26 @@
               }
             },
             "required": ["payer", "effectiveFrom", "markets"]
+          },
+          "whatsappCalling": {
+            "type": "object",
+            "properties": {
+              "payer": { "type": "string", "enum": ["platform", "customer"] },
+              "pulseSec": { "type": "number" },
+              "markets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "market": { "type": "string" },
+                    "label": { "type": "string" },
+                    "perMinuteMicros": { "type": "number" }
+                  },
+                  "required": ["market", "label", "perMinuteMicros"]
+                }
+              }
+            },
+            "required": ["payer", "pulseSec", "markets"]
           }
         },
         "required": [
@@ -3610,7 +3630,8 @@
           "embeddingPer1kTokensMicros",
           "source",
           "effectiveFrom",
-          "whatsapp"
+          "whatsapp",
+          "whatsappCalling"
         ]
       },
       "WalletEstimate": {
@@ -6568,7 +6589,24 @@
             },
             "additionalProperties": false
           },
-          "platformFeeMicros": { "type": ["integer", "null"], "minimum": 0, "maximum": 1000000000 }
+          "platformFeeMicros": { "type": ["integer", "null"], "minimum": 0, "maximum": 1000000000 },
+          "calling": {
+            "type": ["object", "null"],
+            "properties": {
+              "markupBps": { "type": ["integer", "null"], "minimum": 0, "maximum": 100000 },
+              "fixedPerMinuteMicros": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "maximum": 1000000000
+              },
+              "platformFeePerMinuteMicros": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "maximum": 1000000000
+              }
+            },
+            "additionalProperties": false
+          }
         },
         "additionalProperties": false
       },
@@ -6661,7 +6699,19 @@
               "run_template_sync",
               "run_hold_reaper",
               "run_whatsapp_reconcile",
-              "late_billable_status"
+              "late_billable_status",
+              "user_call",
+              "user_hangup",
+              "user_dtmf",
+              "permission_reply_accept",
+              "permission_reply_permanent",
+              "permission_reply_reject",
+              "permission_expire",
+              "calling_restricted",
+              "calling_unrestricted",
+              "settings_changed",
+              "call_tier_update",
+              "run_permission_sweep"
             ]
           },
           "from": { "type": "string", "pattern": "^\\+?\\d[\\d\\s-]{5,19}$" },
@@ -6669,9 +6719,20 @@
           "conversationId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
           "days": { "type": "integer", "minimum": 1, "maximum": 3650 },
           "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-          "messageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+          "messageId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "waCallId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "digits": { "type": "string", "pattern": "^[0-9*#]{1,20}$" }
         },
         "required": ["channelId", "kind"],
+        "additionalProperties": false
+      },
+      "WhatsAppSimulatedUserCall": {
+        "type": "object",
+        "properties": {
+          "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+          "from": { "type": "string", "pattern": "^\\+?\\d[\\d\\s-]{5,19}$" }
+        },
+        "required": ["channelId"],
         "additionalProperties": false
       },
       "InboxSendMessage": {
@@ -7067,6 +7128,7 @@
       "WhatsAppRateCardSave": {
         "type": "object",
         "properties": {
+          "kind": { "type": "string", "enum": ["messaging", "calling"], "default": "messaging" },
           "markets": {
             "type": "array",
             "items": {
@@ -7129,18 +7191,64 @@
             "minItems": 1,
             "maxItems": 300
           },
+          "callingMarkets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "market": { "type": "string", "pattern": "^[A-Z_]{2,40}$" },
+                "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+                "callingCodes": {
+                  "type": "array",
+                  "items": { "type": "string", "pattern": "^\\d{1,4}$" },
+                  "maxItems": 50
+                },
+                "perMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                "tiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "fromMinutes": { "type": "integer", "minimum": 0 },
+                      "perMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+                    },
+                    "required": ["fromMinutes", "perMinuteMicros"]
+                  },
+                  "maxItems": 10,
+                  "default": []
+                }
+              },
+              "required": ["market", "label", "callingCodes", "perMinuteMicros"]
+            },
+            "minItems": 1,
+            "maxItems": 300
+          },
           "effectiveFrom": { "type": "string", "format": "date-time" },
           "source": { "type": "string", "enum": ["meta_csv", "manual"] },
           "note": { "type": ["string", "null"], "maxLength": 300 }
         },
-        "required": ["markets", "source"]
+        "required": ["source"]
       },
       "WhatsAppBillingSettingsPatch": {
         "type": "object",
         "properties": {
           "markupBps": { "type": "integer", "minimum": 0, "maximum": 100000 },
           "platformFeeMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
-          "holdMaxAgeHours": { "type": "integer", "minimum": 1, "maximum": 720 }
+          "holdMaxAgeHours": { "type": "integer", "minimum": 1, "maximum": 720 },
+          "calling": {
+            "type": "object",
+            "properties": {
+              "markupBps": { "type": "integer", "minimum": 0, "maximum": 100000 },
+              "platformFeePerMinuteMicros": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000000
+              },
+              "holdMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
+              "holdExtendMinutes": { "type": "integer", "minimum": 1, "maximum": 60 }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "WhatsAppTemplateListItem": {
@@ -22430,6 +22538,74 @@
           },
           "404": {
             "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dev/meta/calls/user-call": {
+      "post": {
+        "tags": ["Dev"],
+        "summary": "DEV ONLY — the fake customer calls the WhatsApp number (the inbound call flow runs for real)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppSimulatedUserCall" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "kind": { "type": "string", "enum": ["user_call"] },
+                        "waCallId": { "type": "string" }
+                      },
+                      "required": ["kind", "waCallId"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

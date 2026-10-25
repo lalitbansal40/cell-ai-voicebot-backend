@@ -311,6 +311,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
             'billing.whatsapp.markupMicros': p.markupMicros,
             'billing.whatsapp.platformFeeMicros': p.platformFeeMicros,
             'billing.whatsapp.status': call.billing.callHold ? 'settled' : 'free',
+            'billing.whatsapp.durationSource': source,
             ...(source === 'meta' ? { 'whatsapp.metaDuration': durationSec } : {}),
           },
           $inc: { 'cost.telephonyMicros': p.totalMicros, 'cost.totalMicros': p.totalMicros },

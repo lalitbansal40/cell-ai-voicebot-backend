@@ -9,13 +9,21 @@ import { requirePermission } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 import { formatRupees } from '../../shared/money';
 
-import { BillingSettingsBody, MonthQuery, SaveRateCardBody } from './admin.schema';
+import {
+  BillingSettingsBody,
+  MonthQuery,
+  RateCardKindQuery,
+  SaveRateCardBody,
+} from './admin.schema';
 import {
   getBillingSettings,
+  listCallingRateCards,
   listRateCards,
   marginReport,
+  previewCallingRateCardImport,
   previewRateCardImport,
   reconciliationReport,
+  saveCallingRateCard,
   saveRateCard,
   updateBillingSettings,
 } from './admin.service';
@@ -50,22 +58,46 @@ export const createWhatsAppBillingAdminRouter = (): Router => {
   const router = Router();
   const manage = requirePermission('platform.billing.manage');
 
-  router.get('/whatsapp-rates', manage, async (_req, res) => {
-    ok(res, await listRateCards());
-  });
+  router.get(
+    '/whatsapp-rates',
+    manage,
+    ...handle({ query: RateCardKindQuery }, async ({ query, res }) => {
+      ok(res, query.kind === 'calling' ? await listCallingRateCards() : await listRateCards());
+    }),
+  );
   router.post('/whatsapp-rates/import', manage, uploadCsv, async (req, res) => {
+    const kind = RateCardKindQuery.safeParse(req.query);
+    if (!kind.success)
+      throw new ValidationError([{ path: 'kind', message: 'messaging or calling' }]);
     if (!req.file)
       throw new ValidationError([{ path: 'file', message: 'Upload one CSV named "file"' }]);
-    ok(res, await previewRateCardImport(req.file.buffer));
+    ok(
+      res,
+      kind.data.kind === 'calling'
+        ? await previewCallingRateCardImport(req.file.buffer)
+        : await previewRateCardImport(req.file.buffer),
+    );
   });
   router.post(
     '/whatsapp-rates',
     manage,
     ...handle({ body: SaveRateCardBody }, async ({ body, req, res }) => {
+      const common = {
+        source: body.source,
+        note: body.note ?? null,
+        ...(body.effectiveFrom ? { effectiveFrom: new Date(body.effectiveFrom) } : {}),
+      };
+      if (body.kind === 'calling') {
+        created(
+          res,
+          await saveCallingRateCard(req, { ...common, callingMarkets: body.callingMarkets ?? [] }),
+        );
+        return;
+      }
       created(
         res,
         await saveRateCard(req, {
-          markets: body.markets,
+          markets: body.markets ?? [],
           source: body.source,
           note: body.note ?? null,
           ...(body.effectiveFrom ? { effectiveFrom: new Date(body.effectiveFrom) } : {}),
@@ -104,6 +136,7 @@ export const createWhatsAppBillingAdminRouter = (): Router => {
       for (const r of rows) {
         csv.write({
           Account: r.accountName,
+          Kind: r.kind,
           Category: r.category,
           Messages: r.messages,
           'Billed (INR)': formatRupees(r.billedMicros).replace(/,/g, ''),

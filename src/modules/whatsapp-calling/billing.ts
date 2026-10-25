@@ -88,6 +88,43 @@ export const quoteCall = async (input: {
   };
 };
 
+/**
+ * What one minute of a business-initiated call costs this account per market (selling
+ * price incl. markup / override / fee — never Meta's cost) for `GET /wallet/rates`.
+ */
+export const callingSellingTable = async (
+  accountId: Types.ObjectId,
+  payer: 'platform' | 'customer',
+) => {
+  const [card, settings, account] = await Promise.all([
+    effectiveCallingCard(),
+    whatsAppCallingSettings(),
+    AccountModel.findById(accountId)
+      .select({ whatsappCallingBilling: 1 })
+      .lean<{ whatsappCallingBilling?: AccountWhatsAppCallingBilling | null }>(),
+  ]);
+  const own = account?.whatsappCallingBilling ?? null;
+  return {
+    payer,
+    pulseSec: WHATSAPP_CALL_LIMITS.pulseSec,
+    markets: card.markets.map((m) => ({
+      market: m.market,
+      label: m.label,
+      perMinuteMicros: callPrice(
+        {
+          perMinuteMicros: m.perMinuteMicros,
+          markupBps: own?.markupBps ?? settings.markupBps,
+          fixedPerMinuteMicros: own?.fixedPerMinuteMicros ?? null,
+          platformFeePerMinuteMicros:
+            own?.platformFeePerMinuteMicros ?? settings.platformFeePerMinuteMicros,
+          payer,
+        },
+        60,
+      ).totalMicros,
+    })),
+  };
+};
+
 /** Ledger breakdown of a call charge (Meta cost / markup / fee are superadmin-only in views). */
 export const callBreakdown = (
   quote: CallQuote,

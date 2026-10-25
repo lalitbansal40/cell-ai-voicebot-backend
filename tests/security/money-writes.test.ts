@@ -59,6 +59,27 @@ describe('money writes (security)', () => {
     expect(outside.map((f) => path.relative(SRC, f))).toEqual([]);
   });
 
+  it('WhatsApp call charges (whatsapp_call_charge) move through the engine only (Phase 12)', () => {
+    const engine = readFileSync(path.join(BILLING_CORE, 'engine.ts'), 'utf8');
+    for (const fn of [
+      'holdForWhatsAppCall',
+      'extendWhatsAppCallHold',
+      'settleWhatsAppCall',
+      'releaseWhatsAppCallHold',
+    ]) {
+      expect(engine).toContain(`export const ${fn}`);
+    }
+    expect(engine.match(/type: 'whatsapp_call_charge'/g)?.length).toBeGreaterThanOrEqual(3);
+    // the seed, dev scripts and calling module read ledger rows, never write them
+    const scripts = ['seed-calls-wa.ts', 'dev-calls-wa.ts', 'dev-calls-wa-full.ts'].map((f) =>
+      path.resolve(__dirname, '../../scripts', f),
+    );
+    const offenders = [...files(path.join(SRC, 'modules/whatsapp-calling')), ...scripts].filter(
+      (f) => WRITE.test(readFileSync(f, 'utf8')),
+    );
+    expect(offenders.map((f) => path.relative(SRC, f))).toEqual([]);
+  });
+
   it('has no float arithmetic in the money core', () => {
     const offenders = [...files(BILLING_CORE), path.join(SRC, 'shared/money.ts')].filter((f) =>
       /parseFloat|toFixed\(|\* ?0\.\d/.test(readFileSync(f, 'utf8')),

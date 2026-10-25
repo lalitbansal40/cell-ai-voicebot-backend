@@ -5,6 +5,7 @@ import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
 import { INBOX_SIMULATOR_KINDS } from '../inbox/simulator-kinds';
 import { TEMPLATE_SIMULATOR_KINDS } from '../templates/simulator-kinds';
+import { CALLING_SIMULATOR_KINDS } from '../whatsapp-calling/simulator-kinds';
 
 import { SIMULATOR_KINDS } from './simulator';
 
@@ -79,6 +80,7 @@ export const ALL_SIMULATOR_KINDS = [
   ...SIMULATOR_KINDS,
   ...INBOX_SIMULATOR_KINDS.filter((k) => !(SIMULATOR_KINDS as readonly string[]).includes(k)),
   ...TEMPLATE_SIMULATOR_KINDS,
+  ...CALLING_SIMULATOR_KINDS,
 ] as const;
 
 export const SimulatorBody = z
@@ -97,5 +99,23 @@ export const SimulatorBody = z
     /** Phase 11 template kinds: our template id; `late_billable_status`: our message id. */
     templateId: ObjectIdSchema.optional(),
     messageId: ObjectIdSchema.optional(),
+    /** Phase 12 calling kinds: the fake call (`user_hangup` / `user_dtmf`) and keys. */
+    waCallId: z.string().trim().min(1).max(128).optional(),
+    digits: z
+      .string()
+      .regex(/^[0-9*#]{1,20}$/)
+      .optional(),
   })
   .openapi('WhatsAppSimulatorInput');
+
+/** `POST /dev/meta/calls/user-call` — the fake customer calls the number. */
+export const SimulatedUserCallBody = z
+  .strictObject({
+    channelId: ObjectIdSchema,
+    from: z
+      .string()
+      .trim()
+      .regex(/^\+?\d[\d\s-]{5,19}$/)
+      .optional(),
+  })
+  .openapi('WhatsAppSimulatedUserCall');

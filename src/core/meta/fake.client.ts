@@ -303,6 +303,12 @@ export interface FakeMetaClient extends MetaClient {
   userHangup(waCallId: string): Promise<boolean>;
   /** The customer presses keys (RFC 4733 on the media). False when not answered. */
   userDtmf(waCallId: string, digits: string): Promise<boolean>;
+  /** Simulator: the customer answers the last permission request (reply webhook). */
+  userPermissionReply(
+    phoneNumberId: string,
+    waId: string,
+    response: 'accept' | 'permanent' | 'reject',
+  ): Promise<void>;
   /** Sets the customer's permission at Meta (simulator). */
   setCallPermission(
     phoneNumberId: string,
@@ -830,6 +836,8 @@ export const createFakeMetaClient = ({
     userCall: (phoneNumberId, waId, options) => calling.userCall(phoneNumberId, waId, options),
     userHangup: (waCallId) => calling.userHangup(waCallId),
     userDtmf: (waCallId, d) => calling.userDtmf(waCallId, d),
+    userPermissionReply: (phoneNumberId, waId, response) =>
+      calling.userPermissionReply(phoneNumberId, waId, response),
     setCallPermission: (phoneNumberId, waId, status, expiresAt) =>
       calling.setPermission(phoneNumberId, waId, status, expiresAt),
     setCallingRestriction: (phoneNumberId, restriction) =>

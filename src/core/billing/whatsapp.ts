@@ -158,14 +158,14 @@ interface ParsedColumns {
   service: number;
 }
 
-const normalizeHeader = (h: string) =>
+export const normalizeHeader = (h: string) =>
   h
     .toLowerCase()
     .replace(/[\s_\-()]/g, '')
     .replace(/inr$/, '');
 
 /** One CSV line → cells (quotes with `""`; no multi-line cells in Meta's file). */
-const cells = (line: string): string[] => {
+export const cells = (line: string): string[] => {
   const out: string[] = [];
   let cur = '';
   let quoted = false;
@@ -195,7 +195,7 @@ export const rateToMicros = (text: string): number | null => {
   return Number(whole) * MONEY_SCALE + Number(fraction.padEnd(6, '0'));
 };
 
-const isEmpty = (v: string | undefined) => !v || /^(-|n\/?a|none)$/i.test(v.trim());
+export const isEmpty = (v: string | undefined) => !v || /^(-|n\/?a|none)$/i.test(v.trim());
 
 export interface CsvParseResult {
   markets: RateCardMarket[];

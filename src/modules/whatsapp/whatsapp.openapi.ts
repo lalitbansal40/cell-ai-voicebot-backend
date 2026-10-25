@@ -28,6 +28,7 @@ import {
   ManualConnectBody,
   RegisterPinBody,
   RenameChannelBody,
+  SimulatedUserCallBody,
   SimulatorBody,
   WhatsAppBillingBody,
 } from './whatsapp.schema';
@@ -507,6 +508,24 @@ registry.registerPath({
     401: errors[401],
     403: errors[403],
     404: errors[404],
+    422: errors[422],
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/dev/meta/calls/user-call',
+  tags: ['Dev'],
+  summary:
+    'DEV ONLY — the fake customer calls the WhatsApp number (the inbound call flow runs for real)',
+  security: bearer,
+  request: json(SimulatedUserCallBody),
+  responses: {
+    200: ok(z.object({ kind: z.literal('user_call'), waCallId: z.string() })),
+    401: errors[401],
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
     422: errors[422],
   },
 });

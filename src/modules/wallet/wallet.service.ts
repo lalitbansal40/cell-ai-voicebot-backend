@@ -11,6 +11,7 @@ import type { WalletDoc } from '../../db/models/wallet.model';
 import { tenantFilter } from '../../shared/auth/tenant';
 import { auditRequest } from '../audit/audit.service';
 import { sellingPriceTable } from '../whatsapp-billing/pricing.service';
+import { callingSellingTable } from '../whatsapp-calling/billing';
 
 import type { EstimateBody, WalletSettingsBody } from './wallet.schema';
 
@@ -121,6 +122,11 @@ export const getRates = async (req: Request) => {
     effectiveFrom: card.effectiveFrom.toISOString(),
     // Phase 11: what one WhatsApp message costs this account (selling prices only)
     whatsapp: await sellingPriceTable(accountId, account?.whatsapp?.metaPayer ?? 'platform'),
+    // Phase 12: one minute of a business-initiated WhatsApp call (selling price)
+    whatsappCalling: await callingSellingTable(
+      accountId,
+      account?.whatsapp?.metaPayer ?? 'platform',
+    ),
   };
 };
 

@@ -59,9 +59,10 @@ describe('inbox simulator — every kind through the real pipeline', () => {
     queued.length = 0;
   });
 
-  it('kind lists: 29 inbox kinds, 44 in total', () => {
+  it('kind lists: 29 inbox kinds, 70 in total', () => {
     expect(INBOX_SIMULATOR_KINDS).toHaveLength(29);
-    expect(ALL_SIMULATOR_KINDS).toHaveLength(58); // 16 + 29 − 1 shared + 14 template / billing (Phase 11)
+    // 16 + 29 − 1 shared + 14 template / billing (Phase 11) + 12 calling (Phase 12)
+    expect(ALL_SIMULATOR_KINDS).toHaveLength(70);
     expect(isInboxSimulatorKind('inbound_voice')).toBe(true);
     expect(isInboxSimulatorKind('quality_downgrade')).toBe(false);
   });

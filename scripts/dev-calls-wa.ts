@@ -4,7 +4,8 @@
  * business-initiated call to the fake customer `…00028` (answers, presses `1` after
  * 3 s); our `WhatsAppCallLeg` sends the agent tone (1 kHz), the customer sends 440 Hz,
  * then we hang up. Prints numbers only — never SDP, ICE data, phones, names or tokens.
- * Refuses production and the real Meta provider. Later batches add the full API run.
+ * Refuses production and the real Meta provider. Without `--poc`: the full run over
+ * the real server's API (scripts/dev-calls-wa-full.ts, Phase 12 Batch 2).
  */
 import { loadEnv } from '../src/config/env';
 import {
@@ -22,6 +23,8 @@ import { hasTone } from '../src/core/telephony/whatsapp/tones';
 import { tone } from '../src/core/voice/audio/pcm';
 import { createLogger } from '../src/shared/logger';
 
+import { runFull } from './dev-calls-wa-full';
+
 const env = loadEnv();
 if (env.NODE_ENV === 'production') {
   console.error('dev:calls-wa refuses to run in production');
@@ -29,10 +32,6 @@ if (env.NODE_ENV === 'production') {
 }
 if (env.META_PROVIDER !== 'fake' || !env.WHATSAPP_ENABLED) {
   console.error('dev:calls-wa needs WHATSAPP_ENABLED=true and META_PROVIDER=fake');
-  process.exit(1);
-}
-if (!process.argv.includes('--poc')) {
-  console.error('usage: npm run dev:calls-wa -- --poc');
   process.exit(1);
 }
 
@@ -148,10 +147,15 @@ const main = async () => {
   await closeAllRedis();
 };
 
-main().then(
+(process.argv.includes('--poc') ? main() : runFull(env)).then(
   () => process.exit(0),
   (err: unknown) => {
-    console.error('dev:calls-wa failed:', (err as Error).name);
+    // our own messages ("timed out waiting for …") — never request / response bodies
+    console.error(
+      'dev:calls-wa failed:',
+      (err as Error).name,
+      (err as Error).message.slice(0, 120),
+    );
     process.exit(1);
   },
 );

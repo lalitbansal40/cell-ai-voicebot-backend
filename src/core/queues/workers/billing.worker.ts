@@ -3,6 +3,10 @@ import type { Job, Queue, Worker } from 'bullmq';
 import { purgeNotifications } from '../../../modules/notifications/notifications.service';
 import type { WhatsAppContext } from '../../../modules/whatsapp/context';
 import { runWhatsAppReconcile } from '../../../modules/whatsapp-billing/reconcile';
+import {
+  reapWhatsAppCallHolds,
+  reconcileWhatsAppCalls,
+} from '../../../modules/whatsapp-calling/maintenance';
 import { renderInvoice } from '../../billing/invoice-render';
 import {
   BILLING_SCHEDULES,
@@ -48,6 +52,8 @@ export const BILLING_JOB_HANDLERS: BillingJobHandlers = {
   'billing.whatsapp_reap_holds': () => reapWhatsAppHolds(),
   'billing.whatsapp_reconcile': (_data, ctx) =>
     ctx.whatsapp ? runWhatsAppReconcile(ctx.whatsapp) : Promise.resolve({ skipped: true }),
+  'billing.whatsapp_call_reap_holds': () => reapWhatsAppCallHolds(),
+  'billing.whatsapp_call_reconcile': () => reconcileWhatsAppCalls(),
 };
 
 export const processBillingJob =

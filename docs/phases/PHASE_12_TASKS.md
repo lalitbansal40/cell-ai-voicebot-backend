@@ -11,7 +11,7 @@ Plan: [PHASE_12_PLAN.md](PHASE_12_PLAN.md) · Overview: [BUILD_PLAN_V2.md](../pl
 | [x] | T12.5  | Calling settings service + permissions service (request, reply, status API, counters, sweep, streak, restrictions) + webhooks                                | BE   | M    |
 | [x] | T12.6  | Outbound calls: dial guard, provider `whatsapp`, agent leg bridge, AI calls, statuses, end / settle, call bubbles, call button sends                         | BE   | L    |
 | [x] | T12.7  | Inbound calls: claim, routing (team ring / AI / AI → team), answer race, missed calls, call hours, transfer                                                  | BE   | L    |
-| [ ] | T12.8  | Billing (calling rate card, pulses, holds, settle, margin), API + OpenAPI, simulator, seed, `dev:calls-wa`, hardening, ADR 0041, docs, real-device checklist | BE   | M    |
+| [x] | T12.8  | Billing (calling rate card, pulses, holds, settle, margin), API + OpenAPI, simulator, seed, `dev:calls-wa`, hardening, ADR 0041, docs, real-device checklist | BE   | M    |
 | [ ] | T12.9  | FE foundation, number Calling settings, contact panel calling section, permission bubbles                                                                    | FE   | M    |
 | [ ] | T12.10 | FE call experience: Call button, call bar + agent media, incoming popup, Call with AI, availability, call bubbles                                            | FE   | L    |
 | [ ] | T12.11 | FE Calls list / detail, wallet, superadmin calling rates, notifications, dashboard, bundle; Playwright E2E (4 specs, twice)                                  | FE   | L    |

@@ -139,6 +139,13 @@ What the product does today (ADR 0032) — **to be confirmed with the client's C
 - **Charges:** customers see the price before sending; a message is charged only when Meta reports it billable on delivery; GST on wallet recharges is unchanged (Phase 4 §8).
 - **INR billing:** Meta moves Indian businesses to INR by **31 Dec 2026**; numbers we pay Meta for must be on an INR credit line before then (superadmin page lists the others).
 
+## 12. WhatsApp calling (Phase 12)
+
+- **Permission first:** the business calls a customer only after the customer allowed it in WhatsApp (temporary 7 days or permanent) and Meta confirms it at dial; requests are limited (ours: 1 / 24 h, 2 / 7 days; Meta's too) and the request text is the business's own (reviewed by its admin). Four unanswered calls in a row revoke the permission (Meta's rule).
+- **DND / opt-out / window:** DND contacts, opted-out contacts and blocked chats are never called; every business-initiated call respects the account calling window inside TRAI's 09:00–21:00 (agent calls too).
+- **Recording notice:** with recording on (account default), the customer hears the account's recording notice before the agent or the AI speaks; recordings follow the Phase 7 retention.
+- **Charges:** customers see the per-minute selling price in the wallet; a call is charged in 6-second pulses on Meta's measured duration; customer-initiated calls are free at Meta (only AI usage and a configured platform fee apply).
+
 ## Sources
 
 - TRAI Press Release 11/2025 — <https://cms.trai.gov.in/sites/default/files/2025-02/PR_No.11of2025.pdf>

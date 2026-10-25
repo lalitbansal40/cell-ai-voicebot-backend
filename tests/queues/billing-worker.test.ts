@@ -38,6 +38,8 @@ describe('billing worker', () => {
       'billing.expire_orders',
       'billing.reap_holds',
       'billing.reconcile',
+      'billing.whatsapp_call_reap_holds',
+      'billing.whatsapp_call_reconcile',
       'billing.whatsapp_reap_holds',
       'billing.whatsapp_reconcile',
       'invoice.render',
@@ -61,6 +63,8 @@ describe('billing worker', () => {
       'notifications.purge',
       'billing.whatsapp_reap_holds',
       'billing.whatsapp_reconcile',
+      'billing.whatsapp_call_reap_holds',
+      'billing.whatsapp_call_reconcile',
     ]);
     expect(BILLING_SCHEDULES.find((s) => s.name === 'billing.reconcile')?.pattern).toBe(
       '0 21 * * *',

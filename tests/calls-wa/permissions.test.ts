@@ -144,11 +144,14 @@ describe('call permissions', () => {
     expect(row?.lastRequest).toMatchObject({ kind: 'interactive' });
     expect((row?.expiresAt?.getTime() ?? 0) - Date.now()).toBeGreaterThan(6.9 * 86_400_000);
     expect(row?.history.map((h) => h.status)).toEqual(['requested', 'temporary']);
-    // the request bubble shows it was answered; the reply bubble carries the answer
-    const answered = await MessageModel.findById(res.messageId).lean<MessageDoc>();
-    expect(toMessageView(answered!).interactive).toMatchObject({
-      requestState: 'answered',
-      callPermission: { response: 'accept', isPermanent: false },
+    // the request bubble shows it was answered (written right after the row); the reply
+    // bubble carries the answer
+    await vi.waitFor(async () => {
+      const answered = await MessageModel.findById(res.messageId).lean<MessageDoc>();
+      expect(toMessageView(answered!).interactive).toMatchObject({
+        requestState: 'answered',
+        callPermission: { response: 'accept', isPermanent: false },
+      });
     });
     const reply = await MessageModel.findOne({
       'interactive.kind': 'call_permission_reply',

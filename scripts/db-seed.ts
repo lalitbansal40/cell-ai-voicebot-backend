@@ -6,7 +6,8 @@
  * records (scripts/seed-ai.ts), the demo flows (scripts/seed-flows.ts), two finished
  * demo calls run through the real call runtime on fake voice (scripts/seed-calls.ts),
  * a connected fake WhatsApp number with three simulated events (scripts/seed-whatsapp.ts),
- * demo WhatsApp chats on it through the real inbox pipeline (scripts/seed-inbox.ts)
+ * demo WhatsApp chats on it through the real inbox pipeline (scripts/seed-inbox.ts),
+ * WhatsApp calling on that number (scripts/seed-calls-wa.ts)
  * and a platform superadmin. Needs Mongo + Redis (the
  * invoice PDF is rendered by the billing worker of a running dev server).
  * Idempotent; existing users are left as they are.
@@ -31,6 +32,7 @@ import { getLogger } from '../src/shared/logger';
 import { SEED_KB_NAME, seedAi } from './seed-ai';
 import { seedBilling } from './seed-billing';
 import { SEED_CALL_MARKS, seedCalls } from './seed-calls';
+import { seedCallsWa } from './seed-calls-wa';
 import { SEED_CAMPAIGN_NAMES, SEED_CAMPAIGN_SEGMENT, seedCampaigns } from './seed-campaigns';
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
 import { SEED_FLOW_NAMES, seedFlows } from './seed-flows';
@@ -167,6 +169,19 @@ const main = async (): Promise<void> => {
       demoTemplates.skipped
         ? `Templates: skipped (${demoTemplates.skipped})`
         : `Templates: ${String(demoTemplates.templates)} WhatsApp templates, ${String(demoTemplates.charged)} charged template send (fake Meta)`,
+    );
+
+    const demoCallsWa = await seedCallsWa(account._id, {
+      env,
+      ownerId: owner?._id ?? account._id,
+      redis: getAppRedis(env.REDIS_URL, logger),
+      logger,
+      storage: createStorage(env, logger),
+    });
+    console.info(
+      demoCallsWa.skipped
+        ? `WhatsApp calling: skipped (${demoCallsWa.skipped})`
+        : `WhatsApp calling: enabled on the demo number, ${String(demoCallsWa.permissions)} call permissions, ${String(demoCallsWa.calls)} past calls (fake Meta)`,
     );
 
     console.info(

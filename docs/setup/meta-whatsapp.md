@@ -120,3 +120,22 @@ With the real app and a test number, from two phones (Android + iPhone):
 7. Create the call permission template → approved (Phase 12 uses it).
 8. A customer turns off marketing in WhatsApp (Settings → Business → stop offers) → the contact shows "Stopped marketing"; a marketing send is refused, a utility send still goes.
 9. Server logs for the session contain no variable values, rendered texts, phone numbers or names.
+
+## 15. WhatsApp calling (Phase 12)
+
+- **Enable:** a Cloud API number (not coexistence) with a messaging limit of at least **2,000** (Meta's rule); in the app **Number → Calling** switch on calling, set call hours, the inbound route (team / AI / AI → team) and the permission request text. Meta's business-initiated calling is not open in every country — the app explains when it is unavailable.
+- **Webhooks:** subscribe the app to **`calls`** and **`account_settings_update`** (Meta's App Dashboard → WhatsApp → Configuration) in addition to §5.
+- **Media network:** media nodes need public UDP `WA_MEDIA_PORT_MIN–WA_MEDIA_PORT_MAX` (default 40000–40999) open inbound / outbound, `WA_MEDIA_PUBLIC_IP` set when the node is behind NAT, and `WA_STUN_URLS` reachable; `WA_MEDIA_MAX_CALLS` caps calls per process.
+- **Prices:** import Meta's INR calling rate card (**Admin → WhatsApp billing → Calling rates**, CSV `Market, Currency, Per minute`); until then the placeholder card (IN ₹0.3885 / min, OTHER ₹1 / min) applies.
+
+### Real-device checklist
+
+1. Request call permission to a real phone inside the 24 h window → the customer taps Allow → the contact panel shows "Can call · 7 days"; outside the window the approved template goes out.
+2. Business-initiated call by an agent (browser) → the phone rings, two-way audio, hold / unhold, keypad digits reach the phone, hang up from either side.
+3. Business-initiated AI call (agent program) → the customer presses a key → the flow branch runs; the call ends politely.
+4. User-initiated call from the phone with route **team** → every available, online team member sees the incoming call; the first Accept wins, the others see "Taken"; with nobody answering the call becomes missed (bubble + bell).
+5. User-initiated call with route **AI → team** → the AI greets, "talk to a person" rings the team, the agent takes over on the same call and recording.
+6. Recording: the notice plays first; the recording plays back in the call detail with both sides.
+7. Latency: measure mouth-to-ear on both sides (target < 400 ms) and note it in the Phase 13 report.
+8. Charges: Meta's call duration in **WhatsApp Manager → Insights** matches our pulses for the BIC calls (± 1 pulse); the wallet shows the previewed per-minute price.
+9. Server logs for the session contain no SDP lines (`v=0`, `a=candidate`, `a=fingerprint`, `ice-pwd`), phone numbers, names or digits.

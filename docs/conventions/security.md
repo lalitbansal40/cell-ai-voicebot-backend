@@ -97,3 +97,11 @@ Never log prompts, persona text, user / assistant messages, knowledge text, func
 - **Money:** every WhatsApp wallet write goes through the engine (money-writes test); idempotency keys per message (`wa-hold-<clientId>`, `wa-capture-<messageId>`, `wa-late-<messageId>`); capture only from Meta's billable flag on a delivered / read status; customer-pays accounts are never charged Meta's price.
 - **Uploads:** header examples are sniffed against the header format (JPEG / PNG / MP4 / PDF only), size-capped per kind, stored under `accounts/<id>/template-media/`; the rate card CSV is capped at 2 MB, parsed without `eval` / number parsing of floats, and every row validated.
 - **Writes:** `templates.manage` only (owners, admins, managers), never while impersonating; `rl:templates:` (20 / h / user) and `rl:template-sync:` (1 / min / number); superadmin billing needs `platform.billing.manage`.
+
+## 13. WhatsApp calling (Phase 12)
+
+- **SDP and ICE data are secrets of the call:** SDP offers / answers, ICE usernames / passwords, candidates (IP addresses) and DTLS fingerprints are never logged, stored, put in events or returned by the API; Meta errors that quote them are scrubbed (`scrubSecrets`) and `scrubSdp` gives the only log-safe summary. The fake's dev view shows the last 4 digits of the customer only.
+- **Media ports:** each call binds one UDP port in `WA_MEDIA_PORT_MIN–MAX` (open them to the internet on media nodes only; `WA_MEDIA_PUBLIC_IP` when behind NAT); DTLS-SRTP only, no plain RTP; the agent's browser leg uses the Phase 7 media socket with a single-use ticket per user and call.
+- **Who can act:** answering needs `calls.answer` and being in the ring list, placing calls `calls.trigger` (+ `flows.read` / `agents.read` for the AI program), transfers `calls.listen`; impersonators never call, answer or change settings; every action is checked again on the server holding the call.
+- **Logs:** ids, statuses, counts and codes only — no phones, names, DTMF digits or transcripts; `npm run dev:calls-wa` runs are grepped for SDP markers and phones before each checkpoint.
+- **Money:** call charges only through the engine (`wa-call-hold/extend/settle-<callId>` keys, once per call even when Meta's terminate, our late timer and redeliveries race); a dead process's holds are released by the stale-hold reaper.

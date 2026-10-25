@@ -13,11 +13,17 @@ import { ObjectIdSchema } from '../../shared/validation/schemas';
 import { isInboxSimulatorKind, runInboxSimulator } from '../inbox/simulator';
 import { runTemplateSimulator } from '../templates/simulator';
 import { isTemplateSimulatorKind, templateSimulatorPermission } from '../templates/simulator-kinds';
+import type { CallingRuntime } from '../whatsapp-calling/runtime';
+import { runCallingSimulator, simulateUserCall } from '../whatsapp-calling/simulator';
+import {
+  callingSimulatorPermission,
+  isCallingSimulatorKind,
+} from '../whatsapp-calling/simulator-kinds';
 
 import type { WhatsAppContext } from './context';
 import type { WhatsAppJobs } from './jobs';
 import { runSimulator, type SimulatorKind } from './simulator';
-import { SimulatorBody } from './whatsapp.schema';
+import { SimulatedUserCallBody, SimulatorBody } from './whatsapp.schema';
 
 /**
  * `/api/v1/dev/meta` — the dev webhook simulator (§1j) and the fake provider's media /
@@ -29,6 +35,8 @@ export const createDevSimulatorRouter = (deps: {
   ctx: WhatsAppContext;
   jobs: WhatsAppJobs;
   storage?: StorageProvider | undefined;
+  /** Phase 12: the calling runtime (permission sweep, settings sync). */
+  calling?: CallingRuntime | undefined;
   /** Tests: sign with another secret (the receiver must refuse it). */
   secret?: string;
 }): Router => {
@@ -53,7 +61,12 @@ export const createDevSimulatorRouter = (deps: {
   const allowed = async (
     channelId: string,
     permission:
-      'whatsapp.manage' | 'inbox.reply' | 'whatsapp.read' | 'templates.manage' | 'templates.read',
+      | 'whatsapp.manage'
+      | 'inbox.reply'
+      | 'whatsapp.read'
+      | 'templates.manage'
+      | 'templates.read'
+      | 'calls.trigger',
     auth: ReturnType<typeof requireAuth>,
   ) => {
     const channel = await WhatsAppChannelModel.findById(channelId)
@@ -79,6 +92,18 @@ export const createDevSimulatorRouter = (deps: {
             templateId: body.templateId,
             messageId: body.messageId,
             from: body.from,
+          }),
+        );
+        return;
+      }
+      if (isCallingSimulatorKind(body.kind)) {
+        await allowed(body.channelId, callingSimulatorPermission(body.kind), auth);
+        ok(
+          res,
+          await runCallingSimulator(deps, new Types.ObjectId(body.channelId), body.kind, {
+            from: body.from,
+            waCallId: body.waCallId,
+            digits: body.digits,
           }),
         );
         return;
@@ -157,6 +182,15 @@ export const createDevSimulatorRouter = (deps: {
       readReceipts: await fake.readReceipts(channel.phoneNumberId),
     });
   });
+
+  // Phase 12: the fake customer calls the number (the inbound flow runs for real)
+  router.post(
+    '/calls/user-call',
+    ...handle({ body: SimulatedUserCallBody }, async ({ body, req, res }) => {
+      await allowed(body.channelId, 'inbox.reply', requireAuth(req));
+      ok(res, await simulateUserCall(deps, body.channelId, body.from));
+    }),
+  );
 
   // Phase 12: what the fake customer's phone did on each call (no SDP, last 4 digits only)
   router.get('/calls', async (req, res) => {
