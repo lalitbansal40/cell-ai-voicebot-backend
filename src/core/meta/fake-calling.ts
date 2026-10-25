@@ -314,6 +314,17 @@ export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
       : { from: digits(phone.displayPhone), to: c.waId, to_user_id: fakeBsuid(c.waId) };
 
   /** Ends a call (any side) and sends Meta's terminate webhook once. */
+  /** Not picked up (rejected or rang out): Meta counts it — 2 → reminder, 4 → revoked. */
+  const notPickedUp = async (phoneNumberId: string, waId: string) => {
+    const p = await loadPermission(phoneNumberId, waId);
+    p.unanswered += 1;
+    if (p.unanswered >= WHATSAPP_CALL_LIMITS.unansweredRevoke) {
+      p.status = 'no_permission';
+      p.expiresAt = null;
+    }
+    await savePermission(phoneNumberId, waId, p);
+  };
+
   const end = async (
     c: StoredCall,
     status: 'COMPLETED' | 'FAILED',
@@ -557,6 +568,7 @@ export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
             if (!ringing || ringing.state !== 'ringing') return;
             if (waId.endsWith(FAKE_CALL_KNOBS.rejects)) {
               await emitStatus(phone, c, 'REJECTED');
+              await notPickedUp(phoneNumberId, c.waId);
               await end(ringing, 'FAILED');
               return;
             }
@@ -618,14 +630,7 @@ export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
       if (c?.phoneNumberId !== phoneNumberId) throw fail(400, 100, 'Invalid call id');
       if (c.state === 'ended') return;
       if (c.direction === 'BUSINESS_INITIATED' && c.state === 'ringing') {
-        // not picked up: Meta counts unanswered business calls (2 → reminder, 4 → revoked)
-        const p = await loadPermission(phoneNumberId, c.waId);
-        p.unanswered += 1;
-        if (p.unanswered >= WHATSAPP_CALL_LIMITS.unansweredRevoke) {
-          p.status = 'no_permission';
-          p.expiresAt = null;
-        }
-        await savePermission(phoneNumberId, c.waId, p);
+        await notPickedUp(phoneNumberId, c.waId);
       }
       await end(c, 'COMPLETED');
     },

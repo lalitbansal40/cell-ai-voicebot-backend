@@ -250,6 +250,17 @@ describe('fake Meta calling — business-initiated calls', () => {
     expect((await fake.getCallPermissions(token, phone, to)).status).toBe('no_permission');
   });
 
+  it('00021: four rejected calls count as not picked up and revoke the permission too', async () => {
+    const { token, phone } = await connect();
+    const to = customer(FAKE_CALL_KNOBS.rejects);
+    await fake.setCallPermission(phone, to, 'permanent');
+    for (let i = 0; i < 4; i += 1) {
+      const { waCallId } = await dial(token, phone, to);
+      await waitFor(() => kinds(waCallId).includes('terminate'));
+    }
+    expect((await fake.getCallPermissions(token, phone, to)).status).toBe('no_permission');
+  });
+
   it('00027 hangs up after 5 s; 00028 presses 1 three seconds after media starts', async () => {
     const { token, phone } = await connect();
     const presses = customer(FAKE_CALL_KNOBS.pressesOne);
