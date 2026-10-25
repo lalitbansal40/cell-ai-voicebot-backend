@@ -1,0 +1,150 @@
+{
+  "_comment": "Shared with the frontend (src/test/fixtures/call-hours-cases.json): both call hours validators must give exactly these problems (Meta's rules, PHASE_12_PLAN §1c).",
+  "cases": [
+    {
+      "name": "one range on weekdays is valid",
+      "input": {
+        "weekly": [
+          { "day": "MONDAY", "open": "0900", "close": "1800" },
+          { "day": "TUESDAY", "open": "0900", "close": "1800" }
+        ],
+        "holidays": []
+      },
+      "problems": []
+    },
+    {
+      "name": "two ranges on a day without overlap are valid",
+      "input": {
+        "weekly": [
+          { "day": "MONDAY", "open": "1400", "close": "1800" },
+          { "day": "MONDAY", "open": "0900", "close": "1300" }
+        ],
+        "holidays": []
+      },
+      "problems": []
+    },
+    {
+      "name": "touching ranges are valid (half-open)",
+      "input": {
+        "weekly": [
+          { "day": "FRIDAY", "open": "0900", "close": "1300" },
+          { "day": "FRIDAY", "open": "1300", "close": "1700" }
+        ],
+        "holidays": []
+      },
+      "problems": []
+    },
+    {
+      "name": "three ranges on one day",
+      "input": {
+        "weekly": [
+          { "day": "MONDAY", "open": "0800", "close": "0900" },
+          { "day": "MONDAY", "open": "1000", "close": "1100" },
+          { "day": "MONDAY", "open": "1200", "close": "1300" }
+        ],
+        "holidays": []
+      },
+      "problems": ["At most 2 time ranges on MONDAY"]
+    },
+    {
+      "name": "opening after closing",
+      "input": {
+        "weekly": [{ "day": "SUNDAY", "open": "1800", "close": "0900" }],
+        "holidays": []
+      },
+      "problems": ["SUNDAY: the opening time must be before the closing time"]
+    },
+    {
+      "name": "opening equal to closing",
+      "input": {
+        "weekly": [{ "day": "SATURDAY", "open": "1000", "close": "1000" }],
+        "holidays": []
+      },
+      "problems": ["SATURDAY: the opening time must be before the closing time"]
+    },
+    {
+      "name": "overlapping ranges",
+      "input": {
+        "weekly": [
+          { "day": "WEDNESDAY", "open": "0900", "close": "1400" },
+          { "day": "WEDNESDAY", "open": "1300", "close": "1800" }
+        ],
+        "holidays": []
+      },
+      "problems": ["WEDNESDAY: time ranges overlap"]
+    },
+    {
+      "name": "a valid holiday",
+      "input": {
+        "weekly": [{ "day": "MONDAY", "open": "0900", "close": "1800" }],
+        "holidays": [{ "date": "2030-01-26", "start": "0000", "end": "2359" }]
+      },
+      "problems": []
+    },
+    {
+      "name": "a holiday that ends before it starts",
+      "input": {
+        "weekly": [],
+        "holidays": [{ "date": "2030-08-15", "start": "1700", "end": "0900" }]
+      },
+      "problems": ["2030-08-15: the start time must be before the end time"]
+    },
+    {
+      "name": "the same holiday twice",
+      "input": {
+        "weekly": [],
+        "holidays": [
+          { "date": "2030-10-02", "start": "0000", "end": "1200" },
+          { "date": "2030-10-02", "start": "1300", "end": "2359" }
+        ]
+      },
+      "problems": ["2030-10-02 is listed twice"]
+    },
+    {
+      "name": "more than 20 holidays",
+      "input": {
+        "weekly": [],
+        "holidays": [
+          { "date": "2030-01-01", "start": "0000", "end": "2359" },
+          { "date": "2030-01-02", "start": "0000", "end": "2359" },
+          { "date": "2030-01-03", "start": "0000", "end": "2359" },
+          { "date": "2030-01-04", "start": "0000", "end": "2359" },
+          { "date": "2030-01-05", "start": "0000", "end": "2359" },
+          { "date": "2030-01-06", "start": "0000", "end": "2359" },
+          { "date": "2030-01-07", "start": "0000", "end": "2359" },
+          { "date": "2030-01-08", "start": "0000", "end": "2359" },
+          { "date": "2030-01-09", "start": "0000", "end": "2359" },
+          { "date": "2030-01-10", "start": "0000", "end": "2359" },
+          { "date": "2030-01-11", "start": "0000", "end": "2359" },
+          { "date": "2030-01-12", "start": "0000", "end": "2359" },
+          { "date": "2030-01-13", "start": "0000", "end": "2359" },
+          { "date": "2030-01-14", "start": "0000", "end": "2359" },
+          { "date": "2030-01-15", "start": "0000", "end": "2359" },
+          { "date": "2030-01-16", "start": "0000", "end": "2359" },
+          { "date": "2030-01-17", "start": "0000", "end": "2359" },
+          { "date": "2030-01-18", "start": "0000", "end": "2359" },
+          { "date": "2030-01-19", "start": "0000", "end": "2359" },
+          { "date": "2030-01-20", "start": "0000", "end": "2359" },
+          { "date": "2030-01-21", "start": "0000", "end": "2359" }
+        ]
+      },
+      "problems": ["At most 20 holidays"]
+    },
+    {
+      "name": "several problems at once, in day order",
+      "input": {
+        "weekly": [
+          { "day": "TUESDAY", "open": "1200", "close": "1100" },
+          { "day": "MONDAY", "open": "0900", "close": "1200" },
+          { "day": "MONDAY", "open": "1100", "close": "1500" }
+        ],
+        "holidays": [{ "date": "2030-03-01", "start": "1000", "end": "1000" }]
+      },
+      "problems": [
+        "MONDAY: time ranges overlap",
+        "TUESDAY: the opening time must be before the closing time",
+        "2030-03-01: the start time must be before the end time"
+      ]
+    }
+  ]
+}
