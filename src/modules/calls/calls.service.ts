@@ -103,6 +103,20 @@ export const toCallView = (c: CallDoc, names: Names) => {
     id: c._id.toString(),
     direction: c.direction,
     provider: c.provider,
+    mode: c.mode,
+    agentUserId: c.agentUserId?.toString() ?? null,
+    whatsapp: c.whatsapp
+      ? {
+          channelId: c.whatsapp.channelId.toString(),
+          conversationId: c.whatsapp.conversationId?.toString() ?? null,
+          direction: c.whatsapp.direction,
+          metaStatus: c.whatsapp.metaStatus,
+          metaDuration: c.whatsapp.metaDuration,
+          answeredBy: c.whatsapp.answeredBy?.toString() ?? null,
+          transferredTo: c.whatsapp.transferredTo?.toString() ?? null,
+          timeline: c.whatsapp.timeline.map((e) => ({ event: e.event, at: e.at.toISOString() })),
+        }
+      : null,
     isTest: c.isTest,
     /** Dry-run calls are priced but never charged. */
     charged: c.charged,
@@ -249,6 +263,8 @@ export const listCalls = async (req: Request, query: z.infer<typeof ListCallsQue
   if (query.isTest !== undefined) filter.isTest = query.isTest;
   if (query.campaignId) filter.campaignId = new Types.ObjectId(query.campaignId);
   if (query.provider) filter.provider = query.provider;
+  if (query.direction) filter.direction = query.direction;
+  if (query.mode) filter.mode = query.mode;
   const at: Record<string, Date> = {};
   if (query.from) at.$gte = new Date(query.from);
   if (query.to) at.$lt = new Date(query.to);

@@ -92,6 +92,8 @@ export const ListCallsQuery = z
     contactId: ObjectIdSchema.optional(),
     campaignId: ObjectIdSchema.optional(),
     provider: z.enum(CALL_PROVIDERS).optional(),
+    direction: z.enum(['inbound', 'outbound']).optional(),
+    mode: z.enum(['human', 'ai']).optional(),
     isTest: z
       .enum(['true', 'false'])
       .transform((v) => v === 'true')
@@ -115,6 +117,20 @@ export const CallSchema = registry.register(
     id: z.string(),
     direction: z.enum(['outbound', 'inbound']),
     provider: z.enum(CALL_PROVIDERS),
+    mode: z.enum(['human', 'ai']),
+    agentUserId: z.string().nullable(),
+    whatsapp: z
+      .object({
+        channelId: z.string(),
+        conversationId: z.string().nullable(),
+        direction: z.enum(['USER_INITIATED', 'BUSINESS_INITIATED']),
+        metaStatus: z.string().nullable(),
+        metaDuration: z.number().nullable(),
+        answeredBy: z.string().nullable(),
+        transferredTo: z.string().nullable(),
+        timeline: z.array(z.object({ event: z.string(), at: z.string() })),
+      })
+      .nullable(),
     isTest: z.boolean(),
     charged: z
       .boolean()
@@ -123,7 +139,7 @@ export const CallSchema = registry.register(
     status: z.enum(CALL_STATUSES),
     endReason: z.enum(CALL_END_REASONS).nullable(),
     source: z.object({
-      kind: z.enum(['flow', 'agent']),
+      kind: z.enum(['flow', 'agent']).nullable(),
       flowId: z.string().nullable(),
       flowVersionRef: z.union([z.literal('draft'), z.number()]).nullable(),
       agentId: z.string().nullable(),

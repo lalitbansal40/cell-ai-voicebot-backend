@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
 
@@ -8,6 +9,7 @@ import { z } from 'zod';
 import type { Logger } from '../../shared/logger';
 
 import { createEnvelope, type WsEventEnvelope } from './events';
+import { removePresence, touchPresence } from './presence';
 import { defaultAuthorizeTopic, parseTopic, type AuthorizeTopic } from './topics';
 import { WsTicketService } from './ws-tickets';
 
@@ -84,6 +86,7 @@ export interface Realtime {
 }
 
 interface Client {
+  id: string;
   ws: WebSocket;
   accountId: string;
   userId: string;
@@ -140,11 +143,17 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
       byAccount.set(client.accountId, set);
     }
     set.add(client);
+    void touchPresence(deps.redis, client.accountId, client.userId, client.id).catch(
+      () => undefined,
+    );
   };
 
   const unregister = (client: Client): void => {
     const set = byAccount.get(client.accountId);
     set?.delete(client);
+    void removePresence(deps.redis, client.accountId, client.userId, client.id).catch(
+      () => undefined,
+    );
     if (set?.size === 0) byAccount.delete(client.accountId);
   };
 
@@ -235,6 +244,7 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
     }
 
     const client: Client = {
+      id: randomUUID(),
       ws,
       accountId,
       userId,
@@ -288,6 +298,9 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
         continue;
       }
       if (client.ws.readyState === WebSocket.OPEN) {
+        void touchPresence(deps.redis, client.accountId, client.userId, client.id, now).catch(
+          () => undefined,
+        );
         client.isAlive = false;
         client.ws.ping();
       }

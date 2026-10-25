@@ -271,7 +271,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   const app = createApp({
     env,
     logger,
-    ...(whatsapp ? { whatsapp } : {}),
+    ...(whatsapp ? { whatsapp: { ...whatsapp, ...(calling ? { calling } : {}) } } : {}),
     rateLimitStore: createRedisRateLimitStore(redis),
     authRateLimitStore: createRedisRateLimitStore(redis, 'rl:auth:'),
     storage,

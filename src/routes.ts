@@ -62,7 +62,10 @@ import {
 } from './modules/whatsapp/whatsapp.routes';
 import { createWhatsAppService } from './modules/whatsapp/whatsapp.service';
 import { createPricePreviewRouter } from './modules/whatsapp-billing/price-preview.routes';
+import { createCallingRouter } from './modules/whatsapp-calling/calling.routes';
 import type { CallingJobs } from './modules/whatsapp-calling/jobs';
+import type { CallingRuntime } from './modules/whatsapp-calling/runtime';
+import { createInboxCallingHook } from './modules/whatsapp-calling/webhooks';
 
 /** Everything under /api/v1. Add each module router here. */
 /** What the contact modules need: file storage + the background job queue (Phase 3). */
@@ -85,6 +88,7 @@ export type WhatsAppDeps = MetaWebhooksDeps & {
   templateSyncRateLimitStore?: Store;
   /** Phase 12: calling jobs on the `whatsapp` queue (settings sync after a connect). */
   callingJobs?: CallingJobs;
+  calling?: CallingRuntime;
 };
 
 export interface BillingDeps {
@@ -226,6 +230,8 @@ export const createApiRouter = ({
   router.use('/invoices', createInvoicesRouter({ storage: billing.storage }));
   router.use('/notifications', createNotificationsRouter());
   if (whatsappRuntime) {
+    if (whatsappRuntime.calling)
+      router.use(createCallingRouter({ runtime: whatsappRuntime.calling }));
     router.use('/webhooks/meta', createMetaWebhooksRouter(whatsappRuntime));
     router.use('/meta', createMetaCallbacksRouter(whatsappRuntime));
     router.use('/whatsapp', createBusinessProfileRouter(whatsappRuntime.ctx));
@@ -249,6 +255,9 @@ export const createApiRouter = ({
       '/inbox',
       createInboxRouter({
         ctx: whatsappRuntime.ctx,
+        ...(whatsappRuntime.calling
+          ? { calling: createInboxCallingHook(whatsappRuntime.calling.permissions) }
+          : {}),
         storage: whatsappRuntime.storage ?? contacts.storage,
         jobs: whatsappRuntime.inboxJobs ?? unavailableInboxJobs,
         ...(whatsappRuntime.inboxSendRateLimitStore

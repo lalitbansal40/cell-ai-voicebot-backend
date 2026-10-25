@@ -66,7 +66,10 @@ import {
   createCallingSettings,
   type CallingSettingsService,
 } from '../../../modules/whatsapp-calling/settings.service';
-import { createCallingHooks } from '../../../modules/whatsapp-calling/webhooks';
+import {
+  createCallingHooks,
+  createInboxCallingHook,
+} from '../../../modules/whatsapp-calling/webhooks';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -184,6 +187,7 @@ export const startWhatsAppWorker = async (
   const service = h.service as WhatsAppService;
   const runtime =
     deps.calling ?? (ix ? createCallingRuntime({ ctx: deps.ctx, service, inbox: ix }) : null);
+  if (ix && runtime) ix.calling = createInboxCallingHook(runtime.permissions);
   const cx: CallingContext | undefined = runtime
     ? { settings: runtime.settings, permissions: runtime.permissions }
     : undefined;

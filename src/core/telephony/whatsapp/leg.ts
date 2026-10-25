@@ -30,6 +30,8 @@ export interface WhatsAppLegOptions {
   clock?: Clock;
   /** No inbound media this long after the answer → `media_timeout`. */
   mediaTimeoutMs?: number;
+  /** User-initiated calls send no business RTP until Graph accept succeeds. */
+  waitForAnswer?: boolean;
 }
 
 export interface WhatsAppLegMetrics {
@@ -90,6 +92,7 @@ export class WhatsAppCallLeg implements CallLeg {
   private ended = false;
   private closing: Promise<void> | null = null;
   private metaEnded = false;
+  private readonly waitForAnswer: boolean;
   private jitter: ReceivedPacket[] = [];
   private nextSeq: number | null = null;
   private expected = 0;
@@ -104,6 +107,7 @@ export class WhatsAppCallLeg implements CallLeg {
     this.signaling = options.signaling;
     this.clock = options.clock ?? systemClock;
     this.mediaTimeoutMs = options.mediaTimeoutMs ?? DEFAULT_MEDIA_TIMEOUT_MS;
+    this.waitForAnswer = options.waitForAnswer ?? false;
     this.createdAt = this.clock.now();
     this.pacer = new Pacer({
       clock: this.clock,
@@ -169,6 +173,7 @@ export class WhatsAppCallLeg implements CallLeg {
     this.answeredFlag = true;
     this.lastInboundAt = this.clock.now();
     this.watchMedia();
+    if (this.connectedAt !== null) this.sendFrame(this.silenceFrame, false);
     this.status('answered');
   }
 
@@ -266,7 +271,8 @@ export class WhatsAppCallLeg implements CallLeg {
 
   /** One 24 kHz frame out (paced audio, or keep-alive silence). */
   private sendFrame(frame24: Int16Array, outgoing = true, slot?: number): void {
-    if (this.ended || this.connectedAt === null) return;
+    if (this.ended || this.connectedAt === null || (this.waitForAnswer && !this.answeredFlag))
+      return;
     const up = this.resamplers.up.process(frame24);
     for (const frame48 of this.outFramer.push(up)) {
       this.peer.sendPacket(OPUS_PT, this.codecOut.encode(frame48), { samples: OPUS_FRAME_SAMPLES });

@@ -53,6 +53,7 @@ import { markConversationRead, markConversationUnread, sendTyping } from './rece
 import { createUpload, UPLOAD_PARSER_MAX_BYTES } from './upload.service';
 
 export interface InboxRouterDeps {
+  calling?: InboxContext['calling'];
   ctx: WhatsAppContext;
   storage?: StorageProvider | undefined;
   jobs: InboxJobs;
@@ -112,7 +113,12 @@ export const createInboxRouter = (deps: InboxRouterDeps): Router => {
   const ix = (): InboxContext => {
     if (!deps.storage)
       throw new AppError('PROVIDER_UNAVAILABLE', 'File storage is not configured.');
-    return { wa: deps.ctx, storage: deps.storage, jobs: deps.jobs };
+    return {
+      wa: deps.ctx,
+      storage: deps.storage,
+      jobs: deps.jobs,
+      ...(deps.calling ? { calling: deps.calling } : {}),
+    };
   };
   const read = requirePermission('inbox.read');
   const reply = [requirePermission('inbox.reply'), blockWhenImpersonating()] as RequestHandler[];

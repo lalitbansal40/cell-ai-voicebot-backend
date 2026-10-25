@@ -19,6 +19,7 @@ import {
   type BusMessage,
 } from '../../src/modules/whatsapp-calling/bus';
 import { sweepOrphanedWhatsAppCalls } from '../../src/modules/whatsapp-calling/owner-sweep';
+import { AppError } from '../../src/shared/errors/app-error';
 import { createLogger } from '../../src/shared/logger';
 import { useTestDb } from '../helpers/db';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
@@ -128,6 +129,52 @@ describe('call-control bus', () => {
     ]);
     expect(x).toBe(y);
     expect(await a.claimAnswer(callId, 'user-3')).toBe(x);
+  });
+
+  it('agent commands run on the media owner and keep their error codes across nodes', async () => {
+    const media = await bus('cmd-media');
+    const api = await bus('cmd-api');
+    const callId = new Types.ObjectId().toString();
+    const base = { callId, accountId: 'acc', userId: 'u1' };
+    // nobody owns the call yet
+    await expect(api.command({ ...base, action: 'answer' })).rejects.toMatchObject({
+      code: 'CALL_NOT_ACTIVE',
+    });
+    await media.ownCall(callId);
+    const seen: string[] = [];
+    media.onCommand((command) => {
+      seen.push(command.action);
+      if (command.action === 'decline') return Promise.reject(new AppError('WHATSAPP_CALL_TAKEN'));
+      return Promise.resolve({ ok: command.userId });
+    });
+    expect(await api.command({ ...base, action: 'answer' })).toEqual({ ok: 'u1' });
+    expect(await media.command({ ...base, action: 'answer' })).toEqual({ ok: 'u1' });
+    await expect(api.command({ ...base, action: 'decline' })).rejects.toMatchObject({
+      code: 'WHATSAPP_CALL_TAKEN',
+    });
+    expect(seen).toEqual(['answer', 'answer', 'decline']);
+    // an owner that never answers times out instead of hanging the request
+    const silentNode = await bus('cmd-silent');
+    const quiet = new Types.ObjectId().toString();
+    await silentNode.ownCall(quiet);
+    silentNode.onCommand(() => new Promise(() => undefined));
+    await expect(
+      api.command({ ...base, callId: quiet, action: 'hold' }, 200),
+    ).rejects.toMatchObject({ code: 'CALL_NOT_ACTIVE' });
+  });
+
+  it('an agent holds one call at a time; only that call releases the claim', async () => {
+    const a = await bus('agent-a');
+    const b = await bus('agent-b');
+    expect(await a.claimAgent('acc', 'u1', 'call-1')).toBe(true);
+    expect(await b.claimAgent('acc', 'u1', 'call-1')).toBe(true); // the same call again
+    expect(await b.claimAgent('acc', 'u1', 'call-2')).toBe(false);
+    expect(await b.claimAgent('acc', 'u2', 'call-2')).toBe(true); // another agent
+    expect(await b.claimAgent('other', 'u1', 'call-3')).toBe(true); // another account
+    await b.releaseAgent('acc', 'u1', 'call-2'); // not its claim: kept
+    expect(await a.claimAgent('acc', 'u1', 'call-2')).toBe(false);
+    await a.releaseAgent('acc', 'u1', 'call-1');
+    expect(await a.claimAgent('acc', 'u1', 'call-2')).toBe(true);
   });
 
   it('hangups find the node of any live call', async () => {

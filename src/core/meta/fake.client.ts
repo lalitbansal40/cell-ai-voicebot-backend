@@ -290,7 +290,14 @@ export interface FakeMetaClient extends MetaClient {
   userCall(
     phoneNumberId: string,
     waId: string,
-    options?: { name?: string | null; bsuid?: string | null; ctaPayload?: string | null },
+    options?: {
+      name?: string | null;
+      bsuid?: string | null;
+      ctaPayload?: string | null;
+      deeplinkPayload?: string | null;
+      /** A caller Meta knows by BSUID only (no phone number in the webhook). */
+      withoutPhone?: boolean;
+    },
   ): Promise<{ waCallId: string }>;
   /** The customer hangs up (terminate webhook). False when the call is not live. */
   userHangup(waCallId: string): Promise<boolean>;

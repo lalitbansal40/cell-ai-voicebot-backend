@@ -146,7 +146,14 @@ export interface FakeCalling {
   userCall(
     phoneNumberId: string,
     waId: string,
-    options?: { name?: string | null; bsuid?: string | null; ctaPayload?: string | null },
+    options?: {
+      name?: string | null;
+      bsuid?: string | null;
+      ctaPayload?: string | null;
+      deeplinkPayload?: string | null;
+      /** A caller Meta knows by BSUID only (no phone number in the webhook). */
+      withoutPhone?: boolean;
+    },
   ): Promise<{ waCallId: string }>;
   userHangup(waCallId: string): Promise<boolean>;
   userDtmf(waCallId: string, digits: string): Promise<boolean>;
@@ -818,17 +825,19 @@ export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
           id: c.waCallId,
           ...callParties(phone, c),
           ...(options.bsuid ? { from_user_id: options.bsuid } : {}),
+          ...(options.withoutPhone ? { from: undefined } : {}),
           event: 'connect',
           direction: c.direction,
           timestamp: unix(Date.now()),
           session: { sdp_type: 'offer', sdp: offer },
           ...(options.ctaPayload ? { cta_payload: options.ctaPayload } : {}),
+          ...(options.deeplinkPayload ? { deeplink_payload: options.deeplinkPayload } : {}),
         },
         {
           contacts: [
             {
               profile: { name: options.name ?? 'Test Customer' },
-              wa_id: waId,
+              ...(options.withoutPhone ? {} : { wa_id: waId }),
               user_id: options.bsuid ?? fakeBsuid(waId),
             },
           ],

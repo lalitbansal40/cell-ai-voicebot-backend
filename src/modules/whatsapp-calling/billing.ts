@@ -125,6 +125,7 @@ export class WhatsAppCallBilling implements CallBillingPort {
   private coveredSec = 0;
   private extensions = 0;
   private callSettled: SettledCallCharge | null = null;
+  private settlingCall: Promise<SettledCallCharge> | null = null;
 
   constructor(
     private readonly input: {
@@ -242,6 +243,19 @@ export class WhatsAppCallBilling implements CallBillingPort {
    */
   async settleCallPart(durationSec: number, source: 'meta' | 'ours'): Promise<SettledCallCharge> {
     if (this.callSettled) return this.callSettled;
+    if (this.settlingCall) return this.settlingCall;
+    this.settlingCall = this.performCallSettlement(durationSec, source);
+    try {
+      return await this.settlingCall;
+    } finally {
+      this.settlingCall = null;
+    }
+  }
+
+  private async performCallSettlement(
+    durationSec: number,
+    source: 'meta' | 'ours',
+  ): Promise<SettledCallCharge> {
     const price = callPrice(this.input.quote, this.input.charged ? durationSec : 0);
     let ledgerEntryId: string | null = null;
     if (this.callHoldId) {
