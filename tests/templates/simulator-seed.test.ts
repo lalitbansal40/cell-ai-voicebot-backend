@@ -30,6 +30,7 @@ import { createLogger } from '../../src/shared/logger';
 import { createTestAccount } from '../helpers/auth';
 import { useTestDb } from '../helpers/db';
 import { useCapturedEmail } from '../helpers/email';
+import { uniquePrefix } from '../helpers/redis';
 import { useTemplateWorld } from '../helpers/templates';
 import { buildTestApp } from '../helpers/test-app';
 import { userActor } from '../helpers/whatsapp';
@@ -261,6 +262,8 @@ describe('seedTemplates', () => {
       redis: t.w.redis,
       logger: createLogger(t.w.env),
       storage: t.storage,
+      // the fake Meta's state of the demo number apart from the dev server's
+      metaPrefix: `${uniquePrefix('seed-tpl')}:`,
     };
     expect(await seedTemplates(acc.account._id, deps)).toMatchObject({
       skipped: 'No demo WhatsApp number',

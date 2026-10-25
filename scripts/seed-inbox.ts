@@ -48,6 +48,8 @@ export const SEED_INBOX_CUSTOMERS = {
 } as const;
 
 export interface InboxSeedDeps {
+  /** Tests: the fake Meta's Redis key prefix (default: the dev server's keys). */
+  metaPrefix?: string;
   env: Env;
   ownerId: Types.ObjectId;
   redis: Redis;
@@ -57,7 +59,7 @@ export interface InboxSeedDeps {
 
 export const seedInbox = async (
   accountId: Types.ObjectId,
-  { env, ownerId, redis, logger, storage }: InboxSeedDeps,
+  { env, ownerId, redis, logger, storage, metaPrefix }: InboxSeedDeps,
 ): Promise<{ conversations: number; messages: number; skipped: string | null }> => {
   if (!env.WHATSAPP_ENABLED || env.META_PROVIDER !== 'fake') {
     return {
@@ -83,7 +85,10 @@ export const seedInbox = async (
 
   const ctx: WhatsAppContext = {
     env: { ...env, FAKE_META_STATUS_DELAYS_MS: null },
-    meta: createMetaClient({ ...env, FAKE_META_STATUS_DELAYS_MS: null }, { redis, logger }),
+    meta: createMetaClient(
+      { ...env, FAKE_META_STATUS_DELAYS_MS: null },
+      { redis, logger, ...(metaPrefix ? { prefix: metaPrefix } : {}) },
+    ),
     redis,
     key: secretBoxKey(env),
   };

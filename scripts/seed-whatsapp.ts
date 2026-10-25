@@ -23,6 +23,8 @@ export const SEED_WHATSAPP_NUMBER = '+91 90000 12345';
 const SEED_EVENTS: SimulatorKind[] = ['name_approved', 'quality_upgrade', 'inbound_text'];
 
 export interface WhatsAppSeedDeps {
+  /** Tests: the fake Meta's Redis key prefix (default: the dev server's keys). */
+  metaPrefix?: string;
   env: Env;
   ownerId: Types.ObjectId;
   redis: Redis;
@@ -31,7 +33,7 @@ export interface WhatsAppSeedDeps {
 
 export const seedWhatsApp = async (
   accountId: Types.ObjectId,
-  { env, ownerId, redis, logger }: WhatsAppSeedDeps,
+  { env, ownerId, redis, logger, metaPrefix }: WhatsAppSeedDeps,
 ): Promise<{ channels: number; events: number; skipped: string | null }> => {
   if (!env.WHATSAPP_ENABLED || env.META_PROVIDER !== 'fake') {
     return { channels: 0, events: 0, skipped: 'WhatsApp is off or uses the real Meta provider' };
@@ -45,7 +47,7 @@ export const seedWhatsApp = async (
 
   const ctx: WhatsAppContext = {
     env,
-    meta: createMetaClient(env, { redis, logger }),
+    meta: createMetaClient(env, { redis, logger, ...(metaPrefix ? { prefix: metaPrefix } : {}) }),
     redis,
     key: secretBoxKey(env),
   };

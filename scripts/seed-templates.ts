@@ -52,6 +52,8 @@ export const SEED_TEMPLATE_NAMES = {
 } as const;
 
 export interface TemplateSeedDeps {
+  /** Tests: the fake Meta's Redis key prefix (default: the dev server's keys). */
+  metaPrefix?: string;
   env: Env;
   ownerId: Types.ObjectId;
   redis: Redis;
@@ -61,7 +63,7 @@ export interface TemplateSeedDeps {
 
 export const seedTemplates = async (
   accountId: Types.ObjectId,
-  { env, ownerId, redis, logger, storage }: TemplateSeedDeps,
+  { env, ownerId, redis, logger, storage, metaPrefix }: TemplateSeedDeps,
 ): Promise<{ templates: number; charged: number; skipped: string | null }> => {
   if (!env.WHATSAPP_ENABLED || env.META_PROVIDER !== 'fake') {
     return { templates: 0, charged: 0, skipped: 'WhatsApp is off or uses the real Meta provider' };
@@ -76,7 +78,11 @@ export const seedTemplates = async (
     return { templates: 0, charged: 0, skipped: null };
   }
   const quiet = { ...env, FAKE_META_STATUS_DELAYS_MS: null, FAKE_META_TEMPLATE_REVIEW_MS: null };
-  const meta = createMetaClient(quiet, { redis, logger }) as FakeMetaClient;
+  const meta = createMetaClient(quiet, {
+    redis,
+    logger,
+    ...(metaPrefix ? { prefix: metaPrefix } : {}),
+  }) as FakeMetaClient;
   const ctx: WhatsAppContext = { env: quiet, meta, redis, key: secretBoxKey(env) };
   const tx = { wa: ctx, jobs: unavailableTemplateJobs, storage };
   const actor = { type: 'user' as const, id: ownerId };

@@ -16,7 +16,7 @@ import { ensureRateCard, fund } from '../helpers/calls';
 import { useTempStorage } from '../helpers/contacts';
 import { useTestDb } from '../helpers/db';
 import { useCapturedEmail } from '../helpers/email';
-import { requireRedis } from '../helpers/redis';
+import { requireRedis, uniquePrefix } from '../helpers/redis';
 import { testEnv } from '../helpers/test-app';
 
 useTestDb();
@@ -45,7 +45,14 @@ describe('seedCallsWa', () => {
         name: `Demo ${String(i)}`,
         source: { type: 'manual' },
       });
-    const deps = { env, ownerId: owner.user._id, redis, logger, storage };
+    const deps = {
+      env,
+      ownerId: owner.user._id,
+      redis,
+      logger,
+      storage,
+      metaPrefix: `${uniquePrefix('seed-wa')}:`,
+    };
     await seedWhatsApp(t.account._id, deps);
     // a number saved before migration 0013 has no calling sub-document
     await WhatsAppChannelModel.updateOne({ accountId: t.account._id }, { $unset: { calling: '' } });

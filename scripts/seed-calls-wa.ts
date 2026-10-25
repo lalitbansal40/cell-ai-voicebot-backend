@@ -42,6 +42,8 @@ export const SEED_WA_CALL_MARKS = {
 } as const;
 
 export interface CallsWaSeedDeps {
+  /** Tests: the fake Meta's Redis key prefix (default: the dev server's keys). */
+  metaPrefix?: string;
   env: Env;
   ownerId: Types.ObjectId;
   redis: Redis;
@@ -66,7 +68,7 @@ const toneRecording = (seconds: number): Buffer => {
 
 export const seedCallsWa = async (
   accountId: Types.ObjectId,
-  { env, ownerId, redis, logger, storage }: CallsWaSeedDeps,
+  { env, ownerId, redis, logger, storage, metaPrefix }: CallsWaSeedDeps,
 ): Promise<{ permissions: number; calls: number; skipped: string | null }> => {
   if (!env.WHATSAPP_ENABLED || env.META_PROVIDER !== 'fake') {
     return { permissions: 0, calls: 0, skipped: 'WhatsApp is off or uses the real Meta provider' };
@@ -80,7 +82,11 @@ export const seedCallsWa = async (
     .lean<WhatsAppChannelDoc>();
   if (!channel?.phoneNumberId)
     return { permissions: 0, calls: 0, skipped: 'No demo WhatsApp number' };
-  const meta = createMetaClient(env, { redis, logger }) as FakeMetaClient;
+  const meta = createMetaClient(env, {
+    redis,
+    logger,
+    ...(metaPrefix ? { prefix: metaPrefix } : {}),
+  }) as FakeMetaClient;
   const ctx: WhatsAppContext = { env, meta, redis, key: secretBoxKey(env) };
   const token = channel.tokenSealed ? openSecret(ctx, channel.tokenSealed) : '';
   const pnid = channel.phoneNumberId;
