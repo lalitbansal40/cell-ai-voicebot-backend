@@ -7,12 +7,13 @@ import { reapStaleHolds } from '../../src/core/billing/reaper';
 import { diffCallingCards, parseCallingRateCsv } from '../../src/core/billing/whatsapp-calls';
 import { reapWhatsAppHolds } from '../../src/core/billing/whatsapp-reaper';
 import { AuditLogModel } from '../../src/db/models/audit-log.model';
-import { CallModel } from '../../src/db/models/call.model';
+import { CallModel, type CallDoc } from '../../src/db/models/call.model';
 import { LedgerEntryModel } from '../../src/db/models/ledger-entry.model';
 import { PlatformSettingsModel } from '../../src/db/models/platform-settings.model';
 import { DEFAULT_RATE_CARD, RateCardModel } from '../../src/db/models/rate-card.model';
 import { WalletModel } from '../../src/db/models/wallet.model';
 import { WhatsAppRateCardModel } from '../../src/db/models/whatsapp-rate-card.model';
+import { viewOne } from '../../src/modules/calls/calls.service';
 import { quoteCall } from '../../src/modules/whatsapp-calling/billing';
 import {
   reapWhatsAppCallHolds,
@@ -430,5 +431,81 @@ describe('WhatsApp call hold maintenance', () => {
     expect((await CallModel.findById(late._id).lean())?.billing.whatsapp?.metaLatePulses).toBe(3);
     expect((await CallModel.findById(same._id).lean())?.billing.whatsapp?.metaLatePulses).toBe(2);
     expect(await reconcileWhatsAppCalls()).toEqual({ checked: 0, mismatches: 0 });
+  });
+});
+
+describe('account views of a WhatsApp call charge', () => {
+  it('show the selling price only: no Meta cost, markup or fee on calls or ledger responses', async () => {
+    const acc = await createTestAccount();
+    const owner = await acc.addUser('owner');
+    const accountId = acc.account._id;
+    const callId = new Types.ObjectId();
+    await CallModel.create({
+      _id: callId,
+      accountId,
+      direction: 'outbound',
+      provider: 'whatsapp',
+      from: 'whatsapp:x',
+      to: '+919000000102',
+      source: { kind: null },
+      status: 'completed',
+      timestamps: { queuedAt: new Date() },
+      whatsapp: {
+        channelId: new Types.ObjectId(),
+        direction: 'BUSINESS_INITIATED',
+        metaDuration: 12,
+      },
+      billing: {
+        whatsapp: {
+          payer: 'platform',
+          market: 'IN',
+          perMinuteMicros: 388_500,
+          pulses: 2,
+          metaCostMicros: 77_700,
+          markupMicros: 11_655,
+          platformFeeMicros: 645,
+          status: 'settled',
+          durationSource: 'meta',
+        },
+      },
+      cost: { telephonyMicros: 90_000, totalMicros: 90_000 },
+    });
+    const entry = await LedgerEntryModel.create({
+      accountId,
+      type: 'whatsapp_call_charge',
+      direction: 'debit',
+      status: 'captured',
+      amountMicros: 90_000,
+      breakdown: {
+        kind: 'whatsapp_call',
+        waMarket: 'IN',
+        waPulses: 2,
+        metaCostMicros: 77_700,
+        markupMicros: 11_655,
+        platformFeeMicros: 645,
+      },
+      ref: { type: 'call', id: callId.toString() },
+      idempotencyKey: `wa-call-settle-${callId.toString()}`,
+    });
+    const day = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
+    const hiddenParts = ['metaCost', 'markupMicros', 'platformFee', '77700', '11655'];
+    // the call page and the calls list share this view
+    const call = await CallModel.findById(callId).lean<CallDoc>();
+    const view = JSON.stringify(await viewOne(call!));
+    expect(view).toContain('90000');
+    for (const hidden of hiddenParts) expect(view, hidden).not.toContain(hidden);
+    const a = app();
+    const views = [
+      '/api/v1/wallet/ledger',
+      `/api/v1/wallet/ledger/${entry._id.toString()}`,
+      `/api/v1/wallet/ledger/export?from=${day(-1)}&to=${day(1)}`,
+    ];
+    for (const path of views) {
+      const res = await request(a).get(path).set(bearer(owner.token));
+      expect(res.status, `${path} ${res.text.slice(0, 200)}`).toBe(200);
+      const body = res.text;
+      expect(body, path).toMatch(/90000|0\.09/);
+      for (const hidden of hiddenParts) expect(body, `${path} ${hidden}`).not.toContain(hidden);
+    }
   });
 });
