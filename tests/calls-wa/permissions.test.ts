@@ -404,6 +404,26 @@ describe('call permissions', () => {
     ).toBe('expired');
   });
 
+  it('Meta decides: our row says allowed, WhatsApp has no permission → revoked, cannot call', async () => {
+    const contact = await writes(customer('00030'));
+    await WhatsAppCallPermissionModel.create({
+      accountId: actor.accountId,
+      channelId: state.channel._id,
+      contactId: contact._id,
+      status: 'permanent',
+    });
+    const panel = await permissions.statusFor(actor.accountId, state.channel._id, contact._id, {
+      refresh: true,
+    });
+    expect(panel).toMatchObject({
+      status: 'revoked',
+      expiresAt: null,
+      canCall: false,
+      canRequest: true,
+      reason: 'no_permission',
+    });
+  });
+
   it('unanswered streak: 2 → nudge, 4 → revoked (bell to the requester + managers); an answer resets it', async () => {
     const contact = await writes(customer('00062'));
     await WhatsAppCallPermissionModel.create({

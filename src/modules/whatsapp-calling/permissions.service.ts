@@ -302,7 +302,9 @@ export const createCallPermissions = (deps: PermissionDeps) => {
           ? meta.status === 'permanent'
             ? 'permanent'
             : 'temporary'
-          : status,
+          : !allowed && (status === 'temporary' || status === 'permanent')
+            ? 'revoked' // our row is out of date: the customer removed it in WhatsApp
+            : status,
       expiresAt: allowed ? iso(meta.expiresAt ?? row?.expiresAt) : base.expiresAt,
       canCall,
       canRequest,
