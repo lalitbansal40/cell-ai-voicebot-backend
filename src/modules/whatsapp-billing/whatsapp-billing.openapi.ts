@@ -126,6 +126,12 @@ registry.registerPath({
   request: { body: { content: { 'application/json': { schema: SaveRateCardBody } } } },
   responses: { 201: ok(card, 'Created'), ...admin },
 });
+const callingSettings = z.object({
+  markupBps: z.number(),
+  platformFeePerMinuteMicros: z.number(),
+  holdMinutes: z.number(),
+  holdExtendMinutes: z.number(),
+});
 const settingsView = z.object({
   settings: z.object({
     markupBps: z.number(),
@@ -145,6 +151,9 @@ const settingsView = z.object({
       wabaCurrency: z.string(),
     }),
   ),
+  /** Phase 12: the price of business-initiated WhatsApp calls. */
+  calling: callingSettings,
+  callingDefaults: callingSettings,
 });
 registry.registerPath({
   method: 'get',
@@ -178,6 +187,8 @@ registry.registerPath({
         z.object({
           accountId: z.string(),
           accountName: z.string(),
+          /** `call` rows (Phase 12): WhatsApp calls, category `call`, `messages` = calls. */
+          kind: z.enum(['message', 'call']),
           category: z.string(),
           messages: z.number(),
           billedMicros: z.number(),

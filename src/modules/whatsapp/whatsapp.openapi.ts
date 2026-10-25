@@ -469,6 +469,12 @@ registry.registerPath({
             .nullable(),
           platformFeeMicros: z.number().nullable(),
         }),
+        /** Phase 12: the account's call price override. */
+        whatsappCallingBilling: z.object({
+          markupBps: z.number().nullable(),
+          fixedPerMinuteMicros: z.number().nullable(),
+          platformFeePerMinuteMicros: z.number().nullable(),
+        }),
       }),
     ),
     401: errors[401],

@@ -22373,9 +22373,22 @@
                             "platformFeeMicros": { "type": ["number", "null"] }
                           },
                           "required": ["markupBps", "fixedPrices", "platformFeeMicros"]
+                        },
+                        "whatsappCallingBilling": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": ["number", "null"] },
+                            "fixedPerMinuteMicros": { "type": ["number", "null"] },
+                            "platformFeePerMinuteMicros": { "type": ["number", "null"] }
+                          },
+                          "required": [
+                            "markupBps",
+                            "fixedPerMinuteMicros",
+                            "platformFeePerMinuteMicros"
+                          ]
                         }
                       },
-                      "required": ["metaPayer", "whatsappBilling"]
+                      "required": ["metaPayer", "whatsappBilling", "whatsappCallingBilling"]
                     }
                   },
                   "required": ["success", "data"]
@@ -25456,9 +25469,45 @@
                             },
                             "required": ["channelId", "accountId", "label", "wabaCurrency"]
                           }
+                        },
+                        "calling": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": "number" },
+                            "platformFeePerMinuteMicros": { "type": "number" },
+                            "holdMinutes": { "type": "number" },
+                            "holdExtendMinutes": { "type": "number" }
+                          },
+                          "required": [
+                            "markupBps",
+                            "platformFeePerMinuteMicros",
+                            "holdMinutes",
+                            "holdExtendMinutes"
+                          ]
+                        },
+                        "callingDefaults": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": "number" },
+                            "platformFeePerMinuteMicros": { "type": "number" },
+                            "holdMinutes": { "type": "number" },
+                            "holdExtendMinutes": { "type": "number" }
+                          },
+                          "required": [
+                            "markupBps",
+                            "platformFeePerMinuteMicros",
+                            "holdMinutes",
+                            "holdExtendMinutes"
+                          ]
                         }
                       },
-                      "required": ["settings", "defaults", "nonInrPlatformChannels"]
+                      "required": [
+                        "settings",
+                        "defaults",
+                        "nonInrPlatformChannels",
+                        "calling",
+                        "callingDefaults"
+                      ]
                     }
                   },
                   "required": ["success", "data"]
@@ -25539,9 +25588,45 @@
                             },
                             "required": ["channelId", "accountId", "label", "wabaCurrency"]
                           }
+                        },
+                        "calling": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": "number" },
+                            "platformFeePerMinuteMicros": { "type": "number" },
+                            "holdMinutes": { "type": "number" },
+                            "holdExtendMinutes": { "type": "number" }
+                          },
+                          "required": [
+                            "markupBps",
+                            "platformFeePerMinuteMicros",
+                            "holdMinutes",
+                            "holdExtendMinutes"
+                          ]
+                        },
+                        "callingDefaults": {
+                          "type": "object",
+                          "properties": {
+                            "markupBps": { "type": "number" },
+                            "platformFeePerMinuteMicros": { "type": "number" },
+                            "holdMinutes": { "type": "number" },
+                            "holdExtendMinutes": { "type": "number" }
+                          },
+                          "required": [
+                            "markupBps",
+                            "platformFeePerMinuteMicros",
+                            "holdMinutes",
+                            "holdExtendMinutes"
+                          ]
                         }
                       },
-                      "required": ["settings", "defaults", "nonInrPlatformChannels"]
+                      "required": [
+                        "settings",
+                        "defaults",
+                        "nonInrPlatformChannels",
+                        "calling",
+                        "callingDefaults"
+                      ]
                     }
                   },
                   "required": ["success", "data"]
@@ -25611,6 +25696,7 @@
                         "properties": {
                           "accountId": { "type": "string" },
                           "accountName": { "type": "string" },
+                          "kind": { "type": "string", "enum": ["message", "call"] },
                           "category": { "type": "string" },
                           "messages": { "type": "number" },
                           "billedMicros": { "type": "number" },
@@ -25623,6 +25709,7 @@
                         "required": [
                           "accountId",
                           "accountName",
+                          "kind",
                           "category",
                           "messages",
                           "billedMicros",
