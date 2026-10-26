@@ -4,7 +4,7 @@ Multi-tenant AI voice calling platform API (Node.js + Express + TypeScript + Mon
 
 ## Status
 
-**Phase 12 — WhatsApp Calling: complete** ([sign-off](docs/phases/PHASE_12_SIGNOFF.md)); Phase 11 [sign-off](docs/phases/PHASE_11_SIGNOFF.md) and earlier sign-offs in `docs/phases/`. Settings, permissions, browser-agent and AI calls, inbound team ring and handoff, recording and wallet charges are implemented with fake Meta and real loopback WebRTC. Next: **Phase 13 (Staging deploy + Meta App Review)**, including real-device validation. Tasks: [Phase 12 tracker](docs/phases/PHASE_12_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
+**Phase 12 complete; Phase 13 staging/App Review is in progress.** [Phase 12 sign-off](docs/phases/PHASE_12_SIGNOFF.md) · [Phase 13 tracker](docs/phases/PHASE_13_TASKS.md). Local Meta compatibility, public legal pages and deployment tooling are prepared in Batch 1. Real staging/provider/phone checks and Meta approval remain owner-gated; see the [staging runbook](docs/ops/staging.md).
 
 ## Prerequisites
 
@@ -534,3 +534,9 @@ All project docs (plans, ADRs, conventions) live in [`docs/`](docs/README.md).
 - [Secrets policy](docs/conventions/secrets.md)
 - [API conventions](docs/conventions/api.md) · [Error codes](docs/conventions/error-codes.md) · [WebSocket](docs/conventions/websocket.md) · [Data](docs/conventions/data.md) · [Code style](docs/conventions/code-style.md)
 - [Architecture Decision Records](docs/adr/README.md)
+
+## Deploy to staging (Phase 13)
+
+Read [deploy/staging/README.md](deploy/staging/README.md) and the [runbook](docs/ops/staging.md). Docker Compose + host nginx serve frontend/API on one machine. Run `npm run build:ops` alongside `npm run build`; the runtime image contains compiled migrations, index sync, superadmin, e-mail, smoke and demo tools. `npm run smoke -- --url https://HOST` probes the deployed commit, readiness, SPA/assets, cache and public routes; add `--demo-email` and `--demo-password-env` to check login/WebSockets without putting a password in argv. `npm run staging:demo` requires production plus the matching `DEMO_SEED_CONFIRM`, owner e-mail/password and optional team test phones. It never creates fake Meta channels.
+
+The `DEMO_*` inputs are CLI-only and live in a temporary protected file, not the API runtime configuration. `scripts/init-secrets.sh` generates compose database credentials once. The Mac wrapper archives committed refs; deploy/rollback never reverse migrations or touch uploads. Encrypted backups, isolated restore drills and healthwatch are documented in the runbook. No server or Meta App Review approval is claimed from local tests.

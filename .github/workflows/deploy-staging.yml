@@ -1,0 +1,116 @@
+name: Deploy staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_ref:
+        description: Backend commit or branch
+        required: true
+        default: main
+      frontend_ref:
+        description: Frontend commit or branch
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    outputs:
+      backend_sha: ${{ steps.refs.outputs.backend_sha }}
+      frontend_sha: ${{ steps.refs.outputs.frontend_sha }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6380:6379']
+        options: --health-cmd 'redis-cli ping' --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.backend_ref }}
+          path: cell-ai-voicebot-backend
+      - uses: actions/checkout@v7
+        with:
+          repository: lalitbansal40/cell-ai-voicebot-frontend
+          ref: ${{ inputs.frontend_ref }}
+          path: cell-ai-voicebot-frontend
+          token: ${{ secrets.STAGING_REPO_TOKEN || github.token }}
+      - name: Pin the checked-out revisions
+        id: refs
+        run: |
+          echo "backend_sha=$(git -C cell-ai-voicebot-backend rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "frontend_sha=$(git -C cell-ai-voicebot-frontend rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: cell-ai-voicebot-backend/.nvmrc
+      - run: npm ci
+        working-directory: cell-ai-voicebot-backend
+      - run: npm run lint
+        working-directory: cell-ai-voicebot-backend
+      - run: npm run format:check
+        working-directory: cell-ai-voicebot-backend
+      - run: npm run typecheck
+        working-directory: cell-ai-voicebot-backend
+      - run: npm run test:coverage -- --maxWorkers=2
+        working-directory: cell-ai-voicebot-backend
+        env:
+          REDIS_URL: redis://127.0.0.1:6380
+      - run: npm run build
+        working-directory: cell-ai-voicebot-backend
+      - run: npm run build:ops
+        working-directory: cell-ai-voicebot-backend
+      - run: npm run openapi:check
+        working-directory: cell-ai-voicebot-backend
+      - run: npm ci
+        working-directory: cell-ai-voicebot-frontend
+      - run: npm run lint
+        working-directory: cell-ai-voicebot-frontend
+      - run: npm run format:check
+        working-directory: cell-ai-voicebot-frontend
+      - run: npm run typecheck
+        working-directory: cell-ai-voicebot-frontend
+      - run: npm run test:coverage -- --maxWorkers=2
+        working-directory: cell-ai-voicebot-frontend
+      - run: npm run build
+        working-directory: cell-ai-voicebot-frontend
+
+  deploy:
+    needs: verify
+    environment: staging
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify.outputs.backend_sha }}
+          path: cell-ai-voicebot-backend
+      - uses: actions/checkout@v7
+        with:
+          repository: lalitbansal40/cell-ai-voicebot-frontend
+          ref: ${{ needs.verify.outputs.frontend_sha }}
+          path: cell-ai-voicebot-frontend
+          token: ${{ secrets.STAGING_REPO_TOKEN || github.token }}
+      - name: Archive and deploy the verified commits
+        env:
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          CAV_HOST_KEY_POLICY: 'yes'
+        working-directory: cell-ai-voicebot-backend
+        run: |
+          umask 077
+          key="$RUNNER_TEMP/cav-staging-key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$STAGING_SSH_KEY" > "$key"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$STAGING_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)" >/dev/null
+          ssh-add "$key" 2>/dev/null
+          deploy/staging/deploy-from-mac.sh "$STAGING_HOST" "$key"

@@ -1,0 +1,8 @@
+[Unit]
+Description=Cell AI encrypted staging backup
+After=docker.service network-online.target
+[Service]
+Type=oneshot
+User=cav
+ExecStart=/srv/cell-ai-voicebot/deploy/scripts/backup.sh
+UMask=0077
