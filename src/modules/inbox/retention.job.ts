@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { INBOX_LIMITS } from '../../config/limits';
 import type { StorageProvider } from '../../core/storage';
 import { AnalyticsMarkModel, analyticsMarkId } from '../../db/models/analytics-mark.model';
+import { ConversationSummaryModel } from '../../db/models/conversation-summary.model';
 import { ConversationModel } from '../../db/models/conversation.model';
 import { InboxUploadModel } from '../../db/models/inbox-upload.model';
 import { MessageModel, type MessageDoc } from '../../db/models/message.model';
@@ -16,6 +17,8 @@ export interface RetentionResult {
   media: number;
   uploads: number;
   conversations: number;
+  /** Phase 14 chat summaries. */
+  summaries: number;
 }
 
 const removeFile = async (
@@ -70,7 +73,13 @@ export const runInboxRetention = async (
   retentionDays: number,
   now = new Date(),
 ): Promise<RetentionResult> => {
-  const result: RetentionResult = { messages: 0, media: 0, uploads: 0, conversations: 0 };
+  const result: RetentionResult = {
+    messages: 0,
+    media: 0,
+    uploads: 0,
+    conversations: 0,
+    summaries: 0,
+  };
   const perAccount = new Map<
     string,
     { accountId: Types.ObjectId; messages: number; media: number; uploads: number }
@@ -120,6 +129,10 @@ export const runInboxRetention = async (
     for (const id of touched) {
       await recompute(new Types.ObjectId(id));
     }
+    // Phase 14: chat summaries are chat content — same cutoff
+    result.summaries = (
+      await ConversationSummaryModel.deleteMany({ createdAt: { $lt: cutoff } })
+    ).deletedCount;
     result.conversations = touched.size;
   }
   for (;;) {

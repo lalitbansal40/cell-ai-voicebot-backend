@@ -251,3 +251,51 @@ registry.registerPath({
   request: json(DispositionsBody),
   responses: { 200: ok(DispositionsSchema), 401: errors[401], 403: errors[403], 422: errors[422] },
 });
+
+// ── Chat summaries ──────────────────────────────────────────────────────────
+
+export const ChatSummarySchema = registry.register(
+  'ChatSummary',
+  z.object({
+    id: z.string(),
+    status: z.enum(INSIGHT_STATUSES),
+    reason: z.string().nullable(),
+    summary: z.string().nullable(),
+    messageCount: z.number().int(),
+    costMicros: z.number().int(),
+    createdBy: z.object({ id: z.string(), name: z.string() }).nullable(),
+    createdAt: z.string(),
+  }),
+);
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/inbox/conversations/{id}/summary',
+  tags,
+  summary: 'Summaries of a WhatsApp chat, newest first (inbox.read; ≤ 20)',
+  security: bearer,
+  request: { params: InsightParams },
+  responses: {
+    200: ok(z.array(ChatSummarySchema)),
+    401: errors[401],
+    403: errors[403],
+    404: errors[404],
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/inbox/conversations/{id}/summary',
+  tags,
+  summary:
+    'Summarise the messages since the last summary (inbox.reply; uses AI credit; 409 CHAT_SUMMARY_EMPTY / INSIGHTS_DISABLED / CONFLICT_INVALID_STATE, 422 WALLET_INSUFFICIENT_BALANCE)',
+  security: bearer,
+  request: { params: InsightParams },
+  responses: {
+    202: ok(z.array(ChatSummarySchema), 'Queued'),
+    401: errors[401],
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
+    422: errors[422],
+  },
+});

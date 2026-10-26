@@ -2,6 +2,7 @@ import type { Migration } from '../migrate';
 import { DEFAULT_DISPOSITIONS, DEFAULT_INSIGHTS_SETTINGS } from '../models/account.model';
 import { CallInsightModel } from '../models/call-insight.model';
 import { CallModel } from '../models/call.model';
+import { DEFAULT_RATE_CARD } from '../models/rate-card.model';
 
 export const INSIGHTS_DUE_INDEX = 'insights_due';
 export const BEFORE_INSIGHTS = 'before_insights';
@@ -56,6 +57,12 @@ export const insightsMigration: Migration = {
       { dispositionSource: { $exists: false } },
       { $set: { dispositionSource: null } },
     );
+    await db
+      .collection('rateCards')
+      .updateMany(
+        { sttPerMinuteMicros: { $exists: false } },
+        { $set: { sttPerMinuteMicros: DEFAULT_RATE_CARD.sttPerMinuteMicros } },
+      );
     await CallModel.createIndexes();
     await CallInsightModel.createIndexes();
   },
@@ -66,6 +73,7 @@ export const insightsMigration: Migration = {
     await db
       .collection('accounts')
       .updateMany({}, { $unset: { 'settings.insights': '', 'settings.dispositions': '' } });
+    await db.collection('rateCards').updateMany({}, { $unset: { sttPerMinuteMicros: '' } });
     if ((await db.listCollections({ name: 'callInsights' }).toArray()).length)
       await db.dropCollection('callInsights');
   },

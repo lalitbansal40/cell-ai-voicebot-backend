@@ -5,11 +5,13 @@ import {
   purgeDeletedAgents,
   purgePlaygroundSessions,
 } from '../../../modules/ai-agents/maintenance';
+import { runChatSummary } from '../../../modules/insights/chat-summary.service';
 import {
   runInsights,
   sweepInsights,
   type InsightsDeps,
 } from '../../../modules/insights/insights.service';
+import { runStt } from '../../../modules/insights/stt.service';
 import { ingestSource, reindexKnowledgeBase } from '../../../modules/knowledge/ingest.job';
 import {
   AI_SCHEDULES,
@@ -59,6 +61,21 @@ export const AI_JOB_HANDLERS: AiJobHandlers = {
   'insights.sweep': (_data, ctx) => sweepInsights(insightsDeps(ctx)),
   'insights.run': (data, ctx, job) =>
     runInsights(data, insightsDeps(ctx), {
+      made: job.attemptsMade,
+      max: job.opts.attempts ?? 1,
+    }),
+  'insights.stt': (data, ctx, job) =>
+    runStt(
+      data,
+      {
+        ...insightsDeps(ctx),
+        ...(ctx.storage ? { storage: ctx.storage } : {}),
+        transcribeModel: getEnv().OPENAI_TRANSCRIBE_MODEL,
+      },
+      { made: job.attemptsMade, max: job.opts.attempts ?? 1 },
+    ),
+  'insights.chat_summary': (data, ctx, job) =>
+    runChatSummary(data, insightsDeps(ctx), {
       made: job.attemptsMade,
       max: job.opts.attempts ?? 1,
     }),

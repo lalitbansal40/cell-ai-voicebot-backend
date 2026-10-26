@@ -19,6 +19,8 @@ export interface RateCardValues {
   aiTextPer1kTokensMicros: number;
   /** Knowledge-base embeddings per 1,000 tokens (Phase 5). */
   embeddingPer1kTokensMicros: number;
+  /** Transcribing recorded human calls, per audio minute (Phase 14; prorated per second). */
+  sttPerMinuteMicros: number;
 }
 
 export interface RateCardDoc extends RateCardValues {
@@ -44,6 +46,8 @@ export const DEFAULT_RATE_CARD: RateCardValues = {
   billUnansweredAttempts: false,
   aiTextPer1kTokensMicros: 200_000,
   embeddingPer1kTokensMicros: 10_000,
+  // placeholder (OpenAI mini transcribe ≈ ₹0.26 / min) — to confirm with the client
+  sttPerMinuteMicros: 500_000,
 };
 
 const rate = {
@@ -65,6 +69,7 @@ const schema = new Schema<RateCardDoc>({
   billUnansweredAttempts: { type: Boolean, default: false },
   aiTextPer1kTokensMicros: { ...rate, default: DEFAULT_RATE_CARD.aiTextPer1kTokensMicros },
   embeddingPer1kTokensMicros: { ...rate, default: DEFAULT_RATE_CARD.embeddingPer1kTokensMicros },
+  sttPerMinuteMicros: { ...rate, default: DEFAULT_RATE_CARD.sttPerMinuteMicros },
   inheritsDefault: { type: Boolean, default: false },
   effectiveFrom: { type: Date, required: true },
   createdBy: { type: Schema.Types.ObjectId, default: null },

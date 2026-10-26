@@ -201,6 +201,10 @@ export const ERROR_CODES = {
     status: 422,
     message: 'Choose one of the call outcomes set up in Settings.',
   },
+  CHAT_SUMMARY_EMPTY: {
+    status: 409,
+    message: 'There are no new messages to summarise in this chat.',
+  },
   REPORT_RANGE_INVALID: {
     status: 422,
     message: 'Choose a date range of at most 366 days, with the start before the end.',

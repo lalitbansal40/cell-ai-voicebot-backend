@@ -79,8 +79,22 @@ export interface EmbedResult {
   usage: { tokens: number };
 }
 
+/** One short mono WAV clip → text (Phase 14 call transcription). */
+export interface TranscribeRequest {
+  model: string;
+  /** A complete WAV file (16-bit PCM, mono). */
+  audio: Buffer;
+  signal?: AbortSignal;
+}
+
+export interface TranscribeResult {
+  text: string;
+}
+
 export interface AiProvider {
   readonly name: 'openai' | 'fake';
   chat(request: ChatRequest): Promise<ChatResult>;
   embed(request: EmbedRequest): Promise<EmbedResult>;
+  /** Phase 14; optional so older test doubles stay valid. */
+  transcribe?(request: TranscribeRequest): Promise<TranscribeResult>;
 }

@@ -46,7 +46,9 @@ describe('ai worker', () => {
     await expect(processAiJob(ctx)(job('nope'))).rejects.toThrow('Unknown AI job');
     expect(Object.keys(AI_JOB_HANDLERS).sort()).toEqual([
       'agents.purge_deleted',
+      'insights.chat_summary',
       'insights.run',
+      'insights.stt',
       'insights.sweep',
       'kb.ingest',
       'kb.reindex',

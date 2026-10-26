@@ -22,6 +22,8 @@ import type {
   EmbedResult,
   ToolCall,
   ToolDefinition,
+  TranscribeRequest,
+  TranscribeResult,
 } from './types';
 
 /**
@@ -366,6 +368,12 @@ export const fakeEmbedding = (text: string, dims: number = AI_LIMITS.embeddingDi
 
 export const createFakeProvider = (): AiProvider => ({
   name: 'fake',
+
+  /** Fake words sized by the clip: `Fake speech 2.5 s.` (WAV header 44 bytes, 8 kHz mono 16-bit). */
+  transcribe(request: TranscribeRequest): Promise<TranscribeResult> {
+    const seconds = Math.max(0, request.audio.length - 44) / 2 / 8_000;
+    return Promise.resolve({ text: `Fake speech ${seconds.toFixed(1)} s.` });
+  },
 
   chat(request: ChatRequest): Promise<ChatResult> {
     const structured = fakeStructured(request);

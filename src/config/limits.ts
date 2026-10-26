@@ -565,8 +565,10 @@ export const INSIGHTS_LIMITS = {
   maxOutputTokens: 800,
   retries: 1,
   chatMaxMessages: 200,
-  sttChunkSec: 600,
-  sttMaxFileBytes: 25 * 1024 * 1024,
+  /** Recorded calls are cut into speech segments (one transcript turn each). */
+  sttSegmentMaxSec: 30,
+  sttSegmentMinMs: 300,
+  sttMaxSegments: 400,
   /** Calls ended at least this long ago are picked up (recording upload, last turns). */
   settleSec: 15,
   /** The insights sweep looks back this far when it has no watermark. */

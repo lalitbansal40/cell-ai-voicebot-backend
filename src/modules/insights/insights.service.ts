@@ -51,7 +51,12 @@ import { auditRequest } from '../audit/audit.service';
 
 import { ModelInsightsSchema, toInsightOutput } from './insights.schema';
 
-export const INSIGHT_JOBS = { sweep: 'insights.sweep', run: 'insights.run' } as const;
+export const INSIGHT_JOBS = {
+  sweep: 'insights.sweep',
+  run: 'insights.run',
+  stt: 'insights.stt',
+  chatSummary: 'insights.chat_summary',
+} as const;
 export const insightRunJobId = (callId: string, version: number): string =>
   `insights-${callId}-v${String(version)}`;
 
@@ -165,8 +170,8 @@ export const sweepInsights = async (deps: InsightsDeps): Promise<Record<string, 
   })
     .sort({ 'timestamps.endedAt': 1 })
     .limit(INSIGHTS_LIMITS.sweepBatch)
-    .select({ accountId: 1, status: 1, timestamps: 1, mode: 1 })
-    .lean<Pick<CallDoc, '_id' | 'accountId' | 'status' | 'timestamps' | 'mode'>[]>();
+    .select({ accountId: 1, status: 1, timestamps: 1, mode: 1, recording: 1 })
+    .lean<Pick<CallDoc, '_id' | 'accountId' | 'status' | 'timestamps' | 'mode' | 'recording'>[]>();
   const accounts = new Map<string, AccountView>();
   let queued = 0;
   let skipped = 0;
@@ -176,8 +181,31 @@ export const sweepInsights = async (deps: InsightsDeps): Promise<Record<string, 
     const account = accounts.get(key) ?? (await loadAccount(call.accountId).catch(() => null));
     if (!account) continue;
     accounts.set(key, account);
-    let reason: string | null = await blocker(call, insightsSettingsOf(account));
-    if (reason === 'too_short' && call.mode === 'human') reason = 'no_transcript';
+    const settings = insightsSettingsOf(account);
+    let reason: string | null = await blocker(call, settings);
+    if (reason === 'too_short' && call.mode === 'human') {
+      // a recorded human call is transcribed first when the account asked for it
+      if (settings.transcribeHumanCalls && call.recording) {
+        const claimed = await CallModel.updateOne(
+          { _id: call._id, insights: null },
+          { $set: { insights: state('pending', 1, null, now) } },
+        );
+        if (!claimed.modifiedCount) continue;
+        await CallInsightModel.updateOne(
+          { accountId: call.accountId, callId: call._id, version: 1 },
+          { $setOnInsert: { status: 'pending', promptVersion: INSIGHTS_PROMPT_VERSION } },
+          { upsert: true },
+        );
+        await deps.jobs.enqueue(
+          INSIGHT_JOBS.stt,
+          { accountId: key, callId: call._id.toString() },
+          { jobId: `stt-${call._id.toString()}` },
+        );
+        queued += 1;
+        continue;
+      }
+      reason = 'no_transcript';
+    }
     if (reason) {
       skipped += 1;
       await CallModel.updateOne(
@@ -230,7 +258,7 @@ const programName = async (call: Pick<CallDoc, 'accountId' | 'source'>): Promise
   return null;
 };
 
-const finish = async (
+export const finishInsights = async (
   call: Pick<CallDoc, '_id' | 'accountId'>,
   version: number,
   status: 'skipped' | 'failed',
@@ -274,7 +302,7 @@ export const runInsights = async (
   const account = await loadAccount(accountId);
   const wallet = await getOrCreateWallet(accountId);
   if (wallet.balanceMicros - wallet.holdMicros <= 0)
-    return finish(call, data.version, 'skipped', 'low_balance', now);
+    return finishInsights(call, data.version, 'skipped', 'low_balance', now);
   if (!deps.provider) throw new Error('AI provider is not configured for the worker');
 
   const turns = await TranscriptTurnModel.find({ accountId, callId: call._id })
@@ -338,7 +366,7 @@ export const runInsights = async (
       { callId: data.callId, err: (err as Error).name },
       'insights: provider failed',
     );
-    return finish(call, data.version, 'failed', 'provider_error', now);
+    return finishInsights(call, data.version, 'failed', 'provider_error', now);
   }
 
   const cost = turnCost(await effectiveRateCard(accountId), usage);
@@ -359,7 +387,7 @@ export const runInsights = async (
         err instanceof AppError &&
         (err.code === 'WALLET_INSUFFICIENT_BALANCE' || err.code === 'WALLET_BUDGET_EXCEEDED')
       )
-        return finish(call, data.version, 'skipped', 'low_balance', now);
+        return finishInsights(call, data.version, 'skipped', 'low_balance', now);
       throw err;
     }
   }
@@ -369,7 +397,7 @@ export const runInsights = async (
       { $set: { model: deps.model, ...usage, costMicros: cost, ledgerEntryId } },
       { upsert: true },
     );
-    return finish(call, data.version, 'failed', 'invalid_output', now);
+    return finishInsights(call, data.version, 'failed', 'invalid_output', now);
   }
 
   await CallInsightModel.updateOne(

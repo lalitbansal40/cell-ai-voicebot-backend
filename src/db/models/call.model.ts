@@ -156,6 +156,8 @@ export interface CallRecording {
   durationSec: number;
   sizeBytes: number;
   format: 'wav';
+  /** Phase 14 retention: the file was deleted (the call and its insights stay). */
+  deletedAt?: Date | null;
 }
 
 /** Who set `disposition` (Phase 14): a flow / AI agent / a person win over the AI suggestion. */

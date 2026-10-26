@@ -457,7 +457,8 @@
               "call.disposition_updated",
               "call.insights_regenerated",
               "account.insights_updated",
-              "account.dispositions_updated"
+              "account.dispositions_updated",
+              "conversation.summary_created"
             ]
           },
           "actor": {
@@ -3584,6 +3585,7 @@
           "billUnansweredAttempts": { "type": "boolean" },
           "aiTextPer1kTokensMicros": { "type": "number" },
           "embeddingPer1kTokensMicros": { "type": "number" },
+          "sttPerMinuteMicros": { "type": "number" },
           "source": { "type": "string", "enum": ["account", "default"] },
           "effectiveFrom": { "type": "string" },
           "whatsapp": {
@@ -3645,6 +3647,7 @@
           "billUnansweredAttempts",
           "aiTextPer1kTokensMicros",
           "embeddingPer1kTokensMicros",
+          "sttPerMinuteMicros",
           "source",
           "effectiveFrom",
           "whatsapp",
@@ -4059,6 +4062,7 @@
           "billUnansweredAttempts": { "type": "boolean" },
           "aiTextPer1kTokensMicros": { "type": "number" },
           "embeddingPer1kTokensMicros": { "type": "number" },
+          "sttPerMinuteMicros": { "type": "number" },
           "inheritsDefault": { "type": "boolean" },
           "effectiveFrom": { "type": "string" },
           "createdBy": { "type": ["string", "null"] },
@@ -4076,6 +4080,7 @@
           "billUnansweredAttempts",
           "aiTextPer1kTokensMicros",
           "embeddingPer1kTokensMicros",
+          "sttPerMinuteMicros",
           "inheritsDefault",
           "effectiveFrom",
           "createdBy",
@@ -4099,6 +4104,7 @@
               "billUnansweredAttempts": { "type": "boolean" },
               "aiTextPer1kTokensMicros": { "type": "number" },
               "embeddingPer1kTokensMicros": { "type": "number" },
+              "sttPerMinuteMicros": { "type": "number" },
               "effectiveFrom": { "type": "string" }
             },
             "required": [
@@ -4112,6 +4118,7 @@
               "billUnansweredAttempts",
               "aiTextPer1kTokensMicros",
               "embeddingPer1kTokensMicros",
+              "sttPerMinuteMicros",
               "effectiveFrom"
             ]
           },
@@ -4148,6 +4155,7 @@
               "billUnansweredAttempts": { "type": "boolean" },
               "aiTextPer1kTokensMicros": { "type": "number" },
               "embeddingPer1kTokensMicros": { "type": "number" },
+              "sttPerMinuteMicros": { "type": "number" },
               "effectiveFrom": { "type": "string" }
             },
             "required": [
@@ -4161,6 +4169,7 @@
               "billUnansweredAttempts",
               "aiTextPer1kTokensMicros",
               "embeddingPer1kTokensMicros",
+              "sttPerMinuteMicros",
               "effectiveFrom"
             ]
           },
@@ -6719,6 +6728,33 @@
           }
         },
         "required": ["dispositions"]
+      },
+      "ChatSummary": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "done", "skipped", "failed"] },
+          "reason": { "type": ["string", "null"] },
+          "summary": { "type": ["string", "null"] },
+          "messageCount": { "type": "integer" },
+          "costMicros": { "type": "integer" },
+          "createdBy": {
+            "type": ["object", "null"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id", "name"]
+          },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "status",
+          "reason",
+          "summary",
+          "messageCount",
+          "costMicros",
+          "createdBy",
+          "createdAt"
+        ]
       },
       "Report": {
         "type": "object",
@@ -17955,6 +17991,7 @@
                     "minimum": 0,
                     "maximum": 1000000000
                   },
+                  "sttPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
                   "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
                 },
                 "required": [
@@ -18149,6 +18186,7 @@
                     "minimum": 0,
                     "maximum": 1000000000
                   },
+                  "sttPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
                   "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
                 },
                 "required": [
@@ -28207,6 +28245,122 @@
           },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbox/conversations/{id}/summary": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Summaries of a WhatsApp chat, newest first (inbox.read; ≤ 20)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ChatSummary" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Insights"],
+        "summary": "Summarise the messages since the last summary (inbox.reply; uses AI credit; 409 CHAT_SUMMARY_EMPTY / INSIGHTS_DISABLED / CONFLICT_INVALID_STATE, 422 WALLET_INSUFFICIENT_BALANCE)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ChatSummary" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

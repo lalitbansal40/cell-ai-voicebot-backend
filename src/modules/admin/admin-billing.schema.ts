@@ -96,6 +96,7 @@ const RateCardValuesView = {
   billUnansweredAttempts: z.boolean(),
   aiTextPer1kTokensMicros: z.number(),
   embeddingPer1kTokensMicros: z.number(),
+  sttPerMinuteMicros: z.number(),
 };
 
 export const RateCardVersionSchema = registry.register(

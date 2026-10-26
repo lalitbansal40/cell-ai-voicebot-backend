@@ -2,6 +2,7 @@ import { CALL_LIMITS } from '../../config/limits';
 import type { StorageProvider } from '../../core/storage';
 import { AnalyticsMarkModel, analyticsMarkId } from '../../db/models/analytics-mark.model';
 import { CallEventModel } from '../../db/models/call-event.model';
+import { CallInsightModel } from '../../db/models/call-insight.model';
 import { CallModel, type CallDoc } from '../../db/models/call.model';
 import { FlowRunModel } from '../../db/models/flow-run.model';
 import { TranscriptTurnModel } from '../../db/models/transcript-turn.model';
@@ -88,7 +89,7 @@ export const reapCalls = async (
   return { failed, canceled };
 };
 
-/** Calls older than the retention: recording file, events, transcript, call-mode run, call. */
+/** Calls older than the retention: recording file, events, transcript, insights, call-mode run, call. */
 export const purgeCalls = async (
   storage: StorageProvider | undefined,
   retentionDays: number,
@@ -102,6 +103,7 @@ export const purgeCalls = async (
     if (call.recording && storage) await storage.delete(call.recording.fileKey);
     await CallEventModel.deleteMany({ callId: call._id });
     await TranscriptTurnModel.deleteMany({ callId: call._id });
+    await CallInsightModel.deleteMany({ callId: call._id });
     if (call.flowRunId) await FlowRunModel.deleteOne({ _id: call.flowRunId, mode: 'call' });
     await CallModel.deleteOne({ _id: call._id });
     // its counts stay in the report rollups; only the bookkeeping goes

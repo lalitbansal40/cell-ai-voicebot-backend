@@ -11,6 +11,8 @@ import type {
   EmbedRequest,
   EmbedResult,
   ToolCall,
+  TranscribeRequest,
+  TranscribeResult,
 } from './types';
 
 export interface OpenAiProviderOptions {
@@ -106,10 +108,15 @@ export const createOpenAiProvider = ({
       let response: Response;
       try {
         const timeout = AbortSignal.timeout(timeoutMs);
+        const form = body instanceof FormData;
         response = await fetch(`${base}${path}`, {
           method: 'POST',
-          headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-          body: JSON.stringify(body),
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            // multipart: fetch sets the boundary itself
+            ...(form ? {} : { 'content-type': 'application/json' }),
+          },
+          body: form ? body : JSON.stringify(body),
           signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
         });
       } catch (err) {
@@ -185,6 +192,24 @@ export const createOpenAiProvider = ({
         },
         finishReason: finishReason(choice.finish_reason),
       };
+    },
+
+    async transcribe(request: TranscribeRequest): Promise<TranscribeResult> {
+      const form = new FormData();
+      form.append('model', request.model);
+      form.append('response_format', 'json');
+      form.append(
+        'file',
+        new Blob([new Uint8Array(request.audio)], { type: 'audio/wav' }),
+        'audio.wav',
+      );
+      const json = await post<{ text?: string }>(
+        '/audio/transcriptions',
+        form,
+        timeoutsMs.chat,
+        request.signal,
+      );
+      return { text: (json.text ?? '').trim() };
     },
 
     async embed(request: EmbedRequest): Promise<EmbedResult> {

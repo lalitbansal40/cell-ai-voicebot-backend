@@ -1035,7 +1035,12 @@ Post-call AI results per call and version (ADR 0044). **PII:** `output.summary`,
 
 Indexes: `{ accountId, callId, version }` unique, `{ accountId, createdAt: -1 }`.
 
-**Additions (Phase 14, insights):** Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, reason, version, sentiment, hasPromise, promiseAmountMicros, hasSummary, at } | null` (no text; `null` = not reviewed yet), index `insights_due { 'timestamps.endedAt': 1 }` partial `insights = null`. Account `settings.insights { enabled (true), chatSummaryOnClose (false) }`, `settings.dispositions { key ([a-z0-9_], stable), label (≤ 40), active }[]` (8 defaults, ≤ 30). Ledger usage kinds + `insights`, `stt`, `chat_summary`.
+#### ConversationSummary (`conversationSummaries`) — Phase 14
+
+WhatsApp chat summaries (ADR 0044). **PII:** `summary`. Fields: `conversationId`, `status` (`pending | done | skipped | failed`), `reason`, `fromMessageId` / `toMessageId` / `messageCount` (what it covers — the next starts after `toMessageId`), `summary` (≤ 2,000), `model`, tokens, `costMicros`, `createdBy` (`null` = on close). Indexes `{ accountId, conversationId, createdAt: -1 }`, `{ createdAt: 1 }` (inbox retention).
+
+**Additions (Phase 14, insights):** Rate card `sttPerMinuteMicros` (₹0.50 placeholder; migration 0016 sets it on existing cards). Call `recording.deletedAt`.
+Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, reason, version, sentiment, hasPromise, promiseAmountMicros, hasSummary, at } | null` (no text; `null` = not reviewed yet), index `insights_due { 'timestamps.endedAt': 1 }` partial `insights = null`. Account `settings.insights { enabled (true), chatSummaryOnClose (false) }`, `settings.dispositions { key ([a-z0-9_], stable), label (≤ 40), active }[]` (8 defaults, ≤ 30). Ledger usage kinds + `insights`, `stt`, `chat_summary`.
 
 ## 3. Embedded vs separate collection
 

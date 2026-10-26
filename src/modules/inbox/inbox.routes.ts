@@ -60,6 +60,8 @@ export interface InboxRouterDeps {
   /** `rl:inbox-send:` / `rl:inbox-upload:` stores (MemoryStore when omitted). */
   sendRateLimitStore?: Store;
   uploadRateLimitStore?: Store;
+  /** Phase 14 chat summary on close. */
+  summaries?: InboxContext['summaries'];
 }
 
 export const actorOf = (req: Request): InboxActor => {
@@ -118,6 +120,7 @@ export const createInboxRouter = (deps: InboxRouterDeps): Router => {
       storage: deps.storage,
       jobs: deps.jobs,
       ...(deps.calling ? { calling: deps.calling } : {}),
+      ...(deps.summaries ? { summaries: deps.summaries } : {}),
     };
   };
   const read = requirePermission('inbox.read');

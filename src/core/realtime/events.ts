@@ -93,6 +93,8 @@ export interface WsEventMap {
     reactions: { emoji: string; by: 'customer' | 'agent' }[];
   };
   /** Topic — another agent is typing (team only). */
+  /** Phase 14: a chat summary changed (ids only — fetch the list). */
+  'inbox.conversation.summary': { conversationId: string; summaryId: string };
   'inbox.typing': { conversationId: string; userId: string; name: string };
   /** Account level (Phase 11) — status / quality / category only, never template text. */
   'whatsapp.template.updated': {
@@ -172,6 +174,7 @@ export const WS_EVENT_TYPES = [
   'inbox.message.created',
   'inbox.message.updated',
   'inbox.typing',
+  'inbox.conversation.summary',
   'whatsapp.template.updated',
   'whatsapp.call.incoming',
   'whatsapp.call.taken',

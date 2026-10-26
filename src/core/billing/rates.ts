@@ -36,6 +36,8 @@ export const RateCardValuesSchema = z.strictObject({
   /** Phase 5 — optional in requests: missing → carried over from the card in force. */
   aiTextPer1kTokensMicros: rate.optional(),
   embeddingPer1kTokensMicros: rate.optional(),
+  /** Phase 14 — optional like the AI prices. */
+  sttPerMinuteMicros: rate.optional(),
 });
 
 /** What a request may send (AI prices optional) — completed by `completeValues`. */
@@ -121,7 +123,8 @@ const completeValues = async (
 ): Promise<RateCardValues> => {
   if (
     input.aiTextPer1kTokensMicros !== undefined &&
-    input.embeddingPer1kTokensMicros !== undefined
+    input.embeddingPer1kTokensMicros !== undefined &&
+    input.sttPerMinuteMicros !== undefined
   ) {
     return input as RateCardValues;
   }
@@ -133,6 +136,7 @@ const completeValues = async (
     aiTextPer1kTokensMicros: input.aiTextPer1kTokensMicros ?? current.aiTextPer1kTokensMicros,
     embeddingPer1kTokensMicros:
       input.embeddingPer1kTokensMicros ?? current.embeddingPer1kTokensMicros,
+    sttPerMinuteMicros: input.sttPerMinuteMicros ?? current.sttPerMinuteMicros,
   };
 };
 

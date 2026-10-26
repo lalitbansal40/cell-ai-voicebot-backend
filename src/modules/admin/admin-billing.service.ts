@@ -65,6 +65,7 @@ const VALUE_KEYS = [
   'billUnansweredAttempts',
   'aiTextPer1kTokensMicros',
   'embeddingPer1kTokensMicros',
+  'sttPerMinuteMicros',
 ] as const;
 
 const customerAccount = async (id: string): Promise<AccountDoc> => {

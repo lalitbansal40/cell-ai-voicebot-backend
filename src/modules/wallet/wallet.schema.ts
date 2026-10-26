@@ -79,6 +79,7 @@ export const RateCardViewSchema = registry.register(
     billUnansweredAttempts: z.boolean(),
     aiTextPer1kTokensMicros: z.number(),
     embeddingPer1kTokensMicros: z.number(),
+    sttPerMinuteMicros: z.number(),
     source: z.enum(['account', 'default']),
     effectiveFrom: z.string(),
     whatsapp: z.object({

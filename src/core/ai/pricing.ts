@@ -17,6 +17,16 @@ export const turnCost = (
   usage: TokenUsage,
 ): number => tokensToMicros(usage.inputTokens + usage.outputTokens, card.aiTextPer1kTokensMicros);
 
+/** Cost of transcribing `seconds` of audio (per-minute rate, prorated per second, rounded up). */
+export const sttCost = (
+  card: Pick<RateCardValues, 'sttPerMinuteMicros'>,
+  seconds: number,
+): number => {
+  const s = Math.max(0, Math.ceil(seconds));
+  if (!s || !card.sttPerMinuteMicros) return 0;
+  return assertMicros(Math.floor((s * card.sttPerMinuteMicros + 59) / 60));
+};
+
 /** Cost of embedding `tokens` (knowledge ingest). */
 export const embedCost = (
   card: Pick<RateCardValues, 'embeddingPer1kTokensMicros'>,

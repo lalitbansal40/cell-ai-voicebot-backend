@@ -145,6 +145,7 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `call.insights_regenerated`          | user              | call               | `version`                                                                                                                     |
 | `account.insights_updated`           | user              | account            | `enabled`, `chatSummaryOnClose` (the changed ones)                                                                            |
 | `account.dispositions_updated`       | user              | account            | `keys`, `removed`, `inactive` (outcome keys)                                                                                  |
+| `conversation.summary_created`       | user              | conversation       | `summaryId` (never the summary text)                                                                                          |
 
 Contact actions never carry phone numbers, names or variable values in `meta` — counts, ids, keys and list / segment names only (Phase 3).
 

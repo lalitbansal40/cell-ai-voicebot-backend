@@ -532,6 +532,7 @@ export const setConversationStatus = async (
     status === 'closed' ? 'inbox.conversation_closed' : 'inbox.conversation_reopened',
     updated,
   );
+  if (status === 'closed') await ix.summaries?.onClosed(updated);
   return getConversation(ix, actor, id);
 };
 

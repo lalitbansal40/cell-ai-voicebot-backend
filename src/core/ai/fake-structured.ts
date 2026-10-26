@@ -6,6 +6,7 @@
  * "kal / tomorrow" is the call date + 1 day; abusive words → negative.
  */
 import { FAKE_RULES } from './fake-rules';
+import { CHAT_SUMMARY_FORMAT } from './prompts/chat-summary';
 import {
   CALL_DATE_PREFIX,
   INSIGHTS_FORMAT_NAME,
@@ -14,7 +15,7 @@ import {
 } from './prompts/insights';
 import type { ChatRequest } from './types';
 
-export const CHAT_SUMMARY_FORMAT_NAME = 'chat_summary';
+export const CHAT_SUMMARY_FORMAT_NAME = CHAT_SUMMARY_FORMAT;
 
 const addDays = (ymd: string, days: number): string => {
   const [y = 0, m = 1, d = 1] = ymd.split('-').map(Number);

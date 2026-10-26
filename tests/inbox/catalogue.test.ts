@@ -87,6 +87,8 @@ describe('Phase 10 catalogue', () => {
       'inbox.message.created',
       'inbox.message.updated',
       'inbox.typing',
+      // Phase 14 chat summaries
+      'inbox.conversation.summary',
     ]);
   });
 

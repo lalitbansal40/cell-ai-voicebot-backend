@@ -37,9 +37,11 @@ import { createFlowsRouter } from './modules/flows/flows.routes';
 import { createInboxDisabledRouter, createInboxRouter } from './modules/inbox/inbox.routes';
 import { unavailableInboxJobs, type InboxJobs } from './modules/inbox/jobs';
 import { createInboxSettingsRouter } from './modules/inbox/settings.routes';
+import { summarizeOnClose } from './modules/insights/chat-summary.service';
 import {
   createAccountInsightsRouter,
   createCallInsightsRouter,
+  createChatSummaryRouter,
 } from './modules/insights/insights.routes';
 import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes';
 import { createMockApisRouter } from './modules/mock-apis/mock.routes';
@@ -195,6 +197,7 @@ export const createApiRouter = ({
   }
   router.use('/account', createAccountInsightsRouter());
   router.use('/account', createAccountRouter());
+  router.use('/inbox', createChatSummaryRouter({ jobs: ai.jobs ?? unavailableAiJobs }));
   router.use('/team', createTeamRouter());
   router.use('/api-keys', createApiKeysRouter());
   router.use('/audit-logs', createAuditRouter());
@@ -270,6 +273,7 @@ export const createApiRouter = ({
           : {}),
         storage: whatsappRuntime.storage ?? contacts.storage,
         jobs: whatsappRuntime.inboxJobs ?? unavailableInboxJobs,
+        summaries: { onClosed: (c) => summarizeOnClose(c, ai.jobs ?? unavailableAiJobs) },
         ...(whatsappRuntime.inboxSendRateLimitStore
           ? { sendRateLimitStore: whatsappRuntime.inboxSendRateLimitStore }
           : {}),

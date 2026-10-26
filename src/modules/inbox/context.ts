@@ -1,6 +1,7 @@
 import type { Types } from 'mongoose';
 
 import type { StorageProvider } from '../../core/storage';
+import type { ConversationDoc } from '../../db/models/conversation.model';
 import type { MessagePricing, MessageStatus } from '../../db/models/message.model';
 import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
 import type { TemplateJobs } from '../templates/jobs';
@@ -51,6 +52,8 @@ export interface InboxContext {
   billing?: InboxBillingHook;
   /** Phase 11: a template sync after Meta said the template is gone (132001). */
   templateJobs?: Pick<TemplateJobs, 'enqueueSync'>;
+  /** Phase 14: chat summary when a conversation is closed (never throws). */
+  summaries?: { onClosed(conversation: ConversationDoc): Promise<void> };
 }
 
 export const inboxNow = (ix: Pick<InboxContext, 'wa'>): Date => ix.wa.now?.() ?? new Date();

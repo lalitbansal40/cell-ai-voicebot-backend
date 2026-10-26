@@ -137,6 +137,7 @@ export const AUDIT_ACTIONS = [
   'call.insights_regenerated',
   'account.insights_updated',
   'account.dispositions_updated',
+  'conversation.summary_created',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

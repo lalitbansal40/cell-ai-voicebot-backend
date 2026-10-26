@@ -9,6 +9,7 @@ import {
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
+import { getChatSummaries, requestChatSummary } from './chat-summary.service';
 import {
   DispositionBody,
   DispositionsBody,
@@ -54,6 +55,29 @@ export const createCallInsightsRouter = (deps: { jobs: AiJobs }): Router => {
         ok(res, await setDisposition(req, params.id, body.disposition));
       },
     ),
+  );
+  return router;
+};
+
+/** `/api/v1/inbox/conversations/:id/summary` (Phase 14). Mounted before the inbox router. */
+export const createChatSummaryRouter = (deps: { jobs: AiJobs }): Router => {
+  const router = Router();
+  router.get(
+    '/conversations/:id/summary',
+    authenticate(),
+    requirePermission('inbox.read'),
+    ...handle({ params: InsightParams }, async ({ params, req, res }) => {
+      ok(res, await getChatSummaries(req, params.id));
+    }),
+  );
+  router.post(
+    '/conversations/:id/summary',
+    authenticate(),
+    requirePermission('inbox.reply'),
+    blockWhenImpersonating(),
+    ...handle({ params: InsightParams }, async ({ params, req, res }) => {
+      accepted(res, await requestChatSummary(req, params.id, deps));
+    }),
   );
   return router;
 };

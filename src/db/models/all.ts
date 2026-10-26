@@ -15,6 +15,7 @@ import './campaign-contact.model';
 import './campaign.model';
 import './contact-list.model';
 import './contact.model';
+import './conversation-summary.model';
 import './conversation.model';
 import './custom-field.model';
 import './dnd-entry.model';

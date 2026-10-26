@@ -9,6 +9,8 @@ export interface AiJobData {
   /** Phase 14 post-call insights. */
   'insights.sweep': Record<string, never>;
   'insights.run': { accountId: string; callId: string; version: number };
+  'insights.stt': { accountId: string; callId: string };
+  'insights.chat_summary': { accountId: string; summaryId: string };
 }
 
 export type AiJobName = keyof AiJobData;
@@ -20,6 +22,8 @@ export const AI_JOB_NAMES = [
   'agents.purge_deleted',
   'insights.sweep',
   'insights.run',
+  'insights.stt',
+  'insights.chat_summary',
 ] as const satisfies readonly AiJobName[];
 
 export const isAiJobName = (value: string): value is AiJobName =>

@@ -118,6 +118,7 @@ export const getRates = async (req: Request) => {
     billUnansweredAttempts: card.billUnansweredAttempts,
     aiTextPer1kTokensMicros: card.aiTextPer1kTokensMicros,
     embeddingPer1kTokensMicros: card.embeddingPer1kTokensMicros,
+    sttPerMinuteMicros: card.sttPerMinuteMicros,
     source: card.source,
     effectiveFrom: card.effectiveFrom.toISOString(),
     // Phase 11: what one WhatsApp message costs this account (selling prices only)
