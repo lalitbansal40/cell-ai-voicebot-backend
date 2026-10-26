@@ -114,7 +114,7 @@ Same as earlier phases: [api.md](../conventions/api.md), [security.md](../conven
 - **Output (JSON schema, validated with zod, stored in `call_insights`, one doc per call + version):** `summary` (≤ 600 chars, §7 #2 language), `suggestedDisposition` (one key from the account's disposition list), `sentiment` (`positive | neutral | negative` + score −1…1), `keyInfo` (`promiseDate`, `promiseAmountMicros`, `callbackAt`, `disputeReason`, `wrongNumber`, `languagePreference`, `notes` — all optional, typed), `confidence` per field, `model`, `tokens`, `costMicros`, `status: done | skipped | failed`, `reason`.
 - **Disposition precedence:** flow `set-disposition` / agent tool result / a person's manual choice **win**; AI's is stored as `suggestedDisposition` and only fills `call.disposition` when that is empty (`dispositionSource: 'flow' | 'agent' | 'user' | 'ai'`). A team member can change it on the call page (audit logged).
 - **Provider change:** `ChatRequest` gets `responseFormat?: { type: 'json_schema'; name; schema }` (OpenAI structured outputs); the fake provider returns deterministic schema-valid output derived from the transcript (so tests check wiring, not AI quality).
-- **Money:** priced with the existing text-model pricing + AI markup → `chargeUsage({ type: 'ai_charge', ref: { type: 'call', id }, idempotencyKey: 'insights:<callId>:v<version>' })`; STT the same with `'stt:<callId>'`. Prepaid balance only; not enough → `skipped: low_balance` (retry button later). Account switch **Settings → AI → Post-call insights** (on / off, human-call transcription on / off).
+- **Money:** priced with the existing text-model pricing + AI markup → `chargeUsage({ type: 'ai_charge', ref: { type: 'call', id }, idempotencyKey: 'insights:<callId>:v<version>' })`; STT the same with `'stt:<callId>'`. Prepaid balance only; not enough → `skipped: low_balance` (retry button later). Account switch **Settings → AI → Post-call insights** (on / off). Human-call transcription reuses the Phase 12 toggle `settings.whatsappCalling.transcribeHumanCalls` (stored since Phase 12, default **off** — Phase 12 owner decision #10; nothing reads it yet) — Phase 14 makes it start the STT pipeline and shows it in the same settings card.
 - **Re-run:** "Regenerate" on the call page (permission per §7 #11, default `calls.listen`) → new version, charged again, old version kept for audit.
 - **Chat summary:** "Summarize" button in the inbox conversation header + optional summary on close (setting) — last summary point → now, max 200 messages, no notes / system rows; stored in `conversation_summaries`; charged the same way.
 - **Prompts** live in `core/ai/prompts/insights.ts` (versioned, snapshot-tested), English instructions, transcript in a delimited data block, PII never echoed into logs.
@@ -200,7 +200,7 @@ Same as earlier phases: [api.md](../conventions/api.md), [security.md](../conven
 1. `core/ai/types.ts`: `responseFormat` on `ChatRequest`; OpenAI provider sends `response_format: { type: 'json_schema', json_schema: { name, schema, strict: true } }`; refusal / invalid JSON → `failed: invalid_output` (one retry). Fake provider: deterministic output from transcript hash. Tests with recorded fixture payloads (no network).
 2. `call-insights.model.ts` (+ indexes `(accountId, callId, version)` unique, `(accountId, createdAt)`), `call.dispositionSource`, account `dispositions` list (defaults §7 #3, editable in Settings → Calls; keys stable, labels editable) — migration adds defaults.
 3. Job `insights:<callId>` on queue `ai`: guards (answered, ≥ 2 customer turns, setting on, not purged, balance) → build prompt (transcript turns, flow / agent name, contact variables whitelist: loan amount, due date — never phone) → chat → validate (zod) → store → set disposition per precedence → charge (`chargeUsage`, idempotent) → realtime event `call.insights` to the call topic → analytics contribution update (PTP, sentiment).
-4. Settings: `account.ai.insights { enabled, humanTranscription, chatSummaryOnClose }` + API + audit.
+4. Settings: `account.settings.insights { enabled, chatSummaryOnClose }` + API + audit; human transcription = existing `settings.whatsappCalling.transcribeHumanCalls` (no new field, no migration for it).
 5. `POST /calls/:id/insights/regenerate` (new version, charged), `PATCH /calls/:id/disposition` (audit, source `user`).
 6. Tests: every call kind (voice AI dry-run, web test, WhatsApp AI, WhatsApp human with recording, too short, not answered, low balance, setting off, provider failure, duplicate job), money (ledger once per version), no transcript / summary text in logs (log-capture test).
 
@@ -305,27 +305,28 @@ Batch 1 (backend core): T14.1 → T14.3 → T14.2 → T14.4 → **P14-B1-DONE**.
 
 ## 7. Decisions and open questions (owner — defaults apply if not answered)
 
-| #   | Question                                                    | Default                                                                                                  |
-| --- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| 1   | Transcribe recorded **human** calls (costs STT per minute)? | Yes, per-account switch, on by default                                                                   |
-| 2   | Summary language                                            | English (key info typed fields); transcript stays as spoken                                              |
-| 3   | Default disposition list                                    | Promise to pay, Paid, Callback requested, Dispute, Not interested, Wrong number, Language barrier, Other |
-| 4   | Price of insights / STT                                     | Same as other AI usage: provider cost + the platform's AI margin, charged per call                       |
-| 5   | Insights for test calls                                     | Yes (useful for demos), charged, excluded from reports unless "include test calls"                       |
-| 6   | Chat summary trigger                                        | On demand + optional on close (off by default)                                                           |
-| 7   | Who can subscribe to email reports                          | Each user for themself (needs `reports.read`); no admin-managed lists                                    |
-| 8   | Retention defaults                                          | Unchanged: calls 180 days (recordings same), inbox 90 days; accounts may shorten, superadmin may cap     |
-| 9   | How long rollups (no personal data) are kept                | 25 months                                                                                                |
-| 10  | Agent role sees reports?                                    | No (only own calls list as today); manager / viewer / admin / owner yes                                  |
-| 11  | Who can regenerate insights / edit disposition              | Regenerate: `calls.listen`; edit disposition: `calls.trigger` (agents can set outcome of their calls)    |
-| 12  | Summaries in call exports                                   | Only with "Include summaries" + `calls.export`                                                           |
-| 13  | Use Meta's template / pricing analytics APIs                | Not now — our own records (works with date filters, no extra permission)                                 |
-| 14  | Demo history on staging for App Review                      | Yes, marked `isTest`, fake insights text clearly labelled "Demo"                                         |
-| 15  | Live wallboard                                              | Not in Phase 14                                                                                          |
-| 16  | Extra speech analytics (talk ratio, keywords, QA score)     | Not in Phase 14                                                                                          |
+| #   | Question                                                    | Default                                                                                                                                 |
+| --- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Transcribe recorded **human** calls (costs STT per minute)? | Already decided in Phase 12 (#10): **off** by default, per-account toggle `transcribeHumanCalls`; Phase 14 wires it to the STT pipeline |
+| 2   | Summary language                                            | English (key info typed fields); transcript stays as spoken                                                                             |
+| 3   | Default disposition list                                    | Promise to pay, Paid, Callback requested, Dispute, Not interested, Wrong number, Language barrier, Other                                |
+| 4   | Price of insights / STT                                     | Same as other AI usage: provider cost + the platform's AI margin, charged per call                                                      |
+| 5   | Insights for test calls                                     | Yes (useful for demos), charged, excluded from reports unless "include test calls"                                                      |
+| 6   | Chat summary trigger                                        | On demand + optional on close (off by default)                                                                                          |
+| 7   | Who can subscribe to email reports                          | Each user for themself (needs `reports.read`); no admin-managed lists                                                                   |
+| 8   | Retention defaults                                          | Unchanged: calls 180 days (recordings same), inbox 90 days; accounts may shorten, superadmin may cap                                    |
+| 9   | How long rollups (no personal data) are kept                | 25 months                                                                                                                               |
+| 10  | Agent role sees reports?                                    | No (only own calls list as today); manager / viewer / admin / owner yes                                                                 |
+| 11  | Who can regenerate insights / edit disposition              | Regenerate: `calls.listen`; edit disposition: `calls.trigger` (agents can set outcome of their calls)                                   |
+| 12  | Summaries in call exports                                   | Only with "Include summaries" + `calls.export`                                                                                          |
+| 13  | Use Meta's template / pricing analytics APIs                | Not now — our own records (works with date filters, no extra permission)                                                                |
+| 14  | Demo history on staging for App Review                      | Yes, marked `isTest`, fake insights text clearly labelled "Demo"                                                                        |
+| 15  | Live wallboard                                              | Not in Phase 14                                                                                                                         |
+| 16  | Extra speech analytics (talk ratio, keywords, QA score)     | Not in Phase 14                                                                                                                         |
 
 ---
 
 ## Changelog
 
 - 2026-10-27: plan drafted while Phase 13's server work waits on the provider. Built on a code survey of `main` (`1d9f67e`): reuse list in §1a; Reports menu item and `reports.*` permissions already exist; retention is platform-wide today; no structured AI output yet.
+- 2026-10-27 (STEP 0): run prompt prepared (one-paste autonomous run, no stops) — literals locked: modules, models, limits, jobs, routes, error codes (+7), audit actions (+10), insights schema; defaults in use for §7 #1–#16 (#1 = Phase 12 decision #10, human-call transcription off by default, existing `transcribeHumanCalls` toggle).
