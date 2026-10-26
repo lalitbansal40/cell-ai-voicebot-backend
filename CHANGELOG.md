@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 13 · Batch 1 (T13.1–T13.4) — Meta 2026 changes, legal pages, deploy artifacts, ops tooling** — 2026-10-26
+  - Embedded Signup v4 session info (`waacId` → channel `waacId` / `wabaKind`, migration `0014-meta-2026`), Graph API v26.0 by default, `account_review_update` / `account_alerts` kept as deferred events, Meta's account model audit in ADR 0037.
+  - `GET /health` (also `/api/v1/health`) names the running build (`version`, `commit`, `builtAt` from `GIT_SHA` / `BUILT_AT`); `HOST` env (the API listens on loopback behind nginx); SIGTERM closes live WebSockets before draining HTTP (fixed: an open socket hit the 15 s shutdown timeout). Fixed: with `HOST` defaulting to 0.0.0.0 the API stopped answering on IPv6 (`localhost` = ::1) — `HOST` is optional again.
+  - Staging: Dockerfile (non-root, compiled ops tools), `deploy/staging/` compose, nginx (TLS, HSTS, CSP report-only first, no query strings in logs, readiness blocked from the internet), env templates, deploy / rollback / status / backup / restore / healthwatch / tools scripts, `deploy-from-mac.sh`, a manual GitHub Actions workflow; `npm run staging:demo`, `npm run smoke`; ADR 0025 accepted, ADR 0042; runbook `docs/ops/staging.md`, Gate A list.
+  - Local production rehearsal: first deploy 180 s, next 39 s, automatic rollback on a failing release, manual rollback 2–3 s, drain 1.2 s, logs free of secrets. Tests: 3162 → 3195, coverage 96.09 / 87.68 / 95.78 / 97.66; Playwright 151 green twice (frontend repo).
+
 - **Phase 12 · Batch 3 (T12.9–T12.12) — frontend, E2E, sign-off** — 2026-10-26
   - Backend for the screens: `PublicUser.callAvailability` in the session; the rate card API keeps `kind` optional for messaging clients and documents the call price fields; `WA_CALL_WINDOW_IGNORED` (fake Meta only, refused in production) for dev / E2E calls at any hour; call hours cases shared with the frontend.
   - A dropped agent socket (close 1006) gets 15 s to rejoin the same call with a fresh media ticket (customer media, recording and billing stay on the session); `metrics.whatsapp` (setup, packets, loss, jitter, `rttMs: null`) saved at call end and shown on the call view; `call.ended` to the agent carries the duration.

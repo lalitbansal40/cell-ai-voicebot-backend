@@ -4,10 +4,10 @@ Plan: [PHASE_13_PLAN.md](PHASE_13_PLAN.md) · Branch: `feature/phase-13-staging-
 
 | ✓   | #      | Task                                                                                                                                       | Repo | Size |
 | --- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ---- | ---- |
-| [ ] | T13.1  | Meta 2026 changes: Embedded Signup v4, Graph v26.0, account-model audit (`waac_id`), webhook fields, calling subscription; fake + fixtures | both | M    |
-| [ ] | T13.2  | Legal + public pages: privacy, terms, contact, data deletion instructions, footer links, app icon set                                      | FE   | M    |
-| [ ] | T13.3  | Deploy artifacts: Dockerfile, staging compose, nginx config, env template, health version, CI image build + scan                           | both | M    |
-| [ ] | T13.4  | Ops tooling: demo seed, smoke, backup / restore, healthwatch, GitHub Actions deploy + rollback, local production rehearsal                 | both | M    |
+| [x] | T13.1  | Meta 2026 changes: Embedded Signup v4, Graph v26.0, account-model audit (`waac_id`), webhook fields, calling subscription; fake + fixtures | both | M    |
+| [x] | T13.2  | Legal + public pages: privacy, terms, contact, data deletion instructions, footer links, app icon set                                      | FE   | M    |
+| [x] | T13.3  | Deploy artifacts: Dockerfile, staging compose, nginx config, env template, health version, CI image build + scan                           | both | M    |
+| [x] | T13.4  | Ops tooling: demo seed, smoke, backup / restore, healthwatch, GitHub Actions deploy + rollback, local production rehearsal                 | both | M    |
 | [ ] | T13.5  | Staging server: provision, harden, firewall + UDP media range, DNS, TLS, mail DNS, backup target, monitors                                 | ops  | M    |
 | [ ] | T13.6  | First deploy: env, migrations, superadmin, demo seed, Razorpay test, SMTP, OpenAI, backup + restore drill, drain check                     | ops  | M    |
 | [ ] | T13.7  | Real Meta app: business verification, settings, ES v4 config, webhooks + fields, callbacks, roles, §11 smoke                               | ops  | M    |
