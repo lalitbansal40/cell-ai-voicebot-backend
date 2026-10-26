@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 12 · Batch 3 (T12.9–T12.12) — frontend, E2E, sign-off** — 2026-10-26
+  - Backend for the screens: `PublicUser.callAvailability` in the session; the rate card API keeps `kind` optional for messaging clients and documents the call price fields; `WA_CALL_WINDOW_IGNORED` (fake Meta only, refused in production) for dev / E2E calls at any hour; call hours cases shared with the frontend.
+  - A dropped agent socket (close 1006) gets 15 s to rejoin the same call with a fresh media ticket (customer media, recording and billing stay on the session); `metrics.whatsapp` (setup, packets, loss, jitter, `rttMs: null`) saved at call end and shown on the call view; `call.ended` to the agent carries the duration.
+  - Fixed (each with a regression test): `call.status` events missed `provider`; the panel reason was always `no_permission` (now `declined`, `requested`, `request_limit`); a permission WhatsApp no longer has showed as allowed (now `revoked`); the fake didn't count rejected calls toward revocation.
+  - Gap test: account views of a WhatsApp call charge (call view, ledger list, one line, CSV) show the selling price only. Calling tests check that no UDP socket stays open and that logs carry no SDP, ICE data, keys or the customer's number.
+  - E2E (frontend repo): 4 calling specs, 23 tests; 148 green twice; logs clean. Tests: 3141 → 3162, coverage 96.08 / 87.66 / 95.80 / 97.66. [Phase 12 sign-off](docs/phases/PHASE_12_SIGNOFF.md).
+
 - **Phase 12 · Batch 2 (T12.5–T12.8) — WhatsApp calling: permissions, calls, routing, charges, API** — 2026-10-25
   - Call settings per number (Meta first: status, call icon, call hours with holidays, callback permission; inbound route team / AI / AI → team, ring timeout, ring list; daily + webhook sync; calling restrictions kept on calling, not the whole number) and call permissions (Meta's `call_permissions` before every call and request, interactive request in the window / approved template outside, replies incl. callback, our + Meta's limits, 4 unanswered → revoked, hourly expiry sweep).
   - Business-initiated calls by an agent (browser leg through the bridge, hold, keypad) or an AI program, behind one dial guard (number → account → customer + TRAI window → limits → program → Meta permission); user-initiated calls claimed by one server, contact by phone then BSUID, call hours, team ring to available online users (Redis presence leases) with first-wins answer, decline, missed calls (bubble + bell), AI routes and the AI → team handoff on the same session and recording; agent actions reach the call's server over the bus; one agent, one call.

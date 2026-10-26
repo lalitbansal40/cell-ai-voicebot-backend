@@ -180,7 +180,7 @@ Billing:
 
 ---
 
-### Phase 12 — WhatsApp Calling (L)
+### Phase 12 — WhatsApp Calling (L) ✅
 
 **Goal:** Chat screen se **call button**, customer se **call permission** lena, agent browser se aur **AI voicebot** server se WhatsApp calls kare / uthaye, aur har call ka record + charge.
 
@@ -383,3 +383,4 @@ Bulk WhatsApp calling (client promise "Bulk calling"):
 - 2026-10-23: Phase 11 detailed plan written ([plan](../phases/PHASE_11_PLAN.md)) — Meta facts re-checked: per-message pricing on delivery, 1,000 free service messages / number / month, from 1 Oct 2026 service beyond the free tier and utility inside the window are charged, India INR billing (deadline 31 Dec 2026); billing follows Meta's `pricing.billable`; 14 owner questions with defaults (§7).
 - 2026-10-24: **Phase 11 done** ([sign-off](../phases/PHASE_11_SIGNOFF.md)) — templates built, reviewed, edited, synced and sent outside the window from the app; every WhatsApp message held at send and charged only when Meta bills it (rate card + markup, INR), superadmin rate card / margin / reconciliation; proven by Playwright on the fake Meta provider; the real-WABA checklist runs in Phase 13. **Next: Phase 12 (WhatsApp Calling).**
 - 2026-10-24: Phase 12 detailed plan written ([plan](../phases/PHASE_12_PLAN.md)) — Meta calling facts re-checked: business-initiated calls allowed for Indian business numbers, permission requests 1 / 24 h and 2 / 7 days, temporary permission 7 days or permanent, 100 connected calls / 24 h per pair, 4 unanswered → revoked, user-initiated calls free, business-initiated billed in 6-second pulses; server-side WebRTC (`werift`) PoC first, browser relay as plan B; 16 owner questions with defaults (§7).
+- 2026-10-26: **Phase 12 done** ([sign-off](../phases/PHASE_12_SIGNOFF.md)) — calling on / off and call hours per number, call permissions from Meta before every dial, business calls by an agent from the browser or by AI (flows / agents), customer calls ringing the team (first to accept), AI or AI → team, missed calls, recordings, and charges in 6-second pulses on Meta's talk time; WebRTC media in our own process; proven by Playwright on the fake Meta provider with a real WebRTC fake customer; the real-device checklist runs in Phase 13. **Next: Phase 13 (Staging deploy + Meta App Review).**

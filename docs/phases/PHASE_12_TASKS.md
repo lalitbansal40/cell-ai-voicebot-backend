@@ -12,9 +12,9 @@ Plan: [PHASE_12_PLAN.md](PHASE_12_PLAN.md) · Overview: [BUILD_PLAN_V2.md](../pl
 | [x] | T12.6  | Outbound calls: dial guard, provider `whatsapp`, agent leg bridge, AI calls, statuses, end / settle, call bubbles, call button sends                         | BE   | L    |
 | [x] | T12.7  | Inbound calls: claim, routing (team ring / AI / AI → team), answer race, missed calls, call hours, transfer                                                  | BE   | L    |
 | [x] | T12.8  | Billing (calling rate card, pulses, holds, settle, margin), API + OpenAPI, simulator, seed, `dev:calls-wa`, hardening, ADR 0041, docs, real-device checklist | BE   | M    |
-| [ ] | T12.9  | FE foundation, number Calling settings, contact panel calling section, permission bubbles                                                                    | FE   | M    |
-| [ ] | T12.10 | FE call experience: Call button, call bar + agent media, incoming popup, Call with AI, availability, call bubbles                                            | FE   | L    |
-| [ ] | T12.11 | FE Calls list / detail, wallet, superadmin calling rates, notifications, dashboard, bundle; Playwright E2E (4 specs, twice)                                  | FE   | L    |
-| [ ] | T12.12 | Gap audit, security / money checklist, docs, Phase 12 sign-off                                                                                               | both | M    |
+| [x] | T12.9  | FE foundation, number Calling settings, contact panel calling section, permission bubbles                                                                    | FE   | M    |
+| [x] | T12.10 | FE call experience: Call button, call bar + agent media, incoming popup, Call with AI, availability, call bubbles                                            | FE   | L    |
+| [x] | T12.11 | FE Calls list / detail, wallet, superadmin calling rates, notifications, dashboard, bundle; Playwright E2E (4 specs, twice)                                  | FE   | L    |
+| [x] | T12.12 | Gap audit, security / money checklist, docs, Phase 12 sign-off                                                                                               | both | M    |
 
 Checkpoints: T12.1 PoC gate before everything else · `[P12-B1-DONE]` after T12.4 · `[P12-B2-DONE]` after T12.8 · `[P12-B3-DONE]` after T12.12.

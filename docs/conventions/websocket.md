@@ -132,6 +132,8 @@ New events must be added to this table in the same PR that emits them.
 
 **Close codes:** §7 plus `4011` (this call already has a socket), `4012` (the call has ended), `1001` (server shutting down), `1009` (control message too large).
 
+For human WhatsApp calls the same media socket is the browser bridge leg. An abnormal close (`1006`) leaves the customer session alive for at most 15 seconds; reconnect with a fresh media ticket for the same call. A normal close or `call.hangup` ends the call. Server controls also include `call.hold { on: boolean }` and `wallet.empty_warning { endsInSec: 30 }`; show the wallet warning during its grace period. `call.ended` includes elapsed `durationSec`; the final account event can correct the summary. The app shell subscribes to calling settings / permission events and polls an active call every 2 seconds to recover missed status or end events.
+
 ## 9. Limits (initial — tuned in Phase 1/7)
 
 | Limit                      | Value                                 |

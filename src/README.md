@@ -137,3 +137,5 @@ router.post(
 - Parsed input lives on `req.valid` — never reassign `req.query` (read-only in Express 5).
 - Throw `AppError` subclasses (`NotFoundError`, `ConflictError`, …) — never strings.
 - Register the route's schemas on the OpenAPI registry and run `npm run gen:openapi`.
+
+Phase 12 continuation: `modules/whatsapp-calling/bridge.ts` allows a replacement browser leg for 15 seconds after an abnormal socket disconnect. `calls.service.ts` saves credential-free `metrics.whatsapp` at the end; failures to save metrics do not prevent call settlement. The account-facing call detail includes these media counters.

@@ -4,7 +4,7 @@ Multi-tenant AI voice calling platform API (Node.js + Express + TypeScript + Mon
 
 ## Status
 
-**Phase 8 — Campaigns & Call Scheduler: complete** ([sign-off](docs/phases/PHASE_8_SIGNOFF.md)); Phase 7 [sign-off](docs/phases/PHASE_7_SIGNOFF.md), Phase 6 [sign-off](docs/phases/PHASE_6_SIGNOFF.md), Phase 5 [sign-off](docs/phases/PHASE_5_SIGNOFF.md), Phase 4 [sign-off](docs/phases/PHASE_4_SIGNOFF.md), Phase 3 [sign-off](docs/phases/PHASE_3_SIGNOFF.md), Phase 2 [sign-off](docs/phases/PHASE_2_SIGNOFF.md), Phase 1 [sign-off](docs/phases/PHASE_1_SIGNOFF.md). Next: Phase 9 (call records, transcripts & analytics). Tasks: [docs/phases/PHASE_8_TASKS.md](docs/phases/PHASE_8_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
+**Phase 12 — WhatsApp Calling: complete** ([sign-off](docs/phases/PHASE_12_SIGNOFF.md)); Phase 11 [sign-off](docs/phases/PHASE_11_SIGNOFF.md) and earlier sign-offs in `docs/phases/`. Settings, permissions, browser-agent and AI calls, inbound team ring and handoff, recording and wallet charges are implemented with fake Meta and real loopback WebRTC. Next: **Phase 13 (Staging deploy + Meta App Review)**, including real-device validation. Tasks: [Phase 12 tracker](docs/phases/PHASE_12_TASKS.md) · Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Prerequisites
 
@@ -212,12 +212,14 @@ Write to customers outside the 24-hour window with Meta-approved templates, and 
 - **E2E** (frontend repo): `templates-done-when`, `templates-billing`, `templates-marketing-rules`, `templates-roles-entry` (backend started with `FAKE_META_TEMPLATE_REVIEW_MS=1000`); the fake's `_reject` template is approved after an edit. Sign-off: [PHASE_11_SIGNOFF.md](docs/phases/PHASE_11_SIGNOFF.md).
 - **Env:** `FAKE_META_TEMPLATE_REVIEW_MS` — see the table below.
 
-## WhatsApp calling (Phase 12 — in progress)
+## WhatsApp calling (Phase 12)
 
 Voice calls on WhatsApp numbers: WebRTC media in our own process (`werift`, Opus via WASM), the Phase 7 call leg / AI pipeline on top — [ADR 0040](docs/adr/0040-whatsapp-call-media.md).
 
 - **Batch 1 (done):** models + migration `0013-whatsapp-calling`, Meta calling client + fake Meta calling (knobs `00020`–`00030`), `WhatsAppCallLeg`, the call-control bus (hangups reach the server running any call: `POST /api/v1/calls/:id/hangup` → 202 when forwarded).
 - **Batch 2 (done):** call settings + call permissions (Meta's answer before every call and request), business-initiated calls by an agent (browser) or an AI program (dial guard: number → account → customer + TRAI window → limits → program → Meta permission), user-initiated calls (claimed by one server, contact by phone then BSUID, call hours, routes team / AI / AI → team, first-wins answer, decline, missed calls with a bell), AI → team handoff on the same call and recording, per-socket presence; billing in 6-second pulses on Meta's duration (calling rate card, markup / fixed price / fee, holds + extensions, late-terminate fallback + reconcile, stale-hold reaper), superadmin calling rates, wallet per-minute prices, margin rows; API §14f, simulator 12 calling kinds, ADR 0041.
+- **Batch 3 (done):** frontend number settings and contact permissions; global incoming popup, agent / AI call bar, microphone picker, mute / hold / keypad, supervisor takeover, bounded reconnect and low-wallet warning; Calls pages, recordings, wallet prices and superadmin calling rates. Four Playwright specs cover the browser flow, guards, billing, roles and settings. End-of-call media counters are saved as `metrics.whatsapp`; no signaling credentials are included.
+- **Validation:** [Phase 12 sign-off](docs/phases/PHASE_12_SIGNOFF.md) records tests, coverage, media numbers, privacy checks and the remaining real-device gate.
 - **Try it:** `npm run db:seed` enables calling on the Demo Finance number (2 permissions, 3 past calls with tone recordings and charges); `npm run dev:calls-wa` runs the real server and drives it over HTTP (enable calling → permission request → AI call with a key press → inbound team ring answered on the media socket → missed call → wallet lines; numbers only); `npm run dev:calls-wa -- --poc` (the Batch 1 loopback call); `npm run poc:wa-call` (media PoC numbers); `POST /api/v1/dev/meta/calls/user-call`, `GET /api/v1/dev/meta/calls?channelId=…`.
 - **Env:** `WA_MEDIA_ENABLED`, `WA_MEDIA_PUBLIC_IP`, `WA_MEDIA_PORT_MIN` / `WA_MEDIA_PORT_MAX`, `WA_STUN_URLS`, `WA_MEDIA_MAX_CALLS`, `FAKE_META_CALL_DELAYS_MS`, `WA_CALL_WINDOW_IGNORED` — see the table below.
 

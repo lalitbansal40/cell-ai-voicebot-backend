@@ -989,6 +989,7 @@ Indexes: `{ accountId: 1, channelId: 1, contactId: 1 }` unique, `{ accountId: 1,
 - **WhatsAppRateCard:** `kind: messaging \| calling` (rows before 0013 = `messaging`); calling cards carry `callingMarkets { market, label, callingCodes, perMinuteMicros, tiers { fromMinutes, perMinuteMicros }[] }[]` and no `markets`; index `kind_effective_from`. Seed (migration 0013): placeholder calling card IN ₹0.3885 / min + OTHER ₹1 / min.
 - **PlatformSettings:** key + `whatsappCalling { markupBps (1500), platformFeePerMinuteMicros (0), holdMinutes (5), holdExtendMinutes (5) }`; the value is validated per key.
 - **LedgerEntry:** type + `whatsapp_call_charge` (ref type `call`), usage kind + `whatsapp_call`; `breakdown` + `{ waPulses, waPerMinuteMicros }`.
+- **Call media metrics (T12.12):** optional `metrics.whatsapp { setupMs: number | null, packetsIn, packetsOut, lossPct, jitterMs, rttMs: number | null }`, captured from the leg at call end. No SDP, IP addresses, ICE or DTLS credentials. Existing rows may omit it; RTT is currently unmeasured.
 - **Call (T12.8):** `billing.whatsapp.durationSource: meta \| ours \| null` (which talk time was charged) and `metaLatePulses` (reconcile: Meta's pulses when its duration arrived after we charged ours — margin report only, no money moves).
 
 ---

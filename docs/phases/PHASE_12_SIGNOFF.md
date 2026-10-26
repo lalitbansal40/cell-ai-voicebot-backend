@@ -1,0 +1,161 @@
+# Phase 12 — Sign-off
+
+**Date:** 2026-10-26 · **Branch:** `feature/phase-12-whatsapp-calling` (both repos, not merged) · **Plan:** [PHASE_12_PLAN.md](PHASE_12_PLAN.md) · **Tracker:** [PHASE_12_TASKS.md](PHASE_12_TASKS.md) · **Run prompt:** [PHASE_12_PROMPT.md](../prompts/PHASE_12_PROMPT.md) · **ADRs:** [0040](../adr/0040-whatsapp-call-media.md), [0041](../adr/0041-whatsapp-calling.md) · **Real-device checklist:** [setup guide §15](../setup/meta-whatsapp.md)
+
+**Verdict:** ✅ Phase 12 (WhatsApp calling) complete — all 12 tasks done. **"Done when"** is proven by Playwright on the fake Meta provider, whose fake customer runs a real WebRTC peer on loopback (frontend repo, `e2e/calls-wa-*.spec.ts`, project `chromium-wa-calls`):
+
+- **Permission:** Request permission from the chat → the fake customer allows (7 days) → "Can call until …" live in the chat and the contact panel; a decline shows "Can't call" with the reason; a second request the same day is refused (429, Meta's limit).
+- **Agent call:** Call yourself → the fake phone rings and answers → the customer hears the agent's 1 kHz microphone tone → mute, keypad, hang up → call bubble "Call · 0:0x", a playable recording, the wallet line "WhatsApp call · India" equal to Meta's talk time in 6-second pulses × ₹0.3885 × 1.15.
+- **AI call:** Call with AI (Loan recovery flow) → the customer presses 1 (RFC 4733) → outcome Paid, AI cost on the call page.
+- **Inbound:** a customer calls → two members ring on other pages → the agent accepts and talks, the manager sees "Taken by …"; nobody answers → missed bubble + bell; outside call hours → missed without ringing; the AI route answers with the flow; a supervisor hands the AI call to an agent on the same call; callback permission after a customer's call.
+- **Guards + money:** empty wallet → refused before dialing; WhatsApp without the permission (our row says yes) → revoked, refused, nothing held; DND → refused; 4 calls not picked up → revoked + bell; a connected call shows in the margin report; a calling rate card import changes the selling price.
+- **Roles + settings:** viewer reads only (no Call, never rings); an agent calls and answers; impersonating superadmin reads only; call hours + ringing round-trip (overlapping hours refused); a restriction warning + bell; a coexistence number shows "unavailable"; another account gets 404.
+
+The real-device checklist (a calling-enabled test number, a real phone: permission, agent + AI calls, a customer call, keys, latency) is written and runs in Phase 13. **Phase 13 can start.** Merging the branches is a project-lead decision after review.
+
+## 1. Tasks — "Done when" check
+
+| Task                                     | Status | Evidence (commit; fe = frontend repo)                          | Notes                                                                                                                         |
+| ---------------------------------------- | ------ | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Step 0 plan + prompt                     | ✅     | `e785293`, `279f6e4`, `aafea0a`                                | decisions §7 locked                                                                                                           |
+| T12.1 PoC gate                           | ✅     | `634892a`                                                      | werift + Opus (WASM) + resampler on loopback, 20 / 20 runs; ADR 0040                                                          |
+| T12.2 Models, migration 0013, catalogue  | ✅     | `2b90307`                                                      | 83 codes, 127 audit actions, 31 notification types, 4 WS events, 2 permissions                                                |
+| T12.3 Meta core + fake calling           | ✅     | `3a56f09`                                                      | Graph calling / settings / permissions, schemas + fixtures, error mapping, SDP scrubbing; `FakeWaUser`, knobs `00020`–`00030` |
+| T12.4 Call leg + control bus             | ✅     | `7086e3a`, fix `03aa34a`                                       | `WhatsAppCallLeg`, owners, claims, cross-process hangup                                                                       |
+| P12-B1-DONE                              | ✅     | `51cd3d9`                                                      | `dev:calls-wa --poc`                                                                                                          |
+| T12.5 Settings + permissions             | ✅     | `eb9fda4`                                                      | Meta first, sync, restrictions, request / reply / sweep / streak                                                              |
+| T12.6 Outbound calls                     | ✅     | `7ff5fe4`                                                      | dial guard, agent bridge, AI calls, settle, bubbles                                                                           |
+| T12.7 Inbound calls                      | ✅     | `b326356`, fix `3a1a975`                                       | claim, team ring first-wins, AI, AI → team, missed calls, call hours                                                          |
+| T12.8 Billing, API, dev tools, hardening | ✅     | `f573787`, test `ccabd8b`                                      | pulses, holds, calling rate card, margin, simulator, seed, `dev:calls-wa`, ADR 0041, setup §15                                |
+| P12-B2-DONE                              | ✅     | `67d8f49`                                                      | manual HTTP + media check, logs clean                                                                                         |
+| T12.9 FE foundation, settings, panel     | ✅     | `278a6ef` (fe), `2b4b2f9`, fix `649be86`                       | clients, hooks, shared call-hours cases, number Calling, contact panel, bubbles                                               |
+| T12.10 FE call experience                | ✅     | `7f655c1` (fe), `979e3b6` (fe), `79899db`, `232f8f5`           | Call button, call bar + agent media, incoming popup, availability, takeover, mic picker, reconnect                            |
+| T12.11 FE screens + E2E                  | ✅     | `cf04ffa`, `15c517f`, `c413f43` (fe); `f64d33e`, fix `4dc876b` | Calls list / detail, wallet, superadmin calling rates, notifications, dashboard; 4 specs, 23 tests; 148 total, green twice    |
+| T12.12 Gap audit, docs, sign-off         | ✅     | `d97b0cf`, this commit + fe docs commit                        | requirement → test table, security / money / media checklist, docs                                                            |
+
+## 2. Deliverables checklist (PHASE_12_PLAN §0)
+
+- [x] Calling settings per number (on / off, call icon + countries, call hours with holidays, callback permission, voicemail off), synced with Meta; restrictions shown.
+- [x] Call permissions per contact × number: request (interactive / template), reply webhook, Meta's status before every dial, limits, counters, unanswered streak, expiry.
+- [x] Media core `WhatsAppCallLeg` (ICE, DTLS, SRTP, Opus 48 kHz, RFC 4733, keep-alive) after the PoC gate.
+- [x] Call-control bus (owner registry + pub / sub, inbound claim, cross-process hangup).
+- [x] Outbound agent (browser) and AI calls; inbound team ring / AI / AI → team; missed calls + callback permission.
+- [x] Billing: calling rate card, 6-second pulses + markup, holds + extensions + settle on Meta's duration, AI cost; user-initiated calls free at Meta.
+- [x] Records + inbox: call fields, bubbles, contact panel, Calls list + detail with Meta's timeline and media counters.
+- [x] Realtime + notifications; dev tools (fake WhatsApp user, simulator, seed, `dev:calls-wa`).
+- [x] UI: Call button, call bar, incoming popup, Call with AI, number Calling settings, contact panel, Calls pages, superadmin calling rates + margin.
+- [x] Ops notes: UDP port range, public IP, STUN, process placement; real-device checklist (setup guide §15).
+- [x] Playwright: done-when, inbound, guards + billing, roles + settings — whole suite twice, logs clean.
+
+## 3. Requirement → test mapping (gap audit)
+
+Backend paths under `tests/`; fe = `cell-ai-voicebot-frontend/src`; E2E = `cell-ai-voicebot-frontend/e2e`.
+
+| Requirement                        | Tests                                                                                                                                                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §0 #1 calling settings             | `calls-wa/settings.test.ts`, `calls-wa/call-hours-cases.test.ts` (shared with fe `call-hours.test.ts`); fe `settings.test.tsx`; E2E roles / settings                                                     |
+| §0 #2 permissions                  | `calls-wa/permissions.test.ts` (regressions of `29b7a96`, `26a4216`), `calls-wa/meta-fake-calling.test.ts` (regression of `5ddf01f`); fe `foundation.test.tsx`; E2E done-when, guards                    |
+| §0 #3 media core                   | `calls-wa/media-poc.test.ts`, `leg-media.test.ts`, `codec-heap.test.ts` (regression of `03aa34a`); E2E agent tone + recording                                                                            |
+| §0 #4 call-control bus             | `calls-wa/bus.test.ts`, `outbound.test.ts`, `inbound.test.ts`, `hardening.test.ts` (3 nodes, owner killed)                                                                                               |
+| §0 #5 outbound                     | `calls-wa/outbound.test.ts` (refusals before dialing, settle, provider on every status — regression of `4dc876b`); E2E done-when, guards                                                                 |
+| §0 #6 inbound                      | `calls-wa/inbound.test.ts` (regression of `3a1a975`), `routing.test.ts`; E2E inbound (team ring, taken, missed, closed hours, AI, callback)                                                              |
+| §0 #7 human calls                  | `calls-wa/bridge.test.ts` (reconnect + grace), `outbound.test.ts`; fe `live.test.tsx`, `live-sync.test.tsx`, `calls/audio/engine.test.ts`; E2E mute, keypad, hang up                                     |
+| §0 #8 AI → agent                   | `calls-wa/handoff.test.ts`, `inbound.test.ts`; fe `live.test.tsx` (takeover); E2E inbound handoff                                                                                                        |
+| §0 #9 billing                      | `calls-wa/call-billing.test.ts`, `billing-admin.test.ts` (gap test `d97b0cf`), `hardening.test.ts` (racing settles), `security/money-writes.test.ts`; E2E exact pulse charge, rate import, margin        |
+| §0 #10 records + inbox             | `calls-wa/outbound.test.ts` (bubbles, `metrics.whatsapp` + view), `billing-admin.test.ts`; fe `screens.test.tsx`, `foundation.test.tsx`; E2E bubbles, recording, Calls detail                            |
+| §0 #11 realtime + notifications    | `calls-wa/permissions.test.ts`, `inbound.test.ts`, `catalogue.test.ts`; fe `live-sync.test.tsx`, `live.test.tsx`, `screens.test.tsx` (5 icons); E2E incoming, taken, missed / revoked / restricted bells |
+| §0 #12 dev tools                   | `calls-wa/simulator.test.ts`, `dev-calls-route.test.ts`, `db/seed-calls-wa.test.ts`; P12-B2 manual check                                                                                                 |
+| §0 #13 UI                          | fe `features/whatsapp-calling/*.test.tsx`, `services/api/whatsapp-calling-api.test.ts`; E2E all four specs                                                                                               |
+| §0 #14 ops                         | `src/config/env.test.ts` (port range, `WA_CALL_WINDOW_IGNORED` refused in production), UDP teardown assertions in the media tests; setup guide §15                                                       |
+| §1 models, migration, API          | `calls-wa/models.test.ts`, `meta-call-schemas.test.ts`, `meta-graph-calling.test.ts`, `routes.test.ts`, `db/phase12-migrations.test.ts`; `openapi:check`, fe `gen:api`                                   |
+| §1 tenant + role guards            | `calls-wa/routes.test.ts`, `security/tenant-scope.test.ts`; fe permission tests; E2E viewer / agent / impersonation / other account                                                                      |
+| §7 #1–#3 prices, payer, fee        | `call-billing.test.ts`, `billing-admin.test.ts` (15 % default, placeholder card, customer-pays fee only)                                                                                                 |
+| §7 #4–#5 roles, opt-out / DND      | `catalogue.test.ts`, `routes.test.ts`, `permissions.test.ts`, `outbound.test.ts`; E2E roles, DND                                                                                                         |
+| §7 #6 recording + notice           | `outbound.test.ts`, Phase 7 session tests; E2E recording                                                                                                                                                 |
+| §7 #7 calling window               | `outbound.test.ts` (22:30 IST refused), `env.test.ts`; E2E closed inbound hours                                                                                                                          |
+| §7 #8 ring timeouts                | `catalogue.test.ts`, `outbound.test.ts`, `inbound.test.ts`; E2E missed call                                                                                                                              |
+| §7 #9–#10 voicemail, human STT off | `settings.test.ts`, `catalogue.test.ts`                                                                                                                                                                  |
+| §7 #11 takeover                    | `handoff.test.ts`, `inbound.test.ts`; fe controller tests; E2E inbound                                                                                                                                   |
+| §7 #12–#16 defaults, PoC fallback  | `models.test.ts`, `catalogue.test.ts`, `settings.test.ts`; ADR 0040 (fallback not needed)                                                                                                                |
+| Security / privacy                 | §5 below                                                                                                                                                                                                 |
+
+Gap found and closed: no test read a WhatsApp call charge back through the account views — `d97b0cf` (call view, ledger list, one ledger line, CSV export: selling price only).
+
+## 4. Numbers
+
+|                                                     | Before (Phase 11)             | After                         |
+| --------------------------------------------------- | ----------------------------- | ----------------------------- |
+| Backend tests                                       | 2972                          | 3162                          |
+| Frontend tests                                      | 1215                          | 1304                          |
+| Playwright                                          | 125                           | 148 (green twice)             |
+| Backend coverage (stmts / branches / funcs / lines) | 96.76 / 88.85 / 96.57 / 98.07 | 96.08 / 87.66 / 95.80 / 97.66 |
+| Frontend coverage                                   | 97.03 / 92.90 / 94.90 / 97.57 | 96.09 / 91.94 / 93.74 / 96.88 |
+
+Coverage gates stay at backend 95 / 85 / 95 / 95 and frontend 95 / 90 / 90 / 95 (never lowered); the drop is the media code paths (WebRTC errors, socket loss) that only loopback runs reach.
+
+Media (PoC, ADR 0040, laptop): 20 / 20 runs; setup ≈ 141 ms (221 ms at 20 parallel calls); 30 s of silent keep-alive = 1,500 packets; ≈ 1.1–1.9 % of one core and ≤ 5.7 MB per call at 10–20 calls; encode + network + decode 0.5–0.7 ms a direction (≈ 23 ms added media delay). RTT is not measured yet (`rttMs: null` in `metrics.whatsapp`).
+
+Hardening (`tests/calls-wa/hardening.test.ts`): 50 concurrent loopback calls with recording ≈ 1.4 s (setup 0.4 s, 1.7 s CPU, +90 MB); 1,000 permission replies ≈ 0.5 s; 200 calls × 10 racing settles ≈ 7.9 s, each charged once; 3 nodes on one Redis with an owner killed — every orphan failed and terminated once; no UDP socket left open after teardown.
+
+Bundle (frontend, gzip of everything `index.html` loads, same build on both): `main` 462.6 KB → branch 463.7 KB counted per file (**+1.1 KB**); all start-up JS as one gzip stream 450.6 → 452.0 KB (**+1.4 KB**) — within the ≤ 3 KB target. Lazy: the call bar, the incoming popup, the availability toggle, the Call with AI dialog, the number Calling settings, the calling rates tab.
+
+## 5. Security / money / media checklist and deviations
+
+- SDP, ICE and DTLS data never in logs, audit, account events, job data or errors: Graph-client scrubbing tests (`meta-graph-calling.test.ts`, `media-poc.test.ts`), captured-log checks in `outbound.test.ts` / `inbound.test.ts` (no `a=fingerprint`, `ice-pwd`, `ice-ufrag`, `a=candidate`, `v=0`, digits or the customer's number) and the E2E log grep (§7).
+- **Stored exception (Phase 9 design):** the signed raw Meta change stays inside the encrypted `MetaWebhookEvent.payloadSealed` for durable routing / retry, so call signalling is stored sealed there; it is never returned by an API and no plain SDP is stored on call records.
+- Customer phones / names / digits never logged; recordings only through signed links; media tickets bound to user + account + call (`routes.test.ts`).
+- Media ports limited to `WA_MEDIA_PORT_MIN`–`MAX`; loopback tests bind `127.0.0.1` without STUN; every media test checks that no UDP socket stays open. A dropped agent socket gets a 15-second reconnect grace, then the call ends `media_error`.
+- Meta's cost, the markup and the fee are superadmin-only: the call view, ledger list / line / export show the selling price only (`d97b0cf`); `/wallet/rates` gives selling prices per minute.
+- Money only through the engine (`security/money-writes.test.ts` covers `whatsapp_call_charge`); idempotency keys `wa-call-hold-`, `wa-call-extend-`, `wa-call-settle-<callId>`; wallet consistency after every billing test; racing settles charge once.
+- Impersonation read only; first-wins answer; one agent, one call (backend route tests, fe permission tests, E2E roles).
+- gitleaks both repos: no leaks; `console.log` in `src`: 0 / 0; no network in tests (Meta hosts only in allowlists, defaults, fake URLs and stub-server fixtures).
+
+Deviations (also in the [plan changelog](PHASE_12_PLAN.md#changelog)): Batch 1 / 2 ones (WASM Opus, the reused Phase 7 resampler, Meta's DTLS role, werift RTCP, `rttMs: null`, base-tier prices, admin billing routes reused, sealed webhook routing). Batch 3: `WA_CALL_WINDOW_IGNORED=true` (fake Meta only, refused in production) lets E2E call at any hour, so "outside the calling window → refused" is proven by `outbound.test.ts`, not E2E; the 4-unanswered E2E uses the rejecting knob `00021` (fast) — the never-answering `00022` is covered by `meta-fake-calling.test.ts` with its full ring; the Phase 9 connect E2E expects the 2K messaging limit the fake has given new numbers since T12.5; permission events carry only the contact id, so they refresh every open contact panel; the stored human-transcription preference does not start an STT pipeline (off, decision #10).
+
+## 6. Bugs found and fixed
+
+Each with a regression test proven to fail first:
+
+- **Batch 1:** the opusscript wrapper corrupted audio once ~100 codecs were alive — `03aa34a`; a lone ICE candidate line kept its IP after scrubbing — inside T12.3.
+- **Batch 2:** the calling router answered 401 for unknown paths, an agent claim leaked after a failed connect, a partial calling block on pre-0013 numbers — inside T12.7 / T12.8; a missed call with nobody online sent no bell — `3a1a975`.
+- **Batch 3:** the rate card API made `kind` required for messaging clients — `649be86`; `call.status` events missed `provider`, so the call bar stayed "Calling…" — `4dc876b`; the permission reason was always `no_permission` (declined / requested / request limit) — `29b7a96`; a permission WhatsApp no longer had still read "Can call (always)" — `26a4216`; the fake didn't count rejected calls toward revocation — `5ddf01f`; the bridge ended a call when the agent's socket dropped and media counters stayed in memory — `232f8f5`; frontend (fe `979e3b6`): the call bar ignored account status events while the agent's socket was open, a takeover stayed "Connecting…", cancelled mic / dial work could overwrite a later call, missed events were never recovered, permission events refreshed a contact-keyed cache the panel didn't use, NaN durations, "Automatic reply" on call bubbles, the low-wallet notice was ignored.
+
+Test-only fixes: the seed tests shared the dev fake Meta state (`ccabd8b`); the hardening test left its 50 fake customers' UDP sockets open (inside `232f8f5`); the first inbound E2E call could arrive before the members' lazy call listener had loaded (fe `c413f43`).
+
+## 7. Verification (P12-B3-DONE)
+
+Run on 2026-10-26 (each command separately, exit codes read; infra `cav-*` only; port 3100 belongs to another project, so `E2E_FRONTEND_PORT=3150`). The machine also ran another project's Supabase containers — none were touched.
+
+| Check                                                                                                                                                                                                                                                                                                                                                                                         | Backend                                                                                                                                                            | Frontend                                                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `lint` / `format:check` / `typecheck` / `build`                                                                                                                                                                                                                                                                                                                                               | ✅ 0 / 0 / 0 / 0                                                                                                                                                   | ✅ 0 / 0 / 0 / 0 (+ `tsc -p tsconfig.e2e.json` 0)                                 |
+| `openapi:check` / `gen:api` no diff                                                                                                                                                                                                                                                                                                                                                           | ✅                                                                                                                                                                 | ✅                                                                                |
+| `test:coverage`                                                                                                                                                                                                                                                                                                                                                                               | ✅ 3162 tests · 96.08 / 87.66 / 95.80 / 97.66                                                                                                                      | ✅ 1304 tests · 96.09 / 91.94 / 93.74 / 96.88                                     |
+| actionlint (Docker)                                                                                                                                                                                                                                                                                                                                                                           | ✅ no findings                                                                                                                                                     | ✅ no findings                                                                    |
+| Playwright, whole suite after the last code commit                                                                                                                                                                                                                                                                                                                                            | —                                                                                                                                                                  | ✅ 148 / 148 twice (18.8 min, 19.3 min with `E2E_BACKEND_LOGS=1`)                 |
+| Fresh clones side by side, `npm ci`, no `.env`: all checks + tests + E2E once                                                                                                                                                                                                                                                                                                                 | CLONE_BACKEND                                                                                                                                                      | CLONE_FRONTEND                                                                    |
+| gitleaks (whole history)                                                                                                                                                                                                                                                                                                                                                                      | ✅ no leaks (291 commits)                                                                                                                                          | ✅ no leaks (107 commits)                                                         |
+| `grep console.log src`                                                                                                                                                                                                                                                                                                                                                                        | 0                                                                                                                                                                  | 0                                                                                 |
+| Money writes (`tests/security/money-writes.test.ts`)                                                                                                                                                                                                                                                                                                                                          | ✅ engine-only (every call hold / extension / settle / release)                                                                                                    | —                                                                                 |
+| E2E backend log grep (8,195 lines, 7,364 requests, run with `E2E_BACKEND_LOGS=1`: `a=fingerprint`, `ice-pwd`, `ice-ufrag`, `a=candidate`, `v=0`, `m=audio`, `"sdp"`, `"digits"`, test phones as `+91 9…` and `919…` digits, the 19 contact / member names of the calling specs, `Bearer`, `sk-`, `accessToken`, `fake_tok_`, `EAAG`, both E2E passwords, the E2E app secret and verify token) | ✅ 0 hits (e-mails only masked `e***@example.com`, and SMTP message ids)                                                                                           | —                                                                                 |
+| `npm audit`                                                                                                                                                                                                                                                                                                                                                                                   | 7: high `body-parser`, `multer`, `zod`; moderate `fast-uri`, `ip-address`, `nodemailer`, `smtp-server` — the same as Phase 11, none new; left for the project lead | 3: high `undici` (dev tooling), `zod`; moderate `fast-uri` — the same as Phase 11 |
+
+Notes: the first full run after the frontend fixes had one inbound test fail (the first customer call reached the members before their lazy call listener loaded; 6 / 6 alone) — test fixed in fe `c413f43`, then both runs green. An earlier full run failed only the Phase 9 connect spec on the old 1K limit (updated in `15c517f`).
+
+## 8. Remaining TODOs (by phase)
+
+- **Phase 13 (staging + App Review):** HTTPS + public UDP for media on staging; run the real-device checklist ([setup guide §15](../setup/meta-whatsapp.md)): permission, agent + AI business calls, a customer call to the team and to AI, keys, recording, measured latency / RTT; record the calling screencast; confirm Meta's call analytics and pulse behaviour against our charges.
+- **Phase 15:** calls on the public API and call webhooks to customers.
+- **Phase 16 (QA):** the load-dependent virtual-clock tests noted in Phase 11 (all passed in these runs).
+- **Phase 18:** SIP signalling + a media server (optional WhatsApp SIP).
+- **Phase 20:** WhatsApp call campaigns with tier pacing.
+
+## 9. Owner inputs still pending
+
+- Meta's official INR calling rate card (the IN ₹0.3885 / min card is a placeholder until the superadmin imports it).
+- A calling-enabled test number with a messaging limit ≥ 2,000 (or Meta's calling sandbox), a real phone, staging with public UDP, and the Meta app / business verification for the real-device check (Phase 13).
+- `npm audit` findings (see §7) — dependency updates are a project-lead decision.
+
+## 10. Go / no-go for Phase 13
+
+**Go.** WhatsApp calls run through the same Graph signalling and WebRTC media a real number uses; permissions follow Meta's answer before every dial; every business call is priced from Meta's talk time and charged once through the engine. The real-device check is the Phase 13 gate.
