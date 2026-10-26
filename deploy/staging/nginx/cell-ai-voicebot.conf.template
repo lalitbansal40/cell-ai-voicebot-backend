@@ -58,8 +58,12 @@ server {
         return 200 "User-agent: *\nDisallow: /\n";
     }
 
-    # readiness stays internal (deploy.sh / healthwatch call 127.0.0.1:5100/ready)
+    # readiness stays internal (deploy.sh / healthwatch call 127.0.0.1:5100/api/v1/ready);
+    # it names the dependencies that are down, so the internet never sees it
     location = /ready {
+        return 404;
+    }
+    location = /api/v1/ready {
         return 404;
     }
 

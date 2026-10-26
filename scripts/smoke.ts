@@ -97,10 +97,18 @@ export const runSmoke = async (
       },
     ],
     [
-      'ready',
+      opts.internal ? 'ready' : 'ready is not public',
       async () => {
-        const res = await fetchImpl(`${base}/api/v1/ready`);
-        need(res.status === 200, `status ${String(res.status)}`);
+        if (opts.internal) {
+          const res = await fetchImpl(`${base}/api/v1/ready`);
+          need(res.status === 200, `status ${String(res.status)}`);
+          return;
+        }
+        // readiness names the dependencies that are down: only the server may read it
+        for (const path of ['/ready', '/api/v1/ready']) {
+          const res = await fetchImpl(`${base}${path}`);
+          need(res.status === 404, `public ${path} answered ${String(res.status)}`);
+        }
       },
     ],
   ];

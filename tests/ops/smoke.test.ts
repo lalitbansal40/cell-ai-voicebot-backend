@@ -13,7 +13,7 @@ const DEFAULTS: Record<string, Answer> = {
     body: JSON.stringify({ data: { status: 'ok', commit: 'abc1234' } }),
     headers: { 'strict-transport-security': 'max-age=1' },
   },
-  '/api/v1/ready': { status: 200 },
+  // nginx blocks readiness from the internet (404 by default here too)
   '/': {
     status: 200,
     body: '<html><div id="root"></div><script src="/assets/index-AbC123.js"></script></html>',
@@ -84,7 +84,7 @@ describe('smoke', () => {
     );
     expect(results.map((r) => [r.name, r.ok])).toEqual([
       ['health', true],
-      ['ready', true],
+      ['ready is not public', true],
       ['app shell + cache headers', true],
       ['robots + legal pages', true],
       ['demo sign-in', true],
@@ -102,6 +102,12 @@ describe('smoke', () => {
     expect(results.every((r) => r.ok)).toBe(true);
   });
 
+  it('internal mode fails while the API is not ready', async () => {
+    const url = await serve({ '/api/v1/ready': { status: 503 } });
+    const results = await runSmoke({ url, internal: true }, { open });
+    expect(results.at(-1)).toMatchObject({ name: 'ready', ok: false, detail: 'status 503' });
+  });
+
   it.each([
     [
       'wrong commit',
@@ -114,7 +120,12 @@ describe('smoke', () => {
       'health',
       /commit old0000/,
     ],
-    ['unready', { '/api/v1/ready': { status: 503 } }, 'ready', /status 503/],
+    [
+      'public readiness',
+      { '/api/v1/ready': { status: 200 } },
+      'ready is not public',
+      /public \/api\/v1\/ready answered 200/,
+    ],
     [
       'cached index',
       { '/': { status: 200, body: '<div id="root"></div>' } },
@@ -159,7 +170,7 @@ describe('smoke', () => {
   });
 
   it('a wrong verify token fails; https needs HSTS; a dead host is a failed request', async () => {
-    const url = await serve();
+    const url = await serve({ '/api/v1/ready': { status: 200 } });
     const wrong = await runSmoke({ url, internal: true, verifyToken: 'nope' }, { open });
     expect(wrong.at(-1)).toMatchObject({ name: 'meta webhook verify', ok: false });
     const dead = await runSmoke(
