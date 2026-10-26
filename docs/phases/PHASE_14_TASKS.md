@@ -4,10 +4,10 @@ Plan: [PHASE_14_PLAN.md](PHASE_14_PLAN.md) · Branch: `feature/phase-14-records-
 
 | ✓   | #      | Task                                                                                                                                   | Repo | Size |
 | --- | ------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---- |
-| [ ] | T14.1  | Metrics glossary, `stats_daily` rollups, contribution writer, recount CLI, nightly reconcile, migration 0015 backfill, raw-count tests | BE   | L    |
-| [ ] | T14.2  | Reports API (7 tabs), filters, caching, OpenAPI, new call-list filters                                                                 | BE   | L    |
-| [ ] | T14.3  | Structured AI output, post-call insights (summary, disposition, sentiment, key info), charging, precedence, regenerate, settings       | BE   | L    |
-| [ ] | T14.4  | Human-call transcription (stereo STT), chat summary                                                                                    | BE   | M    |
+| [x] | T14.1  | Metrics glossary, `stats_daily` rollups, contribution writer, recount CLI, nightly reconcile, migration 0015 backfill, raw-count tests | BE   | L    |
+| [x] | T14.2  | Reports API (7 tabs), filters, caching, OpenAPI, new call-list filters                                                                 | BE   | L    |
+| [x] | T14.3  | Structured AI output, post-call insights (summary, disposition, sentiment, key info), charging, precedence, regenerate, settings       | BE   | L    |
+| [x] | T14.4  | Human-call transcription (stereo STT), chat summary                                                                                    | BE   | M    |
 | [ ] | T14.5  | Call record + inbox UI: insights, disposition edit, chips, regenerate, chat summary, list filters, settings                            | FE   | M    |
 | [ ] | T14.6  | Reports pages (7 tabs), filter bar, charts, drill-down, Dashboard KPI row, menu item live                                              | FE   | L    |
 | [ ] | T14.7  | Exports (calls, messages, report), scheduled email reports + unsubscribe                                                               | both | M    |

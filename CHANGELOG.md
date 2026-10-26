@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 14 · Batch 1 (T14.1–T14.4) — rollups, post-call insights, reports API, transcription + chat summaries** — 2026-10-27
+  - Daily report rollups (`statsDaily`) from one set of metric rules (`docs/analytics/METRICS.md`, ADR 0043): an analytics sweep every minute counts changed calls, WhatsApp messages and charges and applies only the difference (`analyticsMarks`), so late Meta durations and status webhooks never double count; `npm run analytics:rebuild`, a nightly recount of the last 3 days (fixes + tells the superadmins) and migration `0015-analytics` (backfill) use the same rules; purges keep the rollups (25 months).
+  - Post-call AI (ADR 0044): summary, outcome from the account's dispositions, sentiment and key facts (promise date / amount, callback, dispute, wrong number) for every answered call with a transcript — structured output, prompt with the transcript as data, charged once per version; flows, AI agents and people always win over the AI's outcome; regenerate, outcome by hand, settings, dispositions editor (migration `0016-insights`, existing calls never charged).
+  - `GET /reports/:tab` (overview, calls, whatsapp, templates, campaigns, flows, agents, team): KPIs with the previous period, day series, a table; account-local ranges ≤ 366 days, one slice at a time, cached 60 s, ETag / 304. Calls list filters by outcome, sentiment, promise, summary, answered by and number.
+  - Recorded human calls are transcribed when the account asked (stereo split → speech segments → `stt` turns, rate card `sttPerMinuteMicros`); WhatsApp chat summaries on demand or on close.
+  - Fixed: the seeded promise call flaked under full-suite load. Tests: 3198 → 3275, coverage 96.11 / 87.53 / 95.88 / 97.64.
+
 - **Phase 13 · Batch 1 (T13.1–T13.4) — Meta 2026 changes, legal pages, deploy artifacts, ops tooling** — 2026-10-26
   - Embedded Signup v4 session info (`waacId` → channel `waacId` / `wabaKind`, migration `0014-meta-2026`), Graph API v26.0 by default, `account_review_update` / `account_alerts` kept as deferred events, Meta's account model audit in ADR 0037.
   - `GET /health` (also `/api/v1/health`) names the running build (`version`, `commit`, `builtAt` from `GIT_SHA` / `BUILT_AT`); `HOST` env (the API listens on loopback behind nginx); SIGTERM closes live WebSockets before draining HTTP (fixed: an open socket hit the 15 s shutdown timeout). Fixed: with `HOST` defaulting to 0.0.0.0 the API stopped answering on IPv6 (`localhost` = ::1) — `HOST` is optional again.
