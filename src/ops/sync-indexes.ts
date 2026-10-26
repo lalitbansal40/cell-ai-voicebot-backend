@@ -1,5 +1,6 @@
 /** Builds / updates indexes for every registered model (deploy step): `npm run db:sync-indexes` or `node dist/ops/sync-indexes.js`. */
 import { getEnv } from '../config/env';
+import '../db/models/all';
 import { connectMongo, disconnectMongo, syncAllIndexes } from '../db/mongo';
 import { getLogger } from '../shared/logger';
 
