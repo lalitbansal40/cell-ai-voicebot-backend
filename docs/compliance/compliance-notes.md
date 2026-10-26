@@ -146,6 +146,31 @@ What the product does today (ADR 0032) — **to be confirmed with the client's C
 - **Recording notice:** with recording on (account default), the customer hears the account's recording notice before the agent or the AI speaks; recordings follow the Phase 7 retention.
 - **Charges:** customers see the per-minute selling price in the wallet; a call is charged in 6-second pulses on Meta's measured duration; customer-initiated calls are free at Meta (only AI usage and a configured platform fee apply).
 
+## 13. Privacy policy ↔ product (Phase 13)
+
+The public texts live in the frontend repo (`src/content/legal/privacy.md`, `terms.md`, pages `/privacy`, `/terms`, `/contact`, `/data-deletion`); they stay **drafts** until the client's legal team approves them (§7 question C10 and the grievance officer name). Every claim and where the product makes it true:
+
+| Policy claim                                                                                | Product fact                                                                                                         |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Customer is the Data Fiduciary for contacts / calls / chats; we process on its instructions | account scoping on every query (`tenantFilter`, tenant-scope test); no cross-account use                             |
+| Passwords stored only as a hash                                                             | argon2 hashes (Phase 2), never logged                                                                                |
+| Recording only when the customer turns it on, with a notice first                           | account `recordCalls` + recording notice (Phase 7 / 12), played before the agent or AI speaks                        |
+| WhatsApp access token stored encrypted; deleted on disconnect                               | `tokenSealed` (AES-256-GCM, `ENCRYPTION_KEY`), cleared on disconnect and on Meta's data deletion request (Phase 9)   |
+| Payments via Razorpay; no full card / bank details with us                                  | Razorpay Checkout; we store order / payment ids and status only (Phase 4)                                            |
+| Logs never contain message texts, call audio, passwords or tokens                           | logging rules + log-grep tests in every phase (Phases 9–12 sign-offs)                                                |
+| No sale, no ads, no training on customer data                                               | no analytics / ad SDKs in the frontend; OpenAI API data is not used for training under OpenAI's API terms            |
+| AI by OpenAI (US)                                                                           | `AI_PROVIDER` / `VOICE_PROVIDER=openai` in production (Phases 5 / 7)                                                 |
+| Processors: Meta, OpenAI, Razorpay, e-mail provider, hosting                                | the only outbound integrations in production (`env.ts` production rules)                                             |
+| Calls / recordings / transcripts kept 180 days by default                                   | `CALL_RETENTION_DAYS` default 180, maintenance purge (Phase 7)                                                       |
+| WhatsApp messages / media kept 90 days by default, changeable                               | `INBOX_RETENTION_DAYS` default 90 + Settings → Inbox retention (Phase 10)                                            |
+| WhatsApp webhook events up to 30 days                                                       | `metaWebhookEvents` TTL (7 days processed, 30 days deferred — Phase 9)                                               |
+| Backups up to 30 days                                                                       | staging / production backup lifecycle (Phase 13 runbook, plan §1g)                                                   |
+| Contacts deleted by the customer; recording can be turned off; numbers disconnected         | `DELETE /contacts/:id`, account recording toggle, WhatsApp disconnect                                                |
+| Account deletion by an e-mail from the owner                                                | no in-app account deletion yet — handled by the platform team (Phase 16 adds a self-service flow if the owner wants) |
+| Facebook app removal → deletion request + status page                                       | `/api/v1/meta/data-deletion` signed request → code → `/data-deletion?code=` (Phase 9)                                |
+| One sign-in cookie; preferences in the browser; no tracking cookies                         | HTTP-only `Secure` refresh cookie (Phase 2); theme / table columns / recent emojis / ring sound in `localStorage`    |
+| Data stored in India                                                                        | staging + production servers in `ap-south-1` (plan §7 #1 default — confirm if the owner picks another region)        |
+
 ## Sources
 
 - TRAI Press Release 11/2025 — <https://cms.trai.gov.in/sites/default/files/2025-02/PR_No.11of2025.pdf>
