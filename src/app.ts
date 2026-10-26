@@ -22,6 +22,7 @@ import { createDocsRouter } from './modules/docs/docs.routes';
 import { createFilesRouter } from './modules/files/files.routes';
 import type { ReadinessDeps } from './modules/health/health.controller';
 import { createHealthRouter } from './modules/health/health.routes';
+import type { ReportCacheStore } from './modules/reports/cache';
 import { createApiRouter, type AiDeps, type CallsApiDeps, type WhatsAppDeps } from './routes';
 import { getAppInfo } from './shared/app-info';
 import type { Logger } from './shared/logger';
@@ -71,6 +72,8 @@ export interface AppDeps {
   campaigns?: CampaignsRouterDeps;
   /** Phase 9: WhatsApp context (Meta client, Redis, secret key) + the `whatsapp` queue. */
   whatsapp?: WhatsAppDeps;
+  /** Phase 14 report cache (the app Redis in `server.ts`); none in most tests. */
+  reportCache?: ReportCacheStore;
 }
 
 /**
@@ -98,6 +101,7 @@ export const createApp = ({
   calls,
   campaigns = {},
   whatsapp,
+  reportCache,
 }: AppDeps): Express => {
   // Wallet low-balance / exhausted alerts run after every committed wallet change.
   registerWalletAlerts();
@@ -155,6 +159,7 @@ export const createApp = ({
       ...(calls ? { calls } : {}),
       campaigns,
       ...(whatsapp ? { whatsapp: { ...whatsapp, storage: whatsapp.storage ?? storage } } : {}),
+      reports: { cache: reportCache ?? null },
     }),
   );
 

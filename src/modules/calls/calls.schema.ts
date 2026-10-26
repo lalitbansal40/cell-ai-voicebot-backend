@@ -1,6 +1,13 @@
 import { CALL_LIMITS, CAMPAIGN_LIMITS, FLOW_LIMITS } from '../../config/limits';
 import { CALL_EVENT_TYPES } from '../../db/models/call-event.model';
-import { CALL_END_REASONS, CALL_PROVIDERS, CALL_STATUSES } from '../../db/models/call.model';
+import {
+  CALL_END_REASONS,
+  CALL_PROVIDERS,
+  CALL_STATUSES,
+  DISPOSITION_SOURCES,
+  INSIGHT_STATUSES,
+  SENTIMENTS,
+} from '../../db/models/call.model';
 import { TRANSCRIPT_SOURCES, TRANSCRIPT_SPEAKERS } from '../../db/models/transcript-turn.model';
 import { CursorPageMetaSchema } from '../../shared/openapi/common.schemas';
 import { registry } from '../../shared/openapi/registry';
@@ -101,6 +108,23 @@ export const ListCallsQuery = z
     from: z.iso.datetime({ offset: true }).optional(),
     to: z.iso.datetime({ offset: true }).optional(),
     q: z.string().trim().min(1).max(80).optional().openapi({ description: 'Contact name' }),
+    disposition: z
+      .string()
+      .regex(/^[a-z0-9_]{1,40}(,[a-z0-9_]{1,40}){0,29}$/)
+      .transform((v) => v.split(','))
+      .optional()
+      .openapi({ description: 'Comma-separated outcome keys (Phase 14)' }),
+    sentiment: z.enum(SENTIMENTS).optional(),
+    hasPromise: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .optional(),
+    hasSummary: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .optional(),
+    answeredBy: ObjectIdSchema.optional().openapi({ description: 'Team member who answered' }),
+    channelId: ObjectIdSchema.optional().openapi({ description: 'WhatsApp number' }),
   })
   .refine((q) => !q.from || !q.to || q.from < q.to, {
     message: 'from must be before to',
@@ -157,6 +181,17 @@ export const CallSchema = registry.register(
     variables: z.record(z.string(), z.string()),
     outcome: z.record(z.string(), z.unknown()),
     disposition: z.string().nullable(),
+    dispositionSource: z.enum(DISPOSITION_SOURCES).nullable(),
+    insights: z
+      .object({
+        status: z.enum(INSIGHT_STATUSES),
+        reason: z.string().nullable(),
+        sentiment: z.enum(SENTIMENTS).nullable(),
+        hasPromise: z.boolean(),
+        promiseAmountMicros: z.number().int().nullable(),
+        hasSummary: z.boolean(),
+      })
+      .nullable(),
     languageDetected: z.string().nullable(),
     metrics: z.object({
       whatsapp: z

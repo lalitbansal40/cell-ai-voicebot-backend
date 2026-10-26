@@ -25,6 +25,7 @@ export const buildTestApp = (
     | 'calls'
     | 'campaigns'
     | 'whatsapp'
+    | 'reportCache'
   > = {},
 ) => {
   const env = testEnv(overrides);

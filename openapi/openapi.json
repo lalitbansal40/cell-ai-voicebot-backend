@@ -4553,6 +4553,32 @@
           "variables": { "type": "object", "additionalProperties": { "type": "string" } },
           "outcome": { "type": "object", "additionalProperties": {} },
           "disposition": { "type": ["string", "null"] },
+          "dispositionSource": {
+            "type": ["string", "null"],
+            "enum": ["flow", "agent", "user", "ai", null]
+          },
+          "insights": {
+            "type": ["object", "null"],
+            "properties": {
+              "status": { "type": "string", "enum": ["pending", "done", "skipped", "failed"] },
+              "reason": { "type": ["string", "null"] },
+              "sentiment": {
+                "type": ["string", "null"],
+                "enum": ["positive", "neutral", "negative", null]
+              },
+              "hasPromise": { "type": "boolean" },
+              "promiseAmountMicros": { "type": ["integer", "null"] },
+              "hasSummary": { "type": "boolean" }
+            },
+            "required": [
+              "status",
+              "reason",
+              "sentiment",
+              "hasPromise",
+              "promiseAmountMicros",
+              "hasSummary"
+            ]
+          },
           "languageDetected": { "type": ["string", "null"] },
           "metrics": {
             "type": "object",
@@ -4647,6 +4673,8 @@
           "variables",
           "outcome",
           "disposition",
+          "dispositionSource",
+          "insights",
           "languageDetected",
           "metrics",
           "cost",
@@ -6691,6 +6719,107 @@
           }
         },
         "required": ["dispositions"]
+      },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "tab": {
+            "type": "string",
+            "enum": [
+              "overview",
+              "calls",
+              "whatsapp",
+              "templates",
+              "campaigns",
+              "flows",
+              "agents",
+              "team"
+            ]
+          },
+          "range": {
+            "type": "object",
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "timezone": { "type": "string" }
+            },
+            "required": ["from", "to", "timezone"]
+          },
+          "compareRange": {
+            "type": ["object", "null"],
+            "properties": { "from": { "type": "string" }, "to": { "type": "string" } },
+            "required": ["from", "to"]
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": { "type": "string" },
+                "value": { "type": ["number", "null"] },
+                "previous": { "type": ["number", "null"] },
+                "unit": { "type": "string", "enum": ["count", "percent", "seconds", "micros"] }
+              },
+              "required": ["key", "value", "unit"]
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": { "type": "string" },
+                "unit": { "type": "string", "enum": ["count", "percent", "seconds", "micros"] },
+                "points": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "day": { "type": "string" },
+                      "value": { "type": ["number", "null"] }
+                    },
+                    "required": ["day", "value"]
+                  }
+                }
+              },
+              "required": ["key", "unit", "points"]
+            }
+          },
+          "table": {
+            "type": "object",
+            "properties": {
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": { "type": "string" },
+                    "unit": { "type": "string", "enum": ["count", "percent", "seconds", "micros"] }
+                  },
+                  "required": ["key", "unit"]
+                }
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": ["string", "null"] },
+                    "label": { "type": "string" },
+                    "values": {
+                      "type": "object",
+                      "additionalProperties": { "type": ["number", "null"] }
+                    }
+                  },
+                  "required": ["id", "label", "values"]
+                }
+              }
+            },
+            "required": ["columns", "rows"]
+          },
+          "updatedAt": { "type": "string" }
+        },
+        "required": ["tab", "range", "compareRange", "kpis", "series", "table", "updatedAt"]
       },
       "WhatsAppEmbeddedSignupInput": {
         "type": "object",
@@ -19307,6 +19436,57 @@
             "description": "Contact name",
             "name": "q",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]{1,40}(,[a-z0-9_]{1,40}){0,29}$",
+              "description": "Comma-separated outcome keys (Phase 14)"
+            },
+            "required": false,
+            "description": "Comma-separated outcome keys (Phase 14)",
+            "name": "disposition",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["positive", "neutral", "negative"] },
+            "required": false,
+            "name": "sentiment",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "required": false,
+            "name": "hasPromise",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["true", "false"] },
+            "required": false,
+            "name": "hasSummary",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "Team member who answered"
+            },
+            "required": false,
+            "description": "Team member who answered",
+            "name": "answeredBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "WhatsApp number"
+            },
+            "required": false,
+            "description": "WhatsApp number",
+            "name": "channelId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -28019,6 +28199,1174 @@
               }
             }
           },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/overview": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Report: overview (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "First day (account timezone). Default: 6 days ago"
+            },
+            "required": false,
+            "description": "First day (account timezone). Default: 6 days ago",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Last day, inclusive. Default: today"
+            },
+            "required": false,
+            "description": "Last day, inclusive. Default: today",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Also return the previous period of the same length"
+            },
+            "required": false,
+            "description": "Also return the previous period of the same length",
+            "name": "compare",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["voice", "whatsapp"],
+              "description": "Calls of one channel"
+            },
+            "required": false,
+            "description": "Calls of one channel",
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "A WhatsApp number"
+            },
+            "required": false,
+            "description": "A WhatsApp number",
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "campaignId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}(,[a-f0-9]{24}){0,9}$/i",
+              "description": "Campaigns tab: up to 10 to compare (comma-separated)"
+            },
+            "required": false,
+            "description": "Campaigns tab: up to 10 to compare (comma-separated)",
+            "name": "campaignIds",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "flowId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Count test calls too"
+            },
+            "required": false,
+            "description": "Count test calls too",
+            "name": "includeTest",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "304": { "description": "Not modified (If-None-Match)" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/calls": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Report: calls (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "First day (account timezone). Default: 6 days ago"
+            },
+            "required": false,
+            "description": "First day (account timezone). Default: 6 days ago",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Last day, inclusive. Default: today"
+            },
+            "required": false,
+            "description": "Last day, inclusive. Default: today",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Also return the previous period of the same length"
+            },
+            "required": false,
+            "description": "Also return the previous period of the same length",
+            "name": "compare",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["voice", "whatsapp"],
+              "description": "Calls of one channel"
+            },
+            "required": false,
+            "description": "Calls of one channel",
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "A WhatsApp number"
+            },
+            "required": false,
+            "description": "A WhatsApp number",
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "campaignId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}(,[a-f0-9]{24}){0,9}$/i",
+              "description": "Campaigns tab: up to 10 to compare (comma-separated)"
+            },
+            "required": false,
+            "description": "Campaigns tab: up to 10 to compare (comma-separated)",
+            "name": "campaignIds",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "flowId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Count test calls too"
+            },
+            "required": false,
+            "description": "Count test calls too",
+            "name": "includeTest",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "304": { "description": "Not modified (If-None-Match)" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/whatsapp": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Report: whatsapp (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "First day (account timezone). Default: 6 days ago"
+            },
+            "required": false,
+            "description": "First day (account timezone). Default: 6 days ago",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Last day, inclusive. Default: today"
+            },
+            "required": false,
+            "description": "Last day, inclusive. Default: today",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Also return the previous period of the same length"
+            },
+            "required": false,
+            "description": "Also return the previous period of the same length",
+            "name": "compare",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["voice", "whatsapp"],
+              "description": "Calls of one channel"
+            },
+            "required": false,
+            "description": "Calls of one channel",
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "A WhatsApp number"
+            },
+            "required": false,
+            "description": "A WhatsApp number",
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "campaignId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}(,[a-f0-9]{24}){0,9}$/i",
+              "description": "Campaigns tab: up to 10 to compare (comma-separated)"
+            },
+            "required": false,
+            "description": "Campaigns tab: up to 10 to compare (comma-separated)",
+            "name": "campaignIds",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "flowId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Count test calls too"
+            },
+            "required": false,
+            "description": "Count test calls too",
+            "name": "includeTest",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "304": { "description": "Not modified (If-None-Match)" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/templates": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Report: templates (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "First day (account timezone). Default: 6 days ago"
+            },
+            "required": false,
+            "description": "First day (account timezone). Default: 6 days ago",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Last day, inclusive. Default: today"
+            },
+            "required": false,
+            "description": "Last day, inclusive. Default: today",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Also return the previous period of the same length"
+            },
+            "required": false,
+            "description": "Also return the previous period of the same length",
+            "name": "compare",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["voice", "whatsapp"],
+              "description": "Calls of one channel"
+            },
+            "required": false,
+            "description": "Calls of one channel",
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "A WhatsApp number"
+            },
+            "required": false,
+            "description": "A WhatsApp number",
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "campaignId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}(,[a-f0-9]{24}){0,9}$/i",
+              "description": "Campaigns tab: up to 10 to compare (comma-separated)"
+            },
+            "required": false,
+            "description": "Campaigns tab: up to 10 to compare (comma-separated)",
+            "name": "campaignIds",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "flowId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Count test calls too"
+            },
+            "required": false,
+            "description": "Count test calls too",
+            "name": "includeTest",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "304": { "description": "Not modified (If-None-Match)" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/campaigns": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Report: campaigns (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "First day (account timezone). Default: 6 days ago"
+            },
+            "required": false,
+            "description": "First day (account timezone). Default: 6 days ago",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Last day, inclusive. Default: today"
+            },
+            "required": false,
+            "description": "Last day, inclusive. Default: today",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Also return the previous period of the same length"
+            },
+            "required": false,
+            "description": "Also return the previous period of the same length",
+            "name": "compare",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["voice", "whatsapp"],
+              "description": "Calls of one channel"
+            },
+            "required": false,
+            "description": "Calls of one channel",
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "A WhatsApp number"
+            },
+            "required": false,
+            "description": "A WhatsApp number",
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "campaignId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}(,[a-f0-9]{24}){0,9}$/i",
+              "description": "Campaigns tab: up to 10 to compare (comma-separated)"
+            },
+            "required": false,
+            "description": "Campaigns tab: up to 10 to compare (comma-separated)",
+            "name": "campaignIds",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "flowId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Count test calls too"
+            },
+            "required": false,
+            "description": "Count test calls too",
+            "name": "includeTest",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "304": { "description": "Not modified (If-None-Match)" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/flows": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Report: flows (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "First day (account timezone). Default: 6 days ago"
+            },
+            "required": false,
+            "description": "First day (account timezone). Default: 6 days ago",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Last day, inclusive. Default: today"
+            },
+            "required": false,
+            "description": "Last day, inclusive. Default: today",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Also return the previous period of the same length"
+            },
+            "required": false,
+            "description": "Also return the previous period of the same length",
+            "name": "compare",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["voice", "whatsapp"],
+              "description": "Calls of one channel"
+            },
+            "required": false,
+            "description": "Calls of one channel",
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "A WhatsApp number"
+            },
+            "required": false,
+            "description": "A WhatsApp number",
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "campaignId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}(,[a-f0-9]{24}){0,9}$/i",
+              "description": "Campaigns tab: up to 10 to compare (comma-separated)"
+            },
+            "required": false,
+            "description": "Campaigns tab: up to 10 to compare (comma-separated)",
+            "name": "campaignIds",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "flowId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Count test calls too"
+            },
+            "required": false,
+            "description": "Count test calls too",
+            "name": "includeTest",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "304": { "description": "Not modified (If-None-Match)" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/agents": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Report: agents (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "First day (account timezone). Default: 6 days ago"
+            },
+            "required": false,
+            "description": "First day (account timezone). Default: 6 days ago",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Last day, inclusive. Default: today"
+            },
+            "required": false,
+            "description": "Last day, inclusive. Default: today",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Also return the previous period of the same length"
+            },
+            "required": false,
+            "description": "Also return the previous period of the same length",
+            "name": "compare",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["voice", "whatsapp"],
+              "description": "Calls of one channel"
+            },
+            "required": false,
+            "description": "Calls of one channel",
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "A WhatsApp number"
+            },
+            "required": false,
+            "description": "A WhatsApp number",
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "campaignId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}(,[a-f0-9]{24}){0,9}$/i",
+              "description": "Campaigns tab: up to 10 to compare (comma-separated)"
+            },
+            "required": false,
+            "description": "Campaigns tab: up to 10 to compare (comma-separated)",
+            "name": "campaignIds",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "flowId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Count test calls too"
+            },
+            "required": false,
+            "description": "Count test calls too",
+            "name": "includeTest",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "304": { "description": "Not modified (If-None-Match)" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/team": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Report: team (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "First day (account timezone). Default: 6 days ago"
+            },
+            "required": false,
+            "description": "First day (account timezone). Default: 6 days ago",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Last day, inclusive. Default: today"
+            },
+            "required": false,
+            "description": "Last day, inclusive. Default: today",
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Also return the previous period of the same length"
+            },
+            "required": false,
+            "description": "Also return the previous period of the same length",
+            "name": "compare",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["voice", "whatsapp"],
+              "description": "Calls of one channel"
+            },
+            "required": false,
+            "description": "Calls of one channel",
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}$/i",
+              "description": "A WhatsApp number"
+            },
+            "required": false,
+            "description": "A WhatsApp number",
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "campaignId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{24}(,[a-f0-9]{24}){0,9}$/i",
+              "description": "Campaigns tab: up to 10 to compare (comma-separated)"
+            },
+            "required": false,
+            "description": "Campaigns tab: up to 10 to compare (comma-separated)",
+            "name": "campaignIds",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "flowId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "agentId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "userId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "description": "Count test calls too"
+            },
+            "required": false,
+            "description": "Count test calls too",
+            "name": "includeTest",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Report" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "304": { "description": "Not modified (If-None-Match)" },
           "401": {
             "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
             "content": {

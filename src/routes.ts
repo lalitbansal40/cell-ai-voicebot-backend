@@ -47,6 +47,8 @@ import { createNotificationsRouter } from './modules/notifications/notifications
 import { createWebhooksRouter } from './modules/payments/webhooks.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
+import type { ReportCacheStore } from './modules/reports/cache';
+import { createReportsRouter } from './modules/reports/reports.routes';
 import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
@@ -145,6 +147,7 @@ export const createApiRouter = ({
   calls,
   campaigns = {},
   whatsapp,
+  reports = {},
 }: {
   env: Pick<
     Env,
@@ -179,6 +182,8 @@ export const createApiRouter = ({
   calls?: CallsApiDeps;
   campaigns?: CampaignsRouterDeps;
   whatsapp?: WhatsAppDeps;
+  /** Phase 14: report cache (Redis); `null` = no cache. */
+  reports?: { cache?: ReportCacheStore | null };
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));
@@ -335,6 +340,7 @@ export const createApiRouter = ({
   );
   router.use('/campaigns', createCampaignsRouter(campaigns));
   router.use('/calls', createCallInsightsRouter({ jobs: ai.jobs ?? unavailableAiJobs }));
+  router.use('/reports', createReportsRouter({ cache: reports.cache ?? null }));
   if (calls) {
     router.use(
       '/calls',

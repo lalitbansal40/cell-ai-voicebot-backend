@@ -288,6 +288,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     billingJobs,
     payments: createPaymentProvider(env),
     topupRateLimitStore: createRedisRateLimitStore(redis, 'rl:topup:'),
+    reportCache: redis,
     aiProvider,
     aiJobs,
     aiRateLimitStores: {

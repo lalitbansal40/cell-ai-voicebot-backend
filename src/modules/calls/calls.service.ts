@@ -148,6 +148,17 @@ export const toCallView = (c: CallDoc, names: Names) => {
     variables: { ...c.variables },
     outcome: { ...c.outcome },
     disposition: c.disposition,
+    dispositionSource: c.dispositionSource ?? null,
+    insights: c.insights
+      ? {
+          status: c.insights.status,
+          reason: c.insights.reason,
+          sentiment: c.insights.sentiment,
+          hasPromise: c.insights.hasPromise,
+          promiseAmountMicros: c.insights.promiseAmountMicros,
+          hasSummary: c.insights.hasSummary,
+        }
+      : null,
     languageDetected: c.languageDetected,
     metrics: {
       ...(c.metrics.whatsapp ? { whatsapp: { ...c.metrics.whatsapp } } : {}),
@@ -266,6 +277,18 @@ export const listCalls = async (req: Request, query: z.infer<typeof ListCallsQue
   if (query.provider) filter.provider = query.provider;
   if (query.direction) filter.direction = query.direction;
   if (query.mode) filter.mode = query.mode;
+  // Phase 14 record filters
+  if (query.disposition) filter.disposition = { $in: query.disposition };
+  if (query.sentiment) filter['insights.sentiment'] = query.sentiment;
+  if (query.hasPromise !== undefined)
+    filter['insights.hasPromise'] = query.hasPromise ? true : { $ne: true };
+  if (query.hasSummary !== undefined)
+    filter['insights.hasSummary'] = query.hasSummary ? true : { $ne: true };
+  if (query.channelId) filter['whatsapp.channelId'] = new Types.ObjectId(query.channelId);
+  if (query.answeredBy) {
+    const by = new Types.ObjectId(query.answeredBy);
+    filter.$and = [{ $or: [{ 'whatsapp.answeredBy': by }, { agentUserId: by }] }];
+  }
   const at: Record<string, Date> = {};
   if (query.from) at.$gte = new Date(query.from);
   if (query.to) at.$lt = new Date(query.to);
