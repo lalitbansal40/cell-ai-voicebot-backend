@@ -1,6 +1,6 @@
 # Phase 13 — Staging Deploy + Meta App Review (Detailed Plan)
 
-**Status:** Draft — 2026-10-26 · **Branch:** `feature/phase-13-staging-app-review` (both repos; created from the Phase 12 tip — backend `3371267 [P12-B3-DONE]`, frontend `3f2dbbd [P12-T12.12]` — because Phase 12 is not merged into `main` yet; rebase onto `main` once the project lead merges Phase 12) · **Overview:** [BUILD_PLAN_V2.md](../plans/BUILD_PLAN_V2.md) · **Previous:** [PHASE_12_SIGNOFF.md](PHASE_12_SIGNOFF.md) · **Tracker:** [PHASE_13_TASKS.md](PHASE_13_TASKS.md)
+**Status:** Draft — 2026-10-26 · **Branch:** `feature/phase-13-staging-app-review` (both repos, from `main` = the Phase 12 tip — backend `3371267 [P12-B3-DONE]`, frontend `3f2dbbd [P12-T12.12]`; Phase 12 merged by the project lead on 26 Oct 2026; the frontend branch is created at T13.1) · **Overview:** [BUILD_PLAN_V2.md](../plans/BUILD_PLAN_V2.md) · **Previous:** [PHASE_12_SIGNOFF.md](PHASE_12_SIGNOFF.md) · **Tracker:** [PHASE_13_TASKS.md](PHASE_13_TASKS.md)
 
 ---
 
@@ -63,6 +63,7 @@ Same as earlier phases: [api.md](../conventions/api.md), [security.md](../conven
 
 ### 1a. Staging shape
 
+- **Frontend + backend on one machine** (owner, 26 Oct 2026): the same server serves the SPA, the API + WebSockets + call media, the worker, MongoDB and Redis.
 - **One staging server** (separate from the client's production EC2 — §7 #1): Ubuntu 24.04 LTS, ≥ 4 vCPU / 8 GB RAM / 80 GB SSD (e.g. AWS `t3.xlarge` / `m6a.xlarge` in `ap-south-1`), a public IPv4 (Elastic IP) — WhatsApp media needs a stable public IP (`WA_MEDIA_PUBLIC_IP`).
 - **One hostname, same origin** (§7 #2): `https://<app-host>` serves the SPA and proxies `/api/*` and `/ws/*` to the API — no CORS, host-only refresh cookie (`AUTH_COOKIE_DOMAIN` empty), one TLS cert, one Meta "App domain". Recommended host = the **final production hostname** (e.g. `app.<client-domain>`) pointed at staging during review; Phase 17 moves the DNS to production, so the Meta app settings, privacy URL and ES allowed domains never change (no re-review).
 - **Docker Compose** (ADR 0025 → accepted): project `cell-ai-voicebot`, services `api` (HTTP + WS + WhatsApp media, `WORKERS_ENABLED=false`), `worker` (BullMQ jobs, `WORKERS_ENABLED=true`, no HTTP port exposed), `mongo` (8.2, single-node replica set `rs0`, auth on), `redis` (7.4, AOF, password); **nginx + certbot on the host** (simplest TLS renewals); the SPA is a static folder served by nginx. API and media run in one container (`network_mode` / ports: TCP 5100 on 127.0.0.1 + UDP `WA_MEDIA_PORT_MIN–MAX` published on the public IP).
@@ -111,7 +112,7 @@ Same as earlier phases: [api.md](../conventions/api.md), [security.md](../conven
 ### 1f. Deploy pipeline (T13.3 / T13.4)
 
 - **Images:** `ghcr.io/lalitbansal40/cell-ai-voicebot-backend:<git-sha>` (multi-stage, Node 24 slim, `npm ci --omit=dev`, `tsc` build, non-root user, `HEALTHCHECK` on `/api/v1/health`, no secrets, `.dockerignore` excludes `.env`, `uploads`, `coverage`, tests); the frontend is built in CI into a versioned tarball (`dist-<git-sha>.tgz`) with the staging `VITE_*` values.
-- **GitHub Actions** `deploy-staging.yml` (both repos or one orchestrating workflow): trigger `workflow_dispatch` (+ optional on push to `main` after Phase 12 is merged), job in the `staging` environment (required reviewer = project lead), needs the CI `verify` job green, builds + pushes the image, SSH to the server with a deploy-only key (restricted `authorized_keys` command or a deploy user without sudo), runs `deploy.sh <sha>`: pull image → `docker compose run --rm api npm run db:migrate` → `db:sync-indexes` → `up -d` → wait for `/ready` (60 s) → smoke → on failure **automatic rollback** to the previous sha (kept in `/srv/cell-ai-voicebot/releases/current`). Migrations must stay backward compatible for one release (rollback safety).
+- **GitHub Actions** `deploy-staging.yml` (both repos or one orchestrating workflow): trigger `workflow_dispatch` (+ optional on push to `main`), job in the `staging` environment (required reviewer = project lead), needs the CI `verify` job green, builds + pushes the image, SSH to the server with a deploy-only key (restricted `authorized_keys` command or a deploy user without sudo), runs `deploy.sh <sha>`: pull image → `docker compose run --rm api npm run db:migrate` → `db:sync-indexes` → `up -d` → wait for `/ready` (60 s) → smoke → on failure **automatic rollback** to the previous sha (kept in `/srv/cell-ai-voicebot/releases/current`). Migrations must stay backward compatible for one release (rollback safety).
 - **Health version:** `/api/v1/health` adds `version` (package), `commit` (git sha from build arg `GIT_SHA`), `builtAt` — no secrets, no hostnames.
 - **Smoke script** `npm run smoke -- --url https://<host>`: health (commit matches), ready, `GET /api/v1/webhooks/meta` verify challenge with the token from env (only from the server / CI secret), SPA index + one asset with cache headers, WebSocket ticket + connect, sign-in of the demo user (read-only checks). Exit code ≠ 0 → rollback.
 
@@ -339,6 +340,9 @@ Day 1: send §7 questions; start business verification; T13.1 + T13.2 + T13.3 in
 | 17  | Open sign-up on staging?                                                                     | On (reviewers may sign up), with rate limits + e-mail verification + noindex                                                                    |
 | 18  | Calling in the App Review videos?                                                            | Mentioned in the messaging text + a short extra clip only if the form allows; the required messaging video stays message-only                   |
 
+**Answered by the owner / project lead on 26 Oct 2026:** frontend + backend run on **one machine** (confirms §1a); **#16** Phase 12 is merged into `main` in both repos (fast-forward), so Phase 13 branches start from `main`. Every other question: defaults in use until answered.
+
 ## Changelog
 
 - 2026-10-26: plan drafted after Phase 12 sign-off; Meta pages re-checked the same day (App Review, Tech Provider, ES versions / v4 / coexistence, account model evolution, calling overview, Graph v26.0) — findings in §1d; forced code changes in §1b.
+- 2026-10-26 (STEP 0): defaults in use for §7 #1–#18 except the one-machine answer and #16 (Phase 12 merged). Run prompt prepared — refinements locked: deploy from the Mac over SSH with server-side image builds (GitHub Actions after push / merge); host networking for `api` / `worker` + a new `HOST` env (API on loopback); production rehearsal on the Mac without real keys; ES v4 literals (`extras: {}`); Graph v26.0; migration 0014 (`wabaKind`, `waacId`); health `version` / `commit` / `builtAt`; legal content + `VITE_LEGAL_*`; demo seed env; server layout; nginx + CSP literals; smoke list; backups (the prompt's §1 wins where this plan differs).
