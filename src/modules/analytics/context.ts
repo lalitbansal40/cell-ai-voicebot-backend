@@ -40,6 +40,7 @@ export const CALL_FIELDS = {
   agentUserId: 1,
   'whatsapp.channelId': 1,
   'whatsapp.answeredBy': 1,
+  insights: 1,
   accountId: 1,
 } as const;
 

@@ -31,6 +31,8 @@ export interface WsEventMap {
   };
   /** No digit — key presses can be PINs. */
   'call.dtmf': { callId: string };
+  /** Phase 14: post-call insights changed (ids + status only — fetch the view). */
+  'call.insights': { callId: string; status: string; version: number };
   'call.ended': {
     callId: string;
     /** Campaign calls only. */
@@ -161,6 +163,7 @@ export const WS_EVENT_TYPES = [
   'call.transcript',
   'call.dtmf',
   'call.ended',
+  'call.insights',
   'campaign.status',
   'campaign.progress',
   'whatsapp.channel.updated',

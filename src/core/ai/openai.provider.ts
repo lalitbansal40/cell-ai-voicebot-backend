@@ -155,6 +155,16 @@ export const createOpenAiProvider = ({
         }));
         body.tool_choice = 'auto';
       }
+      if (request.responseFormat) {
+        body.response_format = {
+          type: 'json_schema',
+          json_schema: {
+            name: request.responseFormat.name,
+            strict: true,
+            schema: request.responseFormat.schema,
+          },
+        };
+      }
       const json = await post<OpenAiChatResponse>(
         '/chat/completions',
         body,

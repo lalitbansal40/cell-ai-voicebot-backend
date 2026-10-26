@@ -188,6 +188,19 @@ export const ERROR_CODES = {
     status: 409,
     message: 'No team member is available to take the call.',
   },
+  // Phase 14 — records, transcripts & analytics
+  INSIGHTS_NOT_AVAILABLE: {
+    status: 409,
+    message: 'This call has no transcript to review (not answered or too short).',
+  },
+  INSIGHTS_DISABLED: {
+    status: 409,
+    message: 'Post-call AI is turned off in Settings.',
+  },
+  DISPOSITION_UNKNOWN: {
+    status: 422,
+    message: 'Choose one of the call outcomes set up in Settings.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

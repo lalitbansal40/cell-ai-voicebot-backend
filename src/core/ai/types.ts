@@ -38,10 +38,23 @@ export interface TokenUsage {
   outputTokens: number;
 }
 
+/** JSON Schema subset for structured output (OpenAI `strict` mode: every property required). */
+export type JsonSchema = Record<string, unknown>;
+
+/** Ask for one JSON object matching `schema` instead of free text (Phase 14 insights). */
+export interface ResponseFormat {
+  type: 'json_schema';
+  /** `[a-z0-9_]`, ≤ 64 chars — also tells the fake provider which output to build. */
+  name: string;
+  schema: JsonSchema;
+}
+
 export interface ChatRequest {
   model: string;
   messages: ChatMessage[];
   tools?: ToolDefinition[];
+  /** Structured output (no tools with it). */
+  responseFormat?: ResponseFormat;
   /** 0–1.2 in tenths (12 = 1.2). */
   temperatureTenths: number;
   maxOutputTokens: number;

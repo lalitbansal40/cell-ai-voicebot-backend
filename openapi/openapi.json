@@ -453,7 +453,11 @@
               "call.whatsapp_started",
               "call.whatsapp_answered",
               "call.whatsapp_transferred",
-              "whatsapp.calling_restricted"
+              "whatsapp.calling_restricted",
+              "call.disposition_updated",
+              "call.insights_regenerated",
+              "account.insights_updated",
+              "account.dispositions_updated"
             ]
           },
           "actor": {
@@ -3716,7 +3720,10 @@
                   "flow_simulator",
                   "flow_intent",
                   "whatsapp",
-                  "whatsapp_call"
+                  "whatsapp_call",
+                  "insights",
+                  "stt",
+                  "chat_summary"
                 ]
               },
               "waCategory": { "type": "string" },
@@ -6548,6 +6555,142 @@
           "wsPath": { "type": "string" }
         },
         "required": ["callId", "mediaTicket", "expiresAt", "wsPath"]
+      },
+      "CallInsightVersion": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "integer" },
+          "status": { "type": "string", "enum": ["pending", "done", "skipped", "failed"] },
+          "reason": { "type": ["string", "null"] },
+          "output": {
+            "type": ["object", "null"],
+            "properties": {
+              "summary": { "type": "string" },
+              "suggestedDisposition": { "type": ["string", "null"] },
+              "sentiment": {
+                "type": "object",
+                "properties": {
+                  "label": { "type": "string", "enum": ["positive", "neutral", "negative"] },
+                  "score": { "type": "number" }
+                },
+                "required": ["label", "score"]
+              },
+              "keyInfo": {
+                "type": "object",
+                "properties": {
+                  "promiseDate": { "type": ["string", "null"] },
+                  "promiseAmountMicros": { "type": ["integer", "null"] },
+                  "callbackAt": { "type": ["string", "null"] },
+                  "disputeReason": { "type": ["string", "null"] },
+                  "wrongNumber": { "type": "boolean" },
+                  "languagePreference": { "type": ["string", "null"] },
+                  "notes": { "type": ["string", "null"] }
+                },
+                "required": [
+                  "promiseDate",
+                  "promiseAmountMicros",
+                  "callbackAt",
+                  "disputeReason",
+                  "wrongNumber",
+                  "languagePreference",
+                  "notes"
+                ]
+              },
+              "confidence": {
+                "type": "object",
+                "properties": {
+                  "disposition": { "type": "number" },
+                  "promise": { "type": "number" },
+                  "sentiment": { "type": "number" }
+                },
+                "required": ["disposition", "promise", "sentiment"]
+              }
+            },
+            "required": ["summary", "suggestedDisposition", "sentiment", "keyInfo", "confidence"]
+          },
+          "model": { "type": ["string", "null"] },
+          "costMicros": { "type": "integer" },
+          "createdBy": {
+            "type": ["object", "null"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id", "name"]
+          },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "version",
+          "status",
+          "reason",
+          "output",
+          "model",
+          "costMicros",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "CallInsights": {
+        "type": "object",
+        "properties": {
+          "callId": { "type": "string" },
+          "status": {
+            "type": ["string", "null"],
+            "enum": ["pending", "done", "skipped", "failed", null]
+          },
+          "reason": { "type": ["string", "null"] },
+          "disposition": { "type": ["string", "null"] },
+          "dispositionSource": {
+            "type": ["string", "null"],
+            "enum": ["flow", "agent", "user", "ai", null]
+          },
+          "latest": {
+            "allOf": [
+              { "$ref": "#/components/schemas/CallInsightVersion" },
+              { "type": ["object", "null"] }
+            ]
+          },
+          "history": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CallInsightVersion" }
+          },
+          "canRegenerate": { "type": "boolean" }
+        },
+        "required": [
+          "callId",
+          "status",
+          "reason",
+          "disposition",
+          "dispositionSource",
+          "latest",
+          "history",
+          "canRegenerate"
+        ]
+      },
+      "InsightsSettings": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "chatSummaryOnClose": { "type": "boolean" },
+          "transcribeHumanCalls": { "type": "boolean" }
+        },
+        "required": ["enabled", "chatSummaryOnClose", "transcribeHumanCalls"]
+      },
+      "Dispositions": {
+        "type": "object",
+        "properties": {
+          "dispositions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": { "type": "string", "pattern": "^[a-z0-9_]{1,40}$" },
+                "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+                "active": { "type": "boolean" }
+              },
+              "required": ["key", "label", "active"]
+            }
+          }
+        },
+        "required": ["dispositions"]
       },
       "WhatsAppEmbeddedSignupInput": {
         "type": "object",
@@ -27519,6 +27662,381 @@
             }
           },
           "503": { "description": "WhatsApp calling or media capacity unavailable" }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/insights": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Post-call AI insights of a call: latest version + history (calls.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/CallInsights" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/insights/regenerate": {
+      "post": {
+        "tags": ["Insights"],
+        "summary": "Run the insights again as a new version (calls.listen; uses AI credit; 409 INSIGHTS_NOT_AVAILABLE / INSIGHTS_DISABLED, 422 WALLET_INSUFFICIENT_BALANCE)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/CallInsights" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/disposition": {
+      "patch": {
+        "tags": ["Insights"],
+        "summary": "Set the call's outcome by hand (calls.trigger; an active disposition key; 422 DISPOSITION_UNKNOWN)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "disposition": { "type": "string", "pattern": "^[a-z0-9_]{1,40}$" }
+                },
+                "required": ["disposition"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/CallInsights" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/insights-settings": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "Post-call AI settings (account.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InsightsSettings" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Insights"],
+        "summary": "Turn post-call AI / chat summaries on close on or off (account.update)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "chatSummaryOnClose": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/InsightsSettings" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/dispositions": {
+      "get": {
+        "tags": ["Insights"],
+        "summary": "The account's call outcomes (account.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Dispositions" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Insights"],
+        "summary": "Replace the call outcomes (account.update; ≤ 30; keys in use can't be removed — deactivate them)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dispositions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": { "type": "string", "pattern": "^[a-z0-9_]{1,40}$" },
+                        "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+                        "active": { "type": "boolean" }
+                      },
+                      "required": ["key", "label", "active"]
+                    },
+                    "minItems": 1,
+                    "maxItems": 30
+                  }
+                },
+                "required": ["dispositions"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Dispositions" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
         }
       }
     }

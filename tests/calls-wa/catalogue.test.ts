@@ -67,7 +67,7 @@ import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 12 catalogue', () => {
   it('has 83 error codes incl. the fourteen calling codes (exact texts and statuses)', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(83);
+    expect(Object.keys(ERROR_CODES)).toHaveLength(86); // + Phase 14 T14.3: 3
     const added = {
       WHATSAPP_CALLING_DISABLED: [409, 'Calling is turned off for this WhatsApp number.'],
       WHATSAPP_CALLING_UNAVAILABLE: [409, "WhatsApp calling isn't available for this number."],
@@ -99,7 +99,7 @@ describe('Phase 12 catalogue', () => {
       WHATSAPP_CALL_FAILED: [502, "WhatsApp couldn't connect the call."],
       CALL_AGENT_UNAVAILABLE: [409, 'No team member is available to take the call.'],
     } as const;
-    expect(Object.keys(ERROR_CODES).slice(-14)).toEqual(Object.keys(added));
+    expect(Object.keys(ERROR_CODES).slice(69, 83)).toEqual(Object.keys(added));
     for (const [code, [status, message]] of Object.entries(added)) {
       expect(ERROR_CODES[code as keyof typeof added]).toEqual({ status, message });
     }
@@ -109,8 +109,8 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('has 127 audit actions incl. the nine Phase 12 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(127);
-    expect(AUDIT_ACTIONS.slice(-9)).toEqual([
+    expect(AUDIT_ACTIONS).toHaveLength(131); // + Phase 14 T14.3: 4
+    expect(AUDIT_ACTIONS.slice(118, 127)).toEqual([
       'whatsapp.calling_settings_updated',
       'whatsapp.call_permission_requested',
       'whatsapp.call_permission_granted',

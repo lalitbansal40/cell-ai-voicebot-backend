@@ -149,6 +149,36 @@ describe('analytics definitions — calls', () => {
     ]);
   });
 
+  it('done insights add sentiment and promise-to-pay; other states add nothing', () => {
+    const state = {
+      status: 'done' as const,
+      reason: null,
+      version: 1,
+      sentiment: 'negative' as const,
+      hasPromise: true,
+      promiseAmountMicros: 2_500_000_000,
+      hasSummary: true,
+      at: new Date(),
+    };
+    expect(byKind(callRows(call({ insights: state }), IST)).all?.counters).toMatchObject({
+      sentiment_negative: 1,
+      ptp_count: 1,
+      ptp_micros: 2_500_000_000,
+    });
+    const noAmount = byKind(
+      callRows(call({ insights: { ...state, sentiment: null, promiseAmountMicros: null } }), IST),
+    ).all?.counters;
+    expect(noAmount).toMatchObject({ ptp_count: 1 });
+    expect(noAmount?.ptp_micros).toBeUndefined();
+    expect(Object.keys(noAmount ?? {}).some((k) => k.startsWith('sentiment_'))).toBe(false);
+    const pending = byKind(callRows(call({ insights: { ...state, status: 'pending' } }), IST)).all;
+    expect(pending?.counters.ptp_count).toBeUndefined();
+    const noPromise = byKind(
+      callRows(call({ insights: { ...state, hasPromise: false } }), IST),
+    ).all;
+    expect(noPromise?.counters.ptp_count).toBeUndefined();
+  });
+
   it('buckets, keys', () => {
     expect(bucketOf(0, [0, 15, 30])).toBe(0);
     expect(bucketOf(15, [0, 15, 30])).toBe(1);

@@ -47,3 +47,4 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0041 | [WhatsApp calling: Meta permission first, the Phase 7 session, a Redis call-control bus, pulse billing on Meta duration](0041-whatsapp-calling.md)              | accepted |
 | 0042 | [Staging topology and deployment](0042-staging-topology-deploy.md)                                                                                              | accepted |
 | 0043 | [Report analytics: daily rollups, `updatedAt` sweep, per-entity marks, recount from raw rows](0043-analytics-rollups.md)                                        | accepted |
+| 0044 | [Post-call AI insights: sweep, structured output, AI never overrides a set outcome](0044-post-call-insights.md)                                                 | accepted |

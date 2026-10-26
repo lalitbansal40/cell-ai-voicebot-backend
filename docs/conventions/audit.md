@@ -141,6 +141,10 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `call.whatsapp_answered`             | user              | call               | `channelId`, `ringCount` (count)                                                                                              |
 | `call.whatsapp_transferred`          | user / system     | call               | `from` (`ai` / user id), `to` (user id)                                                                                       |
 | `whatsapp.calling_restricted`        | system            | whatsapp_channel   | `type`, `until` (ISO or null)                                                                                                 |
+| `call.disposition_updated`           | user              | call               | `from`, `to` (outcome keys — never summary text)                                                                              |
+| `call.insights_regenerated`          | user              | call               | `version`                                                                                                                     |
+| `account.insights_updated`           | user              | account            | `enabled`, `chatSummaryOnClose` (the changed ones)                                                                            |
+| `account.dispositions_updated`       | user              | account            | `keys`, `removed`, `inactive` (outcome keys)                                                                                  |
 
 Contact actions never carry phone numbers, names or variable values in `meta` — counts, ids, keys and list / segment names only (Phase 3).
 

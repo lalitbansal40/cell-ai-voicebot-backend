@@ -75,6 +75,10 @@ export const LEDGER_USAGE_KINDS = [
   'flow_intent',
   'whatsapp',
   'whatsapp_call',
+  // Phase 14: post-call insights, call transcription, chat summaries
+  'insights',
+  'stt',
+  'chat_summary',
 ] as const;
 export type LedgerUsageKind = (typeof LEDGER_USAGE_KINDS)[number];
 

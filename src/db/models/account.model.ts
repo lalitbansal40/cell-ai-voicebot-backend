@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Model, type Types } from 'mongoose';
 
-import { CALL_LIMITS, CALL_LINES, INBOX_LIMITS } from '../../config/limits';
+import { CALL_LIMITS, CALL_LINES, INBOX_LIMITS, INSIGHTS_LIMITS } from '../../config/limits';
 import { basePlugin } from '../plugins/base';
 
 export type AccountStatus = 'active' | 'suspended';
@@ -69,6 +69,36 @@ export const DEFAULT_INBOX_SETTINGS: AccountInboxSettings = {
   notifyOnNewMessage: 'assigned_or_all',
 };
 
+/** Post-call AI (Phase 14). Human-call transcription stays in `whatsappCalling`. */
+export interface AccountInsightsSettings {
+  enabled: boolean;
+  chatSummaryOnClose: boolean;
+}
+
+export const DEFAULT_INSIGHTS_SETTINGS: AccountInsightsSettings = {
+  enabled: true,
+  chatSummaryOnClose: false,
+};
+
+/** One call outcome the account uses (key stable, label editable). */
+export interface AccountDisposition {
+  key: string;
+  label: string;
+  active: boolean;
+}
+
+/** Owner default (PHASE_14_PLAN §7 #3). */
+export const DEFAULT_DISPOSITIONS: AccountDisposition[] = [
+  { key: 'promise_to_pay', label: 'Promise to pay', active: true },
+  { key: 'paid', label: 'Paid', active: true },
+  { key: 'callback', label: 'Callback requested', active: true },
+  { key: 'dispute', label: 'Dispute', active: true },
+  { key: 'not_interested', label: 'Not interested', active: true },
+  { key: 'wrong_number', label: 'Wrong number', active: true },
+  { key: 'language_barrier', label: 'Language barrier', active: true },
+  { key: 'other', label: 'Other', active: true },
+];
+
 export interface AccountSettings {
   callingWindow: CallingWindow;
   callCaps: CallCaps;
@@ -81,6 +111,9 @@ export interface AccountSettings {
   templates?: AccountTemplateSettings;
   /** Phase 12 — absent on accounts created before migration 0013. */
   whatsappCalling?: AccountWhatsAppCallingSettings;
+  /** Phase 14 — absent on accounts created before migration 0016. */
+  insights?: AccountInsightsSettings;
+  dispositions?: AccountDisposition[];
 }
 
 /** GST billing details (PHASE_4_PLAN §1d) — buyer on invoices. Latin text only (PDF). */
@@ -317,6 +350,23 @@ const schema = new Schema<AccountDoc>({
         min: 1,
         max: CALL_LIMITS.maxCallSecHard / 60,
       },
+    },
+    insights: {
+      enabled: { type: Boolean, default: DEFAULT_INSIGHTS_SETTINGS.enabled },
+      chatSummaryOnClose: { type: Boolean, default: DEFAULT_INSIGHTS_SETTINGS.chatSummaryOnClose },
+    },
+    dispositions: {
+      type: [
+        new Schema<AccountDisposition>(
+          {
+            key: { type: String, required: true, match: /^[a-z0-9_]{1,40}$/ },
+            label: { type: String, required: true, maxlength: INSIGHTS_LIMITS.dispositionLabelMax },
+            active: { type: Boolean, default: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: () => DEFAULT_DISPOSITIONS.map((d) => ({ ...d })),
     },
   },
   limits: {

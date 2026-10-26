@@ -46,10 +46,27 @@ describe('ai worker', () => {
     await expect(processAiJob(ctx)(job('nope'))).rejects.toThrow('Unknown AI job');
     expect(Object.keys(AI_JOB_HANDLERS).sort()).toEqual([
       'agents.purge_deleted',
+      'insights.run',
+      'insights.sweep',
       'kb.ingest',
       'kb.reindex',
       'playground.purge',
     ]);
+  });
+
+  it('routes the Phase 14 insights jobs (sweep with nothing due, a stale run)', async () => {
+    await expect(processAiJob(ctx)(job('insights.sweep'))).resolves.toMatchObject({ queued: 0 });
+    await expect(
+      processAiJob(ctx)({
+        ...job('insights.run', {
+          accountId: new Types.ObjectId().toString(),
+          callId: new Types.ObjectId().toString(),
+          version: 1,
+        }),
+        attemptsMade: 0,
+        opts: { attempts: 3 },
+      } as unknown as Job),
+    ).resolves.toEqual({ status: 'stale' });
   });
 
   it('routes knowledge jobs (stale ingest skipped, reindex re-queues)', async () => {
@@ -77,7 +94,11 @@ describe('ai worker', () => {
   it('knows its job names and UTC schedules', () => {
     expect(AI_JOB_NAMES).toContain('kb.ingest');
     expect(isAiJobName('email.send')).toBe(false);
-    expect(AI_SCHEDULES.map((s) => s.name)).toEqual(['playground.purge', 'agents.purge_deleted']);
+    expect(AI_SCHEDULES.map((s) => [s.name, s.pattern])).toEqual([
+      ['playground.purge', '30 3 * * *'],
+      ['agents.purge_deleted', '15 4 * * *'],
+      ['insights.sweep', '* * * * *'],
+    ]);
   });
 
   it('adds jobs with retry options and refuses without a queue', async () => {
@@ -90,6 +111,16 @@ describe('ai worker', () => {
       'kb.reindex',
       { accountId: 'a', kbId: 'k' },
       expect.objectContaining({ attempts: 3 }),
+    );
+    await queueAiJobs({ add } as unknown as Queue).enqueue(
+      'insights.run',
+      { accountId: 'a', callId: 'c', version: 2 },
+      { jobId: 'insights-c-v2' },
+    );
+    expect(add).toHaveBeenLastCalledWith(
+      'insights.run',
+      { accountId: 'a', callId: 'c', version: 2 },
+      expect.objectContaining({ attempts: 3, jobId: 'insights-c-v2' }),
     );
     await expect(unavailableAiJobs.enqueue('playground.purge', {})).rejects.toThrow(
       'not configured',

@@ -105,7 +105,7 @@ export interface CallScript {
 
 export interface SessionDeps {
   call: Pick<CallDoc, '_id' | 'accountId' | 'startedBy' | 'provider'> &
-    Partial<Pick<CallDoc, 'campaignId'>> & { voice?: string };
+    Partial<Pick<CallDoc, 'campaignId' | 'source'>> & { voice?: string };
   leg: CallLeg;
   clock: Clock;
   logger: Logger;
@@ -591,6 +591,12 @@ export class CallSession {
           durationSec,
           outcome: result.outcome,
           disposition: result.disposition,
+          // Phase 14: who set it (an AI suggestion later never overrides these)
+          dispositionSource: result.disposition
+            ? this.deps.call.source?.kind === 'agent'
+              ? 'agent'
+              : 'flow'
+            : null,
           variables: result.variables,
           languageDetected: result.languageDetected,
           metrics: this.metrics,

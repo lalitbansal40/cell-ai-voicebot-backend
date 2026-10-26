@@ -158,6 +158,31 @@ export interface CallRecording {
   format: 'wav';
 }
 
+/** Who set `disposition` (Phase 14): a flow / AI agent / a person win over the AI suggestion. */
+export const DISPOSITION_SOURCES = ['flow', 'agent', 'user', 'ai'] as const;
+export type DispositionSource = (typeof DISPOSITION_SOURCES)[number];
+
+export const INSIGHT_STATUSES = ['pending', 'done', 'skipped', 'failed'] as const;
+export type InsightStatus = (typeof INSIGHT_STATUSES)[number];
+export const SENTIMENTS = ['positive', 'neutral', 'negative'] as const;
+export type Sentiment = (typeof SENTIMENTS)[number];
+
+/**
+ * Post-call AI state (Phase 14), denormalised for lists, filters and reports; the
+ * full output lives in `callInsights`. Never the summary text here.
+ */
+export interface CallInsightsState {
+  status: InsightStatus;
+  /** Why skipped / failed: `not_answered`, `too_short`, `disabled`, `low_balance`, … */
+  reason: string | null;
+  version: number;
+  sentiment: Sentiment | null;
+  hasPromise: boolean;
+  promiseAmountMicros: number | null;
+  hasSummary: boolean;
+  at: Date;
+}
+
 export interface CallDoc {
   _id: Types.ObjectId;
   accountId: Types.ObjectId;
@@ -198,6 +223,10 @@ export interface CallDoc {
   testPhone: string | null;
   outcome: Record<string, unknown>;
   disposition: string | null;
+  /** Phase 14; `null` on calls before it or when a flow / agent left no source. */
+  dispositionSource?: DispositionSource | null;
+  /** Phase 14 post-call AI; `null` until the insights sweep looks at the call. */
+  insights?: CallInsightsState | null;
   languageDetected: string | null;
   metrics: CallMetrics;
   holdId: Types.ObjectId | null;
@@ -330,6 +359,23 @@ const schema = new Schema<CallDoc>(
     testPhone: { type: String, default: null, select: false },
     outcome: { type: Schema.Types.Mixed, default: () => ({}) },
     disposition: { type: String, default: null },
+    dispositionSource: { type: String, enum: [...DISPOSITION_SOURCES, null], default: null },
+    insights: {
+      type: new Schema<CallInsightsState>(
+        {
+          status: { type: String, enum: INSIGHT_STATUSES, required: true },
+          reason: { type: String, default: null, maxlength: 40 },
+          version: { type: Number, default: 0, min: 0 },
+          sentiment: { type: String, enum: [...SENTIMENTS, null], default: null },
+          hasPromise: { type: Boolean, default: false },
+          promiseAmountMicros: { type: Number, default: null, min: 0 },
+          hasSummary: { type: Boolean, default: false },
+          at: { type: Date, required: true },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     languageDetected: { type: String, default: null },
     metrics: { type: Schema.Types.Mixed, default: emptyCallMetrics },
     holdId: { type: Schema.Types.ObjectId, default: null },
@@ -379,6 +425,11 @@ schema.index(
 schema.index({ createdAt: 1 });
 // Phase 14 analytics sweep (changed rows by `updatedAt`)
 schema.index({ updatedAt: 1, _id: 1 }, { name: 'analytics_sweep' });
+// Phase 14 insights sweep: final calls nobody has looked at yet
+schema.index(
+  { 'timestamps.endedAt': 1 },
+  { partialFilterExpression: { insights: null }, name: 'insights_due' },
+);
 
 /** One phone / web / WhatsApp call (data-model.md §2 Call — Phase 7, WhatsApp Phase 12). */
 export const CallModel: Model<CallDoc> =

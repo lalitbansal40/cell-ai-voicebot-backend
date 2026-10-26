@@ -556,3 +556,24 @@ export const REPORT_LIMITS = {
 export const DURATION_BUCKETS_SEC = [0, 15, 30, 60, 120, 300, 600, 1_800] as const;
 /** First-response buckets (seconds, lower bounds). */
 export const RESPONSE_BUCKETS_SEC = [0, 60, 300, 900, 3_600, 14_400, 86_400] as const;
+
+/** Post-call AI insights + chat summaries (Phase 14, PHASE_14_PROMPT §1). */
+export const INSIGHTS_LIMITS = {
+  minCustomerTurns: 2,
+  maxTranscriptChars: 24_000,
+  summaryMaxChars: 600,
+  maxOutputTokens: 800,
+  retries: 1,
+  chatMaxMessages: 200,
+  sttChunkSec: 600,
+  sttMaxFileBytes: 25 * 1024 * 1024,
+  /** Calls ended at least this long ago are picked up (recording upload, last turns). */
+  settleSec: 15,
+  /** The insights sweep looks back this far when it has no watermark. */
+  sweepLookbackHours: 24,
+  sweepBatch: 200,
+  dispositionsMax: 30,
+  dispositionLabelMax: 40,
+  /** Key information below this confidence is shown as "unsure". */
+  lowConfidence: 0.6,
+} as const;

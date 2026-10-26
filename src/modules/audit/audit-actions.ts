@@ -132,6 +132,11 @@ export const AUDIT_ACTIONS = [
   'call.whatsapp_answered',
   'call.whatsapp_transferred',
   'whatsapp.calling_restricted',
+  // Phase 14 — records, transcripts & analytics
+  'call.disposition_updated',
+  'call.insights_regenerated',
+  'account.insights_updated',
+  'account.dispositions_updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

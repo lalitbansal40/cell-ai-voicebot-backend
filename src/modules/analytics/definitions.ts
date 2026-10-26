@@ -26,6 +26,8 @@ export const M = {
   callsAi: 'calls_ai',
   callsHuman: 'calls_human',
   callsNoOutcome: 'calls_no_outcome',
+  ptpCount: 'ptp_count',
+  ptpMicros: 'ptp_micros',
   msgSent: 'msg_sent',
   msgDelivered: 'msg_delivered',
   msgRead: 'msg_read',
@@ -41,6 +43,7 @@ export const M = {
 /** Prefixes of keyed counters. */
 export const P = {
   outcome: 'outcome_',
+  sentiment: 'sentiment_',
   status: 'status_',
   durationBucket: 'dur_b',
   responseBucket: 'resp_b',
@@ -125,6 +128,7 @@ export type CallFacts = Pick<
   | 'source'
   | 'agentUserId'
   | 'whatsapp'
+  | 'insights'
 >;
 
 /** A call counts once it is final, unless it was canceled before dialing. */
@@ -158,6 +162,14 @@ export const callRows = (call: CallFacts, timeZone: string): AnalyticsRow[] => {
     c[`${P.durationBucket}${String(bucketOf(talk, DURATION_BUCKETS_SEC))}`] = 1;
     if (call.disposition) c[`${P.outcome}${safeKey(call.disposition)}`] = 1;
     else c[M.callsNoOutcome] = 1;
+    const insights = call.insights;
+    if (insights?.status === 'done') {
+      if (insights.sentiment) c[`${P.sentiment}${insights.sentiment}`] = 1;
+      if (insights.hasPromise) {
+        c[M.ptpCount] = 1;
+        if (insights.promiseAmountMicros) c[M.ptpMicros] = insights.promiseAmountMicros;
+      }
+    }
   }
   const channel: StatsChannel = call.whatsapp ? 'whatsapp' : 'voice';
   return rowsFor(ymdInZone(call.createdAt, timeZone), channel, call.isTest, callDims(call), c);

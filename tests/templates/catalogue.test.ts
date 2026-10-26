@@ -75,7 +75,7 @@ describe('Phase 11 catalogue', () => {
   });
 
   it('has the twelve Phase 11 audit actions (count: Phase 12 catalogue test)', () => {
-    expect(AUDIT_ACTIONS.slice(-21, -9)).toEqual([
+    expect(AUDIT_ACTIONS.slice(106, 118)).toEqual([
       'template.created',
       'template.submitted',
       'template.updated',

@@ -6,6 +6,7 @@ import {
   ANALYTICS_REBUILD_INDEX,
   ANALYTICS_SWEEP_INDEX,
 } from '../../src/db/migrations/0015-analytics';
+import { INSIGHTS_DUE_INDEX } from '../../src/db/migrations/0016-insights';
 import { AccountModel } from '../../src/db/models/account.model';
 import { CallModel } from '../../src/db/models/call.model';
 import { LedgerEntryModel } from '../../src/db/models/ledger-entry.model';
@@ -64,5 +65,68 @@ describe('0015-analytics', () => {
     expect(await db().collection('messages').indexExists(ANALYTICS_REBUILD_INDEX)).toBe(false);
     expect(await db().collection('ledgerEntries').indexExists(ANALYTICS_SWEEP_INDEX)).toBe(false);
     await migration().down(db()); // safe twice
+  });
+});
+
+describe('0016-insights', () => {
+  const m = () => {
+    const found = MIGRATIONS.find((x) => x.name === '0016-insights');
+    if (!found) throw new Error('0016 missing');
+    return found;
+  };
+
+  it('is registered right after 0015', () => {
+    const names = MIGRATIONS.map((x) => x.name);
+    expect(names.indexOf('0016-insights')).toBe(names.indexOf('0015-analytics') + 1);
+  });
+
+  it('settings + default outcomes per account; ended calls skipped "before_insights"; sources backfilled; down undoes it', async () => {
+    const accounts = db().collection('accounts');
+    const calls = db().collection('calls');
+    const a = new Types.ObjectId();
+    const kept = new Types.ObjectId();
+    await accounts.insertMany([
+      { _id: a, name: 'M', slug: 'm-16', settings: {} },
+      {
+        _id: kept,
+        name: 'K',
+        slug: 'k-16',
+        settings: {
+          insights: { enabled: false, chatSummaryOnClose: true },
+          dispositions: [{ key: 'x', label: 'X', active: true }],
+        },
+      },
+    ]);
+    const ended = callDoc(a, { disposition: 'callback', source: { kind: 'agent' } });
+    const flow = callDoc(a, { disposition: 'paid' });
+    const live = callDoc(a, {
+      status: 'in_progress',
+      timestamps: { queuedAt: new Date(), ringingAt: null, answeredAt: null, endedAt: null },
+    });
+    await calls.insertMany([ended, flow, live]);
+    await m().up(db());
+    await m().up(db());
+    const acc = await accounts.findOne({ _id: a });
+    expect(acc?.settings).toMatchObject({ insights: { enabled: true, chatSummaryOnClose: false } });
+    expect((acc?.settings as { dispositions: unknown[] }).dispositions).toHaveLength(8);
+    expect((await accounts.findOne({ _id: kept }))?.settings).toMatchObject({
+      insights: { enabled: false },
+      dispositions: [{ key: 'x' }],
+    });
+    expect(await calls.findOne({ _id: ended._id })).toMatchObject({
+      insights: { status: 'skipped', reason: 'before_insights', version: 0 },
+      dispositionSource: 'agent',
+    });
+    expect((await calls.findOne({ _id: flow._id }))?.dispositionSource).toBe('flow');
+    expect(await calls.findOne({ _id: live._id })).toMatchObject({
+      insights: null,
+      dispositionSource: null,
+    });
+    expect(await calls.indexExists(INSIGHTS_DUE_INDEX)).toBe(true);
+    await m().down(db());
+    expect(await calls.indexExists(INSIGHTS_DUE_INDEX)).toBe(false);
+    expect('insights' in ((await calls.findOne({ _id: ended._id })) ?? {})).toBe(false);
+    expect('insights' in ((await accounts.findOne({ _id: a }))?.settings ?? {})).toBe(false);
+    await m().down(db());
   });
 });

@@ -1018,6 +1018,25 @@ Indexes: `stats_row` `{ accountId, day, channel, test, kind, refId }` unique, `{
 
 **Additions (Phase 14):** index `analytics_sweep` `{ updatedAt: 1, _id: 1 }` on `calls`, `messages`, `ledgerEntries`; `analytics_rebuild` `{ accountId: 1, at: 1, _id: 1 }` on `messages`; notification type `analytics.reconcile_mismatch` (superadmins).
 
+#### CallInsight (`callInsights`) — Phase 14
+
+Post-call AI results per call and version (ADR 0044). **PII:** `output.summary`, `output.keyInfo`. Kept and purged with the call.
+
+| Field                                                | Type                                                                                                     | R   | Notes                                                                             |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | --- | --------------------------------------------------------------------------------- |
+| callId                                               | ObjectId                                                                                                 | ✓   |                                                                                   |
+| version                                              | number                                                                                                   | ✓   | 1 = automatic; each regenerate + 1 (all kept)                                     |
+| status                                               | `pending \| done \| skipped \| failed`                                                                   | ✓   |                                                                                   |
+| reason                                               | string \| null                                                                                           |     | `not_answered`, `too_short`, `low_balance`, `invalid_output`, `provider_error`, … |
+| output                                               | `{ summary, suggestedDisposition, sentiment { label, score }, keyInfo { … }, confidence { … } }` \| null |     | Amounts in micros (model answers rupees)                                          |
+| model, promptVersion                                 | string, number                                                                                           |     |                                                                                   |
+| inputTokens, outputTokens, costMicros, ledgerEntryId | numbers / ObjectId                                                                                       |     | Charged once per version (`insights-<callId>-v<n>`)                               |
+| createdBy                                            | ObjectId \| null                                                                                         |     | Who asked for a regenerate                                                        |
+
+Indexes: `{ accountId, callId, version }` unique, `{ accountId, createdAt: -1 }`.
+
+**Additions (Phase 14, insights):** Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, reason, version, sentiment, hasPromise, promiseAmountMicros, hasSummary, at } | null` (no text; `null` = not reviewed yet), index `insights_due { 'timestamps.endedAt': 1 }` partial `insights = null`. Account `settings.insights { enabled (true), chatSummaryOnClose (false) }`, `settings.dispositions { key ([a-z0-9_], stable), label (≤ 40), active }[]` (8 defaults, ≤ 30). Ledger usage kinds + `insights`, `stt`, `chat_summary`.
+
 ## 3. Embedded vs separate collection
 
 | Data                    | Decision                                       | Why                                            |

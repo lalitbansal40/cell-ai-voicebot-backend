@@ -37,6 +37,10 @@ import { createFlowsRouter } from './modules/flows/flows.routes';
 import { createInboxDisabledRouter, createInboxRouter } from './modules/inbox/inbox.routes';
 import { unavailableInboxJobs, type InboxJobs } from './modules/inbox/jobs';
 import { createInboxSettingsRouter } from './modules/inbox/settings.routes';
+import {
+  createAccountInsightsRouter,
+  createCallInsightsRouter,
+} from './modules/insights/insights.routes';
 import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes';
 import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
@@ -184,6 +188,7 @@ export const createApiRouter = ({
       createInboxSettingsRouter({ retentionDays: whatsapp.ctx.env.INBOX_RETENTION_DAYS }),
     );
   }
+  router.use('/account', createAccountInsightsRouter());
   router.use('/account', createAccountRouter());
   router.use('/team', createTeamRouter());
   router.use('/api-keys', createApiKeysRouter());
@@ -329,6 +334,7 @@ export const createApiRouter = ({
     }),
   );
   router.use('/campaigns', createCampaignsRouter(campaigns));
+  router.use('/calls', createCallInsightsRouter({ jobs: ai.jobs ?? unavailableAiJobs }));
   if (calls) {
     router.use(
       '/calls',

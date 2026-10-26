@@ -9,6 +9,7 @@ import './api-key.model';
 import './audit-log.model';
 import './auth-code.model';
 import './call-event.model';
+import './call-insight.model';
 import './call.model';
 import './campaign-contact.model';
 import './campaign.model';

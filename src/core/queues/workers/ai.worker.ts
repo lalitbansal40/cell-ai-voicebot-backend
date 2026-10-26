@@ -1,9 +1,15 @@
 import type { Job, Queue, Worker } from 'bullmq';
 
+import { getEnv } from '../../../config/env';
 import {
   purgeDeletedAgents,
   purgePlaygroundSessions,
 } from '../../../modules/ai-agents/maintenance';
+import {
+  runInsights,
+  sweepInsights,
+  type InsightsDeps,
+} from '../../../modules/insights/insights.service';
 import { ingestSource, reindexKnowledgeBase } from '../../../modules/knowledge/ingest.job';
 import {
   AI_SCHEDULES,
@@ -30,6 +36,12 @@ export type AiJobHandler<N extends AiJobName = AiJobName> = (
   job: Job,
 ) => Promise<unknown>;
 
+const insightsDeps = (ctx: AiJobContext): InsightsDeps => ({
+  provider: ctx.provider,
+  model: getEnv().OPENAI_TEXT_MODEL,
+  jobs: ctx.jobs,
+});
+
 export type AiJobHandlers = { [N in AiJobName]?: AiJobHandler<N> };
 
 /** Processors per job name — each Phase 5 task registers its own here. */
@@ -44,6 +56,12 @@ export const AI_JOB_HANDLERS: AiJobHandlers = {
   'kb.reindex': (data, ctx) => reindexKnowledgeBase(data, ctx),
   'playground.purge': () => purgePlaygroundSessions(),
   'agents.purge_deleted': () => purgeDeletedAgents(),
+  'insights.sweep': (_data, ctx) => sweepInsights(insightsDeps(ctx)),
+  'insights.run': (data, ctx, job) =>
+    runInsights(data, insightsDeps(ctx), {
+      made: job.attemptsMade,
+      max: job.opts.attempts ?? 1,
+    }),
 };
 
 export const processAiJob =

@@ -89,6 +89,9 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `WHATSAPP_CALL_NOT_RINGING`                 | 409  | The call ended or was answered before this action                                                                                                                                  | 12    |
 | `WHATSAPP_CALL_FAILED`                      | 502  | Meta couldn't connect the call (138001 / 138004 / 138007 / 138019–138023 / 131030 / 131044) — `details[0].message` names the reason                                                | 12    |
 | `CALL_AGENT_UNAVAILABLE`                    | 409  | No team member can take the call (nobody available / online)                                                                                                                       | 12    |
+| `INSIGHTS_NOT_AVAILABLE`                    | 409  | Post-call AI can't run for this call: not answered or fewer than 2 customer lines                                                                                                  | 14    |
+| `INSIGHTS_DISABLED`                         | 409  | Post-call AI is turned off for the account (Settings → AI)                                                                                                                         | 14    |
+| `DISPOSITION_UNKNOWN`                       | 422  | A call outcome that isn't an active disposition of the account                                                                                                                     | 14    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 
