@@ -10,7 +10,11 @@ Build from immutable archives on the target server, avoiding Mac/Linux architect
 
 Deploy migrates/indexes before restarting, checks build identity/readiness, atomically switches the web artifact and probes nginx. Failures restore the previous image/web pointer; database migrations stay backward compatible. Keep five recent releases plus current/previous. Only app source/release directories are pruned.
 
-Encrypt Mongo+oplog and uploads backups with age, store them off-server, retain seven daily/four weekly within 30 days and exercise restoration in an isolated compose project. Monitor readiness, storage/memory, restarts, certificates and backup age. Real TLS/firewall/provider checks, App Review and review credentials require the owner's gates.
+Encrypt Mongo (see the amendment) and uploads backups with age, store them off-server, retain seven daily/four weekly within 30 days and exercise restoration in an isolated compose project. Monitor readiness, storage/memory, restarts, certificates and backup age. Real TLS/firewall/provider checks, App Review and review credentials require the owner's gates.
+
+## Amendment (2026-10-26) — MongoDB Atlas
+
+The owner chose MongoDB Atlas for the staging database. The server keeps Redis only; the bundled Mongo service remains behind a compose profile for the rehearsal. An external `MONGODB_URI` is kept by `init-secrets.sh`; deploy migrates/indexes Atlas; backups dump the app database through the URI (an Atlas app user can't read the oplog, so dumps carry no oplog and drills need a quiet database). Atlas's access list limits connections to the server's IP. The free tier has no Atlas backups, so our encrypted S3 backups stay required.
 
 ## Consequences
 

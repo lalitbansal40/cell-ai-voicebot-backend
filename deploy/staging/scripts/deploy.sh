@@ -58,7 +58,8 @@ docker run "${build_env[@]}" \
 cp -R "${CAV_ROOT}/src/${sha}/frontend/dist/." "${CAV_ROOT}/releases/${sha}/web/"
 printf '%s\n' "${sha}" > "${CAV_ROOT}/releases/${sha}/backend.sha"
 cp "${CAV_ROOT}/src/${sha}/frontend.sha" "${CAV_ROOT}/releases/${sha}/frontend.sha"
-dc up -d --wait mongo redis
+# MongoDB Atlas is reached through MONGODB_URI; only a bundled URI starts the mongo service.
+if mongo_external; then dc up -d --wait redis; else dc up -d --wait mongo redis; fi
 dc run --rm --no-deps api node dist/ops/migrate.js up
 dc run --rm --no-deps api node dist/ops/sync-indexes.js
 changed=true

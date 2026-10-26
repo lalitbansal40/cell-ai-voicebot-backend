@@ -17,6 +17,10 @@ if not compose.exists():
 values=dict(line.split('=',1) for line in compose.read_text().splitlines() if '=' in line and not line.startswith('#'))
 if not all(values.get(k) for k in ['MONGO_PASSWORD','REDIS_PASSWORD']): raise SystemExit('compose.env has empty credentials')
 replace={'MONGODB_URI':'mongodb://cav:'+urllib.parse.quote(values['MONGO_PASSWORD'],safe='')+'@127.0.0.1:27018/cell_ai_voicebot?replicaSet=rs0&authSource=admin', 'REDIS_URL':'redis://:'+urllib.parse.quote(values['REDIS_PASSWORD'],safe='')+'@127.0.0.1:6380'}
+# An external database (MongoDB Atlas) the owner put in backend.env is kept as it is.
+current=dict(line.split('=',1) for line in backend.read_text().splitlines() if '=' in line and not line.startswith('#'))
+uri=current.get('MONGODB_URI','').strip()
+if uri.startswith('mongodb') and '@127.0.0.1:27018/' not in uri: replace.pop('MONGODB_URI')
 lines=[]
 for line in backend.read_text().splitlines():
     key=line.partition('=')[0]

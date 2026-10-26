@@ -4,6 +4,8 @@
 # - api + worker use host networking: WhatsApp call media binds the UDP range
 #   WA_MEDIA_PORT_MIN–MAX on the public interface (publishing 1,000 UDP ports through
 #   Docker would start one proxy per port); HOST=127.0.0.1 keeps HTTP on loopback.
+# - The database is MongoDB Atlas (MONGODB_URI in backend.env; the server's IP on the
+#   Atlas access list). The bundled mongo service is for rehearsal / a bundled URI only.
 # - mongo / redis use the compose bridge, published on loopback only. Mongo listens
 #   on 27018 internally too, so its single-node replica address works on both sides.
 # - Secrets: /srv/cell-ai-voicebot/env/backend.env (api, worker) and compose.env (mongo /
@@ -35,6 +37,8 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+        # absent when the database is external (MongoDB Atlas) — see the mongo service
+        required: false
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -68,6 +72,8 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+        # absent when the database is external (MongoDB Atlas) — see the mongo service
+        required: false
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -75,9 +81,12 @@ services:
     mem_limit: 2g
     logging: *logging
 
+  # The bundled database. Staging uses MongoDB Atlas instead (MONGODB_URI in backend.env),
+  # so this service only starts when deploy.sh names it (bundled MONGODB_URI, rehearsal).
   mongo:
     image: mongo:8.2@sha256:e0ce8c35124d4a9f9785532d1f268f39e9728ffa1cb38f46fa482436424c4bd3
     container_name: cav-stg-mongo
+    profiles: [bundled-mongo]
     ports: ['127.0.0.1:27018:27018']
     entrypoint:
       [

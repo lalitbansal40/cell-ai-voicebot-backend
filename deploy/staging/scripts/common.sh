@@ -54,7 +54,27 @@ load_aws() {
     export AWS_SHARED_CREDENTIALS_FILE="${CAV_ROOT}/env/aws.credentials"
   fi
 }
+# Same image as the bundled mongo service; also runs the tools against an external database.
+MONGO_IMAGE='mongo:8.2@sha256:e0ce8c35124d4a9f9785532d1f268f39e9728ffa1cb38f46fa482436424c4bd3'
+COUNTS_JS='const d=db.getSiblingDB("cell_ai_voicebot"); print(JSON.stringify(Object.fromEntries(d.getCollectionNames().sort().map(n=>[n,d.getCollection(n).countDocuments({})]))))'
 mongo_counts() {
   docker exec "$1" sh -c 'exec mongosh --port 27018 --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "$1"' sh \
-    'const d=db.getSiblingDB("cell_ai_voicebot"); print(JSON.stringify(Object.fromEntries(d.getCollectionNames().sort().map(n=>[n,d.getCollection(n).countDocuments({})]))))'
+    "${COUNTS_JS}"
+}
+# True when backend.env points at an external database (MongoDB Atlas) rather than the
+# bundled one that init-secrets.sh writes (…@127.0.0.1:27018/…) or an unset value.
+mongo_external() {
+  local uri=''
+  if [[ -f "${CAV_ROOT}/env/backend.env" ]]; then uri="$(env_value "${CAV_ROOT}/env/backend.env" MONGODB_URI)"; fi
+  [[ "${uri}" == mongodb* && "${uri}" != *'@127.0.0.1:27018/'* ]]
+}
+# Runs a mongo tools command against the external database: `mongo_uri <dir> sh -c '…'`.
+# The URI travels in a mode-600 env file inside <dir>, never in arguments or output.
+mongo_uri() {
+  local dir="$1"; shift
+  printf 'MONGODB_URI=%s\n' "$(env_value "${CAV_ROOT}/env/backend.env" MONGODB_URI)" > "${dir}/mongo.env"
+  local code=0
+  docker run --rm --env-file "${dir}/mongo.env" "${MONGO_IMAGE}" "$@" || code=$?
+  rm -f "${dir}/mongo.env"
+  return "${code}"
 }

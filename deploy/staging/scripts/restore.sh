@@ -22,9 +22,15 @@ begin=$SECONDS
 if [[ "${CAV_PROJECT}" == cell-ai-voicebot-rehearsal ]]; then
   live="$(dc ps -q mongo)"
   mongo_counts "${live}" > "${work}/live.json"
-else
-  [[ -n "${CAV_LIVE_COUNTS_FILE:-}" && -r "${CAV_LIVE_COUNTS_FILE}" ]] || fail 'supply live staging collection counts from a quiesced database in CAV_LIVE_COUNTS_FILE'
+elif [[ -n "${CAV_LIVE_COUNTS_FILE:-}" ]]; then
+  [[ -r "${CAV_LIVE_COUNTS_FILE}" ]] || fail 'CAV_LIVE_COUNTS_FILE is not readable'
   cp "${CAV_LIVE_COUNTS_FILE}" "${work}/live.json"
+elif mongo_external; then
+  # read-only counts of the live (quiet) Atlas database
+  # shellcheck disable=SC2016 # expanded by sh inside the tools container
+  mongo_uri "${work}" sh -c 'exec mongosh "$MONGODB_URI" --quiet --eval "$1"' sh "${COUNTS_JS}" > "${work}/live.json"
+else
+  fail 'supply live staging collection counts from a quiesced database in CAV_LIVE_COUNTS_FILE'
 fi
 for kind in mongo.archive.gz uploads.tar.gz counts.json; do
   name="cav-${stamp}-${kind}.age"
@@ -34,8 +40,8 @@ for kind in mongo.archive.gz uploads.tar.gz counts.json; do
 done
 docker compose -p "${project}" -f "${here}/../restore.compose.yaml" up -d --wait
 mongo="$(docker compose -p "${project}" -f "${here}/../restore.compose.yaml" ps -q mongo)"
-docker exec -i "${mongo}" mongorestore --archive --gzip --oplogReplay < "${work}/mongo.archive.gz" > "${work}/restore.log" 2>&1
-docker exec "${mongo}" mongosh --quiet --eval 'const d=db.getSiblingDB("cell_ai_voicebot"); print(JSON.stringify(Object.fromEntries(d.getCollectionNames().sort().map(n=>[n,d.getCollection(n).countDocuments({})]))))' > "${work}/actual.json"
+docker exec -i "${mongo}" mongorestore --archive --gzip < "${work}/mongo.archive.gz" > "${work}/restore.log" 2>&1
+docker exec "${mongo}" mongosh --quiet --eval "${COUNTS_JS}" > "${work}/actual.json"
 python3 - "${work}" <<'PY'
 import json,pathlib,sys,tarfile,shutil
 root=pathlib.Path(sys.argv[1])

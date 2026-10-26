@@ -28,13 +28,23 @@ finish() {
 }
 trap finish EXIT
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-mongo="$(dc ps -q mongo)"
-[[ -n "${mongo}" ]] || fail 'mongo is not running'
 begin=$SECONDS
-# Arguments are expanded inside the container, never printed by this script.
-docker exec "${mongo}" sh -c 'exec mongodump --port 27018 -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --archive --gzip --oplog' \
-  > "${work}/mongo.archive.gz" 2> "${work}/dump.log"
-docker exec "${mongo}" sh -c 'mongosh --port 27018 --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval '\''const d=db.getSiblingDB("cell_ai_voicebot"); print(JSON.stringify(Object.fromEntries(d.getCollectionNames().sort().map(n=>[n,d.getCollection(n).countDocuments({})]))))'\''' > "${work}/counts.json"
+# Credentials are expanded inside the container, never printed by this script. Only the
+# app database, without --oplog (an Atlas app user can't read the oplog): restore drills
+# compare counts, so back up a quiet database.
+if mongo_external; then
+  # shellcheck disable=SC2016 # expanded by sh inside the tools container
+  mongo_uri "${work}" sh -c 'exec mongodump --uri "$MONGODB_URI" --archive --gzip' \
+    > "${work}/mongo.archive.gz" 2> "${work}/dump.log"
+  # shellcheck disable=SC2016 # expanded by sh inside the tools container
+  mongo_uri "${work}" sh -c 'exec mongosh "$MONGODB_URI" --quiet --eval "$1"' sh "${COUNTS_JS}" > "${work}/counts.json"
+else
+  mongo="$(dc ps -q mongo)"
+  [[ -n "${mongo}" ]] || fail 'mongo is not running'
+  docker exec "${mongo}" sh -c 'exec mongodump --port 27018 -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --db cell_ai_voicebot --archive --gzip' \
+    > "${work}/mongo.archive.gz" 2> "${work}/dump.log"
+  mongo_counts "${mongo}" > "${work}/counts.json"
+fi
 tar --exclude='./tmp-rec' -czf "${work}/uploads.tar.gz" -C "${CAV_ROOT}/uploads" .
 for kind in mongo.archive.gz uploads.tar.gz counts.json; do
   name="cav-${stamp}-${kind}.age"
