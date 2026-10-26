@@ -95,12 +95,20 @@ export interface StartServerOptions {
 }
 
 const FORCE_CLOSE_AFTER_MS = 5_000;
+const READINESS_DRAIN_MS = 1_000;
 
 /** Validates env, builds the app, listens and wires graceful shutdown. */
 export const startServer = async (options: StartServerOptions = {}): Promise<RunningServer> => {
   const env = options.env ?? getEnv();
   const logger = options.logger ?? getLogger();
   const lifecycle = createLifecycle(logger, { exit: options.exit });
+  // Let probes observe 503 before listeners disappear. WebSockets must close before
+  // http.close(): upgraded connections otherwise keep its callback waiting forever.
+  lifecycle.onShutdown(
+    'readiness',
+    () => new Promise<void>((resolve) => setTimeout(resolve, READINESS_DRAIN_MS)),
+    0,
+  );
   const prefix = options.queuePrefix ?? DEFAULT_QUEUE_PREFIX;
   const queueDeps = { redisUrl: env.REDIS_URL, logger, prefix };
 
@@ -397,7 +405,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       await realtime.close();
       setRealtime(undefined);
     },
-    20,
+    9,
   );
   lifecycle.onShutdown(
     'http',

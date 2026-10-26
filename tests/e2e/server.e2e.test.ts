@@ -184,7 +184,23 @@ describe('startServer (e2e)', () => {
   });
 
   it('shuts down gracefully in order and frees the port', async () => {
-    await running.lifecycle.shutdown('e2e');
+    const { ticket } = await tickets.issue({
+      userId: 'shutdown-user',
+      accountId,
+      channel: 'events',
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${running.port}/ws/events?ticket=${ticket}`);
+    const closed = new Promise<number>((resolve) => ws.once('close', resolve));
+    await new Promise((resolve) => ws.once('open', resolve));
+    try {
+      const stopping = running.lifecycle.shutdown('e2e');
+      expect((await fetch(`${base}/api/v1/ready`)).status).toBe(503);
+      await stopping;
+      expect(exitCodes).toEqual([0]);
+      expect(await closed).toBe(1001);
+    } finally {
+      ws.terminate();
+    }
     const hooks = logLines
       .filter((l) => l.msg === 'shutdown: running hook')
       .map((l) => l.hook as string);
@@ -192,6 +208,7 @@ describe('startServer (e2e)', () => {
     // worker stops before the queues close; the fake Meta's pending status timers are
     // cancelled before the calls / worker hooks
     expect(hooks).toEqual([
+      'readiness',
       'campaigns',
       // Phase 12: live WhatsApp calls end politely (Meta terminate) before the fake stops
       'whatsapp-calls',
@@ -202,8 +219,8 @@ describe('startServer (e2e)', () => {
       'whatsapp',
       // Phase 12: the call bus stops after the calls (their hangups no longer route)
       'call-bus',
-      'http',
       'ws',
+      'http',
       'queues',
       'email',
       'redis',
