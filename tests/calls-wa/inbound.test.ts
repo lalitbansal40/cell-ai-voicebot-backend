@@ -361,8 +361,11 @@ describe('user-initiated WhatsApp calls', () => {
     );
     const call = await incoming();
     await waitRing(call.id);
-    expect((await query(call.id))?.whatsapp?.ringUserIds?.map(String).sort()).toEqual(
-      [...online].sort(),
+    // the ring list is written right after the ring starts
+    await vi.waitFor(async () =>
+      expect((await query(call.id))?.whatsapp?.ringUserIds?.map(String).sort()).toEqual(
+        [...online].sort(),
+      ),
     );
     expect((await ended(call.id)).endReason).toBe('no_agent_available');
     await vi.waitFor(async () =>
