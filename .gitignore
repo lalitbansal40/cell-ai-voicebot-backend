@@ -33,3 +33,5 @@ Thumbs.db
 
 # tools
 .eslintcache
+
+dist-tools/

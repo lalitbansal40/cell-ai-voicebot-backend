@@ -39,6 +39,8 @@
     "email:test": "tsx --env-file-if-exists=.env scripts/email-test.ts",
     "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
     "superadmin:create": "tsx --env-file-if-exists=.env scripts/superadmin-create.ts",
+    "staging:demo": "tsx --env-file-if-exists=.env scripts/staging-demo.ts",
+    "smoke": "tsx scripts/smoke.ts",
     "samples:contacts": "tsx scripts/make-contact-samples.ts",
     "fixtures:knowledge": "tsx scripts/make-knowledge-fixtures.ts",
     "fixtures:audio": "tsx scripts/make-audio-fixtures.ts",
@@ -55,7 +57,8 @@
     "dev:whatsapp": "tsx --env-file-if-exists=.env scripts/dev-whatsapp.ts",
     "dev:inbox": "tsx --env-file-if-exists=.env scripts/dev-inbox.ts",
     "dev:templates": "tsx --env-file-if-exists=.env scripts/dev-templates.ts",
-    "dev:calls-wa": "tsx --env-file-if-exists=.env scripts/dev-calls-wa.ts"
+    "dev:calls-wa": "tsx --env-file-if-exists=.env scripts/dev-calls-wa.ts",
+    "build:ops": "tsc -p tsconfig.ops.json"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

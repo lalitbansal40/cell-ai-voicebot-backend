@@ -120,3 +120,40 @@ jobs:
 
       - name: Lint commit messages
         run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+  # Phase 13: the staging image builds (no push) and contains no secrets / tests.
+  image:
+    name: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint the Dockerfile
+        run: docker run --rm -i hadolint/hadolint:v2.12.0 < Dockerfile
+
+      - name: Build
+        run: docker build --build-arg "GIT_SHA=${GITHUB_SHA}" --build-arg "BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -t cav-backend:ci .
+
+      - name: Check the image
+        run: deploy/staging/scripts/check-image.sh cav-backend:ci
+
+  # Phase 13: staging compose, nginx and shell scripts.
+  infra-lint:
+    name: infra-lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compose file
+        run: |
+          mkdir -p "$RUNNER_TEMP/cav/env" && touch "$RUNNER_TEMP/cav/env/backend.env"
+          CAV_ROOT="$RUNNER_TEMP/cav" APP_SHA=ci MONGO_PASSWORD=x REDIS_PASSWORD=x \
+            docker compose -f deploy/staging/compose.yaml config -q
+
+      - name: nginx -t
+        run: deploy/staging/scripts/check-nginx.sh
+
+      - name: shellcheck
+        run: docker run --rm -v "$PWD/deploy:/mnt" koalaman/shellcheck-alpine:v0.10.0 sh -c 'shellcheck /mnt/staging/scripts/*.sh'

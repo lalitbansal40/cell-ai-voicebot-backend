@@ -28,7 +28,9 @@ export const demoPhone = (i: number): string => `+9190009001${String(i).padStart
 export const seedContacts = async (
   accountId: Types.ObjectId,
   createdBy: Types.ObjectId,
+  options: { count?: number; phone?: (i: number) => string; blockCalls?: boolean } = {},
 ): Promise<{ fields: number; contacts: number; dnd: number }> => {
+  const phoneFor = options.phone ?? demoPhone;
   for (const [order, f] of DEMO_FIELDS.entries()) {
     await CustomFieldModel.updateOne(
       { accountId, key: f.key },
@@ -60,8 +62,8 @@ export const seedContacts = async (
   );
 
   let contacts = 0;
-  for (let i = 1; i <= DEMO_CONTACT_COUNT; i += 1) {
-    const phoneE164 = demoPhone(i);
+  for (let i = 1; i <= (options.count ?? DEMO_CONTACT_COUNT); i += 1) {
+    const phoneE164 = phoneFor(i);
     const name = `Demo Borrower ${String(i).padStart(2, '0')}`;
     const loanId = `DEMO-${String(i).padStart(4, '0')}`;
     const dpd = (i * 9) % 75;
@@ -85,7 +87,7 @@ export const seedContacts = async (
           },
           tags: i % 5 === 0 ? ['vip'] : [],
           listIds: [list?._id],
-          dnd: i <= 2,
+          dnd: options.blockCalls === true || i <= 2,
           optedOutAt: null,
           consent: { source: 'Loan agreement', at: new Date(Date.UTC(2026, 0, 1)) },
           source: { type: 'manual', importJobId: null },
@@ -103,11 +105,11 @@ export const seedContacts = async (
   let dnd = 0;
   for (const i of [1, 2]) {
     const res = await DndEntryModel.updateOne(
-      { accountId, phoneE164: demoPhone(i) },
+      { accountId, phoneE164: phoneFor(i) },
       {
         $setOnInsert: {
           accountId,
-          phoneE164: demoPhone(i),
+          phoneE164: phoneFor(i),
           reason: 'Asked not to be called',
           source: 'manual',
           addedBy: createdBy,

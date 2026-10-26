@@ -71,6 +71,8 @@ export const seedAi = async (
     storage: StorageProvider;
     provider: AiProvider;
     jobs: AiJobs;
+    /** Rehearsal creates the documents but makes no provider calls. */
+    ingest?: boolean;
   },
 ): Promise<AiSeedResult> => {
   // knowledge base + the three samples
@@ -123,6 +125,7 @@ export const seedAi = async (
       ).toObject({ transform: false });
       sources += 1;
     }
+    if (deps.ingest === false) continue;
     const out = await ingestSource(
       {
         accountId: accountId.toString(),

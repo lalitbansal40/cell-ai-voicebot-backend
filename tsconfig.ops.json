@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "dist-tools",
+    "sourceMap": false
+  },
+  "include": ["scripts/staging-demo.ts", "scripts/smoke.ts", "src/@types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "dist-tools", "**/*.test.ts"]
+}

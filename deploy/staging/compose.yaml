@@ -1,0 +1,147 @@
+# Cell AI Voicebot — staging stack (Phase 13, ADR 0042). One machine: nginx on the host
+# serves the SPA and proxies /api, /ws and /health to the API on 127.0.0.1:5100.
+#
+# - api + worker use host networking: WhatsApp call media binds the UDP range
+#   WA_MEDIA_PORT_MIN–MAX on the public interface (publishing 1,000 UDP ports through
+#   Docker would start one proxy per port); HOST=127.0.0.1 keeps HTTP on loopback.
+# - mongo / redis use the compose bridge, published on loopback only. Mongo listens
+#   on 27018 internally too, so its single-node replica address works on both sides.
+# - Secrets: /srv/cell-ai-voicebot/env/backend.env (api, worker) and compose.env (mongo /
+#   redis passwords), both chmod 600 — never in this file or the image.
+#
+# CAV_ROOT (default /srv/cell-ai-voicebot) moves the host paths (rehearsal on a laptop).
+# Run (deploy.sh does this): docker compose -p cell-ai-voicebot-staging \
+#   --env-file /srv/cell-ai-voicebot/env/compose.env -f compose.yaml up -d
+name: cell-ai-voicebot-staging
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 20m
+    max-file: '5'
+
+services:
+  api:
+    image: cav-backend:${APP_SHA:?set APP_SHA to the image tag}
+    container_name: cav-stg-api
+    network_mode: host
+    env_file: ${CAV_ROOT:-/srv/cell-ai-voicebot}/env/backend.env
+    environment:
+      WORKERS_ENABLED: 'false'
+      HOST: 127.0.0.1
+      PORT: '5100'
+    volumes:
+      - ${CAV_ROOT:-/srv/cell-ai-voicebot}/uploads:/srv/cell-ai-voicebot/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 60s
+    mem_limit: 3g
+    logging: *logging
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:'+(process.env.PORT||5100)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  worker:
+    image: cav-backend:${APP_SHA:?set APP_SHA to the image tag}
+    container_name: cav-stg-worker
+    network_mode: host
+    env_file: ${CAV_ROOT:-/srv/cell-ai-voicebot}/env/backend.env
+    environment:
+      WORKERS_ENABLED: 'true'
+      # the worker answers no outside traffic; its own HTTP port stays on loopback
+      HOST: 127.0.0.1
+      PORT: '5101'
+      WA_MEDIA_ENABLED: 'false'
+    volumes:
+      - ${CAV_ROOT:-/srv/cell-ai-voicebot}/uploads:/srv/cell-ai-voicebot/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 30s
+    mem_limit: 2g
+    logging: *logging
+
+  mongo:
+    image: mongo:8.2@sha256:e0ce8c35124d4a9f9785532d1f268f39e9728ffa1cb38f46fa482436424c4bd3
+    container_name: cav-stg-mongo
+    ports: ['127.0.0.1:27018:27018']
+    entrypoint:
+      [
+        bash,
+        -ec,
+        'cp /run/mongo-keyfile /tmp/mongo-keyfile; chown 999:999 /tmp/mongo-keyfile; chmod 400 /tmp/mongo-keyfile; exec docker-entrypoint.sh "$$@"',
+        --,
+      ]
+    command:
+      - mongod
+      - --replSet
+      - rs0
+      - --port
+      - '27018'
+      - --bind_ip_all
+      - --keyFile
+      - /tmp/mongo-keyfile
+      - --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: cav
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?set in compose.env}
+    volumes:
+      - ${CAV_ROOT:-/srv/cell-ai-voicebot}/data/mongo:/data/db
+      # owned by uid 999 (the image's mongodb user), mode 400 — provision.sh creates it
+      - ${CAV_ROOT:-/srv/cell-ai-voicebot}/env/mongo-keyfile:/run/mongo-keyfile:ro
+    restart: unless-stopped
+    mem_limit: 2g
+    logging: *logging
+    healthcheck:
+      # initiates the single-node replica set on first start (idempotent)
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --port 27018 --quiet -u cav -p "$$MONGO_INITDB_ROOT_PASSWORD"
+          --authenticationDatabase admin --eval "try { rs.status().ok } catch (e) {
+          rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: '127.0.0.1:27018' }] }).ok }"
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    container_name: cav-stg-redis
+    ports: ['127.0.0.1:6380:6379']
+    command:
+      - redis-server
+      - --port
+      - '6379'
+      - --appendonly
+      - 'yes'
+      - --requirepass
+      - ${REDIS_PASSWORD:?set in compose.env}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set in compose.env}
+    volumes:
+      - ${CAV_ROOT:-/srv/cell-ai-voicebot}/data/redis:/data
+    restart: unless-stopped
+    mem_limit: 512m
+    logging: *logging
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli -p 6379 -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG
+      interval: 5s
+      timeout: 5s
+      retries: 20
