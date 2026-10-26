@@ -60,3 +60,6 @@ Shapes copied from Meta's documented sample payloads; every id, number, name and
 | `graph-pricing-analytics.json` | whatsapp/business-management-api/analytics (`pricing_analytics` data points) |
 
 `media/sample.{jpg,png,webp,mp4,ogg,pdf}` — tiny generated files (no real content) for sniffing / download tests; `sample.ogg` is a valid mono OGG / Opus (OpusHead, OpusTags, 50 × 20 ms silent packets, CRCs computed).
+
+**Graph API v26.0 re-check (Phase 13, 26 Oct 2026):** the default is now `v26.0`. Meta's v26.0 changelog lists no change for the WhatsApp Cloud API, the Business Management API, Facebook Login, `oauth/access_token` or `debug_token`; its Graph-wide protocol changes (no `pretty` / `debug` formatting, `date_format` rejected, root `GET /?ids=` rejected, `If-None-Match` ignored) are not used by `graph.client.ts`. With no WhatsApp change in the changelog the fixtures stay as they are; the field-level check of each endpoint against the real app happens in the Phase 13 real-number checks (setup guide §12) (only the version in the paging URL of `graph-templates-page1.json` moved to `v26.0`).
+

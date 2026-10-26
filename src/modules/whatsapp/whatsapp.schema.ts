@@ -22,7 +22,12 @@ export const EmbeddedSignupBody = z
   .strictObject({
     code: z.string().min(1).max(2048).openapi({ description: 'Code from FB.login (single use)' }),
     sessionInfo: z
-      .strictObject({ wabaId: MetaId.optional(), phoneNumberId: MetaId.optional() })
+      .strictObject({
+        wabaId: MetaId.optional(),
+        phoneNumberId: MetaId.optional(),
+        /** Meta's WhatsApp account id when sent apart from the Messaging account (2026). */
+        waacId: MetaId.optional(),
+      })
       .optional()
       .openapi({ description: 'WA_EMBEDDED_SIGNUP ids — hints, verified against debug_token' }),
     mode: z.enum(WA_MODES),

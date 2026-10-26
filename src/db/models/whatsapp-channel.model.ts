@@ -19,6 +19,10 @@ export const WA_ACTIVE_STATUSES = WA_CHANNEL_STATUSES.filter((s) => s !== 'disco
 export const WA_MODES = ['cloud_api', 'coexistence'] as const;
 export type WaMode = (typeof WA_MODES)[number];
 
+/** What `wabaId` points at (Meta's account model evolution, Phase 1 from H2 2026). */
+export const WA_WABA_KINDS = ['whatsapp', 'messaging'] as const;
+export type WaWabaKind = (typeof WA_WABA_KINDS)[number];
+
 export const WA_QUALITY = ['GREEN', 'YELLOW', 'RED', 'UNKNOWN'] as const;
 export type WaQuality = (typeof WA_QUALITY)[number];
 
@@ -221,6 +225,13 @@ export interface WhatsAppChannelDoc {
   provider: WaProvider;
   mode: WaMode;
   wabaId: string;
+  /**
+   * Phase 13 (Meta's account model, 2026): `messaging` when Meta named the WhatsApp
+   * account separately (`waacId`), so `wabaId` is the Messaging account; null = unknown.
+   */
+  wabaKind: WaWabaKind | null;
+  /** The WhatsApp account id when Meta sends it apart from the Messaging account. */
+  waacId: string | null;
   wabaName: string | null;
   businessId: string | null;
   businessName: string | null;
@@ -413,6 +424,8 @@ const schema = new Schema<WhatsAppChannelDoc>({
   provider: { type: String, enum: WA_PROVIDERS, required: true },
   mode: { type: String, enum: WA_MODES, required: true },
   wabaId: { type: String, required: true, maxlength: 64 },
+  wabaKind: { type: String, enum: [...WA_WABA_KINDS, null], default: null },
+  waacId: { type: String, default: null, maxlength: 64 },
   wabaName: nullableString,
   businessId: nullableString,
   businessName: nullableString,
@@ -548,6 +561,10 @@ schema.index(
 );
 schema.index({ accountId: 1, status: 1 });
 schema.index({ wabaId: 1 });
+schema.index(
+  { accountId: 1, waacId: 1 },
+  { name: 'account_waac', partialFilterExpression: { waacId: { $type: 'string' } } },
+);
 schema.index({ metaUserId: 1 });
 
 /** A WhatsApp Business number connected to an account (PHASE_9_PLAN §1e). */

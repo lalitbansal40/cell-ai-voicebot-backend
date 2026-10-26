@@ -2,7 +2,7 @@ import type { Job } from 'bullmq';
 import { Types } from 'mongoose';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { signWebhook } from '../../src/core/meta';
+import { signWebhook, WEBHOOK_FIELDS } from '../../src/core/meta';
 import {
   processMaintenanceJob,
   WHATSAPP_EVENTS_PURGE_JOB,
@@ -124,6 +124,28 @@ describe('routing', () => {
     expect(await processWebhookEvent(h(), blank._id.toString(), { finalAttempt: false })).toBe(
       'ignored',
     );
+  });
+
+  it("fields without a handler yet (Meta's Oct 2026 list) are kept as deferred events", async () => {
+    const { id } = await connect();
+    const channel = await channelOf(id);
+    for (const field of ['account_review_update', 'account_alerts'] as const) {
+      expect(WEBHOOK_FIELDS).toContain(field);
+      const statuses = await deliver({
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            id: channel!.wabaId,
+            time: Math.floor(Date.now() / 1000),
+            changes: [{ field, value: { decision: 'APPROVED' } }],
+          },
+        ],
+      });
+      expect(statuses).toEqual(['deferred']);
+      expect(
+        await MetaWebhookEventModel.exists({ field, channelId: id, status: 'deferred' }),
+      ).toBeTruthy();
+    }
   });
 
   it('finished events are skipped; unknown ids → null', async () => {

@@ -61,6 +61,6 @@
       "before": "QVFIUBEFORE",
       "after": "QVFIUAFTER"
     },
-    "next": "https://graph.facebook.com/v23.0/102290129340398/message_templates?after=QVFIUAFTER"
+    "next": "https://graph.facebook.com/v26.0/102290129340398/message_templates?after=QVFIUAFTER"
   }
 }

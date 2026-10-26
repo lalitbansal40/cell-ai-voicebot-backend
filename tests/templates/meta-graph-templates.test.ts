@@ -36,7 +36,7 @@ const client = (over: Partial<GraphMetaClientOptions> = {}) =>
   createGraphMetaClient({
     appId: APP,
     appSecret: 'app-secret-0123456789abcdef0123456789',
-    graphVersion: 'v23.0',
+    graphVersion: 'v26.0',
     baseUrl: stub.url,
     logger,
     sleep: () => Promise.resolve(),
@@ -61,7 +61,7 @@ describe('Graph client — templates', () => {
   it('listTemplates asks for every field, pages with the cursor and maps the answer', async () => {
     stub.next(json(200, fixture('graph-templates-page1.json')));
     const first = await client().listTemplates(TOKEN, WABA);
-    expect(req()).toMatchObject({ method: 'GET', path: `/v23.0/${WABA}/message_templates` });
+    expect(req()).toMatchObject({ method: 'GET', path: `/v26.0/${WABA}/message_templates` });
     expect(req().headers.authorization).toBe(`Bearer ${TOKEN}`);
     expect(req().query).toEqual({
       fields:
@@ -108,7 +108,7 @@ describe('Graph client — templates', () => {
       ttlSeconds: 3600,
     });
     expect(created).toEqual({ id: '9000000000000003', status: 'PENDING', category: 'MARKETING' });
-    expect(req()).toMatchObject({ method: 'POST', path: `/v23.0/${WABA}/message_templates` });
+    expect(req()).toMatchObject({ method: 'POST', path: `/v26.0/${WABA}/message_templates` });
     expect(bodyOf()).toEqual({
       name: 'test_offer',
       language: 'en',
@@ -120,7 +120,7 @@ describe('Graph client — templates', () => {
 
     stub.next(json(200, { success: true }));
     await client().editTemplate(TOKEN, '9000000000000003', { components });
-    expect(req()).toMatchObject({ method: 'POST', path: '/v23.0/9000000000000003' });
+    expect(req()).toMatchObject({ method: 'POST', path: '/v26.0/9000000000000003' });
     expect(bodyOf()).toEqual({ components });
 
     stub.next(json(200, { success: true }));
@@ -131,7 +131,7 @@ describe('Graph client — templates', () => {
   it('deleteTemplate by name or by name + hsm id', async () => {
     stub.next(json(200, { success: true }));
     await client().deleteTemplate(TOKEN, WABA, { name: 'test_offer' });
-    expect(req()).toMatchObject({ method: 'DELETE', path: `/v23.0/${WABA}/message_templates` });
+    expect(req()).toMatchObject({ method: 'DELETE', path: `/v26.0/${WABA}/message_templates` });
     expect(req().query).toEqual({ name: 'test_offer' });
     stub.next(json(200, { success: true }));
     await client().deleteTemplate(TOKEN, WABA, { name: 'test_offer', hsmId: '9000000000000003' });
@@ -148,7 +148,7 @@ describe('Graph client — templates', () => {
     });
     expect(handle).toBe('4::aW1hZ2UvanBlZw==:TESTHANDLE');
     const session = req(0);
-    expect(session.path).toBe(`/v23.0/${APP}/uploads`);
+    expect(session.path).toBe(`/v26.0/${APP}/uploads`);
     expect(session.query).toEqual({
       file_name: 'header.png',
       file_length: '7',
@@ -166,7 +166,7 @@ describe('Graph client — templates', () => {
       start: new Date('2026-10-22T00:00:00Z'),
       end: new Date('2026-10-23T00:00:00Z'),
     });
-    expect(req()).toMatchObject({ method: 'GET', path: `/v23.0/${WABA}` });
+    expect(req()).toMatchObject({ method: 'GET', path: `/v26.0/${WABA}` });
     expect(req().query.fields).toBe(
       `pricing_analytics.start(${String(Date.parse('2026-10-22T00:00:00Z') / 1000)}).end(${String(Date.parse('2026-10-23T00:00:00Z') / 1000)}).granularity(DAILY).dimensions(PRICING_CATEGORY,PRICING_TYPE,COUNTRY)`,
     );

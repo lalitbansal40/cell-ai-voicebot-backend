@@ -23,6 +23,7 @@ import { createFilesRouter } from './modules/files/files.routes';
 import type { ReadinessDeps } from './modules/health/health.controller';
 import { createHealthRouter } from './modules/health/health.routes';
 import { createApiRouter, type AiDeps, type CallsApiDeps, type WhatsAppDeps } from './routes';
+import { getAppInfo } from './shared/app-info';
 import type { Logger } from './shared/logger';
 import { corsMiddleware } from './shared/middlewares/cors';
 import { errorHandler } from './shared/middlewares/error-handler';
@@ -127,7 +128,13 @@ export const createApp = ({
   app.use(urlencoded({ extended: false, limit: URLENCODED_BODY_LIMIT }));
   app.use(cookieParser());
 
-  app.use(createHealthRouter(readiness ?? { checks: {}, isShuttingDown: () => false }));
+  const health = createHealthRouter(readiness ?? { checks: {}, isShuttingDown: () => false }, {
+    version: getAppInfo().version,
+    commit: env.GIT_SHA ?? 'unknown',
+    builtAt: env.BUILT_AT ?? 'unknown',
+  });
+  app.use(health);
+  app.use('/api/v1', health);
   if (storage instanceof LocalStorage) app.use(createFilesRouter(storage));
   if (env.API_DOCS_ENABLED) app.use(createDocsRouter());
   app.use(

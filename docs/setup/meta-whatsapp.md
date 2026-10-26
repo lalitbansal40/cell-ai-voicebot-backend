@@ -17,9 +17,10 @@ Phase 9 runs on the **fake Meta provider** (`META_PROVIDER=fake`, the default ou
 
 ## 3. Embedded Signup configuration
 
-1. **Facebook Login for Business → Configurations → Create** — template "WhatsApp Embedded Signup".
-2. Permissions: `whatsapp_business_management`, `whatsapp_business_messaging` (+ `business_management` if Meta asks).
+1. **Facebook Login for Business → Configurations → Create** — login variation **Embedded Signup**, products **Cloud API** (+ **WhatsApp Business app onboarding** for coexistence numbers). Selecting products makes it an **Embedded Signup v4** configuration (Meta deprecated v2 / v3 on 15 Oct 2026; the app sends `extras: { setup: {} }` and no `sessionInfoVersion` since Phase 13).
+2. Permissions are selected by Meta for the products: expect `whatsapp_business_management`, `whatsapp_business_messaging` (+ `business_management` if Meta adds it — then App Review needs its own text + video). They appear in the popup for other businesses only after **Advanced Access** (App Review).
 3. Copy the **Configuration ID** → `META_ES_CONFIG_ID`.
+4. Optional check: **WhatsApp → Embedded Signup Builder → Check a launch config**, paste `{ "setup": {} }` → it shows what the configuration becomes on v4.
 
 ## 4. Domains
 
@@ -29,7 +30,7 @@ Phase 9 runs on the **fake Meta provider** (`META_PROVIDER=fake`, the default ou
 ## 5. Webhooks
 
 1. **WhatsApp → Configuration → Webhook:** Callback URL `https://<api-host>/api/v1/webhooks/meta`, Verify token = a long random value (≥ 24 characters) → `META_WEBHOOK_VERIFY_TOKEN`. Meta calls `GET` with the challenge; it must show "Verified" (the API must already run with the new env).
-2. **Webhook fields** — subscribe all of these (the list is `WEBHOOK_FIELDS` in `src/core/meta/schemas.ts`): `messages`, `calls`, `account_settings_update` (Phase 12), `account_update`, `phone_number_quality_update`, `phone_number_name_update`, `business_capability_update`, `message_template_status_update`, `message_template_quality_update`, `template_category_update`, `message_template_components_update` (Phase 11), `user_preferences`, `security`, `history`, `smb_app_state_sync`, `smb_message_echoes`.
+2. **Webhook fields** — subscribe all of these (the list is `WEBHOOK_FIELDS` in `src/core/meta/schemas.ts`): `messages`, `calls`, `account_settings_update` (Phase 12), `account_update`, `phone_number_quality_update`, `phone_number_name_update`, `business_capability_update`, `message_template_status_update`, `message_template_quality_update`, `template_category_update`, `message_template_components_update` (Phase 11), `user_preferences`, `security`, `history`, `smb_app_state_sync`, `smb_message_echoes`, `account_review_update`, `account_alerts` (Phase 13 — kept as deferred events until a handler exists).
 3. The superadmin page **Admin → WhatsApp** shows the exact webhook URL to paste.
 
 ## 6. App callbacks (App Review prerequisites)
@@ -48,7 +49,7 @@ META_APP_ID=<app id>
 META_APP_SECRET=<app secret>
 META_ES_CONFIG_ID=<configuration id>
 META_WEBHOOK_VERIFY_TOKEN=<the verify token from step 5>
-META_GRAPH_VERSION=v23.0            # the latest stable version on that day
+META_GRAPH_VERSION=v26.0            # the latest stable version on that day
 # META_GRAPH_BASE_URL stays the default (production refuses anything else)
 # FAKE_META_APP_SECRET must not be set in production
 ```
@@ -84,6 +85,7 @@ Meta must reach your machine: `cloudflared tunnel --url http://localhost:5100` (
 - Embedded Signup `WA_EMBEDDED_SIGNUP` event names (`FINISH`, `FINISH_ONLY_WABA`, the coexistence finish event) and `sessionInfoVersion`.
 - Coexistence: `smb_app_data` sync API, its time window after onboarding, and the `history` / `smb_app_state_sync` / `smb_message_echoes` payloads (fixtures in `tests/fixtures/meta/`).
 - Credit sharing: `whatsapp_credit_sharing_and_attach` (Meta is moving partners to a newer method) and the supported currencies.
+- Phase 13: Embedded Signup version (v4 / v5) and the session message events (`FINISH`, `FINISH_ONLY_WABA`, `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`, `FINISH_OBO_MIGRATION`, `FINISH_GRANT_ONLY_API_ACCESS`, `CANCEL` with `error_message`), Meta's account model (`waba_id` = Messaging account; `waac_id` when sent), the webhook field list (§5), Graph-wide protocol changes of the version in use.
 - Error codes the service reacts to: `190` (+ subcodes 460 / 463 / 467), `133005`, `100` / `36007` / `36009`, rate-limit codes.
 - Phase 10: the `POST /{phone}/messages` bodies per type (`payloads.ts`), mark-as-read + `typing_indicator`, media upload / `GET /{media-id}` / download hosts (`META_MEDIA_HOST_SUFFIXES`), whether audio needs an explicit voice flag for OGG / Opus voice messages, Block Users API limits, business profile fields and the resumable upload for the photo, send error codes (131047, 131026, 131056, 130429, 131052 / 131053, 368).
 
@@ -124,7 +126,7 @@ With the real app and a test number, from two phones (Android + iPhone):
 ## 15. WhatsApp calling (Phase 12)
 
 - **Enable:** a Cloud API number (not coexistence) with a messaging limit of at least **2,000** (Meta's rule); in the app **Number → Calling** switch on calling, set call hours, the inbound route (team / AI / AI → team) and the permission request text. Meta's business-initiated calling is not open in every country — the app explains when it is unavailable.
-- **Webhooks:** subscribe the app to **`calls`** and **`account_settings_update`** (Meta's App Dashboard → WhatsApp → Configuration) in addition to §5.
+- **Webhooks:** subscribe the app to **`calls`** and **`account_settings_update`** (Meta's App Dashboard → WhatsApp → Configuration) in addition to §5. Meta's calling docs also ask that the app is subscribed to the number's **Messaging account** (the account behind `wabaId` since Meta's 2026 account model) — check it on the real app.
 - **Media network:** media nodes need public UDP `WA_MEDIA_PORT_MIN–WA_MEDIA_PORT_MAX` (default 40000–40999) open inbound / outbound, `WA_MEDIA_PUBLIC_IP` set when the node is behind NAT, and `WA_STUN_URLS` reachable; `WA_MEDIA_MAX_CALLS` caps calls per process.
 - **Prices:** import Meta's INR calling rate card (**Admin → WhatsApp billing → Calling rates**, CSV `Market, Currency, Per minute`); until then the placeholder card (IN ₹0.3885 / min, OTHER ₹1 / min) applies.
 

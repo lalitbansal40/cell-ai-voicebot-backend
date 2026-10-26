@@ -505,7 +505,7 @@ describe('loadEnv — WhatsApp (Phase 9)', () => {
     expect(env.META_PROVIDER).toBe('fake');
     expect(env.META_WEBHOOK_VERIFY_TOKEN).toBe('dev-meta-verify-token');
     expect(env.FAKE_META_APP_SECRET).toBe('dev-fake-meta-app-secret');
-    expect(env.META_GRAPH_VERSION).toBe('v23.0');
+    expect(env.META_GRAPH_VERSION).toBe('v26.0');
     expect(env.META_GRAPH_BASE_URL).toBe('https://graph.facebook.com');
     expect(loadEnv({ FAKE_META_APP_SECRET: 'x' }).FAKE_META_APP_SECRET).toBe('x');
     expect(loadEnv({ WHATSAPP_ENABLED: 'false' }).WHATSAPP_ENABLED).toBe(false);
@@ -539,6 +539,23 @@ describe('loadEnv — WhatsApp (Phase 9)', () => {
     expect(loadEnv({ META_PROVIDER: 'meta', WHATSAPP_ENABLED: 'false' }).WHATSAPP_ENABLED).toBe(
       false,
     );
+  });
+
+  it('HOST, GIT_SHA and BUILT_AT (Phase 13): defaults and formats', () => {
+    const env = loadEnv({});
+    expect(env.HOST).toBe('0.0.0.0');
+    expect(env.GIT_SHA).toBeUndefined();
+    expect(env.BUILT_AT).toBeUndefined();
+    expect(loadEnv({ HOST: '127.0.0.1' }).HOST).toBe('127.0.0.1');
+    expect(loadEnv({ HOST: '::1' }).HOST).toBe('::1');
+    expect(loadEnv({ HOST: 'localhost' }).HOST).toBe('localhost');
+    expect(issuesOf({ HOST: 'example.com' }).issues[0]?.variable).toBe('HOST');
+    expect(loadEnv({ GIT_SHA: 'abc1234' }).GIT_SHA).toBe('abc1234');
+    expect(issuesOf({ GIT_SHA: 'main' }).issues[0]?.variable).toBe('GIT_SHA');
+    expect(loadEnv({ BUILT_AT: '2026-10-26T10:00:00+05:30' }).BUILT_AT).toBe(
+      '2026-10-26T10:00:00+05:30',
+    );
+    expect(issuesOf({ BUILT_AT: 'yesterday' }).issues[0]?.variable).toBe('BUILT_AT');
   });
 
   it('validates formats', () => {

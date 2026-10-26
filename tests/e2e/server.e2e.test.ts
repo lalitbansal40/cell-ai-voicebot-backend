@@ -45,6 +45,8 @@ describe('startServer (e2e)', () => {
       WORKERS_ENABLED: 'true',
       EMAIL_DRIVER: 'log',
       LOG_LEVEL: 'info',
+      // Phase 13: loopback only, as behind nginx with host networking
+      HOST: '127.0.0.1',
     });
     const logger = createLogger(
       env,
@@ -73,8 +75,9 @@ describe('startServer (e2e)', () => {
     await stopMongo();
   });
 
-  it('listens on a random port', () => {
+  it('listens on a random port, on the HOST address only', () => {
     expect(running.port).toBeGreaterThan(0);
+    expect(running.server.address()).toMatchObject({ address: '127.0.0.1' });
   });
 
   it('serves /health and /ready with real dependencies', async () => {

@@ -9,7 +9,11 @@ import { HealthSchema, ReadinessSchema } from '../../src/modules/health/health.s
 import { createLogger } from '../../src/shared/logger';
 import { testEnv } from '../helpers/test-app';
 
-const build = (readiness: ReadinessDeps, rateLimit?: { windowMs: number; limit: number }) => {
+const build = (
+  readiness: ReadinessDeps,
+  rateLimit?: { windowMs: number; limit: number },
+  over: NodeJS.ProcessEnv = {},
+) => {
   const lines: string[] = [];
   const stream = new Writable({
     write(chunk: Buffer, _enc, cb) {
@@ -17,7 +21,7 @@ const build = (readiness: ReadinessDeps, rateLimit?: { windowMs: number; limit: 
       cb();
     },
   });
-  const env = testEnv();
+  const env = testEnv(over);
   const app = createApp({
     env,
     logger: createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'info' }, stream),
@@ -42,10 +46,31 @@ describe('GET /health', () => {
       },
       isShuttingDown: () => false,
     });
-    const res = await request(app).get('/health');
+    const res = await request(app).get('/api/v1/health');
     expect(res.status).toBe(200);
     expect(HealthSchema.parse(res.body.data).status).toBe('ok');
     expect(called).toBe(false);
+  });
+
+  it('names the running build: package version, commit and build time (unknown when unset)', async () => {
+    const plain = await request(build({ checks: {}, isShuttingDown: () => false }).app).get(
+      '/health',
+    );
+    expect(plain.body.data).toMatchObject({
+      version: expect.stringMatching(/^\d+\.\d+\.\d+/) as string,
+      commit: 'unknown',
+      builtAt: 'unknown',
+    });
+    const { app } = build({ checks: {}, isShuttingDown: () => false }, undefined, {
+      GIT_SHA: '3371267',
+      BUILT_AT: '2026-10-26T10:00:00Z',
+    });
+    const res = await request(app).get('/health');
+    expect(HealthSchema.parse(res.body.data)).toMatchObject({
+      commit: '3371267',
+      builtAt: '2026-10-26T10:00:00Z',
+    });
+    expect(JSON.stringify(res.body.data)).not.toMatch(/localhost|127\.0\.0\.1|NODE_ENV|mongodb/);
   });
 });
 

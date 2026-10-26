@@ -311,7 +311,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
-    server.listen(options.port ?? env.PORT, () => {
+    server.listen(options.port ?? env.PORT, env.HOST, () => {
       server.off('error', reject);
       resolve();
     });

@@ -27,10 +27,23 @@ const withTimeout = async (check: () => Promise<boolean>, timeoutMs: number): Pr
   }
 };
 
-/** GET /health — liveness only. */
-export const getHealth: RequestHandler = (_req, res) => {
-  ok(res, { status: 'ok' as const, uptimeSec: Math.floor((Date.now() - startedAt) / 1000) });
-};
+/** What `GET /health` says about the running build (Phase 13; no hostnames, no env). */
+export interface BuildInfo {
+  version: string;
+  commit: string;
+  builtAt: string;
+}
+
+/** GET /health — liveness only, plus the running build. */
+export const getHealth =
+  (build: BuildInfo): RequestHandler =>
+  (_req, res) => {
+    ok(res, {
+      status: 'ok' as const,
+      uptimeSec: Math.floor((Date.now() - startedAt) / 1000),
+      ...build,
+    });
+  };
 
 /** GET /ready — every dependency up and not shutting down, else 503 PROVIDER_UNAVAILABLE. */
 export const getReady =

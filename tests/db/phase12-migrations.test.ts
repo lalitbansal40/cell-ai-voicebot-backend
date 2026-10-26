@@ -31,12 +31,11 @@ const indexNames = async (collection: string) =>
   (await db().collection(collection).indexes()).map((i) => i.name);
 
 describe('0013-whatsapp-calling', () => {
-  it('is registered right after 0012 and is the last one', () => {
+  it('is registered right after 0012', () => {
     const names = MIGRATIONS.map((m) => m.name);
     expect(names.indexOf('0013-whatsapp-calling')).toBe(
       names.indexOf('0012-templates-billing') + 1,
     );
-    expect(names.at(-1)).toBe('0013-whatsapp-calling');
   });
 
   it('creates the collection and indexes, fills defaults, keeps existing values; idempotent', async () => {

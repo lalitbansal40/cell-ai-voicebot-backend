@@ -250,6 +250,9 @@ export const WEBHOOK_FIELDS = [
   'history',
   'smb_app_state_sync',
   'smb_message_echoes',
+  /** Phase 13: in Meta's field list (Oct 2026); stored as deferred events, no handler yet. */
+  'account_review_update',
+  'account_alerts',
 ] as const;
 export type WebhookField = (typeof WEBHOOK_FIELDS)[number];
 

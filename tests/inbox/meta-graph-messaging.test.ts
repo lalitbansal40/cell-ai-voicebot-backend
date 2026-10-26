@@ -36,7 +36,7 @@ const client = (over: Partial<GraphMetaClientOptions> = {}) =>
   createGraphMetaClient({
     appId: '1000000000000001',
     appSecret: 'app-secret-0123456789abcdef0123456789',
-    graphVersion: 'v23.0',
+    graphVersion: 'v26.0',
     baseUrl: stub.url,
     logger,
     sleep: () => Promise.resolve(),
@@ -71,7 +71,7 @@ describe('Graph client — messaging', () => {
     const payload = buildMessagePayload(CUSTOMER, { type: 'text', body: 'Test hello' }, 'wamid.Q');
     const result = await client().sendMessage(TOKEN, PHONE, payload);
     expect(result).toEqual({ waMessageId: 'wamid.HBgMOTE5MDAwMDAwMTAxFQIAERgSSENTTEST' });
-    expect(last()).toMatchObject({ method: 'POST', path: `/v23.0/${PHONE}/messages` });
+    expect(last()).toMatchObject({ method: 'POST', path: `/v26.0/${PHONE}/messages` });
     expect(last().headers.authorization).toBe(`Bearer ${TOKEN}`);
     expect(last().headers['content-type']).toBe('application/json');
     expect(bodyOf()).toEqual(payload);
@@ -123,7 +123,7 @@ describe('Graph client — messaging', () => {
       message_id: 'wamid.IN',
       typing_indicator: { type: 'text' },
     });
-    expect(last().path).toBe(`/v23.0/${PHONE}/messages`);
+    expect(last().path).toBe(`/v26.0/${PHONE}/messages`);
   });
 });
 
@@ -141,7 +141,7 @@ describe('Graph client — media', () => {
     expect(id).toBe('2000000000000001');
     expect(stub.requests).toHaveLength(2);
     const req = last();
-    expect(req).toMatchObject({ method: 'POST', path: `/v23.0/${PHONE}/media` });
+    expect(req).toMatchObject({ method: 'POST', path: `/v26.0/${PHONE}/media` });
     expect(req.headers['content-type']).toMatch(/^multipart\/form-data; boundary=/);
     expect(req.headers.authorization).toBe(`Bearer ${TOKEN}`);
     expect(req.body).toContain('name="messaging_product"');
@@ -175,7 +175,7 @@ describe('Graph client — media', () => {
     });
     expect(last()).toMatchObject({
       method: 'GET',
-      path: '/v23.0/1000000000000001',
+      path: '/v26.0/1000000000000001',
       query: { phone_number_id: PHONE },
     });
     stub.next(json(200, { url: 'https://lookaside.fbsbx.com/x', file_size: 'n/a' }));
@@ -250,7 +250,7 @@ describe('Graph client — media', () => {
     const offline = createGraphMetaClient({
       appId: '1',
       appSecret: 's'.repeat(32),
-      graphVersion: 'v23.0',
+      graphVersion: 'v26.0',
       baseUrl: stub.url,
       logger,
       mediaHosts: ['127.0.0.1:9'],
@@ -265,7 +265,7 @@ describe('Graph client — media', () => {
     const slow = createGraphMetaClient({
       appId: '1',
       appSecret: 's'.repeat(32),
-      graphVersion: 'v23.0',
+      graphVersion: 'v26.0',
       baseUrl: stub.url,
       logger,
       mediaHosts: ['127.0.0.1:9'],
@@ -292,7 +292,7 @@ describe('Graph client — block users and business profile', () => {
         },
       ],
     });
-    expect(last()).toMatchObject({ method: 'POST', path: `/v23.0/${PHONE}/block_users` });
+    expect(last()).toMatchObject({ method: 'POST', path: `/v26.0/${PHONE}/block_users` });
     expect(bodyOf()).toEqual({
       messaging_product: 'whatsapp',
       block_users: [{ user: CUSTOMER }, { user: '919000000205' }],
@@ -322,7 +322,7 @@ describe('Graph client — block users and business profile', () => {
     });
     expect(last()).toMatchObject({
       method: 'GET',
-      path: `/v23.0/${PHONE}/whatsapp_business_profile`,
+      path: `/v26.0/${PHONE}/whatsapp_business_profile`,
       query: { fields: 'about,address,description,email,profile_picture_url,websites,vertical' },
     });
     stub.next(json(200, { data: [{}] }));
@@ -343,7 +343,7 @@ describe('Graph client — block users and business profile', () => {
     });
     await client().updateBusinessProfile(TOKEN, PHONE, { profilePictureHandle: 'h1' });
     expect(bodyOf()).toEqual({ messaging_product: 'whatsapp', profile_picture_handle: 'h1' });
-    expect(last().path).toBe(`/v23.0/${PHONE}/whatsapp_business_profile`);
+    expect(last().path).toBe(`/v26.0/${PHONE}/whatsapp_business_profile`);
   });
 
   it('profile photo: resumable session, then the bytes with OAuth auth and offset 0', async () => {
@@ -355,13 +355,13 @@ describe('Graph client — block users and business profile', () => {
     expect(handle).toBe('4::aW1hZ2UvanBlZw==:TESTHANDLE');
     const [session, upload] = stub.requests;
     const sessionUrl = new URL(session?.url ?? '', 'http://x');
-    expect(sessionUrl.pathname).toBe('/v23.0/1000000000000001/uploads');
+    expect(sessionUrl.pathname).toBe('/v26.0/1000000000000001/uploads');
     expect(Object.fromEntries(sessionUrl.searchParams)).toEqual({
       file_length: '8',
       file_type: 'image/jpeg',
     });
     expect(session?.headers.authorization).toBe(`Bearer ${TOKEN}`);
-    expect(upload?.url).toContain('/v23.0/upload:');
+    expect(upload?.url).toContain('/v26.0/upload:');
     expect(upload?.headers.authorization).toBe(`OAuth ${TOKEN}`);
     expect(upload?.headers.file_offset).toBe('0');
     expect(upload?.body).toBe('JPEGDATA');

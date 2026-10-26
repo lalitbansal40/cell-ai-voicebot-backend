@@ -33,7 +33,7 @@ const client = () =>
   createGraphMetaClient({
     appId: '1000000000000001',
     appSecret: 'app-secret-0123456789abcdef0123456789',
-    graphVersion: 'v23.0',
+    graphVersion: 'v26.0',
     baseUrl: stub.url,
     logger,
     sleep: () => Promise.resolve(),
@@ -77,7 +77,7 @@ describe('Graph client — WhatsApp calling', () => {
     });
     expect(waCallId).toBe(CALL);
     const req = last();
-    expect(req).toMatchObject({ method: 'POST', path: `/v23.0/${PHONE}/calls` });
+    expect(req).toMatchObject({ method: 'POST', path: `/v26.0/${PHONE}/calls` });
     expect(req.headers.authorization).toBe(`Bearer ${TOKEN}`);
     expect(req.json).toEqual({
       messaging_product: 'whatsapp',
@@ -127,7 +127,7 @@ describe('Graph client — WhatsApp calling', () => {
       action: 'terminate',
     });
     expect(
-      stub.requests.every((r) => new URL(r.url, 'http://x').pathname === `/v23.0/${PHONE}/calls`),
+      stub.requests.every((r) => new URL(r.url, 'http://x').pathname === `/v26.0/${PHONE}/calls`),
     ).toBe(true);
   });
 
@@ -135,11 +135,11 @@ describe('Graph client — WhatsApp calling', () => {
     stub.next(json(200, fixture('graph-phone-settings.json')), json(200, { success: true }));
     const c = client();
     const s = await c.getPhoneSettings(TOKEN, PHONE);
-    expect(last()).toMatchObject({ method: 'GET', path: `/v23.0/${PHONE}/settings` });
+    expect(last()).toMatchObject({ method: 'GET', path: `/v26.0/${PHONE}/settings` });
     expect(s.status).toBe('ENABLED');
     expect(s.restrictions[0]?.type).toBe('RESTRICTED_BUSINESS_INITIATED_CALLING');
     await c.updateCallingSettings(TOKEN, PHONE, { status: 'DISABLED' });
-    expect(last()).toMatchObject({ method: 'POST', path: `/v23.0/${PHONE}/settings` });
+    expect(last()).toMatchObject({ method: 'POST', path: `/v26.0/${PHONE}/settings` });
     expect(last().json).toEqual({ calling: { status: 'DISABLED' } });
   });
 
@@ -153,7 +153,7 @@ describe('Graph client — WhatsApp calling', () => {
     expect(p.status).toBe('temporary');
     expect(last()).toMatchObject({
       method: 'GET',
-      path: `/v23.0/${PHONE}/call_permissions`,
+      path: `/v26.0/${PHONE}/call_permissions`,
       query: { user_wa_id: '919000000101' },
     });
     await c.getCallPermissions(TOKEN, PHONE, 'IN.1234567890123456');
@@ -199,7 +199,7 @@ describe('Graph client — WhatsApp calling', () => {
     const start = new Date(Date.UTC(2026, 9, 22));
     const end = new Date(Date.UTC(2026, 9, 25));
     const points = await client().getCallAnalytics(TOKEN, '102290129340398', { start, end });
-    expect(last()).toMatchObject({ method: 'GET', path: '/v23.0/102290129340398' });
+    expect(last()).toMatchObject({ method: 'GET', path: '/v26.0/102290129340398' });
     expect(last().query.fields).toBe(
       `call_analytics.start(${String(start.getTime() / 1000)}).end(${String(end.getTime() / 1000)}).granularity(DAILY).directions(BUSINESS_INITIATED).dimensions(COUNTRY,DIRECTION)`,
     );

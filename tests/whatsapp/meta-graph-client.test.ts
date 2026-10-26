@@ -43,7 +43,7 @@ const client = (over: Partial<GraphMetaClientOptions> = {}) =>
   createGraphMetaClient({
     appId: '1000000000000001',
     appSecret: APP_SECRET,
-    graphVersion: 'v23.0',
+    graphVersion: 'v26.0',
     baseUrl: `${stub.url}/`,
     creditLineId: '1234567890',
     systemUserToken: SYSTEM_TOKEN,
@@ -86,7 +86,7 @@ describe('Graph client — calls', () => {
     });
     const req = last();
     expect(req.method).toBe('GET');
-    expect(req.path).toBe('/v23.0/oauth/access_token');
+    expect(req.path).toBe('/v26.0/oauth/access_token');
     expect(req.query).toEqual({
       client_id: '1000000000000001',
       client_secret: APP_SECRET,
@@ -103,15 +103,15 @@ describe('Graph client — calls', () => {
       input_token: TOKEN,
       access_token: `1000000000000001|${APP_SECRET}`,
     });
-    expect(last().path).toBe('/v23.0/debug_token');
+    expect(last().path).toBe('/v26.0/debug_token');
   });
 
   it.each([
-    ['listOwnedWabas', 'graph-me-wabas.json', '/v23.0/me/whatsapp_business_accounts', 'id,name'],
+    ['listOwnedWabas', 'graph-me-wabas.json', '/v26.0/me/whatsapp_business_accounts', 'id,name'],
     [
       'listBusinessesWithWabas',
       'graph-me-businesses.json',
-      '/v23.0/me/businesses',
+      '/v26.0/me/businesses',
       'id,name,owned_whatsapp_business_accounts{id,name}',
     ],
   ] as const)('%s → %s', async (method, file, path, fields) => {
@@ -130,11 +130,11 @@ describe('Graph client — calls', () => {
     );
     const c = client();
     expect((await c.getWaba(TOKEN, WABA)).currency).toBe('INR');
-    expect(last().path).toBe(`/v23.0/${WABA}`);
+    expect(last().path).toBe(`/v26.0/${WABA}`);
     expect(last().query.fields).toContain('primary_funding_id');
     expect((await c.listPhoneNumbers(TOKEN, WABA))[0]?.id).toBe(PHONE);
     expect(last()).toMatchObject({
-      path: `/v23.0/${WABA}/phone_numbers`,
+      path: `/v26.0/${WABA}/phone_numbers`,
       query: { fields: 'id,display_phone_number,verified_name,status' },
     });
     expect((await c.getPhoneNumber(TOKEN, PHONE)).qualityRating).toBe('GREEN');
@@ -162,25 +162,25 @@ describe('Graph client — calls', () => {
     await c.subscribeApp(TOKEN, WABA);
     expect(last()).toMatchObject({
       method: 'POST',
-      path: `/v23.0/${WABA}/subscribed_apps`,
+      path: `/v26.0/${WABA}/subscribed_apps`,
       body: '',
     });
     await c.unsubscribeApp(TOKEN, WABA);
-    expect(last()).toMatchObject({ method: 'DELETE', path: `/v23.0/${WABA}/subscribed_apps` });
+    expect(last()).toMatchObject({ method: 'DELETE', path: `/v26.0/${WABA}/subscribed_apps` });
     await c.assignSystemUser(TOKEN, WABA, '5000000000000001');
     expect(last()).toMatchObject({
       method: 'POST',
-      path: `/v23.0/${WABA}/assigned_users`,
+      path: `/v26.0/${WABA}/assigned_users`,
       query: { user: '5000000000000001', tasks: "['MANAGE']" },
     });
     await c.registerPhone(TOKEN, PHONE, '482913');
-    expect(last()).toMatchObject({ method: 'POST', path: `/v23.0/${PHONE}/register` });
+    expect(last()).toMatchObject({ method: 'POST', path: `/v26.0/${PHONE}/register` });
     expect(JSON.parse(last().body)).toEqual({ messaging_product: 'whatsapp', pin: '482913' });
     expect(last().headers['content-type']).toBe('application/json');
     expect(await c.requestCoexistenceSync(TOKEN, PHONE, 'smb_app_state_sync')).toEqual({
       requestId: '8000000000000001',
     });
-    expect(last().path).toBe(`/v23.0/${PHONE}/smb_app_data`);
+    expect(last().path).toBe(`/v26.0/${PHONE}/smb_app_data`);
     expect(JSON.parse(last().body)).toEqual({
       messaging_product: 'whatsapp',
       sync_type: 'smb_app_state_sync',
@@ -199,7 +199,7 @@ describe('Graph client — calls', () => {
     });
     expect(last()).toMatchObject({
       method: 'POST',
-      path: '/v23.0/1234567890/whatsapp_credit_sharing_and_attach',
+      path: '/v26.0/1234567890/whatsapp_credit_sharing_and_attach',
       query: { waba_id: WABA, waba_currency: 'INR' },
     });
     expect(last().headers.authorization).toBe(`Bearer ${SYSTEM_TOKEN}`);
@@ -208,7 +208,7 @@ describe('Graph client — calls', () => {
       receivingCredentialId: '7000000000000001',
     });
     expect(last()).toMatchObject({
-      path: '/v23.0/6000000000000001',
+      path: '/v26.0/6000000000000001',
       query: { fields: 'receiving_credential' },
     });
   });
@@ -236,7 +236,7 @@ describe('Graph client — calls', () => {
     expect(await c.getTokenOwner(SYSTEM_TOKEN)).toBe('5000000000000001');
     expect(await c.getTokenOwner(SYSTEM_TOKEN)).toBe('5000000000000001');
     expect(stub.requests).toHaveLength(1);
-    expect(last()).toMatchObject({ path: '/v23.0/me', query: { fields: 'id' } });
+    expect(last()).toMatchObject({ path: '/v26.0/me', query: { fields: 'id' } });
     expect(await c.getTokenOwner('OTHER')).toBe('77');
   });
 
@@ -367,7 +367,7 @@ describe('Graph client — defaults', () => {
     const c = createGraphMetaClient({
       appId: '1',
       appSecret: APP_SECRET,
-      graphVersion: 'v23.0',
+      graphVersion: 'v26.0',
       baseUrl: stub.url,
       retryBaseMs: 1,
     });
@@ -390,7 +390,7 @@ describe('createMetaClient', () => {
     META_PROVIDER: 'fake',
     META_APP_ID: undefined,
     META_APP_SECRET: undefined,
-    META_GRAPH_VERSION: 'v23.0',
+    META_GRAPH_VERSION: 'v26.0',
     META_GRAPH_BASE_URL: 'https://graph.facebook.com',
     META_CREDIT_LINE_ID: undefined,
     META_SYSTEM_USER_TOKEN: undefined,

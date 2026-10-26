@@ -3276,9 +3276,20 @@
         "type": "object",
         "properties": {
           "status": { "type": "string", "enum": ["ok"] },
-          "uptimeSec": { "type": "integer", "minimum": 0, "example": 3600 }
+          "uptimeSec": { "type": "integer", "minimum": 0, "example": 3600 },
+          "version": { "type": "string", "example": "0.0.1" },
+          "commit": {
+            "type": "string",
+            "example": "3371267",
+            "description": "Git sha of the build or `unknown`"
+          },
+          "builtAt": {
+            "type": "string",
+            "example": "2026-10-26T10:00:00Z",
+            "description": "Build time or `unknown`"
+          }
         },
-        "required": ["status", "uptimeSec"]
+        "required": ["status", "uptimeSec", "version", "commit", "builtAt"]
       },
       "Readiness": {
         "type": "object",
@@ -6556,6 +6567,12 @@
                 "example": "106540352242922"
               },
               "phoneNumberId": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^(\\d+|fake_[a-z]+_[0-9a-f]{12})$",
+                "example": "106540352242922"
+              },
+              "waacId": {
                 "type": "string",
                 "maxLength": 64,
                 "pattern": "^(\\d+|fake_[a-z]+_[0-9a-f]{12})$",

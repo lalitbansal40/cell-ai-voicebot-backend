@@ -7,6 +7,13 @@ export const HealthSchema = registry.register(
   z.object({
     status: z.literal('ok'),
     uptimeSec: z.number().int().min(0).openapi({ example: 3600 }),
+    version: z.string().openapi({ example: '0.0.1' }),
+    commit: z
+      .string()
+      .openapi({ example: '3371267', description: 'Git sha of the build or `unknown`' }),
+    builtAt: z
+      .string()
+      .openapi({ example: '2026-10-26T10:00:00Z', description: 'Build time or `unknown`' }),
   }),
 );
 

@@ -160,6 +160,29 @@ describe('connect — happy paths', () => {
 });
 
 describe('connect — WABA / number resolution', () => {
+  it("Meta's 2026 account model: a separate WhatsApp account id marks wabaId as the Messaging account", async () => {
+    const signup = fakeSignup();
+    const ids = idsFor(signup);
+    const result = await connect(signup, {
+      sessionInfo: {
+        wabaId: ids.wabaId,
+        phoneNumberId: ids.phoneNumberId,
+        waacId: '7700000000001',
+      },
+    });
+    const row = await WhatsAppChannelModel.findById(result.channel.id).lean<WhatsAppChannelDoc>();
+    expect(row).toMatchObject({
+      wabaId: ids.wabaId,
+      waacId: '7700000000001',
+      wabaKind: 'messaging',
+    });
+    // without it nothing is assumed
+    const other = fakeSignup();
+    const plain = await connect(other);
+    const second = await WhatsAppChannelModel.findById(plain.channel.id).lean<WhatsAppChannelDoc>();
+    expect(second).toMatchObject({ waacId: null, wabaKind: null });
+  });
+
   it('without session info the single granted WABA / number is used', async () => {
     const signup = fakeSignup();
     const result = await connect(signup, { sessionInfo: undefined });

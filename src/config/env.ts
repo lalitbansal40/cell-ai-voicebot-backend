@@ -32,6 +32,17 @@ const DEV_FAKE_META_APP_SECRET = 'dev-fake-meta-app-secret';
 const RawEnvSchema = z.object({
   NODE_ENV: NodeEnvSchema.default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(5100),
+  /**
+   * Address the API listens on (Phase 13): `0.0.0.0` (all interfaces, default) or e.g.
+   * `127.0.0.1` behind nginx when the container uses host networking.
+   */
+  HOST: z.union([z.ipv4(), z.ipv6(), z.literal('localhost')]).default('0.0.0.0'),
+  /** Build info shown by `GET /health` (Phase 13; set by the image build, never secret). */
+  GIT_SHA: z
+    .string()
+    .regex(/^[0-9a-f]{7,40}$/, { message: 'must be a git commit sha' })
+    .optional(),
+  BUILT_AT: z.iso.datetime({ offset: true }).optional(),
   /** Public auth routes: requests per 15 minutes per IP and route (default 30; refresh has its own). */
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(5).max(10_000).default(30),
   APP_URL: z.url().optional(),
@@ -124,8 +135,8 @@ const RawEnvSchema = z.object({
   META_WEBHOOK_VERIFY_TOKEN: optionalString,
   META_GRAPH_VERSION: z
     .string()
-    .regex(/^v\d+\.\d+$/, { message: 'must look like v23.0' })
-    .default('v23.0'),
+    .regex(/^v\d+\.\d+$/, { message: 'must look like v26.0' })
+    .default('v26.0'),
   META_GRAPH_BASE_URL: z.url().default(META_GRAPH_DEFAULT_URL),
   /** Our Solution Partner credit line (platform pays Meta). Checked when a credit line is attached. */
   META_CREDIT_LINE_ID: z.string().regex(/^\d+$/, { message: 'must be digits' }).optional(),

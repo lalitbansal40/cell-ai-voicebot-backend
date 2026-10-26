@@ -58,7 +58,13 @@ export interface ConnectInput {
   accountId: Types.ObjectId;
   actor: WaActor;
   mode: WaMode;
-  sessionInfo?: { wabaId?: string | undefined; phoneNumberId?: string | undefined } | undefined;
+  sessionInfo?:
+    | {
+        wabaId?: string | undefined;
+        phoneNumberId?: string | undefined;
+        waacId?: string | undefined;
+      }
+    | undefined;
   /** Embedded Signup code (exchanged for the business token). */
   code?: string;
   /** Superadmin manual connect: an existing System User token instead of a code. */
@@ -551,6 +557,10 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
         provider: meta.provider,
         mode: input.mode,
         wabaId,
+        // Meta named the WhatsApp account apart: wabaId is then the Messaging account
+        ...(input.sessionInfo?.waacId
+          ? { waacId: input.sessionInfo.waacId, wabaKind: 'messaging' as const }
+          : {}),
         phoneNumberId: picked?.id ?? null,
         displayPhoneNumber: picked?.displayPhoneNumber ?? null,
         phoneE164: toE164(picked?.displayPhoneNumber),

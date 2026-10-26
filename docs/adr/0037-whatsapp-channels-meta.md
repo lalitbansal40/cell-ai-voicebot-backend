@@ -28,6 +28,20 @@ Phase 9 lets a customer account connect its WhatsApp Business numbers through Me
 - **Meta app callbacks:** deauthorize and data deletion (`signed_request`, constant-time HMAC, 1-day age limit); data deletion clears that user's tokens / PINs and answers `{ url, confirmation_code }` with a public status page.
 - **Dev simulator:** `POST /dev/meta/webhooks` builds Meta-shaped payloads, updates the fake Meta and hands a signed body to the real receiver — no shortcut around the pipeline.
 
+### Account model evolution (Meta, 2026 — added in Phase 13)
+
+Meta separates the **WhatsApp account** (WAAC) from a per-partner **Messaging account**. Phase 1 (H2 2026): `waba_id` in Embedded Signup messages and webhooks now names the Messaging account and every existing call keeps working (no code change); Phase 2 (H1 2027): a new Graph version, `waac_id` in message events, optional new endpoints; Phase 3 (H1 2028): the Messages API needs `messaging_account_id` and APIs keyed by a phone number use WAAC ids. Channels store `wabaKind` (`messaging` when Meta sends a separate `waacId`, else null = unknown) and `waacId` (migration `0014-meta-2026`); nothing else changes now.
+
+| Where we use `wabaId`                                                           | Graph call                                                     | Meta means (Phase 1) | Change later                                                         |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------- |
+| Signup + health (`getWaba`, `listPhoneNumbers`)                                 | `GET /{waba}`, `GET /{waba}/phone_numbers`                     | Messaging account    | Phase 2: read the WAAC with `waacId` when present                    |
+| Webhook subscription (`subscribeApp` / `unsubscribeApp`)                        | `POST` / `DELETE /{waba}/subscribed_apps`                      | Messaging account    | Calling also needs the number's Messaging account (checked in T13.8) |
+| System user + credit line (`assignSystemUser`, `attachCreditLine`)              | `/{waba}/assigned_users`, `whatsapp_credit_sharing_and_attach` | Messaging account    | Re-check with Meta's new credit sharing method                       |
+| Templates (`listTemplates`, `createTemplate`, `deleteTemplate`, sync, examples) | `/{waba}/message_templates`                                    | Messaging account    | Phase 2 / 3: confirm templates stay on the Messaging account         |
+| Pricing analytics (`getPricingAnalytics`, reconciliation)                       | `GET /{waba}?fields=pricing_analytics`                         | Messaging account    | Phase 2: confirm the account that reports pricing                    |
+| Webhook routing (`entry.id`) + channel lookup                                   | —                                                              | Messaging account    | Phase 2: also match `waac_id`                                        |
+| Messages, media, calls, call settings / permissions, profile, block, register   | keyed by the phone number id                                   | —                    | Phase 3: phone-number-keyed APIs take WAAC ids                       |
+
 ## Consequences
 
 - **Positive:** the whole phase runs and is tested without Meta (unit, stub-server, integration, 1,000-event burst, worker restart, E2E later); the real switch is env-only (`docs/setup/meta-whatsapp.md`); later phases get a stable contract (`MetaClient`, `getChannelToken`, deferred events, channel fields).
