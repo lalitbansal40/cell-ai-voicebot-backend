@@ -124,9 +124,9 @@ describe('Phase 12 catalogue', () => {
     expect(new Set(AUDIT_ACTIONS).size).toBe(AUDIT_ACTIONS.length);
   });
 
-  it('has 31 notification types (26 + 5) with titles, audiences, links and e-mail flags', () => {
-    expect(NOTIFICATION_TYPES).toHaveLength(31);
-    const added = NOTIFICATION_TYPES.slice(-5);
+  it('adds 5 notification types (26 + 5; Phase 14: 32) with titles, audiences, links and e-mail flags', () => {
+    expect(NOTIFICATION_TYPES).toHaveLength(32); // + Phase 14 analytics.reconcile_mismatch
+    const added = NOTIFICATION_TYPES.slice(26, 31);
     expect(added).toEqual([
       'call.whatsapp_missed',
       'whatsapp.call_permission_granted',

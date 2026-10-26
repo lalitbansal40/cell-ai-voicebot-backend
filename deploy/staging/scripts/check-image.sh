@@ -17,7 +17,7 @@ done
 if docker run --rm --entrypoint sh "${image}" -c 'find / -xdev -name ".env*" -not -path "/proc/*" 2>/dev/null | grep -q .'; then
   fail "image contains an .env file"
 fi
-for op in migrate sync-indexes superadmin-create email-test cli alert; do
+for op in migrate sync-indexes analytics-rebuild superadmin-create email-test cli alert; do
   docker run --rm --entrypoint test "${image}" -f "/app/dist/ops/${op}.js" || fail "dist/ops/${op}.js missing"
 done
 docker run --rm --entrypoint test "${image}" -d /app/assets || fail "assets/ missing"

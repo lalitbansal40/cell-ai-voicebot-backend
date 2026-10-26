@@ -174,6 +174,8 @@ schema.index({ accountId: 1, createdAt: -1, _id: -1 });
 schema.index({ accountId: 1, 'ref.type': 1, 'ref.id': 1 });
 schema.index({ status: 1, createdAt: 1 });
 schema.index({ holdId: 1 });
+// Phase 14 analytics sweep (changed rows by `updatedAt`)
+schema.index({ updatedAt: 1, _id: 1 }, { name: 'analytics_sweep' });
 
 /** Fields a release may set (status held → released); mongoose adds `updatedAt`. */
 const RELEASE_FIELDS = new Set(['status', 'releasedAt', 'releaseReason', 'updatedAt']);

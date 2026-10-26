@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 
 import { INBOX_LIMITS } from '../../config/limits';
 import type { StorageProvider } from '../../core/storage';
+import { AnalyticsMarkModel, analyticsMarkId } from '../../db/models/analytics-mark.model';
 import { ConversationModel } from '../../db/models/conversation.model';
 import { InboxUploadModel } from '../../db/models/inbox-upload.model';
 import { MessageModel, type MessageDoc } from '../../db/models/message.model';
@@ -109,6 +110,10 @@ export const runInboxRetention = async (
         touched.add(m.conversationId.toString());
       }
       const res = await MessageModel.deleteMany({ _id: { $in: batch.map((m) => m._id) } });
+      // counts stay in the report rollups; only the bookkeeping goes
+      await AnalyticsMarkModel.deleteMany({
+        _id: { $in: batch.map((m) => analyticsMarkId('message', m._id)) },
+      });
       result.messages += res.deletedCount;
       for (const m of batch) tally(m.accountId).messages += 1;
     }

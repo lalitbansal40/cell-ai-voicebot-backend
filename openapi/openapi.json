@@ -4392,7 +4392,8 @@
               "whatsapp.call_permission_granted",
               "whatsapp.call_permission_declined",
               "whatsapp.calling_restricted",
-              "whatsapp.call_permission_revoked"
+              "whatsapp.call_permission_revoked",
+              "analytics.reconcile_mismatch"
             ]
           },
           "title": { "type": "string" },

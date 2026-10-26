@@ -35,6 +35,7 @@
     "db:migrate:down": "tsx --env-file-if-exists=.env scripts/db-migrate.ts down",
     "db:migrate:status": "tsx --env-file-if-exists=.env scripts/db-migrate.ts status",
     "db:sync-indexes": "tsx --env-file-if-exists=.env scripts/db-sync-indexes.ts",
+    "analytics:rebuild": "tsx --env-file-if-exists=.env scripts/analytics-rebuild.ts",
     "ws:dev-ticket": "tsx --env-file-if-exists=.env scripts/ws-dev-ticket.ts",
     "email:test": "tsx --env-file-if-exists=.env scripts/email-test.ts",
     "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",

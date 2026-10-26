@@ -1,5 +1,6 @@
 import { CALL_LIMITS } from '../../config/limits';
 import type { StorageProvider } from '../../core/storage';
+import { AnalyticsMarkModel, analyticsMarkId } from '../../db/models/analytics-mark.model';
 import { CallEventModel } from '../../db/models/call-event.model';
 import { CallModel, type CallDoc } from '../../db/models/call.model';
 import { FlowRunModel } from '../../db/models/flow-run.model';
@@ -103,6 +104,8 @@ export const purgeCalls = async (
     await TranscriptTurnModel.deleteMany({ callId: call._id });
     if (call.flowRunId) await FlowRunModel.deleteOne({ _id: call.flowRunId, mode: 'call' });
     await CallModel.deleteOne({ _id: call._id });
+    // its counts stay in the report rollups; only the bookkeeping goes
+    await AnalyticsMarkModel.deleteOne({ _id: analyticsMarkId('call', call._id) });
   }
   return { calls: old.length };
 };

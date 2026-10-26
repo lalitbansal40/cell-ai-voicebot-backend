@@ -995,6 +995,29 @@ Indexes: `{ accountId: 1, channelId: 1, contactId: 1 }` unique, `{ accountId: 1,
 
 ---
 
+### 2.11 Analytics (Phase 14)
+
+#### StatsDaily (`statsDaily`) — Phase 14
+
+Daily report rollups (ADR 0043, glossary `docs/analytics/METRICS.md`). Tenant-scoped, **no personal data** — whole-number counters only; kept 25 months (nightly job), never touched by raw-data purges.
+
+| Field    | Type                                                             | R   | Notes                                                    |
+| -------- | ---------------------------------------------------------------- | --- | -------------------------------------------------------- |
+| day      | `YYYY-MM-DD`                                                     | ✓   | Account timezone                                         |
+| channel  | `voice \| whatsapp \| money`                                     | ✓   |                                                          |
+| test     | boolean                                                          | ✓   | Test calls counted apart                                 |
+| kind     | `all \| campaign \| flow \| agent \| user \| template \| number` | ✓   | The slice                                                |
+| refId    | ObjectId \| null                                                 |     | Campaign / flow / AI agent / user / template / number id |
+| counters | Map<string, integer>                                             | ✓   | Metric key → value (micros for money, seconds for time)  |
+
+Indexes: `stats_row` `{ accountId, day, channel, test, kind, refId }` unique, `{ accountId, kind, refId, day }`, `{ day }` (retention).
+
+#### AnalyticsMark (`analyticsMarks`) — Phase 14
+
+`_id` = `<call | message | ledger>-<id>`; `entity`; `rows` (what that row has added to `statsDaily`: `{ day, channel, test, kind, refId, counters }[]`). The sweep applies `next − rows` and stores `next`; deleted with the raw row by the purge jobs.
+
+**Additions (Phase 14):** index `analytics_sweep` `{ updatedAt: 1, _id: 1 }` on `calls`, `messages`, `ledgerEntries`; `analytics_rebuild` `{ accountId: 1, at: 1, _id: 1 }` on `messages`; notification type `analytics.reconcile_mismatch` (superadmins).
+
 ## 3. Embedded vs separate collection
 
 | Data                    | Decision                                       | Why                                            |

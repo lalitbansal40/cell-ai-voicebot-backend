@@ -94,7 +94,7 @@ describe('Phase 11 catalogue', () => {
 
   it('has the 7 Phase 11 notification types with titles, audiences, links and e-mail flags', () => {
     // count: Phase 12 catalogue test
-    const added = NOTIFICATION_TYPES.slice(-12, -5);
+    const added = NOTIFICATION_TYPES.slice(19, 26);
     expect(added).toEqual([
       'template.approved',
       'template.rejected',

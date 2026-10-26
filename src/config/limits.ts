@@ -531,3 +531,28 @@ export const WHATSAPP_CALL_LIMITS = {
   ringTargetsMax: 50,
   sdpMaxBytes: 16_384,
 } as const;
+
+/** Reports + analytics rollups (Phase 14, PHASE_14_PROMPT §1). */
+export const REPORT_LIMITS = {
+  maxRangeDays: 366,
+  cacheTtlSec: 60,
+  tableMaxRows: 500,
+  exportMaxRows: 200_000,
+  rollupRetentionMonths: 25,
+  reconcileDays: 3,
+  subscriptionsPerUser: 5,
+  slowReportMs: 1_500,
+  /** Changed entities per sweep batch (one transaction per batch). */
+  sweepBatch: 500,
+  /** The sweep re-reads this much before its watermark (late commits; idempotent). */
+  sweepOverlapSec: 120,
+  /** One analytics writer at a time (sweep, reconcile, rebuild CLI). */
+  lockTtlSec: 600,
+  /** Rebuilds read raw rows from this many days around the range (replies, refunds). */
+  rebuildMarginDays: 2,
+} as const;
+
+/** Call-duration buckets (seconds, lower bounds) for medians without raw rows. */
+export const DURATION_BUCKETS_SEC = [0, 15, 30, 60, 120, 300, 600, 1_800] as const;
+/** First-response buckets (seconds, lower bounds). */
+export const RESPONSE_BUCKETS_SEC = [0, 60, 300, 900, 3_600, 14_400, 86_400] as const;

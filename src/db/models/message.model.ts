@@ -646,6 +646,10 @@ schema.index(
 schema.index({ accountId: 1, conversationId: 1, at: -1, _id: -1 });
 // retention purge
 schema.index({ at: 1 });
+// Phase 14 analytics sweep (changed rows by `updatedAt`)
+schema.index({ updatedAt: 1, _id: 1 }, { name: 'analytics_sweep' });
+// Phase 14 recount (an account's messages by time)
+schema.index({ accountId: 1, at: 1, _id: 1 }, { name: 'analytics_rebuild' });
 schema.index(
   { accountId: 1, clientId: 1 },
   { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } },

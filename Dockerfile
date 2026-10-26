@@ -30,7 +30,7 @@ ARG GIT_SHA=
 ARG BUILT_AT=
 ENV GIT_SHA=${GIT_SHA} BUILT_AT=${BUILT_AT}
 # Production npm commands use compiled JavaScript, never the development-only tsx.
-RUN node -e "const fs=require('fs'),p=require('./package.json');Object.assign(p.scripts,{'db:migrate':'node dist/ops/migrate.js up','db:migrate:down':'node dist/ops/migrate.js down','db:migrate:status':'node dist/ops/migrate.js status','db:sync-indexes':'node dist/ops/sync-indexes.js','superadmin:create':'node dist/ops/superadmin-create.js','email:test':'node dist/ops/email-test.js','smoke':'node dist-tools/scripts/smoke.js','staging:demo':'node dist-tools/scripts/staging-demo.js'});fs.writeFileSync('package.json',JSON.stringify(p))"
+RUN node -e "const fs=require('fs'),p=require('./package.json');Object.assign(p.scripts,{'db:migrate':'node dist/ops/migrate.js up','db:migrate:down':'node dist/ops/migrate.js down','db:migrate:status':'node dist/ops/migrate.js status','db:sync-indexes':'node dist/ops/sync-indexes.js','analytics:rebuild':'node dist/ops/analytics-rebuild.js','superadmin:create':'node dist/ops/superadmin-create.js','email:test':'node dist/ops/email-test.js','smoke':'node dist-tools/scripts/smoke.js','staging:demo':'node dist-tools/scripts/staging-demo.js'});fs.writeFileSync('package.json',JSON.stringify(p))"
 USER node
 EXPOSE 5100
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \

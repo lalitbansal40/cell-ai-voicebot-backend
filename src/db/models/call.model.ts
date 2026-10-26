@@ -377,6 +377,8 @@ schema.index(
   { partialFilterExpression: { provider: 'whatsapp' }, name: 'wa_channel_calls' },
 );
 schema.index({ createdAt: 1 });
+// Phase 14 analytics sweep (changed rows by `updatedAt`)
+schema.index({ updatedAt: 1, _id: 1 }, { name: 'analytics_sweep' });
 
 /** One phone / web / WhatsApp call (data-model.md §2 Call — Phase 7, WhatsApp Phase 12). */
 export const CallModel: Model<CallDoc> =

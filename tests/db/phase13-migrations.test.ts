@@ -20,10 +20,9 @@ const migration = () => {
 const channels = () => db().collection('whatsappChannels');
 
 describe('0014-meta-2026', () => {
-  it('is registered right after 0013 and is the last one', () => {
+  it('is registered right after 0013', () => {
     const names = MIGRATIONS.map((m) => m.name);
     expect(names.indexOf('0014-meta-2026')).toBe(names.indexOf('0013-whatsapp-calling') + 1);
-    expect(names.at(-1)).toBe('0014-meta-2026');
   });
 
   it('up adds wabaKind / waacId (null) without touching set values; down removes them', async () => {
