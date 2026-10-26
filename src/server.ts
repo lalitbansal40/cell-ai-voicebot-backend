@@ -68,6 +68,7 @@ import { createWhatsAppBillingHook } from './modules/whatsapp-billing/billing-ho
 import { CallControlBus } from './modules/whatsapp-calling/bus';
 import { queueCallingJobs } from './modules/whatsapp-calling/jobs';
 import { createCallingRuntime } from './modules/whatsapp-calling/runtime';
+import { listen } from './shared/http/listen';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
 
@@ -317,13 +318,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   });
   const server = createServer(app);
 
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(options.port ?? env.PORT, env.HOST, () => {
-      server.off('error', reject);
-      resolve();
-    });
-  });
+  await listen(server, options.port ?? env.PORT, env.HOST);
   const { port } = server.address() as AddressInfo;
   logger.info({ port }, `API listening on http://localhost:${port}`);
 

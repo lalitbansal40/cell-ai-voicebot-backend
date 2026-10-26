@@ -33,10 +33,10 @@ const RawEnvSchema = z.object({
   NODE_ENV: NodeEnvSchema.default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(5100),
   /**
-   * Address the API listens on (Phase 13): `0.0.0.0` (all interfaces, default) or e.g.
-   * `127.0.0.1` behind nginx when the container uses host networking.
+   * Address the API listens on (Phase 13): unset = every interface, IPv4 and IPv6 (as
+   * before; `localhost` may be `::1`), or e.g. `127.0.0.1` behind nginx with host networking.
    */
-  HOST: z.union([z.ipv4(), z.ipv6(), z.literal('localhost')]).default('0.0.0.0'),
+  HOST: z.union([z.ipv4(), z.ipv6(), z.literal('localhost')]).optional(),
   /** Build info shown by `GET /health` (Phase 13; set by the image build, never secret). */
   GIT_SHA: z
     .string()

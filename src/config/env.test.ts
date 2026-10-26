@@ -543,7 +543,7 @@ describe('loadEnv — WhatsApp (Phase 9)', () => {
 
   it('HOST, GIT_SHA and BUILT_AT (Phase 13): defaults and formats', () => {
     const env = loadEnv({});
-    expect(env.HOST).toBe('0.0.0.0');
+    expect(env.HOST).toBeUndefined(); // every interface, IPv4 + IPv6
     expect(env.GIT_SHA).toBeUndefined();
     expect(env.BUILT_AT).toBeUndefined();
     expect(loadEnv({ HOST: '127.0.0.1' }).HOST).toBe('127.0.0.1');
