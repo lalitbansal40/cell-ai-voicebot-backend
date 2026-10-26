@@ -57,22 +57,6 @@ export const daysOf = (from: string, to: string): string[] => {
   return out;
 };
 
-export const byDay = (rows: StatsRow[]): Map<string, Counters> => {
-  const out = new Map<string, Counters>();
-  for (const r of rows) out.set(r.day, add(out.get(r.day) ?? {}, r.counters));
-  return out;
-};
-
-export const byRef = (rows: StatsRow[]): Map<string, Counters> => {
-  const out = new Map<string, Counters>();
-  for (const r of rows) {
-    if (!r.refId) continue;
-    const key = r.refId.toString();
-    out.set(key, add(out.get(key) ?? {}, r.counters));
-  }
-  return out;
-};
-
 /** `a ÷ b` as a percentage with one decimal; `null` when `b` is 0. */
 export const pct = (a: number | undefined, b: number | undefined): number | null =>
   b ? Math.round(((a ?? 0) / b) * 1000) / 10 : null;
