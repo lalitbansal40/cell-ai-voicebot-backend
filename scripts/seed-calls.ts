@@ -146,7 +146,10 @@ export const seedCalls = async (
           leg.receiveAudio(quiet);
           await clock.tick(20);
         }
-        await new Promise((r) => setTimeout(r, 2));
+        // real time for the runtime's async work (AI turn, Mongo writes) between fake
+        // seconds — 2 ms let the fake clock outrun a loaded machine (silence prompts fired
+        // before the agent answered; flaky in full-suite runs)
+        await new Promise((r) => setTimeout(r, 10));
       }
       throw new Error(`seed call ${mark} did not progress`);
     };
