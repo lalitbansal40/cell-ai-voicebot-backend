@@ -43,7 +43,10 @@ const world = useInboxWorld();
 const { state } = world;
 
 beforeEach(() => setRealtime(undefined));
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  setRealtime(undefined);
+  vi.restoreAllMocks();
+});
 
 let users: Awaited<ReturnType<typeof world.setup>>['users'];
 let conv: ConversationDoc;
@@ -905,6 +908,7 @@ describe('read receipts, unread, typing', () => {
   it('typing: throttled per conversation, topic event, Meta indicator only inside the window with receipts on', async () => {
     const topic: unknown[] = [];
     setRealtime({
+      pushToAccount: () => Promise.resolve(),
       pushToTopic: (_t: string, type: string, data: unknown) => (
         topic.push({ type, data }),
         Promise.resolve()
