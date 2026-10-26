@@ -33,12 +33,12 @@
     "server:audit": "bash scripts/run-server-audit.sh"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.2.3",
+    "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.3",
     "@eslint/js": "^9.39.5",
     "@types/node": "^24.19.1",
     "@types/supertest": "^7.2.1",
-    "@vitest/coverage-v8": "^5.0.3",
+    "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
@@ -48,11 +48,11 @@
     "lint-staged": "^17.6.0",
     "mongodb": "^7.7.0",
     "mongodb-memory-server": "^11.3.0",
-    "prettier": "^3.9.9",
+    "prettier": "^3.9.10",
     "supertest": "^7.3.1",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.71.1",
+    "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.3"
   },
   "allowScripts": {
