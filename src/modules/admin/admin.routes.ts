@@ -17,6 +17,7 @@ import {
   AccountIdParams,
   AccountLimitsBody,
   ListAccountsQuery,
+  RetentionCapBody,
   SuspendBody,
 } from './admin.schema';
 import {
@@ -27,6 +28,7 @@ import {
   pauseAllCampaigns,
   resumeAdminPaused,
   setAccountLimits,
+  setRetentionCap,
   stopImpersonation,
   suspendAccount,
 } from './admin.service';
@@ -87,6 +89,15 @@ export const createAdminRouter = ({
       { params: AccountIdParams, body: AccountLimitsBody },
       async ({ params, body, req, res }) => {
         ok(res, await setAccountLimits(req, params.id, body));
+      },
+    ),
+  );
+  router.put(
+    '/accounts/:id/retention-cap',
+    ...handle(
+      { params: AccountIdParams, body: RetentionCapBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await setRetentionCap(req, params.id, body));
       },
     ),
   );

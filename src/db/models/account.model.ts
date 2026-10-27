@@ -165,6 +165,10 @@ export interface AccountDoc {
   whatsappBilling?: AccountWhatsAppBilling | null;
   /** WhatsApp call prices (Phase 12, superadmin): override of the platform calling settings. */
   whatsappCallingBilling?: AccountWhatsAppCallingBilling | null;
+  /** How long this account keeps data (Phase 14); `null` = the platform default. */
+  retention?: AccountRetention | null;
+  /** Superadmin upper limit for this account (Phase 14); `null` = the platform default. */
+  retentionCap?: AccountRetentionCap | null;
   billing?: (BillingProfile & { updatedAt: Date }) | null;
   createdAt: Date;
   updatedAt: Date;
@@ -178,6 +182,20 @@ export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
   aiDisclosureEnabled: true,
   inbox: DEFAULT_INBOX_SETTINGS,
 };
+
+/** Days kept (Phase 14); each `null` = the platform default (env). Recordings ≤ calls. */
+export interface AccountRetention {
+  recordingsDays: number | null;
+  /** Call records, events, transcripts, insights, flow runs. */
+  callsDays: number | null;
+  /** WhatsApp messages, media and chat summaries. */
+  inboxDays: number | null;
+}
+
+export interface AccountRetentionCap {
+  callsDays: number | null;
+  inboxDays: number | null;
+}
 
 export const DEFAULT_ACCOUNT_LIMITS: AccountLimits = { maxConcurrentCalls: 10, dialsPerMinute: 60 };
 
@@ -403,6 +421,27 @@ const schema = new Schema<AccountDoc>({
         markupBps: { type: Number, default: null, min: 0, max: 100_000 },
         fixedPerMinuteMicros: { type: Number, default: null, min: 0 },
         platformFeePerMinuteMicros: { type: Number, default: null, min: 0 },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
+  retention: {
+    type: new Schema<AccountRetention>(
+      {
+        recordingsDays: { type: Number, default: null, min: 1 },
+        callsDays: { type: Number, default: null, min: 1 },
+        inboxDays: { type: Number, default: null, min: 1 },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
+  retentionCap: {
+    type: new Schema<AccountRetentionCap>(
+      {
+        callsDays: { type: Number, default: null, min: 1 },
+        inboxDays: { type: Number, default: null, min: 1 },
       },
       { _id: false },
     ),

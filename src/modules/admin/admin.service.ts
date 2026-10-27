@@ -28,6 +28,11 @@ import {
 } from '../auth/session';
 import { resumeCampaignDoc } from '../campaigns/campaigns.service';
 import { pauseAccountCampaigns } from '../campaigns/jobs';
+import {
+  assertRetentionCap,
+  retentionViewOf,
+  type RetentionView,
+} from '../retention/retention.service';
 import { accountWhatsApp } from '../whatsapp/whatsapp-admin.service';
 
 import type { AccountLimitsBody, ListAccountsQuery } from './admin.schema';
@@ -157,6 +162,7 @@ export const accountDetail = async (id: string) => {
       dialsPerMinute: account.limits.dialsPerMinute,
     },
     activeCampaigns,
+    retention: retentionViewOf(account),
     adminPausedCampaigns: adminPaused.map((c) => ({ id: c._id.toString(), name: c.name })),
     ...(await accountWhatsApp(account._id)),
     recentAudit: recent.map((r) => ({
@@ -232,6 +238,23 @@ export const setAccountLimits = async (
     maxConcurrentCalls: updated.limits.maxConcurrentCalls,
     dialsPerMinute: updated.limits.dialsPerMinute,
   };
+};
+
+/**
+ * Superadmin cap on how long an account keeps data (Phase 14): lowers the account's
+ * maximum; settings above it are clamped by the purge jobs (the account sees both).
+ */
+export const setRetentionCap = async (
+  req: Request,
+  id: string,
+  cap: { callsDays: number | null; inboxDays: number | null },
+): Promise<RetentionView> => {
+  const account = await findCustomerAccount(id);
+  assertRetentionCap(cap);
+  const before = { callsDays: null, inboxDays: null, ...(account.retentionCap ?? {}) };
+  await AccountModel.updateOne({ _id: account._id }, { $set: { retentionCap: cap } });
+  await auditBothSides(req, account, 'account.retention_cap_updated', { from: before, to: cap });
+  return retentionViewOf({ retention: account.retention ?? null, retentionCap: cap });
 };
 
 /** Emergency stop: every scheduled / running campaign pauses with reason `admin`. */

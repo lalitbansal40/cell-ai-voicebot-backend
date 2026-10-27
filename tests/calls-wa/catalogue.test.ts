@@ -67,7 +67,7 @@ import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 12 catalogue', () => {
   it('has 83 error codes incl. the fourteen calling codes (exact texts and statuses)', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(89); // + Phase 14: T14.3 3, T14.2 1, T14.4 1, T14.7 1
+    expect(Object.keys(ERROR_CODES)).toHaveLength(90); // + Phase 14: T14.3 3, T14.2 1, T14.4 1, T14.7 1, T14.8 1
     const added = {
       WHATSAPP_CALLING_DISABLED: [409, 'Calling is turned off for this WhatsApp number.'],
       WHATSAPP_CALLING_UNAVAILABLE: [409, "WhatsApp calling isn't available for this number."],
@@ -109,7 +109,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('has 127 audit actions incl. the nine Phase 12 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(136); // + Phase 14: T14.3 4, T14.4 1, T14.7 4
+    expect(AUDIT_ACTIONS).toHaveLength(138); // + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2
     expect(AUDIT_ACTIONS.slice(118, 127)).toEqual([
       'whatsapp.calling_settings_updated',
       'whatsapp.call_permission_requested',

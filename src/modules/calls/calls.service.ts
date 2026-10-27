@@ -171,7 +171,12 @@ export const toCallView = (c: CallDoc, names: Names) => {
     },
     cost: { ...c.cost },
     recording: c.recording
-      ? { durationSec: c.recording.durationSec, sizeBytes: c.recording.sizeBytes }
+      ? {
+          durationSec: c.recording.durationSec,
+          sizeBytes: c.recording.sizeBytes,
+          // Phase 14 retention: the file is gone, the call stays
+          deletedAt: c.recording.deletedAt?.toISOString() ?? null,
+        }
       : null,
     flowRunId: c.flowRunId?.toString() ?? null,
     error: c.error ? { code: c.error.code } : null,
@@ -388,6 +393,8 @@ export const callEvents = async (req: Request, id: string) => {
 export const recordingLink = async (req: Request, id: string, deps: Pick<CallsDeps, 'storage'>) => {
   const call = await findCall(tenantFilter(req).accountId, id);
   if (!call.recording || !deps.storage) throw new NotFoundError('This call has no recording');
+  if (call.recording.deletedAt)
+    throw new NotFoundError('This recording was deleted under the account’s retention setting');
   const ttl = CALL_LIMITS.recordingUrlTtlSec;
   const url = await deps.storage.signedUrl(call.recording.fileKey, { expiresInSec: ttl });
   await auditRequest(req, 'call.recording_accessed', { target: { type: 'call', id } });

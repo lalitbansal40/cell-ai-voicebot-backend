@@ -355,13 +355,13 @@ describe('calls maintenance', () => {
       { _id: { $in: [old._id, plain._id] } },
       { $set: { createdAt: new Date('2025-01-01') } },
     );
-    expect(await purgeCalls(storage, 180)).toEqual({ calls: 2 });
+    expect(await purgeCalls(storage, 180)).toEqual({ calls: 2, recordings: 0 });
     expect(await storage.exists(key)).toBe(false);
     expect(await CallEventModel.countDocuments({ callId: old._id })).toBe(0);
     expect(await TranscriptTurnModel.countDocuments({ callId: old._id })).toBe(0);
     expect(await FlowRunModel.countDocuments({ _id: run._id })).toBe(0);
     expect(await CallModel.exists({ _id: fresh._id })).toBeTruthy();
-    expect(await purgeCalls(undefined, 180)).toEqual({ calls: 0 });
+    expect(await purgeCalls(undefined, 180)).toEqual({ calls: 0, recordings: 0 });
   });
 
   it('the maintenance worker runs the call jobs', async () => {
@@ -369,7 +369,10 @@ describe('calls maintenance', () => {
     await expect(run({ name: CALLS_REAPER_JOB } as never)).resolves.toEqual(
       expect.objectContaining({ failed: expect.any(Number) as number }),
     );
-    await expect(run({ name: CALLS_PURGE_JOB } as never)).resolves.toEqual({ calls: 0 });
+    await expect(run({ name: CALLS_PURGE_JOB } as never)).resolves.toEqual({
+      calls: 0,
+      recordings: 0,
+    });
     await TtsCacheModel.create({
       key: 'k',
       model: 'm',

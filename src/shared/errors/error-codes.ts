@@ -209,6 +209,10 @@ export const ERROR_CODES = {
     status: 422,
     message: 'Choose a date range of at most 366 days, with the start before the end.',
   },
+  RETENTION_OUT_OF_BOUNDS: {
+    status: 422,
+    message: 'Choose a number of days within the allowed range.',
+  },
   REPORT_SUBSCRIPTION_LIMIT: {
     status: 422,
     message: 'You already get the most report e-mails allowed. Remove one first.',

@@ -137,6 +137,8 @@ export const AUDIT_ACTIONS = [
   'call.insights_regenerated',
   'account.insights_updated',
   'account.dispositions_updated',
+  'account.retention_updated',
+  'account.retention_cap_updated',
   'conversation.summary_created',
   'report.exported',
   'report_subscription.created',

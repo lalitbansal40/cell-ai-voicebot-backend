@@ -49,6 +49,7 @@ import './modules/insights/insights.schema';
 import './modules/reports/reports.schema';
 import './modules/record-exports/record-exports.schema';
 import './modules/report-subscriptions/report-subscriptions.schema';
+import './modules/retention/retention.schema';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;
 

@@ -223,7 +223,16 @@ export const CallSchema = registry.register(
       commissionMicros: money,
       totalMicros: money,
     }),
-    recording: z.object({ durationSec: z.number(), sizeBytes: z.number() }).nullable(),
+    recording: z
+      .object({
+        durationSec: z.number(),
+        sizeBytes: z.number(),
+        deletedAt: z
+          .string()
+          .nullable()
+          .openapi({ description: 'Phase 14: the file was deleted by the retention setting' }),
+      })
+      .nullable(),
     flowRunId: z.string().nullable(),
     error: z.object({ code: z.string() }).nullable(),
     createdAt: z.string(),

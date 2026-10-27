@@ -7,6 +7,7 @@ import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema, PaginationQuerySchema } from '../../shared/validation/schemas';
 import { AuditEntrySchema } from '../audit/audit.schema';
 import { AuthSessionSchema, PublicAccountSchema, PublicUserSchema } from '../auth/auth.schema';
+import { RetentionCapBody, RetentionSchema } from '../retention/retention.schema';
 
 export const ListAccountsQuery = z.strictObject({
   ...PaginationQuerySchema.shape,
@@ -59,6 +60,7 @@ export const AdminAccountDetailSchema = registry.register(
     usersCount: z.number().int(),
     usersByStatus: z.object({ invited: z.number(), active: z.number(), disabled: z.number() }),
     limits: AccountLimitsSchema,
+    retention: RetentionSchema,
     activeCampaigns: z.number().int().openapi({ description: 'Scheduled, running or paused' }),
     adminPausedCampaigns: z.array(z.object({ id: z.string(), name: z.string() })).openapi({
       description: 'Paused by the platform team — only a superadmin resumes them (≤ 100)',
@@ -187,6 +189,22 @@ registry.registerPath({
   security: bearer,
   request: { params: AccountIdParams, ...json(AccountLimitsBody) },
   responses: { 200: ok(AccountLimitsSchema), 403: errors[403], 404: errors[404], 422: errors[422] },
+});
+
+export { RetentionCapBody };
+
+registry.registerPath({
+  method: 'put',
+  path: '/api/v1/admin/accounts/{id}/retention-cap',
+  tags,
+  summary:
+    'Cap how long an account may keep call records and WhatsApp chats (superadmin; null = platform default; audited)',
+  security: bearer,
+  request: {
+    params: AccountIdParams,
+    body: { content: { 'application/json': { schema: RetentionCapBody } } },
+  },
+  responses: { 200: ok(RetentionSchema), 403: errors[403], 404: errors[404], 422: errors[422] },
 });
 
 registry.registerPath({

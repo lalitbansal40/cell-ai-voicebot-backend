@@ -56,6 +56,7 @@ import {
 } from './modules/report-subscriptions/report-subscriptions.routes';
 import type { ReportCacheStore } from './modules/reports/cache';
 import { createReportsRouter } from './modules/reports/reports.routes';
+import { createRetentionRouter } from './modules/retention/retention.routes';
 import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
@@ -201,6 +202,7 @@ export const createApiRouter = ({
     );
   }
   router.use('/account', createAccountInsightsRouter());
+  router.use('/account', createRetentionRouter());
   router.use('/account', createAccountRouter());
   router.use('/inbox', createChatSummaryRouter({ jobs: ai.jobs ?? unavailableAiJobs }));
   router.use('/team', createTeamRouter());

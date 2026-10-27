@@ -145,6 +145,8 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `call.insights_regenerated`          | user              | call                | `version`                                                                                                                     |
 | `account.insights_updated`           | user              | account             | `enabled`, `chatSummaryOnClose`, `transcribeHumanCalls` (the changed ones)                                                    |
 | `account.dispositions_updated`       | user              | account             | `keys`, `removed`, `inactive` (outcome keys)                                                                                  |
+| `account.retention_updated`          | user              | account             | `from`, `to` (`recordingsDays`, `callsDays`, `inboxDays` — numbers / null)                                                    |
+| `account.retention_cap_updated`      | user (platform)   | account             | `from`, `to` (`callsDays`, `inboxDays`); both accounts                                                                        |
 | `conversation.summary_created`       | user              | conversation        | `summaryId` (never the summary text)                                                                                          |
 | `report.exported`                    | user              | —                   | `kind` (`calls` / `messages` / `report`), `format`, `rows` (count), `includePhone`, `includeSummary`                          |
 | `report_subscription.created`        | user              | report_subscription | `frequency`, `tabs`, `hour`                                                                                                   |

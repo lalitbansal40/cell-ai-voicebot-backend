@@ -579,3 +579,14 @@ export const INSIGHTS_LIMITS = {
   /** Key information below this confidence is shown as "unsure". */
   lowConfidence: 0.6,
 } as const;
+
+/** Per-account retention (Phase 14, PHASE_14_PLAN §1h). Maximums come from the env defaults. */
+export const RETENTION_LIMITS = {
+  callsMinDays: 7,
+  inboxMinDays: 30,
+  recordingsMinDays: 1,
+  /** Upper bound when the platform keeps chats forever (`INBOX_RETENTION_DAYS=0`). */
+  maxDays: 3650,
+  /** Rows per purge batch (resumable: each batch is deleted before the next is read). */
+  purgeBatch: 1000,
+} as const;
