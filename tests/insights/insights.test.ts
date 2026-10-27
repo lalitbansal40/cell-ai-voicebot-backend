@@ -465,6 +465,19 @@ describe('insights API', () => {
       .set(auth(owner))
       .send({ chatSummaryOnClose: true });
     expect(put.body.data.chatSummaryOnClose).toBe(true);
+    const stt = await request(app)
+      .put('/api/v1/account/insights-settings')
+      .set(auth(owner))
+      .send({ transcribeHumanCalls: true });
+    expect(stt.body.data.transcribeHumanCalls).toBe(true);
+    expect(
+      (await AccountModel.findById(t.account._id).lean())?.settings.whatsappCalling
+        ?.transcribeHumanCalls,
+    ).toBe(true);
+    await request(app)
+      .put('/api/v1/account/insights-settings')
+      .set(auth(owner))
+      .send({ transcribeHumanCalls: false });
     expect(await AuditLogModel.exists({ action: 'account.insights_updated' })).toBeTruthy();
     expect(
       (await request(app).put('/api/v1/account/insights-settings').set(auth(owner)).send({}))

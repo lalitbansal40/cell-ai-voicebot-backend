@@ -143,7 +143,7 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `whatsapp.calling_restricted`        | system            | whatsapp_channel   | `type`, `until` (ISO or null)                                                                                                 |
 | `call.disposition_updated`           | user              | call               | `from`, `to` (outcome keys — never summary text)                                                                              |
 | `call.insights_regenerated`          | user              | call               | `version`                                                                                                                     |
-| `account.insights_updated`           | user              | account            | `enabled`, `chatSummaryOnClose` (the changed ones)                                                                            |
+| `account.insights_updated`           | user              | account            | `enabled`, `chatSummaryOnClose`, `transcribeHumanCalls` (the changed ones)                                                    |
 | `account.dispositions_updated`       | user              | account            | `keys`, `removed`, `inactive` (outcome keys)                                                                                  |
 | `conversation.summary_created`       | user              | conversation       | `summaryId` (never the summary text)                                                                                          |
 

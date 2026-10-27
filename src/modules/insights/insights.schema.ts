@@ -81,6 +81,8 @@ export const InsightsSettingsBody = z
   .strictObject({
     enabled: z.boolean().optional(),
     chatSummaryOnClose: z.boolean().optional(),
+    /** Transcribe recorded team (human) WhatsApp calls — the Phase 12 calling setting. */
+    transcribeHumanCalls: z.boolean().optional(),
   })
   .refine((b) => Object.keys(b).length > 0, { message: 'Nothing to change' });
 
@@ -224,7 +226,8 @@ registry.registerPath({
   method: 'put',
   path: '/api/v1/account/insights-settings',
   tags,
-  summary: 'Turn post-call AI / chat summaries on close on or off (account.update)',
+  summary:
+    'Turn post-call AI, chat summaries on close and team-call transcription on or off (account.update)',
   security: bearer,
   request: json(InsightsSettingsBody),
   responses: {

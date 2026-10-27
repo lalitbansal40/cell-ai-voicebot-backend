@@ -28102,7 +28102,7 @@
       },
       "put": {
         "tags": ["Insights"],
-        "summary": "Turn post-call AI / chat summaries on close on or off (account.update)",
+        "summary": "Turn post-call AI, chat summaries on close and team-call transcription on or off (account.update)",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "content": {
@@ -28111,7 +28111,8 @@
                 "type": "object",
                 "properties": {
                   "enabled": { "type": "boolean" },
-                  "chatSummaryOnClose": { "type": "boolean" }
+                  "chatSummaryOnClose": { "type": "boolean" },
+                  "transcribeHumanCalls": { "type": "boolean" }
                 },
                 "additionalProperties": false
               }

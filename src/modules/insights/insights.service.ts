@@ -559,13 +559,15 @@ export const getInsightsSettings = async (req: Request): Promise<InsightsSetting
 
 export const updateInsightsSettings = async (
   req: Request,
-  body: { enabled?: boolean; chatSummaryOnClose?: boolean },
+  body: { enabled?: boolean; chatSummaryOnClose?: boolean; transcribeHumanCalls?: boolean },
 ): Promise<InsightsSettingsView> => {
   const { accountId } = tenantFilter(req);
   const set: Record<string, boolean> = {};
   if (body.enabled !== undefined) set['settings.insights.enabled'] = body.enabled;
   if (body.chatSummaryOnClose !== undefined)
     set['settings.insights.chatSummaryOnClose'] = body.chatSummaryOnClose;
+  if (body.transcribeHumanCalls !== undefined)
+    set['settings.whatsappCalling.transcribeHumanCalls'] = body.transcribeHumanCalls;
   await AccountModel.updateOne({ _id: accountId }, { $set: set });
   await auditRequest(req, 'account.insights_updated', {
     target: { type: 'account', id: accountId.toString() },
