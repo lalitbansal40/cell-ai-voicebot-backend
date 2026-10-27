@@ -47,6 +47,13 @@ Install/enable `cav-backup.timer` and `cav-healthwatch.timer` after this succeed
 
 The owner must supply the staging operator and alert/on-call contacts at Gate A. No contact names or credentials are invented here.
 
+## Reports, insights and retention (Phase 14)
+
+- **Rollups** are written every minute by `analytics-sweep` (maintenance queue) and recounted nightly at 02:30 UTC by `analytics-reconcile` (last 3 days; a mismatch fixes itself and rings the superadmin bell `analytics.reconcile_mismatch`). Recount by hand after a restore or a bug fix: `tools.sh analytics:rebuild -- --account <id> --from YYYY-MM-DD --to YYYY-MM-DD` (`--dry-run` first: it prints the differences without writing). Days older than the raw-data retention are skipped (their rollups stay). A full 400-day recount of 100k calls + 500k messages took about 12 minutes locally (Phase 14 perf run).
+- **Post-call insights** run on the AI queue (`insights.sweep` every minute, `insights.run`, `insights.stt`); a stuck queue shows as call pages still saying "Insights appear about a minute after the call ends" long after the call. Turning an account's insights off stops new runs; nothing is deleted.
+- **Report e-mails** go out from `reports-email` at :05 every hour (account-local hour, once per period). A person who left or lost `reports.read` is skipped; their link stops the e-mail.
+- **Retention changes:** an account's shorter period applies on the next `calls-purge` (05:10 UTC) / `inbox-retention` run — say so before a customer saves. A superadmin cap (`Admin → account → Data retention limit`) clamps the account's settings. Purges are batched and resumable; counts are in the maintenance logs and the inbox purge audit row. Rollups are never purged by these jobs (25-month rollup retention runs in `analytics-reconcile`).
+
 ## Local evidence (P13-B1, 26 Oct 2026)
 
 Rehearsal on the Mac: project `cell-ai-voicebot-rehearsal`, the real `compose.yaml` + a rehearsal override (Docker Desktop has no host networking: API / worker on the compose bridge with the API on port 15100, nginx in a container resolving the API through Docker's DNS, Mailpit with STARTTLS and a local CA), `NODE_ENV=production` with generated credentials and format-valid dummy provider keys (no real provider was called), release sources placed exactly as `deploy-from-mac.sh` does. Results with backend `dcc6ce7`:

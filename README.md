@@ -4,7 +4,7 @@ Multi-tenant AI voice calling platform API (Node.js + Express + TypeScript + Mon
 
 ## Status
 
-**Phase 12 complete; Phase 13 staging/App Review is in progress.** [Phase 12 sign-off](docs/phases/PHASE_12_SIGNOFF.md) · [Phase 13 tracker](docs/phases/PHASE_13_TASKS.md). Local Meta compatibility, public legal pages and deployment tooling are prepared in Batch 1. Real staging/provider/phone checks and Meta approval remain owner-gated; see the [staging runbook](docs/ops/staging.md).
+**Phase 14 (records, insights & reports) complete on its branch; Phase 13 staging / App Review waits on the server.** [Phase 14 sign-off](docs/phases/PHASE_14_SIGNOFF.md) · [Phase 12 sign-off](docs/phases/PHASE_12_SIGNOFF.md) · [Phase 13 tracker](docs/phases/PHASE_13_TASKS.md). Local Meta compatibility, public legal pages and deployment tooling are prepared in Batch 1. Real staging/provider/phone checks and Meta approval remain owner-gated; see the [staging runbook](docs/ops/staging.md).
 
 ## Prerequisites
 
@@ -222,6 +222,14 @@ Voice calls on WhatsApp numbers: WebRTC media in our own process (`werift`, Opus
 - **Validation:** [Phase 12 sign-off](docs/phases/PHASE_12_SIGNOFF.md) records tests, coverage, media numbers, privacy checks and the remaining real-device gate.
 - **Try it:** `npm run db:seed` enables calling on the Demo Finance number (2 permissions, 3 past calls with tone recordings and charges); `npm run dev:calls-wa` runs the real server and drives it over HTTP (enable calling → permission request → AI call with a key press → inbound team ring answered on the media socket → missed call → wallet lines; numbers only); `npm run dev:calls-wa -- --poc` (the Batch 1 loopback call); `npm run poc:wa-call` (media PoC numbers); `POST /api/v1/dev/meta/calls/user-call`, `GET /api/v1/dev/meta/calls?channelId=…`.
 - **Env:** `WA_MEDIA_ENABLED`, `WA_MEDIA_PUBLIC_IP`, `WA_MEDIA_PORT_MIN` / `WA_MEDIA_PORT_MAX`, `WA_STUN_URLS`, `WA_MEDIA_MAX_CALLS`, `FAKE_META_CALL_DELAYS_MS`, `WA_CALL_WINDOW_IGNORED` — see the table below.
+
+## Records, insights & reports (Phase 14)
+
+- **Rollups:** `statsDaily` (account × day × channel × slice, numbers only) from one set of metric rules ([METRICS.md](docs/analytics/METRICS.md), ADR 0043): `analytics-sweep` every minute, `analytics-reconcile` nightly (recount of the last 3 days + a superadmin bell on a difference), `npm run analytics:rebuild -- [--account <id>] [--from …] [--to …] [--dry-run]`.
+- **Post-call insights** (ADR 0044): summary, outcome from the account's list, sentiment and key facts for every answered call with a transcript; recorded team calls transcribed when the account turns it on; WhatsApp chat summaries on demand or on close. Charged from the wallet as AI usage; flow / agent / person outcomes always win over the AI. Settings: `/account/insights-settings`, `/account/dispositions`.
+- **Reports API** `GET /reports/:tab` (8 tabs, account-local ranges ≤ 366 days, compare, one slice, cached 60 s + ETag); calls-list record filters.
+- **Exports** `POST /exports/calls|messages|report` (CSV / XLSX, masked phones unless `contacts.export`, never message text); **report e-mails** `/report-subscriptions` (≤ 5 each, hourly `reports-email`, signed one-click unsubscribe); **retention** `/account/retention` + superadmin cap, per-account purges.
+- **Try it:** `npm run db:seed` adds 60 days of report history to Demo Finance (calls of every kind with "Demo:" insights, WhatsApp messages with statuses, AI charges through the engine, rollups rebuilt); `npm run perf:reports [calls] [messages]` (throw-away DB `cav_perf`; last run, 100,000 calls + 500,000 messages over 400 days: every tab ≤ 225 ms p95 over 7 / 30 / 365 days, no COLLSCAN, rebuild 12 min with 0 differences); DEV only `POST /api/v1/dev/jobs/calls-purge|inbox-retention|reports-email { daysAhead?, hoursAhead? }` runs a nightly / hourly job now (E2E).
 
 ## Database (MongoDB)
 

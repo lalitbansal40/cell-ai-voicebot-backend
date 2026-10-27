@@ -34,3 +34,4 @@ Options 2, structured output, and "AI only fills".
 - Insights cost money per call; the switch is per account and the cost shows on the call and in reports.
 - AI facts are suggestions: the UI labels them "AI" with a low-confidence hint, and people can change the outcome.
 - Changing the prompt bumps `INSIGHTS_PROMPT_VERSION`; old versions stay as they were made.
+- Retention (T14.8): an account may keep recordings for less than its calls — the purge then deletes only the file (`recording.deletedAt`); the transcript (incl. `stt` turns) and every insight version stay until the call record itself is purged. Insights are tenant data under the same call retention.

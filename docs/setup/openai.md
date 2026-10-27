@@ -42,6 +42,23 @@ VOICE_TEXT_INPUT_ENABLED=false # typed words are a dev / test aid
 
 **Model switch.** `gpt-realtime-2.1-mini` is the default (≈ 3× cheaper than `gpt-realtime-2.1`, ADR 0021). Switch to the full model only if the live checklist below shows a clear quality gap. `VOICE_PIPELINE=chat` is the fallback when Realtime misses the latency / language thresholds (it uses `OPENAI_TEXT_MODEL` for the turns).
 
+### Post-call insights, transcription and chat summaries (Phase 14)
+
+No new keys or variables: insights and chat summaries use `OPENAI_TEXT_MODEL` with structured output (`response_format: json_schema`, strict — ADR 0044); recorded team calls are transcribed with `OPENAI_TRANSCRIBE_MODEL` (each side of the stereo file cut into speech segments). The fake provider answers all three deterministically, so dev / tests / E2E never spend.
+
+**What it costs the customer** (charged from the wallet as AI usage, once per version — `insights-<callId>-v<n>`, `stt-<callId>`, `chat-summary-<id>`):
+
+| Item                                  | Formula (rate card)                                                                     | Typical                                        |
+| ------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Call insights (one version)           | (input + output tokens) ÷ 1,000 × text price (₹0.20 / 1k by default)                    | 3-minute call ≈ 2,000 + 300 tokens ≈ **₹0.46** |
+| Regenerate                            | the same again, a new version (all kept)                                                | ≈ ₹0.46                                        |
+| Transcription of a recorded team call | talk minutes × `sttPerMinuteMicros` (₹0.50 / min placeholder — set it on the rate card) | 3 minutes ≈ **₹1.50**, then the insights above |
+| Chat summary                          | tokens of the new messages (≤ 200) + the answer × text price                            | 30 messages ≈ 1,500 + 200 tokens ≈ **₹0.34**   |
+
+Calls below two customer turns, unanswered calls and accounts with insights off are skipped (nothing charged). An empty wallet skips with `low_balance`. Budgets: the AI budget of the wallet applies to all three. Our own OpenAI cost is the model's token / audio price; keep the project's monthly limit (step 3 above) in step with expected volume (e.g. 10,000 answered calls / month ≈ 23 M tokens).
+
+**Live check (when staging is up):** one real answered AI call → insights within about a minute (summary in the call's language, outcome from the account's list, promise date / amount when said) → regenerate → a second version; one recorded team call with transcription on → "Team member" lines from the recording; one chat summary. Record the token counts and costs in the Phase 14 sign-off open item.
+
 ## 2. Data retention (before go-live)
 
 - API data is **not used for training** by default.

@@ -265,18 +265,18 @@ Both repos: lint, types, format, build, unit + integration, coverage gates; Play
 
 ## 4. Deliverables checklist
 
-- [ ] METRICS.md + definitions code + "count from raw" test (3 timezones)
-- [ ] `stats_daily` rollups, contribution writer, recount CLI, nightly reconcile + alert, migration 0015
-- [ ] Reports API (7 tabs) + call-list filters + caching + OpenAPI
-- [ ] Structured AI output (provider + fake), post-call insights for every call kind, disposition precedence + manual edit, regenerate, settings
-- [ ] Human-call transcription (stereo STT), chat summary
-- [ ] Call record + inbox UI, Settings (AI, dispositions)
-- [ ] Reports pages + Dashboard KPI row; menu item live
-- [ ] Exports (calls, messages, report) with permission / phone / summary rules
-- [ ] Scheduled email reports + unsubscribe
-- [ ] Per-account retention + purge jobs + UI + privacy sentence
-- [ ] Seeds, Playwright specs, perf results, security tests
-- [ ] ADR 0043 + 0044, setup guide, runbook, READMEs, CHANGELOGs, BUILD_PLAN_V2, sign-off
+- [x] METRICS.md + definitions code + "count from raw" test (3 timezones)
+- [x] `stats_daily` rollups, contribution writer, recount CLI, nightly reconcile + alert, migration 0015
+- [x] Reports API (7 tabs) + call-list filters + caching + OpenAPI
+- [x] Structured AI output (provider + fake), post-call insights for every call kind, disposition precedence + manual edit, regenerate, settings
+- [x] Human-call transcription (stereo STT), chat summary
+- [x] Call record + inbox UI, Settings (AI, dispositions)
+- [x] Reports pages + Dashboard KPI row; menu item live
+- [x] Exports (calls, messages, report) with permission / phone / summary rules
+- [x] Scheduled email reports + unsubscribe
+- [x] Per-account retention + purge jobs + UI + privacy sentence
+- [x] Seeds, Playwright specs, perf results, security tests
+- [x] ADR 0043 + 0044, setup guide, runbook, READMEs, CHANGELOGs, BUILD_PLAN_V2, sign-off
 
 ---
 
@@ -335,3 +335,4 @@ Batch 1 (backend core): T14.1 → T14.3 → T14.2 → T14.4 → **P14-B1-DONE**.
 - 2026-10-27 (T14.7 implementation): record exports share the existing contacts queue and export-job pipeline; scheduled digests use the hourly `reports-email` maintenance job and the existing deduplicated email queue. Unsubscribe uses POST (including RFC 8058 form posts) with an explicit web-page click so link scanners cannot stop subscriptions. Download authorization re-checks full-phone permission; subscription slots enforce the five-item limit under concurrency; enqueue failures leave a period due for retry; exports reject impossible/reversed dates and fail explicitly when the row cap is exceeded. These queue / unsubscribe route choices follow existing application patterns instead of adding a second scheduler API. No new environment variables.
 - 2026-10-27 (T14.8): per-account retention — `account.retention` / `account.retentionCap` (null = platform default), `GET / PUT /account/retention`, `PUT /admin/accounts/:id/retention-cap`, `RETENTION_OUT_OF_BOUNDS` (90 codes), audit `account.retention_updated` / `account.retention_cap_updated` (138 actions — one more than planned because T14.7 added `report.exported`). `calls-purge` and `inbox-retention` run per account first, then at the platform default, in batches of 1 000; a recording-only purge sets `recording.deletedAt` and keeps the call, transcript and insights. Rollup retention stays in `analytics-reconcile` (25 months). Backend 3 320 tests, coverage 96.18 / 87.68 / 95.92 / 97.69.
 - 2026-10-27 (P14-B2-DONE): Batch 2 complete — T14.5 call / inbox insights UI, T14.6 reports pages + dashboard KPIs, T14.7 exports + report e-mails (with Codex hardening: delivery re-check, per-person slots, retryable enqueue), T14.8 per-account retention. Backend 3320 tests (96.18 / 87.68 / 95.92 / 97.69), frontend 1386 (96.21 / 92.12 / 93.82 / 96.96); Playwright 151 / 151 twice on port 3150 (32.0 / 29.1 min); backend log grep 0 (e-mails only masked or SMTP message ids). Full-suite runs use `--maxWorkers=2`: with the default worker count the shared in-memory MongoDB fell over twice under load. Observed in run 2 (not a failure, Phase 12 code): two `whatsapp call: settle failed` lines (hold already released without a charge — the engine answers 409 and nothing is charged twice). `gitleaks` is not installed on this machine; the branch diff was scanned for keys / URIs instead (0).
+- 2026-10-28 (T14.9 / T14.10): 60-day demo history seed (+ staging demo as test traffic), `perf:reports` (100k calls + 500k messages: every tab ≤ 225 ms p95, index scans, recount 0 differences, backfill 813 s), route isolation + permission matrix + unsubscribe rate-limit tests, DEV-only `/dev/jobs/:name` hook, Playwright `reports-insights` + `insights-chat` (suite 158; whole suite green in runs 1 and 5 of 5 — flakes in the sign-off §7). Backend 3331 tests (96.19 / 87.73 / 95.94 / 97.69), frontend 1386. Gap audit: every §0 "Done when" and §4 item delivered; open items (staging OpenAI check, staging reconcile, STT price, legal approval, merge) in the [sign-off](PHASE_14_SIGNOFF.md) §8.

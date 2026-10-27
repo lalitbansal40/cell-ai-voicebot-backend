@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 14 · Batch 3 (T14.9–T14.10) — demo history, perf, security, sign-off** — 2026-10-28
+  - `db:seed` (and the staging review demo, as test traffic) adds 60 days of report history: calls of every kind with "Demo:" insights, WhatsApp messages with statuses, AI charges through the engine, rollups rebuilt (no OpenAI calls).
+  - `npm run perf:reports` (throw-away `cav_perf`): 100,000 calls + 500,000 messages over 400 days → every report tab ≤ 225 ms p95 over 7 / 30 / 365 days, index scans only, recount 0 differences.
+  - Security tests: every new route isolated per account (404), permission matrix snapshot, unsubscribe rate limit, no phones / summaries in audit details. DEV-only `POST /api/v1/dev/jobs/calls-purge|inbox-retention|reports-email` for E2E.
+  - Docs: sign-off, OpenAI costs of insights / transcription / chat summaries, staging runbook (recount, reconcile, report e-mails, retention), ADR notes, README.
+
 - **Phase 14 · Batch 2 (T14.5–T14.8) — team-call transcription switch, exports, report e-mails, data retention** — 2026-10-27
   - `PUT /account/insights-settings { transcribeHumanCalls }` (T14.5).
   - Record exports: `POST /exports/calls|messages|report`, `GET /exports[/:id]` on the export-job pipeline (CSV / XLSX, calls-list filters, masked phones unless `contacts.export`, AI summaries on request, message metadata only, 200k rows, one at a time, download names without personal data); contact exports no longer list them.

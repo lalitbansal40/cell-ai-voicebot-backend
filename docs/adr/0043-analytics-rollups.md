@@ -31,3 +31,4 @@ Option 3.
 - One filter per query is served by a rollup slice; combinations (campaign × team member) are answered by the raw drill-down lists.
 - Counting rules live in one file; changing one needs a recount of the affected range (`analytics:rebuild`), which the runbook lists.
 - An extra `analyticsMarks` document per counted call / message / spend row.
+- Per-account retention (T14.8) purges raw calls / messages earlier for some accounts; their counts stay in `statsDaily` (only the `analyticsMarks` bookkeeping goes with the raw row), and recounts skip days older than the raw floor.
