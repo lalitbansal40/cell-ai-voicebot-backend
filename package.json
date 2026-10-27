@@ -53,6 +53,7 @@
     "bench:contacts": "tsx --env-file-if-exists=.env scripts/bench-contacts.ts",
     "bench:wallet": "tsx --env-file-if-exists=.env scripts/bench-wallet.ts",
     "bench:retrieval": "tsx --env-file-if-exists=.env scripts/bench-retrieval.ts",
+    "perf:reports": "tsx --env-file-if-exists=.env scripts/perf-reports.ts",
     "dev:call": "tsx --env-file-if-exists=.env scripts/dev-call.ts",
     "dev:campaign": "tsx --env-file-if-exists=.env scripts/dev-campaign.ts",
     "dev:whatsapp": "tsx --env-file-if-exists=.env scripts/dev-whatsapp.ts",

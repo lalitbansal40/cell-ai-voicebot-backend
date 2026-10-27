@@ -7,7 +7,8 @@
  * demo calls run through the real call runtime on fake voice (scripts/seed-calls.ts),
  * a connected fake WhatsApp number with three simulated events (scripts/seed-whatsapp.ts),
  * demo WhatsApp chats on it through the real inbox pipeline (scripts/seed-inbox.ts),
- * WhatsApp calling on that number (scripts/seed-calls-wa.ts)
+ * WhatsApp calling on that number (scripts/seed-calls-wa.ts), 60 days of report history
+ * (scripts/seed-analytics.ts)
  * and a platform superadmin. Needs Mongo + Redis (the
  * invoice PDF is rendered by the billing worker of a running dev server).
  * Idempotent; existing users are left as they are.
@@ -30,6 +31,7 @@ import type { SystemRoleKey } from '../src/modules/rbac/system-roles';
 import { getLogger } from '../src/shared/logger';
 
 import { SEED_KB_NAME, seedAi } from './seed-ai';
+import { seedAnalytics } from './seed-analytics';
 import { seedBilling } from './seed-billing';
 import { SEED_CALL_MARKS, seedCalls } from './seed-calls';
 import { seedCallsWa } from './seed-calls-wa';
@@ -182,6 +184,13 @@ const main = async (): Promise<void> => {
       demoCallsWa.skipped
         ? `WhatsApp calling: skipped (${demoCallsWa.skipped})`
         : `WhatsApp calling: enabled on the demo number, ${String(demoCallsWa.permissions)} call permissions, ${String(demoCallsWa.calls)} past calls (fake Meta)`,
+    );
+
+    const history = await seedAnalytics(account._id);
+    console.info(
+      history.skipped
+        ? `Report history: skipped (${history.skipped})`
+        : `Report history: 60 days — ${String(history.calls)} calls, ${String(history.insights)} insights, ${String(history.messages)} WhatsApp messages, ${String(history.charges)} AI charges, ${String(history.rollupRows)} rollup rows`,
     );
 
     console.info(

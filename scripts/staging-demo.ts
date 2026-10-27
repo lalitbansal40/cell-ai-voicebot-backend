@@ -29,6 +29,7 @@ import { runOp, say } from '../src/ops/cli';
 import { getLogger } from '../src/shared/logger';
 
 import { SEED_KB_NAME, seedAi } from './seed-ai';
+import { seedAnalytics } from './seed-analytics';
 import { seedContacts } from './seed-contacts';
 import { SEED_FLOW_NAMES, seedFlows } from './seed-flows';
 
@@ -62,6 +63,8 @@ export interface DemoResult {
   knowledgeReady: number;
   flows: number;
   credited: boolean;
+  /** Phase 14: demo report history (test traffic, "Demo:" summaries, no OpenAI). */
+  historyCalls: number;
 }
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -188,6 +191,8 @@ export const stagingDemo = async (input: DemoInput, deps: DemoDeps): Promise<Dem
     ingest: !deps.skipKnowledge,
   });
   const flows = await seedFlows(account._id, { env: deps.env, ownerId, storage: deps.storage });
+  // marked as test traffic: real insights on staging come only from real calls
+  const history = await seedAnalytics(account._id, { isTest: true });
 
   return {
     accountId: account._id.toString(),
@@ -198,6 +203,7 @@ export const stagingDemo = async (input: DemoInput, deps: DemoDeps): Promise<Dem
     knowledgeReady: ai.ready,
     flows: flows.flows,
     credited: !credited.replay,
+    historyCalls: history.calls,
   };
 };
 
@@ -222,7 +228,8 @@ const main = async (args: string[]): Promise<void> => {
       `Demo account "${DEMO_ACCOUNT.name}" ready: users created ${out.usersCreated.join(', ') || 'none (kept)'}; ` +
         `${String(STAGING_DEMO_CONTACT_COUNT)} demo contacts (${String(out.contacts)} new) + ${String(out.testContacts)} new test-phone contacts; ` +
         `${String(out.agents)} new agents, knowledge base "${SEED_KB_NAME}" ${String(out.knowledgeReady)}/3 ready; ` +
-        `${String(out.flows)} new flows ("${SEED_FLOW_NAMES.loan}" published); wallet credit ${out.credited ? 'added' : 'already there'}.`,
+        `${String(out.flows)} new flows ("${SEED_FLOW_NAMES.loan}" published); wallet credit ${out.credited ? 'added' : 'already there'}; ` +
+        `${String(out.historyCalls)} new demo history calls (test traffic).`,
     );
   } finally {
     await disconnectMongo();

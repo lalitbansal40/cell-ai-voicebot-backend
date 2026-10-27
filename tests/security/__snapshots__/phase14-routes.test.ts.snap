@@ -1,0 +1,120 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Phase 14 routes — permission matrix > each role reaches exactly the routes its permissions allow 1`] = `
+{
+  "DELETE /api/v1/report-subscriptions/:id": {
+    "agent": false,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "GET /api/v1/account/dispositions": {
+    "agent": true,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "GET /api/v1/account/insights-settings": {
+    "agent": true,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "GET /api/v1/account/retention": {
+    "agent": true,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "GET /api/v1/calls/:id/insights": {
+    "agent": true,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "GET /api/v1/exports": {
+    "agent": false,
+    "manager": true,
+    "owner": true,
+    "viewer": false,
+  },
+  "GET /api/v1/exports/:id": {
+    "agent": false,
+    "manager": true,
+    "owner": true,
+    "viewer": false,
+  },
+  "GET /api/v1/inbox/conversations/:id/summary": {
+    "agent": true,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "GET /api/v1/report-subscriptions": {
+    "agent": false,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "GET /api/v1/reports/overview": {
+    "agent": false,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "GET /api/v1/reports/team": {
+    "agent": false,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "PATCH /api/v1/calls/:id/disposition": {
+    "agent": true,
+    "manager": true,
+    "owner": true,
+    "viewer": false,
+  },
+  "PATCH /api/v1/report-subscriptions/:id": {
+    "agent": false,
+    "manager": true,
+    "owner": true,
+    "viewer": true,
+  },
+  "POST /api/v1/calls/:id/insights/regenerate": {
+    "agent": true,
+    "manager": true,
+    "owner": true,
+    "viewer": false,
+  },
+  "POST /api/v1/exports/calls": {
+    "agent": false,
+    "manager": true,
+    "owner": true,
+    "viewer": false,
+  },
+  "POST /api/v1/exports/report": {
+    "agent": false,
+    "manager": true,
+    "owner": true,
+    "viewer": false,
+  },
+  "POST /api/v1/inbox/conversations/:id/summary": {
+    "agent": true,
+    "manager": true,
+    "owner": true,
+    "viewer": false,
+  },
+  "PUT /api/v1/account/insights-settings": {
+    "agent": false,
+    "manager": false,
+    "owner": true,
+    "viewer": false,
+  },
+  "PUT /api/v1/account/retention": {
+    "agent": false,
+    "manager": false,
+    "owner": true,
+    "viewer": false,
+  },
+}
+`;

@@ -30,6 +30,7 @@ import { createContactListsRouter } from './modules/contact-lists/contact-lists.
 import { createContactTagsRouter, createContactsRouter } from './modules/contacts/contacts.routes';
 import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
+import { createDevJobsRouter } from './modules/dev-jobs/dev-jobs.routes';
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import { createOpenApiHandler } from './modules/docs/openapi.controller';
 import { createFlowAudioRouter } from './modules/flow-audio/flow-audio.routes';
@@ -374,6 +375,12 @@ export const createApiRouter = ({
     );
   }
   if (env.MOCK_APIS_ENABLED) router.use('/mock', createMockApisRouter());
+  if (env.MOCK_APIS_ENABLED && env.NODE_ENV !== 'production') {
+    router.use(
+      '/dev/jobs',
+      createDevJobsRouter(contacts.storage ? { storage: contacts.storage } : {}),
+    );
+  }
   if (whatsappRuntime && env.MOCK_APIS_ENABLED && env.NODE_ENV !== 'production') {
     router.use('/dev/meta', createDevSimulatorRouter(whatsappRuntime));
   }

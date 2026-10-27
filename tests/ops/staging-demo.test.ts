@@ -96,6 +96,8 @@ describe('staging:demo', () => {
       flows: 2, // Loan recovery (published) + Customer feedback (draft)
       credited: true,
     });
+    // 60 days of demo report history, all test traffic with "Demo:" summaries
+    expect(first.historyCalls).toBeGreaterThan(100);
     const account = await AccountModel.findOne({ slug: DEMO_ACCOUNT.slug }).lean();
     expect(account?.name).toBe(DEMO_ACCOUNT.name);
     const emails = (await UserModel.find({ accountId: account?._id }).lean()).map((u) => u.email);
@@ -126,6 +128,7 @@ describe('staging:demo', () => {
       agents: 0,
       flows: 0,
       credited: false,
+      historyCalls: 0,
     });
     const credits = await LedgerEntryModel.find({
       accountId: account?._id,
