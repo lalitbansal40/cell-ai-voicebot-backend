@@ -319,26 +319,26 @@ Frontend → `feat(settings): add the data retention page [P14-T14.8]`:
 
 **Step 0**
 
-- [ ] `[P14-PLAN]` lock (defaults + literals) and `[P14-PROMPT]`; baseline green
+- [x] `[P14-PLAN]` lock (defaults + literals) and `[P14-PROMPT]`; baseline green
 
 **Batch 1**
 
-- [ ] T14.1 METRICS.md, definitions, `stats_daily`, writer + hooks, rebuild CLI, reconcile job, migration 0015, property tests (3 timezones)
-- [ ] T14.2 7 report endpoints, filters, cache + ETag, call-list filters, OpenAPI, isolation + permission tests
-- [ ] T14.3 structured output (provider + fake), insights job + model + precedence + charging, routes, settings, dispositions, injection + log tests
-- [ ] T14.4 stereo STT pipeline, chat summary, tests
-- [ ] P14-B1-DONE (verify, rebuild = 0 differences) → continued without stopping
+- [x] T14.1 METRICS.md, definitions, `stats_daily`, writer + hooks, rebuild CLI, reconcile job, migration 0015, property tests (3 timezones)
+- [x] T14.2 7 report endpoints, filters, cache + ETag, call-list filters, OpenAPI, isolation + permission tests
+- [x] T14.3 structured output (provider + fake), insights job + model + precedence + charging, routes, settings, dispositions, injection + log tests
+- [x] T14.4 stereo STT pipeline, chat summary, tests
+- [x] P14-B1-DONE (verify, rebuild = 0 differences) → continued without stopping
 
 **Batch 2**
 
-- [ ] T14.5 insights card, disposition editor, list filters, inbox summary, settings
-- [ ] T14.6 reports pages (7 tabs), filter bar, charts + tables, drill-down, dashboard KPIs, nav visible
-- [ ] T14.7 exports (calls, messages, report), email subscriptions + scheduler + unsubscribe (both repos)
-- [ ] T14.8 retention settings + purge jobs + admin cap + privacy sentence (both repos)
-- [ ] P14-B2-DONE (verify both, Playwright twice + log grep, bundle) → continued without stopping
+- [x] T14.5 insights card, disposition editor, list filters, inbox summary, settings
+- [x] T14.6 reports pages (7 tabs), filter bar, charts + tables, drill-down, dashboard KPIs, nav visible
+- [x] T14.7 exports (calls, messages, report), email subscriptions + scheduler + unsubscribe (both repos)
+- [x] T14.8 retention settings + purge jobs + admin cap + privacy sentence (both repos)
+- [x] P14-B2-DONE (verify both, Playwright twice + log grep, bundle) → continued without stopping
 
 **Batch 3**
 
-- [ ] T14.9 seeds, Playwright specs, perf numbers, security tests, Playwright twice
-- [ ] T14.10 gap audit, METRICS.md, ADR 0043 / 0044, setup + runbook + conventions + READMEs + CHANGELOGs + BUILD_PLAN_V2, sign-off
-- [ ] P14-B3-DONE (final verify, clean trees, final Hinglish report)
+- [x] T14.9 seeds, Playwright specs, perf numbers, security tests, Playwright twice
+- [x] T14.10 gap audit, METRICS.md, ADR 0043 / 0044, setup + runbook + conventions + READMEs + CHANGELOGs + BUILD_PLAN_V2, sign-off
+- [x] P14-B3-DONE (final verify, clean trees, final Hinglish report)
