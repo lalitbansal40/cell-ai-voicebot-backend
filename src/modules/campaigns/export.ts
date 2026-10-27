@@ -161,7 +161,8 @@ export const resultRow = (
   ];
 };
 
-const fileOf = async (format: ExportFormat, records: string[][]): Promise<Buffer> => {
+/** CSV (BOM, CRLF) or XLSX (bold header) bytes of rows — shared by the record exports (Phase 14). */
+export const exportFile = async (format: ExportFormat, records: string[][]): Promise<Buffer> => {
   if (format === 'csv') {
     return Buffer.concat([
       Buffer.from('﻿'),
@@ -247,7 +248,7 @@ export const runCampaignExport = async (
     const records = [headers, ...rows.map((r) => resultRow(r, ctx))];
     const ext = job.format;
     const fileKey = storageKey({ accountId, area: 'exports', id: exportJobId, ext });
-    await storage.put(fileKey, await fileOf(job.format, records), {
+    await storage.put(fileKey, await exportFile(job.format, records), {
       contentType:
         ext === 'csv'
           ? 'text/csv'

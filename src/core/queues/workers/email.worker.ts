@@ -1,5 +1,6 @@
 import { UnrecoverableError, type Job, type Processor, type Worker } from 'bullmq';
 
+import { mayDeliverReport } from '../../../modules/report-subscriptions/report-subscriptions.service';
 import type { EmailJobData } from '../../email/email.service';
 import {
   EmailPermanentError,
@@ -18,6 +19,11 @@ export const processEmailJob =
     if (!isEmailTemplateKey(template)) {
       throw new UnrecoverableError(`Unknown email template "${String(template)}"`);
     }
+    if (
+      template === 'reports.digest' &&
+      !(await mayDeliverReport((vars as { subscriptionId: string }).subscriptionId))
+    )
+      return { messageId: 'report-skipped' };
     try {
       return await provider.send({ to, ...renderTemplate(template, vars) });
     } catch (err) {

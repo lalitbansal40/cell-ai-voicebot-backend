@@ -72,6 +72,7 @@ export class SmtpEmailProvider implements EmailProvider {
         html: message.html,
         text: message.text,
         replyTo: message.replyTo,
+        ...(message.headers ? { headers: message.headers } : {}),
       });
       const messageId = String(info.messageId);
       this.logger.info(

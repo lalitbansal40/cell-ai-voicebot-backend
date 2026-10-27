@@ -8,6 +8,7 @@ import { bulkJob } from '../../../modules/contacts/bulk.service';
 import type { ContactJobData, ContactJobName, ContactJobs } from '../../../modules/contacts/jobs';
 import { isContactJobName } from '../../../modules/contacts/jobs';
 import { deleteFieldValues } from '../../../modules/custom-fields/custom-fields.jobs';
+import { runRecordExport } from '../../../modules/record-exports/record-exports.service';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -33,6 +34,8 @@ export const CONTACT_JOB_HANDLERS: ContactJobHandlers = {
   'import.validate': (data, ctx) => validateImport(data, ctx),
   'import.run': (data, ctx, job) => runImport(data, ctx, job),
   'export.run': (data, ctx) => runExport(data, ctx),
+  // Phase 14: calls / messages / report exports
+  'records.export': (data, ctx) => runRecordExport(data, ctx),
   'bulk.run': (data) => bulkJob(data),
 };
 

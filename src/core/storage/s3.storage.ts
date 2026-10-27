@@ -12,7 +12,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { SIGNED_URL_TTL_SEC } from '../../config/limits';
 import { NotFoundError, ProviderError } from '../../shared/errors/app-error';
 
-import { assertSafeKey } from './keys';
+import { assertSafeKey, safeDownloadName } from './keys';
 import type { StorageProvider } from './storage.types';
 
 const isNotFound = (err: unknown): boolean => {
@@ -90,9 +90,18 @@ export class S3Storage implements StorageProvider {
     }
   }
 
-  signedUrl(key: string, opts: { expiresInSec?: number } = {}): Promise<string> {
+  signedUrl(
+    key: string,
+    opts: { expiresInSec?: number; downloadName?: string } = {},
+  ): Promise<string> {
     assertSafeKey(key);
-    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
+    const name = safeDownloadName(opts.downloadName);
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ...(name ? { ResponseContentDisposition: `attachment; filename="${name}"` } : {}),
+    });
+    return getSignedUrl(this.client, command, {
       expiresIn: opts.expiresInSec ?? SIGNED_URL_TTL_SEC,
     });
   }

@@ -15,6 +15,7 @@ import { purgeDeletedAudio } from '../../../modules/flow-audio/flow-audio.servic
 import { purgeDeletedFlows } from '../../../modules/flows/maintenance';
 import { INBOX_RETENTION_CRON, INBOX_RETENTION_JOB } from '../../../modules/inbox/jobs';
 import { runInboxRetention } from '../../../modules/inbox/retention.job';
+import { sendDueReports } from '../../../modules/report-subscriptions/report-subscriptions.service';
 import { purgeWebhookEvents } from '../../../modules/whatsapp/webhook-processor';
 import type { StorageProvider } from '../../storage';
 import { purgeTtsCache } from '../../voice/tts-cache';
@@ -41,6 +42,8 @@ export const WHATSAPP_EVENTS_PURGE_JOB = 'whatsapp-events-purge';
 export const ANALYTICS_SWEEP_JOB = 'analytics-sweep';
 /** Phase 14: nightly recount of the last days from raw rows (+ rollup retention). */
 export const ANALYTICS_RECONCILE_JOB = 'analytics-reconcile';
+/** Phase 14: e-mailed reports due this hour (account-local hour, :05 past). */
+export const REPORTS_EMAIL_JOB = 'reports-email';
 
 /** Repeatable maintenance jobs (UTC crons). */
 export const MAINTENANCE_SCHEDULES = [
@@ -56,6 +59,7 @@ export const MAINTENANCE_SCHEDULES = [
   { name: INBOX_RETENTION_JOB, pattern: INBOX_RETENTION_CRON },
   { name: ANALYTICS_SWEEP_JOB, pattern: '* * * * *' },
   { name: ANALYTICS_RECONCILE_JOB, pattern: '30 2 * * *' },
+  { name: REPORTS_EMAIL_JOB, pattern: '5 * * * *' },
 ] as const;
 
 export interface MaintenanceDeps extends Pick<QueueFactoryDeps, 'logger'> {
@@ -126,6 +130,13 @@ export const processMaintenanceJob =
             callsDays: getEnv().CALL_RETENTION_DAYS,
             inboxDays: getEnv().INBOX_RETENTION_DAYS,
           },
+        });
+        break;
+      case REPORTS_EMAIL_JOB:
+        result = await sendDueReports({
+          appUrl: getEnv().FRONTEND_URL,
+          apiUrl: getEnv().APP_URL,
+          logger: deps.logger,
         });
         break;
       default:

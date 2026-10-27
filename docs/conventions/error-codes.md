@@ -94,6 +94,7 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `DISPOSITION_UNKNOWN`                       | 422  | A call outcome that isn't an active disposition of the account                                                                                                                     | 14    |
 | `CHAT_SUMMARY_EMPTY`                        | 409  | No new messages in the chat since the last summary                                                                                                                                 | 14    |
 | `REPORT_RANGE_INVALID`                      | 422  | Report date range longer than 366 days or the start after the end                                                                                                                  | 14    |
+| `REPORT_SUBSCRIPTION_LIMIT`                 | 422  | A person already has 5 report e-mails                                                                                                                                              | 14    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

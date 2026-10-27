@@ -7,7 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { SIGNED_URL_TTL_SEC } from '../../config/limits';
 import { NotFoundError, ValidationError } from '../../shared/errors/app-error';
 
-import { assertSafeKey } from './keys';
+import { assertSafeKey, safeDownloadName } from './keys';
 import { signPath, verifySignature } from './signing';
 import type { StorageProvider } from './storage.types';
 
@@ -84,12 +84,16 @@ export class LocalStorage implements StorageProvider {
     return exp < nowSec ? 'expired' : 'ok';
   }
 
-  signedUrl(key: string, opts: { expiresInSec?: number } = {}): Promise<string> {
+  signedUrl(
+    key: string,
+    opts: { expiresInSec?: number; downloadName?: string } = {},
+  ): Promise<string> {
     assertSafeKey(key);
     const exp = Math.floor(Date.now() / 1000) + (opts.expiresInSec ?? SIGNED_URL_TTL_SEC);
     const sig = signPath(this.key, key, exp);
+    const name = safeDownloadName(opts.downloadName);
     return Promise.resolve(
-      `${this.baseUrl.replace(/\/$/, '')}/files/${encodeURI(key)}?exp=${exp}&sig=${sig}`,
+      `${this.baseUrl.replace(/\/$/, '')}/files/${encodeURI(key)}?exp=${exp}&sig=${sig}${name ? `&name=${name}` : ''}`,
     );
   }
 }

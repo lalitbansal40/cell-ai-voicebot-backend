@@ -3,7 +3,7 @@ import { pipeline } from 'node:stream/promises';
 
 import type { RequestHandler } from 'express';
 
-import type { LocalStorage } from '../../core/storage';
+import { safeDownloadName, type LocalStorage } from '../../core/storage';
 import { ForbiddenError } from '../../shared/errors/app-error';
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -58,6 +58,8 @@ export const downloadFile =
     const size = await storage.size(key); // NotFoundError → 404
     const remaining = Math.max(0, exp - Math.floor(Date.now() / 1000));
     res.setHeader('Content-Type', contentTypeFor(key));
+    const name = safeDownloadName(typeof req.query.name === 'string' ? req.query.name : undefined);
+    if (name) res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
     res.setHeader('Cache-Control', `private, max-age=${remaining}`);
     // the signature is the permission: pages on the app origin may play / show it
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');

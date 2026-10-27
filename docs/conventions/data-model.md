@@ -325,21 +325,22 @@ Indexes: `{ accountId, createdAt: -1 }`, `{ status, completedAt }`. Retention: f
 
 #### ExportJob (`exportJobs`) — Phase 3 (+ campaign results, Phase 8)
 
-| Field                  | Type                                                  | R   | Notes                                                           |
-| ---------------------- | ----------------------------------------------------- | --- | --------------------------------------------------------------- |
-| kind                   | `contacts \| campaign_results`                        | ✓   | Phase 8; default `contacts`                                     |
-| campaignId             | ObjectId \| null                                      |     | Campaign of a `campaign_results` export                         |
-| format                 | `csv \| xlsx`                                         | ✓   | Default `csv`                                                   |
-| includePhone           | boolean                                               | ✓   | Full phones (creator had `contacts.export`), else last 4 digits |
-| scope                  | `ids \| filter \| list \| segment \| campaign`        | ✓   | `campaign` for campaign results                                 |
-| filter                 | `ContactFilter`                                       | ✓   | Resolved at creation                                            |
-| columns                | string[]                                              | ✓   |                                                                 |
-| status                 | `pending \| processing \| ready \| failed \| expired` | ✓   |                                                                 |
-| progress               | `{ processed, total }`                                | ✓   |                                                                 |
-| rowCount               | number                                                | ✓   |                                                                 |
-| fileKey                | string \| null                                        |     | Hidden; CSV with PII                                            |
-| createdBy              | ObjectId → users                                      | ✓   |                                                                 |
-| completedAt, expiresAt | Date                                                  |     | File deleted at `expiresAt` (24 h)                              |
+| Field                  | Type                                                          | R   | Notes                                                           |
+| ---------------------- | ------------------------------------------------------------- | --- | --------------------------------------------------------------- |
+| kind                   | `contacts \| campaign_results \| calls \| messages \| report` | ✓   | Phase 8; default `contacts`; the last three Phase 14            |
+| campaignId             | ObjectId \| null                                              |     | Campaign of a `campaign_results` export                         |
+| format                 | `csv \| xlsx`                                                 | ✓   | Default `csv`                                                   |
+| includePhone           | boolean                                                       | ✓   | Full phones (creator had `contacts.export`), else last 4 digits |
+| scope                  | `ids \| filter \| list \| segment \| campaign \| records`     | ✓   | `campaign` for campaign results, `records` for Phase 14 exports |
+| includeSummary         | boolean                                                       |     | Phase 14 calls export: the AI summary column                    |
+| filter                 | `ContactFilter`                                               | ✓   | Resolved at creation                                            |
+| columns                | string[]                                                      | ✓   |                                                                 |
+| status                 | `pending \| processing \| ready \| failed \| expired`         | ✓   |                                                                 |
+| progress               | `{ processed, total }`                                        | ✓   |                                                                 |
+| rowCount               | number                                                        | ✓   |                                                                 |
+| fileKey                | string \| null                                                |     | Hidden; CSV with PII                                            |
+| createdBy              | ObjectId → users                                              | ✓   |                                                                 |
+| completedAt, expiresAt | Date                                                          |     | File deleted at `expiresAt` (24 h)                              |
 
 Indexes: `{ accountId, createdAt: -1 }`, `{ status, expiresAt }`.
 
@@ -1038,6 +1039,10 @@ Indexes: `{ accountId, callId, version }` unique, `{ accountId, createdAt: -1 }`
 #### ConversationSummary (`conversationSummaries`) — Phase 14
 
 WhatsApp chat summaries (ADR 0044). **PII:** `summary`. Fields: `conversationId`, `status` (`pending | done | skipped | failed`), `reason`, `fromMessageId` / `toMessageId` / `messageCount` (what it covers — the next starts after `toMessageId`), `summary` (≤ 2,000), `model`, tokens, `costMicros`, `createdBy` (`null` = on close). Indexes `{ accountId, conversationId, createdAt: -1 }`, `{ createdAt: 1 }` (inbox retention).
+
+#### ReportSubscription (`reportSubscriptions`) — Phase 14
+
+Each person's report e-mails. No personal data besides `userId`. Fields: `userId`, `frequency` (`daily | weekly | monthly`), `tabs` (`overview | calls | whatsapp | campaigns | team`, ≥ 1), `hour` (0–23, account timezone), `active` (one-click unsubscribe sets `false`), `slot` (unique per account / user, 0–4), `lastSentPeriod` (`YYYY-MM-DD` / `W-<monday>` / `YYYY-MM`; checkpointed after enqueue so failures remain retryable; the queue deduplicates each period). ≤ 5 per person, enforced by a partial unique `{ accountId, userId, slot }` index during concurrent creates. Other indexes: `{ accountId, userId }`, `{ active }`.
 
 **Additions (Phase 14, insights):** Rate card `sttPerMinuteMicros` (₹0.50 placeholder; migration 0016 sets it on existing cards). Call `recording.deletedAt`.
 Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, reason, version, sentiment, hasPromise, promiseAmountMicros, hasSummary, at } | null` (no text; `null` = not reviewed yet), index `insights_due { 'timestamps.endedAt': 1 }` partial `insights = null`. Account `settings.insights { enabled (true), chatSummaryOnClose (false) }`, `settings.dispositions { key ([a-z0-9_], stable), label (≤ 40), active }[]` (8 defaults, ≤ 30). Ledger usage kinds + `insights`, `stt`, `chat_summary`.

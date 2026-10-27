@@ -47,6 +47,8 @@ import './modules/templates/templates.openapi';
 import './modules/whatsapp-calling/calling.openapi';
 import './modules/insights/insights.schema';
 import './modules/reports/reports.schema';
+import './modules/record-exports/record-exports.schema';
+import './modules/report-subscriptions/report-subscriptions.schema';
 
 type OpenApiDocument = ReturnType<OpenApiGeneratorV31['generateDocument']>;
 

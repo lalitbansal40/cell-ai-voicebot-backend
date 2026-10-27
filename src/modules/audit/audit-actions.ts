@@ -138,6 +138,10 @@ export const AUDIT_ACTIONS = [
   'account.insights_updated',
   'account.dispositions_updated',
   'conversation.summary_created',
+  'report.exported',
+  'report_subscription.created',
+  'report_subscription.updated',
+  'report_subscription.deleted',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

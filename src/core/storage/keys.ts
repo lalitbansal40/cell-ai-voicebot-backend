@@ -29,3 +29,10 @@ export const storageKey = (parts: {
   assertSafeKey(
     `accounts/${parts.accountId}/${parts.area}/${parts.id}.${parts.ext.replace(/^\./, '')}`,
   );
+
+/** A download file name the browser may use: safe characters only, ≤ 120, else `undefined`. */
+export const safeDownloadName = (name: string | undefined): string | undefined => {
+  if (!name) return undefined;
+  const clean = name.replace(/[^A-Za-z0-9_.-]+/g, '-').slice(0, 120);
+  return /^[A-Za-z0-9_-]/.test(clean) ? clean : undefined;
+};

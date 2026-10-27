@@ -40,6 +40,10 @@ export const ymdInZone = (date: Date, timeZone: string): string => {
   return `${String(p.year).padStart(4, '0')}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 };
 
+/** Local hour (0–23) of `date` in `timeZone`. */
+export const hourInZone = (date: Date, timeZone: string): number =>
+  zonedParts(date, timeZone).hour ?? 0;
+
 /** `YYYY-MM-DD` + n days (calendar arithmetic, no timezone). */
 export const addDays = (ymd: string, days: number): string => {
   const [y, m, d] = ymd.split('-').map(Number) as [number, number, number];

@@ -6,7 +6,11 @@ import { CONTACT_LIMITS } from '../../config/limits';
 import type { StorageProvider } from '../../core/storage';
 import { ContactListModel } from '../../db/models/contact-list.model';
 import { ContactModel } from '../../db/models/contact.model';
-import { ExportJobModel, type ExportJobDoc } from '../../db/models/export-job.model';
+import {
+  ExportJobModel,
+  type ExportJobDoc,
+  type ExportKind,
+} from '../../db/models/export-job.model';
 import { SegmentModel } from '../../db/models/segment.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
@@ -143,9 +147,14 @@ export const createExport = async (
   }
 };
 
+/** Phase 14 record exports live under `/exports` (calls.export / reports.export). */
+const RECORD_EXPORT_KINDS: ExportKind[] = ['calls', 'messages', 'report'];
+const NOT_CONTACTS: ExportKind[] = ['campaign_results', ...RECORD_EXPORT_KINDS];
+
 export const listExports = async (req: Request, q: z.infer<typeof ListExportsQuery>) => {
-  // contact exports only (campaign results are listed on their campaign)
-  const filter = { ...tenantFilter(req), kind: { $ne: 'campaign_results' as const } };
+  // contact exports only (campaign results are listed on their campaign, Phase 14 record
+  // exports under /exports — each behind its own permission)
+  const filter = { ...tenantFilter(req), kind: { $nin: NOT_CONTACTS } };
   const [jobs, total] = await Promise.all([
     ExportJobModel.find(filter)
       .sort({ createdAt: -1, _id: -1 })
@@ -163,7 +172,11 @@ export const listExports = async (req: Request, q: z.infer<typeof ListExportsQue
 export const getExport = async (req: Request, id: string, storage: StorageProvider) => {
   const _id = toObjectId(id);
   const job = _id
-    ? await ExportJobModel.findOne({ _id, ...tenantFilter(req) }).lean<ExportJobDoc>()
+    ? await ExportJobModel.findOne({
+        _id,
+        ...tenantFilter(req),
+        kind: { $nin: RECORD_EXPORT_KINDS },
+      }).lean<ExportJobDoc>()
     : null;
   if (!job) throw new NotFoundError('Export not found');
   // each kind needs its own permission; without it the export "does not exist"

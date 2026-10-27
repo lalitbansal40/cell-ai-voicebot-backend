@@ -156,6 +156,23 @@ describe('GET /files/*key (local driver)', () => {
     expect((res.body as Buffer).toString()).toBe('RIFF-fake');
   });
 
+  it('offers a safe download name when asked', async () => {
+    const url = await storage.signedUrl('accounts/a1/recordings/c1.wav', {
+      downloadName: 'calls acme/2026-09-01.csv',
+    });
+    expect(new URL(url).searchParams.get('name')).toBe('calls-acme-2026-09-01.csv');
+    const res = await request(app).get(pathOf(url));
+    expect(res.headers['content-disposition']).toBe(
+      'attachment; filename="calls-acme-2026-09-01.csv"',
+    );
+    // a hand-edited name is cleaned too; a name of only odd characters is dropped
+    const odd = await request(app).get(`${pathOf(url).replace(/&name=.*$/, '')}&name=..%2F"x`);
+    expect(odd.headers['content-disposition']).toBeUndefined();
+    expect(await storage.signedUrl('accounts/a1/x.wav', { downloadName: '' })).not.toContain(
+      'name=',
+    );
+  });
+
   it('regression: signed files load cross-origin (the app on another port plays recordings) and seek with ranges', async () => {
     const url = pathOf(
       await storage.signedUrl('accounts/a1/recordings/c1.wav', { expiresInSec: 120 }),
@@ -289,6 +306,11 @@ describe('S3Storage (mocked client)', () => {
     expect(url).toContain('cav-test-bucket');
     expect(url).toContain('accounts/a/x.wav');
     expect(url).toContain('X-Amz-Expires=60');
+  });
+
+  it('asks S3 for an attachment name when given one', async () => {
+    const url = await storage.signedUrl('accounts/a/x.csv', { downloadName: 'calls-acme.csv' });
+    expect(decodeURIComponent(url)).toContain('attachment; filename="calls-acme.csv"');
   });
 
   it('createStorage picks the driver from env', () => {

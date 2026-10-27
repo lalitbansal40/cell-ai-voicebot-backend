@@ -12,5 +12,6 @@ export interface StorageProvider {
   get(key: string): Promise<Readable>;
   delete(key: string): Promise<void>;
   exists(key: string): Promise<boolean>;
-  signedUrl(key: string, opts?: { expiresInSec?: number }): Promise<string>;
+  /** `downloadName`: the browser saves the file under this name (letters, digits, `.`, `_`, `-`). */
+  signedUrl(key: string, opts?: { expiresInSec?: number; downloadName?: string }): Promise<string>;
 }

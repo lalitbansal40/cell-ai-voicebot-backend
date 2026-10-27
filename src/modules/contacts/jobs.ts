@@ -5,6 +5,8 @@ export interface ContactJobData {
   'import.validate': { accountId: string; importJobId: string };
   'import.run': { accountId: string; importJobId: string };
   'export.run': { accountId: string; exportJobId: string };
+  /** Phase 14: calls / messages / report exports. */
+  'records.export': { accountId: string; exportJobId: string };
   'bulk.run': {
     accountId: string;
     actorUserId: string;
@@ -23,6 +25,7 @@ export const CONTACT_JOB_NAMES = [
   'import.validate',
   'import.run',
   'export.run',
+  'records.export',
   'bulk.run',
   'field.delete_values',
   'list.delete_members',

@@ -7,6 +7,7 @@ export interface EmailMessage {
   html: string;
   text: string;
   replyTo?: string;
+  headers?: Record<string, string>;
 }
 
 export interface EmailSendResult {

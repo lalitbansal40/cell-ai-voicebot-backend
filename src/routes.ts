@@ -49,6 +49,11 @@ import { createNotificationsRouter } from './modules/notifications/notifications
 import { createWebhooksRouter } from './modules/payments/webhooks.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
+import { createRecordExportsRouter } from './modules/record-exports/record-exports.routes';
+import {
+  createReportSubscriptionsRouter,
+  createReportUnsubscribeRouter,
+} from './modules/report-subscriptions/report-subscriptions.routes';
 import type { ReportCacheStore } from './modules/reports/cache';
 import { createReportsRouter } from './modules/reports/reports.routes';
 import { createSegmentsRouter } from './modules/segments/segments.routes';
@@ -345,6 +350,15 @@ export const createApiRouter = ({
   router.use('/campaigns', createCampaignsRouter(campaigns));
   router.use('/calls', createCallInsightsRouter({ jobs: ai.jobs ?? unavailableAiJobs }));
   router.use('/reports', createReportsRouter({ cache: reports.cache ?? null }));
+  router.use('/report-subscriptions', createReportSubscriptionsRouter());
+  router.use('/report-unsubscribe', createReportUnsubscribeRouter());
+  router.use(
+    '/exports',
+    createRecordExportsRouter({
+      ...(contacts.storage ? { storage: contacts.storage } : {}),
+      ...(contacts.jobs ? { jobs: contacts.jobs } : {}),
+    }),
+  );
   if (calls) {
     router.use(
       '/calls',

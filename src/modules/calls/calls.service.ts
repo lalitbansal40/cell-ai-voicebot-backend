@@ -266,8 +266,11 @@ export const startWebCall = async (
   };
 };
 
-export const listCalls = async (req: Request, query: z.infer<typeof ListCallsQuery>) => {
-  const { accountId } = tenantFilter(req);
+/** The Mongo filter of a calls list / calls export (everything but the page cursor). */
+export const callsFilter = async (
+  accountId: Types.ObjectId,
+  query: Omit<z.infer<typeof ListCallsQuery>, 'cursor' | 'limit'>,
+): Promise<Record<string, unknown>> => {
   const filter: Record<string, unknown> = { accountId };
   if (query.status) filter.status = { $in: query.status };
   if (query.flowId) filter['source.flowId'] = new Types.ObjectId(query.flowId);
@@ -305,6 +308,12 @@ export const listCalls = async (req: Request, query: z.infer<typeof ListCallsQue
       .filter((id) => !query.contactId || id.toString() === query.contactId);
     filter.contactId = { $in: ids };
   }
+  return filter;
+};
+
+export const listCalls = async (req: Request, query: z.infer<typeof ListCallsQuery>) => {
+  const { accountId } = tenantFilter(req);
+  const filter = await callsFilter(accountId, query);
   if (query.cursor) {
     const c = decodeCursor(query.cursor);
     const cAt = new Date(c.at);

@@ -43,6 +43,7 @@ import './payment-event.model';
 import './platform-settings.model';
 import './rate-card.model';
 import './refresh-token.model';
+import './report-subscription.model';
 import './role.model';
 import './segment.model';
 import './stats-daily.model';

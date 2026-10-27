@@ -458,7 +458,11 @@
               "call.insights_regenerated",
               "account.insights_updated",
               "account.dispositions_updated",
-              "conversation.summary_created"
+              "conversation.summary_created",
+              "report.exported",
+              "report_subscription.created",
+              "report_subscription.updated",
+              "report_subscription.deleted"
             ]
           },
           "actor": {
@@ -1515,12 +1519,15 @@
           "id": { "type": "string" },
           "kind": {
             "type": "string",
-            "enum": ["contacts", "campaign_results"],
+            "enum": ["contacts", "campaign_results", "calls", "messages", "report"],
             "description": "campaign_results: needs campaigns.export"
           },
           "campaignId": { "type": ["string", "null"] },
           "format": { "type": "string", "enum": ["csv", "xlsx"] },
-          "scope": { "type": "string", "enum": ["ids", "filter", "list", "segment", "campaign"] },
+          "scope": {
+            "type": "string",
+            "enum": ["ids", "filter", "list", "segment", "campaign", "records"]
+          },
           "columns": { "type": "array", "items": { "type": "string" } },
           "status": {
             "type": "string",
@@ -6856,6 +6863,63 @@
           "updatedAt": { "type": "string" }
         },
         "required": ["tab", "range", "compareRange", "kpis", "series", "table", "updatedAt"]
+      },
+      "RecordExport": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["contacts", "campaign_results", "calls", "messages", "report"]
+          },
+          "format": { "type": "string", "enum": ["csv", "xlsx"] },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "ready", "failed", "expired"]
+          },
+          "progress": {
+            "type": "object",
+            "properties": { "processed": { "type": "number" }, "total": { "type": "number" } },
+            "required": ["processed", "total"]
+          },
+          "rowCount": { "type": "number" },
+          "errorMessage": { "type": ["string", "null"] },
+          "completedAt": { "type": ["string", "null"] },
+          "expiresAt": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" },
+          "downloadUrl": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "kind",
+          "format",
+          "status",
+          "progress",
+          "rowCount",
+          "errorMessage",
+          "completedAt",
+          "expiresAt",
+          "createdAt"
+        ]
+      },
+      "ReportSubscription": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly"] },
+          "tabs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["overview", "calls", "whatsapp", "campaigns", "team"]
+            }
+          },
+          "hour": { "type": "integer" },
+          "active": { "type": "boolean" },
+          "lastSentPeriod": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" }
+        },
+        "required": ["id", "frequency", "tabs", "hour", "active", "lastSentPeriod", "createdAt"]
       },
       "WhatsAppEmbeddedSignupInput": {
         "type": "object",
@@ -29536,6 +29600,676 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exports/calls": {
+      "post": {
+        "tags": ["Exports"],
+        "summary": "Export calls as CSV / XLSX (calls.export; includePhone needs contacts.export; ≤ 200,000 rows; one export at a time; never while impersonating)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": { "type": "string", "enum": ["csv", "xlsx"], "default": "csv" },
+                  "from": { "type": "string", "format": "date" },
+                  "to": { "type": "string", "format": "date" },
+                  "status": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "ringing",
+                        "in_progress",
+                        "completed",
+                        "failed",
+                        "busy",
+                        "no_answer",
+                        "canceled"
+                      ]
+                    },
+                    "maxItems": 8
+                  },
+                  "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "agentId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "campaignId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "provider": {
+                    "type": "string",
+                    "enum": ["webcall", "sip", "notifynow", "dryrun", "whatsapp"]
+                  },
+                  "direction": { "type": "string", "enum": ["inbound", "outbound"] },
+                  "mode": { "type": "string", "enum": ["human", "ai"] },
+                  "isTest": { "type": "boolean" },
+                  "disposition": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-z0-9_]{1,40}$" },
+                    "maxItems": 30
+                  },
+                  "sentiment": { "type": "string", "enum": ["positive", "neutral", "negative"] },
+                  "hasPromise": { "type": "boolean" },
+                  "hasSummary": { "type": "boolean" },
+                  "q": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "answeredBy": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "includePhone": { "type": "boolean", "default": false },
+                  "includeSummary": { "type": "boolean", "default": false }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/RecordExport" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exports/messages": {
+      "post": {
+        "tags": ["Exports"],
+        "summary": "Export WhatsApp message metadata — never the text (reports.export; ≤ 200,000 rows)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": { "type": "string", "enum": ["csv", "xlsx"], "default": "csv" },
+                  "from": { "type": "string", "format": "date" },
+                  "to": { "type": "string", "format": "date" },
+                  "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "direction": { "type": "string", "enum": ["in", "out"] }
+                },
+                "required": ["from", "to"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/RecordExport" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exports/report": {
+      "post": {
+        "tags": ["Exports"],
+        "summary": "Export a report tab's numbers (reports.export)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": { "type": "string", "enum": ["csv", "xlsx"], "default": "csv" },
+                  "tab": {
+                    "type": "string",
+                    "enum": [
+                      "overview",
+                      "calls",
+                      "whatsapp",
+                      "templates",
+                      "campaigns",
+                      "flows",
+                      "agents",
+                      "team"
+                    ]
+                  },
+                  "query": {
+                    "type": "object",
+                    "properties": {
+                      "from": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "description": "First day (account timezone). Default: 6 days ago"
+                      },
+                      "to": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "description": "Last day, inclusive. Default: today"
+                      },
+                      "compare": {
+                        "type": "string",
+                        "enum": ["true", "false"],
+                        "description": "Also return the previous period of the same length"
+                      },
+                      "channel": {
+                        "type": "string",
+                        "enum": ["voice", "whatsapp"],
+                        "description": "Calls of one channel"
+                      },
+                      "channelId": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{24}$/i",
+                        "description": "A WhatsApp number"
+                      },
+                      "campaignId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                      "campaignIds": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{24}(,[a-f0-9]{24}){0,9}$/i",
+                        "description": "Campaigns tab: up to 10 to compare (comma-separated)"
+                      },
+                      "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                      "agentId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                      "userId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                      "includeTest": {
+                        "type": "string",
+                        "enum": ["true", "false"],
+                        "description": "Count test calls too"
+                      }
+                    },
+                    "default": {},
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["tab"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/RecordExport" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exports/{id}": {
+      "get": {
+        "tags": ["Exports"],
+        "summary": "An export of calls / messages / a report; a 15-minute download link once ready (the kind’s permission)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/RecordExport" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exports": {
+      "get": {
+        "tags": ["Exports"],
+        "summary": "Recent exports of calls (calls.export) and messages / reports (reports.export), newest first",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/RecordExport" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report-subscriptions": {
+      "get": {
+        "tags": ["Report e-mails"],
+        "summary": "My report e-mails (reports.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ReportSubscription" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Report e-mails"],
+        "summary": "Get a report by e-mail (reports.read; ≤ 5 each; 422 REPORT_SUBSCRIPTION_LIMIT)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly"] },
+                  "tabs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["overview", "calls", "whatsapp", "campaigns", "team"]
+                    },
+                    "minItems": 1,
+                    "maxItems": 5,
+                    "default": ["overview"]
+                  },
+                  "hour": { "type": "integer", "minimum": 0, "maximum": 23, "default": 9 }
+                },
+                "required": ["frequency"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ReportSubscription" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report-subscriptions/{id}": {
+      "patch": {
+        "tags": ["Report e-mails"],
+        "summary": "Change or pause one of my report e-mails",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly"] },
+                  "tabs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["overview", "calls", "whatsapp", "campaigns", "team"]
+                    },
+                    "minItems": 1,
+                    "maxItems": 5
+                  },
+                  "hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+                  "active": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ReportSubscription" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Report e-mails"],
+        "summary": "Stop one of my report e-mails",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report-unsubscribe": {
+      "post": {
+        "tags": ["Report e-mails"],
+        "summary": "One-click stop from the e-mail link (no login; 20 / min / IP; token in the body or, for mail apps (RFC 8058), the query; 422 for a bad or old link)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 10, "maxLength": 200 },
+            "required": false,
+            "name": "token",
+            "in": "query"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "token": { "type": "string", "minLength": 10, "maxLength": 200 } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "stopped": { "type": "boolean", "enum": [true] } },
+                      "required": ["stopped"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

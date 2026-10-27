@@ -209,6 +209,10 @@ export const ERROR_CODES = {
     status: 422,
     message: 'Choose a date range of at most 366 days, with the start before the end.',
   },
+  REPORT_SUBSCRIPTION_LIMIT: {
+    status: 422,
+    message: 'You already get the most report e-mails allowed. Remove one first.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;
