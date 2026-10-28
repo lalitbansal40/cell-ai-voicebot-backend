@@ -66,7 +66,7 @@ export const buildOpenApiDocument = ({
   new OpenApiGeneratorV31(registry.definitions).generateDocument({
     openapi: '3.1.0',
     info: {
-      title: 'Cell AI Voicebot API',
+      title: 'NotifyNow API',
       version: getAppInfo().version,
       description:
         'Multi-tenant AI voice calling platform API. Conventions: docs/conventions/api.md.',

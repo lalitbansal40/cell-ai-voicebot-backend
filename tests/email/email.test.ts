@@ -34,7 +34,7 @@ describe('email templates', () => {
 
   it('renders system.test with escaped values and a text part', () => {
     const email = renderTemplate('system.test', { name: '<script>alert(1)</script>' });
-    expect(email.subject).toBe('Test email from Cell AI Voicebot');
+    expect(email.subject).toBe('Test email from NotifyNow');
     expect(email.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(email.html).not.toContain('<script>alert(1)');
     expect(email.html).toContain('<!doctype html>');
@@ -82,7 +82,7 @@ describe('createEmailService', () => {
     expect(messageId).toBe('mem-1');
     expect(provider.sent[0]).toMatchObject({
       to: 'user@example.com',
-      subject: 'Test email from Cell AI Voicebot',
+      subject: 'Test email from NotifyNow',
     });
     provider.clear();
     expect(provider.sent).toHaveLength(0);
@@ -177,9 +177,9 @@ describe('auth templates', () => {
       expect(email.html).not.toContain('<img src=x');
       expect(email.html).toContain('&lt;img');
       expect(email.text.length).toBeGreaterThan(20);
-      expect(email.subject).toMatch(/Cell AI Voicebot/);
+      expect(email.subject).toMatch(/NotifyNow/);
     }
-    expect(cases[0]?.subject).toBe('Your Cell AI Voicebot verification code');
+    expect(cases[0]?.subject).toBe('Your NotifyNow verification code');
     expect(cases[0]?.html).toContain('042917');
     expect(cases[0]?.text).toContain('042917');
     expect(cases[1]?.html).toContain('a=1&amp;b=&quot;2&quot;');
@@ -196,7 +196,7 @@ describe('team invite template', () => {
       acceptUrl: 'https://app/accept-invite?token=SECRET123',
       days: 7,
     });
-    expect(email.subject).toBe("You're invited to Acme & Co on Cell AI Voicebot");
+    expect(email.subject).toBe("You're invited to Acme & Co on NotifyNow");
     expect(email.subject).not.toContain('SECRET123');
     expect(email.html).toContain('&lt;b&gt;Boss&lt;/b&gt;');
     expect(email.html).toContain('Acme &amp; Co');

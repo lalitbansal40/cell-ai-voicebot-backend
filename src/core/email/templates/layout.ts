@@ -1,6 +1,6 @@
 import { escapeHtml } from './escape';
 
-export const APP_NAME = 'Cell AI Voicebot';
+export const APP_NAME = 'NotifyNow';
 
 /**
  * Shared HTML shell: table layout + inline CSS (email clients ignore <style>

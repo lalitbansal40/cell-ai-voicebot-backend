@@ -66,7 +66,7 @@ describe('email queue + worker (real Redis)', () => {
     expect(done.jobId).toBe(jobId);
     expect((done.returnvalue as EmailSendResult).messageId).toBe('mem-1');
     expect(provider.sent).toHaveLength(1);
-    expect(provider.sent[0]?.subject).toBe('Test email from Cell AI Voicebot');
+    expect(provider.sent[0]?.subject).toBe('Test email from NotifyNow');
     expect(provider.sent[0]?.html).toContain('Asha');
     // Removed on success — the recipient does not linger in Redis.
     expect(await queue.getJob(jobId ?? '')).toBeUndefined();

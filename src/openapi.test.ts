@@ -7,7 +7,7 @@ describe('buildOpenApiDocument', () => {
 
   it('is an OpenAPI 3.1 document', () => {
     expect(doc.openapi).toMatch(/^3\.1\./);
-    expect(doc.info.title).toBe('Cell AI Voicebot API');
+    expect(doc.info.title).toBe('NotifyNow API');
   });
 
   it('documents GET /api/v1/system/info', () => {

@@ -24,6 +24,6 @@ export const PRODUCTION_APP_ENV = {
   JWT_REFRESH_SECRET: 'test-refresh-secret-0123456789abcdefXYZ',
   ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
   SMTP_HOST: 'smtp.example.com',
-  MAIL_FROM: 'Cell AI Voicebot <no-reply@example.com>',
+  MAIL_FROM: 'NotifyNow <no-reply@example.com>',
   ...PRODUCTION_BILLING_ENV,
 } as const;

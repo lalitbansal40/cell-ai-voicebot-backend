@@ -73,7 +73,7 @@ const envFor = (port: number, auth?: { user: string; pass: string }) => ({
   SMTP_SECURE: false,
   SMTP_USER: auth?.user,
   SMTP_PASS: auth?.pass,
-  MAIL_FROM: 'Cell AI Voicebot <no-reply@example.com>',
+  MAIL_FROM: 'NotifyNow <no-reply@example.com>',
 });
 
 const message = (to = 'user@example.com') => ({
@@ -108,7 +108,7 @@ describe('SmtpEmailProvider (in-process SMTP server)', () => {
     expect(mail?.from).toBe('no-reply@example.com');
     expect(mail?.to).toEqual(['user@example.com']);
     expect(mail?.raw).toContain('Subject: Hello from tests');
-    expect(mail?.raw).toContain('From: Cell AI Voicebot <no-reply@example.com>');
+    expect(mail?.raw).toContain('From: NotifyNow <no-reply@example.com>');
     expect(mail?.raw).toContain('body-text-marker');
     const log = lines.join('');
     expect(log).toContain('u***@example.com');

@@ -20,7 +20,7 @@ const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
 
 const LOCAL_MONGODB_URI = 'mongodb://127.0.0.1:27018/cell_ai_voicebot?replicaSet=rs0';
 const LOCAL_REDIS_URL = 'redis://127.0.0.1:6380';
-const DEV_MAIL_FROM = 'Cell AI Voicebot <no-reply@localhost>';
+const DEV_MAIL_FROM = 'NotifyNow <no-reply@localhost>';
 
 const optionalString = z.string().optional();
 
@@ -721,7 +721,7 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       paymentProvider === 'fake'
         ? (raw.FAKE_PAYMENT_SECRET ?? 'dev-fake-payment-secret')
         : undefined,
-    BILLING_SELLER_NAME: raw.BILLING_SELLER_NAME ?? 'Cell AI Voicebot (sample seller)',
+    BILLING_SELLER_NAME: raw.BILLING_SELLER_NAME ?? 'NotifyNow (sample seller)',
     BILLING_SELLER_ADDRESS:
       raw.BILLING_SELLER_ADDRESS ?? 'Sample address, Jaipur, Rajasthan 302001',
     BILLING_SELLER_STATE_CODE: sellerState,

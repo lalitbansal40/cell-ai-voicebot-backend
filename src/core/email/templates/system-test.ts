@@ -8,7 +8,7 @@ export interface SystemTestVars {
 
 /** Smoke-test email (`npm run email:test`). */
 export const systemTest = ({ name }: SystemTestVars): RenderedEmail => {
-  const subject = 'Test email from Cell AI Voicebot';
+  const subject = 'Test email from NotifyNow';
   return {
     subject,
     html: renderLayout({

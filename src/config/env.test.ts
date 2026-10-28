@@ -19,7 +19,7 @@ const validProduction = {
   JWT_REFRESH_SECRET: PROD_SECRET_B,
   ENCRYPTION_KEY: PROD_KEY,
   SMTP_HOST: 'smtp.example.com',
-  MAIL_FROM: 'Cell AI Voicebot <no-reply@example.com>',
+  MAIL_FROM: 'NotifyNow <no-reply@example.com>',
   RAZORPAY_KEY_ID: 'rzp_test_example',
   RAZORPAY_KEY_SECRET: 'test-razorpay-key-secret',
   RAZORPAY_WEBHOOK_SECRET: 'test-razorpay-webhook-secret',
@@ -215,7 +215,7 @@ describe('loadEnv — email', () => {
   it('uses the log driver without SMTP_HOST and a dev MAIL_FROM', () => {
     const env = loadEnv({});
     expect(env.EMAIL_DRIVER).toBe('log');
-    expect(env.MAIL_FROM).toBe('Cell AI Voicebot <no-reply@localhost>');
+    expect(env.MAIL_FROM).toBe('NotifyNow <no-reply@localhost>');
     expect(env.SMTP_SECURE).toBe(false);
   });
 

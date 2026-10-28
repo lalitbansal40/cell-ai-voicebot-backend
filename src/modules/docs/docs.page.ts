@@ -7,7 +7,7 @@ export const renderDocsPage = (): string => `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cell AI Voicebot API</title>
+<title>NotifyNow API</title>
 <link rel="stylesheet" href="${DOCS_PATH}/assets/swagger-ui.css">
 <link rel="icon" type="image/png" href="${DOCS_PATH}/assets/favicon-32x32.png">
 </head>

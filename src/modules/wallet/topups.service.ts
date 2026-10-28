@@ -106,7 +106,7 @@ export const createTopup = async (
       providerOrderId,
       amountPaise,
       currency: 'INR' as const,
-      name: 'Cell AI Voicebot',
+      name: 'NotifyNow',
       description: 'Wallet recharge',
       prefill: { name: profile.legalName, email: profile.email },
     },

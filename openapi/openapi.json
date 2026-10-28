@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Cell AI Voicebot API",
+    "title": "NotifyNow API",
     "version": "0.0.1",
     "description": "Multi-tenant AI voice calling platform API. Conventions: docs/conventions/api.md."
   },
