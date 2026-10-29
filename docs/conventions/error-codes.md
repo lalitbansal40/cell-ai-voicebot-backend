@@ -98,6 +98,8 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `REPORT_SUBSCRIPTION_LIMIT`                 | 422  | A person already has 5 report e-mails                                                                                                                                              | 14    |
 | `API_KEY_IP_DENIED`                         | 403  | The API key has an IP allowlist and the client IP (`req.ip`, `X-Forwarded-For` only per `TRUST_PROXY`) is not in it                                                                | 15    |
 | `API_KEY_EXPIRED`                           | 401  | The API key's expiry date has passed                                                                                                                                               | 15    |
+| `WEBHOOK_URL_BLOCKED`                       | 422  | A webhook URL is not allowed: not https (production), private / local / metadata address, user:password in the URL, or not a valid URL — checked at save and at every delivery     | 15    |
+| `WEBHOOK_ENDPOINT_LIMIT`                    | 422  | The account already has 10 webhook endpoints                                                                                                                                       | 15    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

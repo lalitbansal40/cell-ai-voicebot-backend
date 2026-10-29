@@ -4,9 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { createApp } from './app';
 import { getEnv, type Env } from './config/env';
 import { createAiProvider } from './core/ai';
-import { outgoingPolicy } from './core/ai/ip-guard';
 import { queueAiJobs } from './core/ai/jobs';
-import { secretBoxKey } from './core/ai/secret-box';
 import { queueBillingJobs } from './core/billing/jobs';
 import {
   createEmailProvider,
@@ -34,6 +32,7 @@ import { startContactsWorker } from './core/queues/workers/contacts.worker';
 import { startEmailWorker } from './core/queues/workers/email.worker';
 import { startMaintenanceWorker } from './core/queues/workers/maintenance.worker';
 import { startSystemWorker } from './core/queues/workers/system.worker';
+import { startWebhooksWorker } from './core/queues/workers/webhooks.worker';
 import { startWhatsAppWorker } from './core/queues/workers/whatsapp.worker';
 import { createRealtime, setRealtime } from './core/realtime';
 import { createStorage } from './core/storage';
@@ -61,6 +60,8 @@ import { queueContactJobs } from './modules/contacts/jobs';
 import { queueInboxJobs } from './modules/inbox/jobs';
 import { flushApiKeyUsage } from './modules/public-api/request-log';
 import { queueTemplateJobs } from './modules/templates/jobs';
+import { webhookRuntime } from './modules/webhooks/deliver.job';
+import { queueWebhookJobs, setWebhookJobs } from './modules/webhooks/jobs';
 import type { CallsFastPathEvent } from './modules/whatsapp/context';
 import { connectFakeStatusWebhooks } from './modules/whatsapp/fake-statuses';
 import { queueWhatsAppJobs } from './modules/whatsapp/jobs';
@@ -69,9 +70,11 @@ import { createWhatsAppBillingHook } from './modules/whatsapp-billing/billing-ho
 import { CallControlBus } from './modules/whatsapp-calling/bus';
 import { queueCallingJobs } from './modules/whatsapp-calling/jobs';
 import { createCallingRuntime } from './modules/whatsapp-calling/runtime';
+import { secretBoxKey } from './shared/crypto/secret-box';
 import { listen } from './shared/http/listen';
 import { getLogger, type Logger } from './shared/logger';
 import { createRedisRateLimitStore } from './shared/middlewares/rate-limit';
+import { outgoingPolicy } from './shared/net/url-guard';
 
 export interface RunningServer {
   server: Server;
@@ -165,6 +168,8 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
 
   const storage = createStorage(env, logger);
   const contactJobs = queueContactJobs(createQueue(QUEUES.contacts, queueDeps));
+  // Phase 15: every account event fans out to webhook deliveries on the `webhooks` queue
+  setWebhookJobs(queueWebhookJobs(createQueue(QUEUES.webhooks, queueDeps)));
   const billingJobs = queueBillingJobs(createQueue(QUEUES.billing, queueDeps));
   const aiJobs = queueAiJobs(createQueue(QUEUES.ai, queueDeps));
   const aiProvider = createAiProvider(env);
@@ -341,6 +346,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       ...(whatsapp ? { whatsapp: whatsapp.ctx } : {}),
     });
     await startAiWorker({ ...queueDeps, storage, provider: aiProvider, jobs: aiJobs });
+    startWebhooksWorker({ ...queueDeps, runtime: webhookRuntime(env) });
     if (whatsapp) {
       const { worker: whatsappWorker } = await startWhatsAppWorker({
         ...queueDeps,

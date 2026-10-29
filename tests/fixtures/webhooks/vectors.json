@@ -1,0 +1,23 @@
+{
+  "_comment": "HMAC-SHA256(secret, '<timestamp>.<body>') computed with openssl — independent of src/",
+  "vectors": [
+    {
+      "secret": "whsec_dGVzdC1zZWNyZXQtMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA",
+      "timestamp": 1761700000,
+      "body": "{\"id\":\"evt_01JBCDEFGHJKMNPQRSTVWXYZ01\",\"type\":\"call.completed\",\"apiVersion\":\"2026-10\",\"createdAt\":\"2026-10-29T01:06:40.000Z\",\"accountId\":\"6720f0a1b2c3d4e5f6a7b8c1\",\"data\":{\"callId\":\"6720f0a1b2c3d4e5f6a7b8c9\",\"status\":\"completed\",\"durationSec\":94}}",
+      "signature": "d8605653d430091ae65fbb49379267e514c06ca7b835549fa3c7774880a8aea4"
+    },
+    {
+      "secret": "whsec_b3RoZXItc2VjcmV0LTExMTExMTExMTExMTExMTExMTExMTE",
+      "timestamp": 1761700300,
+      "body": "{\"id\":\"evt_01JBCDEFGHJKMNPQRSTVWXYZ02\",\"type\":\"whatsapp.message.status\",\"apiVersion\":\"2026-10\",\"createdAt\":\"2026-10-29T01:11:40.000Z\",\"accountId\":\"6720f0a1b2c3d4e5f6a7b8c1\",\"data\":{\"messageId\":\"6720f0a1b2c3d4e5f6a7b8cd\",\"status\":\"read\",\"note\":\"₹ unicode\"}}",
+      "signature": "bf13c3340e6e9033ecf7dbdd2328d7313c532e0f7f053668ec885b04a936d812"
+    },
+    {
+      "secret": "whsec_x",
+      "timestamp": 1,
+      "body": "",
+      "signature": "f1b68d95161b3c525bccedf84eee05fc6a0f584b9d3d3f3064f734a501e707af"
+    }
+  ]
+}

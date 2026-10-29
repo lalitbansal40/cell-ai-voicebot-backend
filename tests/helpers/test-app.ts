@@ -26,6 +26,8 @@ export const buildTestApp = (
     | 'campaigns'
     | 'whatsapp'
     | 'reportCache'
+    | 'webhooks'
+    | 'publicApiStores'
   > = {},
 ) => {
   const env = testEnv(overrides);

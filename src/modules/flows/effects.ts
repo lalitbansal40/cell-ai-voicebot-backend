@@ -4,7 +4,6 @@ import { compileAgent } from '../../core/ai/compile';
 import { sendGuardedRequest, type HttpToolOptions } from '../../core/ai/http-tool';
 import { turnCost } from '../../core/ai/pricing';
 import { runAgentTurn } from '../../core/ai/run-turn';
-import { open } from '../../core/ai/secret-box';
 import type { AiProvider } from '../../core/ai/types';
 import { chargeUsage } from '../../core/billing/engine';
 import { effectiveRateCard } from '../../core/billing/rates';
@@ -16,6 +15,7 @@ import { flowTemplate } from '../../core/engine/variables';
 import type { Json } from '../../core/templating';
 import { AiAgentModel, type AiAgentDoc } from '../../db/models/ai-agent.model';
 import { FlowAudioModel } from '../../db/models/flow-audio.model';
+import { open } from '../../shared/crypto/secret-box';
 import { AppError } from '../../shared/errors/app-error';
 
 export interface FlowEffectsDeps {

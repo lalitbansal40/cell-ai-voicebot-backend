@@ -4,8 +4,6 @@ import type { z } from 'zod';
 
 import type { Env } from '../../config/env';
 import { FLOW_LIMITS } from '../../config/limits';
-import { outgoingPolicy } from '../../core/ai/ip-guard';
-import { seal, secretHint } from '../../core/ai/secret-box';
 import { graphChecksum, graphSizeBytes } from '../../core/engine/canonical';
 import {
   FlowGraphSchema,
@@ -30,6 +28,7 @@ import {
 import { UserModel } from '../../db/models/user.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
+import { seal, secretHint } from '../../shared/crypto/secret-box';
 import {
   AppError,
   ConflictError,
@@ -37,6 +36,7 @@ import {
   ValidationError,
   type ErrorDetail,
 } from '../../shared/errors/app-error';
+import { outgoingPolicy } from '../../shared/net/url-guard';
 import { escapeRegex } from '../../shared/utils/regex';
 import { accountVariables } from '../ai-agents/variables';
 import { auditRequest } from '../audit/audit.service';

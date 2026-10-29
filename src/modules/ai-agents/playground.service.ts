@@ -6,7 +6,6 @@ import type { Env } from '../../config/env';
 import { AI_LIMITS } from '../../config/limits';
 import { compileAgent } from '../../core/ai/compile';
 import type { HttpToolOptions } from '../../core/ai/http-tool';
-import { outgoingPolicy } from '../../core/ai/ip-guard';
 import { runAgentTurn, type TurnRecord } from '../../core/ai/run-turn';
 import type { AiProvider } from '../../core/ai/types';
 import { AccountModel } from '../../db/models/account.model';
@@ -21,6 +20,7 @@ import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import { ConflictError, NotFoundError } from '../../shared/errors/app-error';
+import { outgoingPolicy } from '../../shared/net/url-guard';
 import { accountTimezone } from '../wallet/wallet.service';
 
 import { findAgent } from './agents.service';

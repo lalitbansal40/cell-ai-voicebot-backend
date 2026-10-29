@@ -20,6 +20,7 @@ import {
   type WalletLowBalanceVars,
   type WalletReceiptVars,
 } from './wallet';
+import { webhookEndpointDisabled, type WebhookDisabledVars } from './webhooks';
 import {
   whatsappAdminDisconnected,
   whatsappNeedsReconnect,
@@ -53,6 +54,7 @@ export interface EmailTemplateVars {
   'template.rejected': TemplateEmailVars;
   'template.disabled': TemplateEmailVars;
   'reports.digest': ReportDigestVars;
+  'webhooks.endpoint_disabled': WebhookDisabledVars;
 }
 
 export type EmailTemplateKey = keyof EmailTemplateVars;
@@ -74,6 +76,7 @@ const TEMPLATES: { [K in EmailTemplateKey]: (vars: EmailTemplateVars[K]) => Rend
   'template.rejected': templateRejected,
   'template.disabled': templateDisabled,
   'reports.digest': reportDigest,
+  'webhooks.endpoint_disabled': webhookEndpointDisabled,
 };
 
 export const isEmailTemplateKey = (key: string): key is EmailTemplateKey =>

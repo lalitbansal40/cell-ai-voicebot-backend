@@ -16,6 +16,7 @@ import { purgeDeletedFlows } from '../../../modules/flows/maintenance';
 import { INBOX_RETENTION_CRON, INBOX_RETENTION_JOB } from '../../../modules/inbox/jobs';
 import { runInboxRetention } from '../../../modules/inbox/retention.job';
 import { sendDueReports } from '../../../modules/report-subscriptions/report-subscriptions.service';
+import { checkWebhookHealth, webhookRuntime } from '../../../modules/webhooks/deliver.job';
 import { purgeWebhookEvents } from '../../../modules/whatsapp/webhook-processor';
 import type { StorageProvider } from '../../storage';
 import { purgeTtsCache } from '../../voice/tts-cache';
@@ -44,6 +45,8 @@ export const ANALYTICS_SWEEP_JOB = 'analytics-sweep';
 export const ANALYTICS_RECONCILE_JOB = 'analytics-reconcile';
 /** Phase 14: e-mailed reports due this hour (account-local hour, :05 past). */
 export const REPORTS_EMAIL_JOB = 'reports-email';
+/** Phase 15: webhook endpoints failing for 24 h are turned off. */
+export const WEBHOOK_HEALTH_JOB = 'webhook-health';
 
 /** Repeatable maintenance jobs (UTC crons). */
 export const MAINTENANCE_SCHEDULES = [
@@ -60,6 +63,7 @@ export const MAINTENANCE_SCHEDULES = [
   { name: ANALYTICS_SWEEP_JOB, pattern: '* * * * *' },
   { name: ANALYTICS_RECONCILE_JOB, pattern: '30 2 * * *' },
   { name: REPORTS_EMAIL_JOB, pattern: '5 * * * *' },
+  { name: WEBHOOK_HEALTH_JOB, pattern: '*/10 * * * *' },
 ] as const;
 
 export interface MaintenanceDeps extends Pick<QueueFactoryDeps, 'logger'> {
@@ -138,6 +142,9 @@ export const processMaintenanceJob =
           apiUrl: getEnv().APP_URL,
           logger: deps.logger,
         });
+        break;
+      case WEBHOOK_HEALTH_JOB:
+        result = await checkWebhookHealth(webhookRuntime(getEnv()));
         break;
       default:
         throw new Error(`Unknown maintenance job "${job.name}"`);

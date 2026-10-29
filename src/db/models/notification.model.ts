@@ -37,6 +37,8 @@ export const NOTIFICATION_TYPES = [
   'whatsapp.call_permission_revoked',
   // Phase 14
   'analytics.reconcile_mismatch',
+  // Phase 15
+  'webhook.endpoint_disabled',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

@@ -4,7 +4,6 @@ import type { z } from 'zod';
 
 import type { Env } from '../../config/env';
 import { AI_LIMITS } from '../../config/limits';
-import { outgoingPolicy, urlBlockReason } from '../../core/ai/ip-guard';
 import type { AiJobs } from '../../core/ai/jobs';
 import { detectKnowledgeFile, KNOWLEDGE_CONTENT_TYPES, stripControl } from '../../core/ai/parsers';
 import { knowledgeIndex, searchKnowledgeBases } from '../../core/ai/retrieve';
@@ -22,6 +21,7 @@ import {
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
+import { outgoingPolicy, urlBlockReason } from '../../shared/net/url-guard';
 import { auditRequest } from '../audit/audit.service';
 
 import type { AddUrlBody, CreateKbBody, SearchKbBody, UpdateKbBody } from './knowledge.schema';

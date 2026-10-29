@@ -24,6 +24,7 @@ import type { ReadinessDeps } from './modules/health/health.controller';
 import { createHealthRouter } from './modules/health/health.routes';
 import { publicApiGate, type PublicApiStores } from './modules/public-api/key-limits';
 import type { ReportCacheStore } from './modules/reports/cache';
+import type { WebhookHooks } from './modules/webhooks/deliver.job';
 import { createApiRouter, type AiDeps, type CallsApiDeps, type WhatsAppDeps } from './routes';
 import { getAppInfo } from './shared/app-info';
 import type { Logger } from './shared/logger';
@@ -77,6 +78,8 @@ export interface AppDeps {
   reportCache?: ReportCacheStore;
   /** Phase 15 per-key limiter stores (`rl:key:<id>:r|w`); MemoryStore when omitted. */
   publicApiStores?: PublicApiStores;
+  /** Phase 15 webhook test hooks (fake resolver / dial to a local receiver). */
+  webhooks?: WebhookHooks;
 }
 
 /**
@@ -106,6 +109,7 @@ export const createApp = ({
   whatsapp,
   reportCache,
   publicApiStores = {},
+  webhooks,
 }: AppDeps): Express => {
   // Wallet low-balance / exhausted alerts run after every committed wallet change.
   registerWalletAlerts();
@@ -166,6 +170,7 @@ export const createApp = ({
       campaigns,
       ...(whatsapp ? { whatsapp: { ...whatsapp, storage: whatsapp.storage ?? storage } } : {}),
       reports: { cache: reportCache ?? null },
+      ...(webhooks ? { webhooks } : {}),
     }),
   );
 

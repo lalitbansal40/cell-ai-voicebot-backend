@@ -1,6 +1,6 @@
 import { FLOW_LIMITS } from '../../config/limits';
 import type { NodeType } from '../../db/models/flow.model';
-import { urlBlockReason, type GuardPolicy } from '../ai/ip-guard';
+import { urlBlockReason, type GuardPolicy } from '../../shared/net/url-guard';
 import { templateTokens } from '../templating';
 
 import { graphSizeBytes } from './canonical';

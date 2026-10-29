@@ -4,7 +4,6 @@ import type { Store } from 'express-rate-limit';
 import type { Env } from './config/env';
 import { createFakeProvider, type AiProvider } from './core/ai';
 import { unavailableAiJobs, type AiJobs } from './core/ai/jobs';
-import { secretBoxKey } from './core/ai/secret-box';
 import { unavailableBillingJobs, type BillingJobs } from './core/billing/jobs';
 import { createPaymentProvider, type PaymentProvider } from './core/payments';
 import type { StorageProvider } from './core/storage';
@@ -65,6 +64,11 @@ import { createTeamRouter } from './modules/team/team.routes';
 import { unavailableTemplateJobs, type TemplateJobs } from './modules/templates/jobs';
 import { createTemplatesRouter } from './modules/templates/templates.routes';
 import { createWalletRouter } from './modules/wallet/wallet.routes';
+import { webhookRuntime, type WebhookHooks } from './modules/webhooks/deliver.job';
+import {
+  createWebhookDeliveriesRouter,
+  createWebhookEndpointsRouter,
+} from './modules/webhooks/endpoints.routes';
 import { createDevSimulatorRouter } from './modules/whatsapp/dev-simulator.routes';
 import { createMetaCallbacksRouter } from './modules/whatsapp/meta-callbacks.routes';
 import { createBusinessProfileRouter } from './modules/whatsapp/profile.routes';
@@ -82,6 +86,7 @@ import { createCallingRouter } from './modules/whatsapp-calling/calling.routes';
 import type { CallingJobs } from './modules/whatsapp-calling/jobs';
 import type { CallingRuntime } from './modules/whatsapp-calling/runtime';
 import { createInboxCallingHook } from './modules/whatsapp-calling/webhooks';
+import { secretBoxKey } from './shared/crypto/secret-box';
 import { AppError } from './shared/errors/app-error';
 
 /** Everything under /api/v1. Add each module router here. */
@@ -159,10 +164,12 @@ export const createApiRouter = ({
   campaigns = {},
   whatsapp,
   reports = {},
+  webhooks = {},
 }: {
   env: Pick<
     Env,
     | 'APP_URL'
+    | 'FRONTEND_URL'
     | 'CORS_ORIGINS'
     | 'NODE_ENV'
     | 'PAYMENT_PROVIDER'
@@ -195,6 +202,8 @@ export const createApiRouter = ({
   whatsapp?: WhatsAppDeps;
   /** Phase 14: report cache (Redis); `null` = no cache. */
   reports?: { cache?: ReportCacheStore | null };
+  /** Phase 15 webhook delivery test hooks (fake resolver / dial to a local receiver, timeout). */
+  webhooks?: WebhookHooks;
 }): Router => {
   const router = Router();
   router.use('/auth', createAuthRouter({ ...auth, env }));
@@ -369,6 +378,8 @@ export const createApiRouter = ({
   router.use('/calls', createCallInsightsRouter({ jobs: ai.jobs ?? unavailableAiJobs }));
   router.use('/reports', createReportsRouter({ cache: reports.cache ?? null }));
   router.use('/report-subscriptions', createReportSubscriptionsRouter());
+  router.use('/webhook-endpoints', createWebhookEndpointsRouter(webhookRuntime(env, webhooks)));
+  router.use('/webhook-deliveries', createWebhookDeliveriesRouter());
   router.use('/report-unsubscribe', createReportUnsubscribeRouter());
   router.use(
     '/exports',

@@ -2,12 +2,12 @@ import type { Redis } from 'ioredis';
 
 import type { Env } from '../../config/env';
 import { createFakeProvider } from '../../core/ai/fake.provider';
-import { outgoingPolicy } from '../../core/ai/ip-guard';
-import { secretBoxKey } from '../../core/ai/secret-box';
 import type { StorageProvider } from '../../core/storage';
 import { AiVoiceController } from '../../core/voice/ai-session';
 import { createVoiceProviders } from '../../core/voice/providers';
 import { passThroughTts, type TtsCache } from '../../core/voice/tts-cache';
+import { secretBoxKey } from '../../shared/crypto/secret-box';
+import { outgoingPolicy } from '../../shared/net/url-guard';
 
 import { createScriptFactory, type ScriptFactory } from './scripts';
 

@@ -11,8 +11,6 @@ import {
   type HttpToolOptions,
   type TemplateContext,
 } from '../../core/ai/http-tool';
-import { outgoingPolicy, urlBlockReason, type GuardPolicy } from '../../core/ai/ip-guard';
-import { seal, secretHint } from '../../core/ai/secret-box';
 import { logToolCall } from '../../core/ai/tool-log';
 import { argumentsValidator } from '../../core/ai/tools';
 import { notifyAccount } from '../../core/realtime/notify';
@@ -27,6 +25,7 @@ import {
 import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
+import { seal, secretHint } from '../../shared/crypto/secret-box';
 import {
   AppError,
   ConflictError,
@@ -34,6 +33,7 @@ import {
   ValidationError,
   type ErrorDetail,
 } from '../../shared/errors/app-error';
+import { outgoingPolicy, urlBlockReason, type GuardPolicy } from '../../shared/net/url-guard';
 import { auditRequest } from '../audit/audit.service';
 
 import type { CreateFunctionBody, TestFunctionBody, UpdateFunctionBody } from './agents.schema';

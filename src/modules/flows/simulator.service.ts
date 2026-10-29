@@ -5,7 +5,6 @@ import type { z } from 'zod';
 import type { Env } from '../../config/env';
 import { FLOW_LIMITS } from '../../config/limits';
 import type { HttpToolOptions } from '../../core/ai/http-tool';
-import { outgoingPolicy } from '../../core/ai/ip-guard';
 import type { AiProvider } from '../../core/ai/types';
 import { InputMismatchError, RunEndedError, advance, runValues } from '../../core/engine/engine';
 import type { FlowGraph } from '../../core/engine/schema';
@@ -27,6 +26,7 @@ import { UserModel } from '../../db/models/user.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
+import { outgoingPolicy } from '../../shared/net/url-guard';
 import { addDays, ymdInZone } from '../../shared/time';
 import { accountTimezone } from '../wallet/wallet.service';
 

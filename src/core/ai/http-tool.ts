@@ -1,14 +1,11 @@
-import { lookup as dnsLookup } from 'node:dns/promises';
 import { request as httpRequest, type IncomingMessage, type OutgoingHttpHeaders } from 'node:http';
 import { request as httpsRequest } from 'node:https';
-import { isIP } from 'node:net';
 
 import { AI_LIMITS } from '../../config/limits';
 import type { AgentFunction } from '../../db/models/ai-agent.model';
+import { open } from '../../shared/crypto/secret-box';
+import { resolvePublicAddress, type GuardPolicy } from '../../shared/net/url-guard';
 import { createTemplate, templateTokens, type Json } from '../templating';
-
-import { addressBlockReason, urlBlockReason, type GuardPolicy } from './ip-guard';
-import { open } from './secret-box';
 
 // ── Templating ────────────────────────────────────────────────────────────
 
@@ -106,9 +103,6 @@ export interface HttpToolOptions {
   now?: () => number;
 }
 
-const defaultResolve = async (host: string): Promise<string[]> =>
-  (await dnsLookup(host, { all: true, verbatim: true })).map((a) => a.address);
-
 class ToolFailure extends Error {
   constructor(
     readonly code: ToolErrorCode,
@@ -130,23 +124,9 @@ interface Hop {
 
 /** Resolves the host, checks every address, returns the one to connect to. */
 const pinAddress = async (url: URL, options: HttpToolOptions): Promise<string> => {
-  if (urlBlockReason(url, options.policy)) throw new ToolFailure('blocked');
-  const host = url.hostname.replace(/^\[|\]$/g, '');
-  let addresses: string[];
-  if (isIP(host)) addresses = [host];
-  else {
-    try {
-      addresses = await (options.resolve ?? defaultResolve)(host);
-    } catch {
-      throw new ToolFailure('network');
-    }
-  }
-  if (!addresses.length) throw new ToolFailure('network');
-  // every address must pass — a mixed answer (public + private) is refused
-  if (addresses.some((a) => addressBlockReason(a, options.policy)))
-    throw new ToolFailure('blocked');
-  const first = addresses[0] ?? '';
-  return options.dial ? options.dial(first) : first;
+  const r = await resolvePublicAddress(url, options.policy, options);
+  if (r.ok) return r.address;
+  throw new ToolFailure(r.reason === 'network' ? 'network' : 'blocked');
 };
 
 const send = (

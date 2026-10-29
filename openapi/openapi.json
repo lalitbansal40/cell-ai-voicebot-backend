@@ -1190,7 +1190,13 @@
               "report_subscription.created",
               "report_subscription.updated",
               "report_subscription.deleted",
-              "apikey.updated"
+              "apikey.updated",
+              "webhook_endpoint.created",
+              "webhook_endpoint.updated",
+              "webhook_endpoint.deleted",
+              "webhook_endpoint.secret_rotated",
+              "webhook_endpoint.disabled",
+              "webhook_endpoint.enabled"
             ]
           },
           "actor": {
@@ -6233,7 +6239,8 @@
               "whatsapp.call_permission_declined",
               "whatsapp.calling_restricted",
               "whatsapp.call_permission_revoked",
-              "analytics.reconcile_mismatch"
+              "analytics.reconcile_mismatch",
+              "webhook.endpoint_disabled"
             ]
           },
           "title": { "type": "string" },
@@ -6616,6 +6623,107 @@
           "roleName": { "type": "string" }
         },
         "required": ["email", "name", "accountName", "inviterName", "roleName"]
+      },
+      "WebhookEndpoint": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "url": { "type": "string" },
+          "description": { "type": "string" },
+          "events": { "type": "array", "items": { "type": "string" } },
+          "includePersonalData": { "type": "boolean" },
+          "active": { "type": "boolean" },
+          "disabledReason": { "type": ["string", "null"], "enum": ["failing", "manual", null] },
+          "disabledAt": { "type": ["string", "null"] },
+          "failureStreak": { "type": "integer" },
+          "lastDeliveryAt": { "type": ["string", "null"] },
+          "lastDeliveryStatus": {
+            "type": ["string", "null"],
+            "enum": ["succeeded", "failed", null]
+          },
+          "rotatedAt": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "url",
+          "description",
+          "events",
+          "includePersonalData",
+          "active",
+          "disabledReason",
+          "disabledAt",
+          "failureStreak",
+          "lastDeliveryAt",
+          "lastDeliveryStatus",
+          "rotatedAt",
+          "createdAt"
+        ]
+      },
+      "WebhookEndpointWithSecret": {
+        "type": "object",
+        "properties": {
+          "endpoint": { "$ref": "#/components/schemas/WebhookEndpoint" },
+          "secret": {
+            "type": "string",
+            "description": "Signing secret `whsec_…` — shown only once, store it now."
+          }
+        },
+        "required": ["endpoint", "secret"]
+      },
+      "WebhookDelivery": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "endpointId": { "type": "string" },
+          "eventId": { "type": "string" },
+          "type": { "type": "string" },
+          "test": { "type": "boolean" },
+          "status": { "type": "string", "enum": ["pending", "succeeded", "failed", "gave_up"] },
+          "attempt": { "type": "integer" },
+          "nextAttemptAt": { "type": ["string", "null"] },
+          "lastAttemptAt": { "type": ["string", "null"] },
+          "responseStatus": { "type": ["integer", "null"] },
+          "responseMs": { "type": ["integer", "null"] },
+          "responseSnippet": {
+            "type": ["string", "null"],
+            "description": "First 1 KB of the answer, text only"
+          },
+          "error": { "type": ["string", "null"] },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attempt": { "type": "integer" },
+                "at": { "type": "string" },
+                "ok": { "type": "boolean" },
+                "responseStatus": { "type": ["integer", "null"] },
+                "responseMs": { "type": "integer" },
+                "error": { "type": ["string", "null"] }
+              },
+              "required": ["attempt", "at", "ok", "responseStatus", "responseMs", "error"]
+            }
+          },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "endpointId",
+          "eventId",
+          "type",
+          "test",
+          "status",
+          "attempt",
+          "nextAttemptAt",
+          "lastAttemptAt",
+          "responseStatus",
+          "responseMs",
+          "responseSnippet",
+          "error",
+          "attempts",
+          "createdAt"
+        ]
       },
       "WhatsAppCallingSettings": {
         "type": "object",
@@ -27589,6 +27697,604 @@
           },
           "502": { "description": "Meta refused (META_API_ERROR)" },
           "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/webhook-endpoints": {
+      "get": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "Webhook endpoints of the account (integrations.manage / webhooks:manage)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/WebhookEndpoint" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "Add an endpoint (≤ 10; https in production; private addresses refused → 422 WEBHOOK_URL_BLOCKED). The secret is returned once.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "example": "https://example.com/hooks/notifynow"
+                  },
+                  "description": { "type": "string", "maxLength": 200 },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "call.started",
+                        "call.completed",
+                        "call.insights.ready",
+                        "campaign.completed",
+                        "whatsapp.message.received",
+                        "whatsapp.message.status",
+                        "whatsapp.call.started",
+                        "whatsapp.call.ended",
+                        "whatsapp.call.missed",
+                        "contact.opted_out",
+                        "contact.opted_in",
+                        "*"
+                      ]
+                    },
+                    "minItems": 1,
+                    "description": "Event types, or `[\"*\"]` for every event",
+                    "example": ["call.completed"]
+                  },
+                  "includePersonalData": { "type": "boolean" }
+                },
+                "required": ["url", "events"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WebhookEndpointWithSecret" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhook-endpoints/{id}": {
+      "get": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "One endpoint",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WebhookEndpoint" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "Change URL, description, events, personal data, or pause (`active: false`)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048,
+                    "example": "https://example.com/hooks/notifynow"
+                  },
+                  "description": { "type": "string", "maxLength": 200 },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "call.started",
+                        "call.completed",
+                        "call.insights.ready",
+                        "campaign.completed",
+                        "whatsapp.message.received",
+                        "whatsapp.message.status",
+                        "whatsapp.call.started",
+                        "whatsapp.call.ended",
+                        "whatsapp.call.missed",
+                        "contact.opted_out",
+                        "contact.opted_in",
+                        "*"
+                      ]
+                    },
+                    "minItems": 1,
+                    "description": "Event types, or `[\"*\"]` for every event",
+                    "example": ["call.completed"]
+                  },
+                  "includePersonalData": { "type": "boolean" },
+                  "active": { "type": "boolean", "enum": [false] }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WebhookEndpoint" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "Remove an endpoint (its delivery log expires after 30 days)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": { "description": "No content" },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhook-endpoints/{id}/test": {
+      "post": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "Send a sample event now and see the answer (logged as a test delivery, never retried)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "call.started",
+                      "call.completed",
+                      "call.insights.ready",
+                      "campaign.completed",
+                      "whatsapp.message.received",
+                      "whatsapp.message.status",
+                      "whatsapp.call.started",
+                      "whatsapp.call.ended",
+                      "whatsapp.call.missed",
+                      "contact.opted_out",
+                      "contact.opted_in"
+                    ]
+                  }
+                },
+                "required": ["type"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": { "type": "boolean" },
+                        "delivery": { "$ref": "#/components/schemas/WebhookDelivery" }
+                      },
+                      "required": ["ok", "delivery"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhook-endpoints/{id}/rotate-secret": {
+      "post": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "New signing secret (shown once); the old one keeps signing for 24 hours",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WebhookEndpointWithSecret" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhook-endpoints/{id}/enable": {
+      "post": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "Turn a disabled endpoint on again (failure streak reset)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WebhookEndpoint" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhook-endpoints/{id}/deliveries": {
+      "get": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "Delivery log, newest first (30 days; filters: status, type, from / to; cursor)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "enum": ["pending", "succeeded", "failed", "gave_up"] },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "call.started",
+                "call.completed",
+                "call.insights.ready",
+                "campaign.completed",
+                "whatsapp.message.received",
+                "whatsapp.message.status",
+                "whatsapp.call.started",
+                "whatsapp.call.ended",
+                "whatsapp.call.missed",
+                "contact.opted_out",
+                "contact.opted_in"
+              ]
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "date-time" },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "date-time" },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/WebhookDelivery" }
+                        },
+                        "nextCursor": { "type": ["string", "null"] }
+                      },
+                      "required": ["items", "nextCursor"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhook-deliveries/{id}/replay": {
+      "post": {
+        "tags": ["Webhooks", "Public API"],
+        "summary": "Deliver again now (same event id; one attempt)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WebhookDelivery" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
         }
       }
     },

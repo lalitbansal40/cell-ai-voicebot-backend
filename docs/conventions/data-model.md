@@ -194,6 +194,18 @@ Indexes: `{ keyHash: 1 }` unique, `{ accountId: 1, revokedAt: 1 }`.
 
 `{ accountId, apiKeyId, method, route (template — never ids / query values / bodies), status, ms, requestId, at }`. Indexes `{ accountId, apiKeyId, at: -1, _id: -1 }`, TTL `{ at: 1 }` 7 days. Written after the response of every `X-API-Key` request (`publicApiGate`).
 
+#### WebhookEndpoint (`webhookEndpoints`) — Phase 15
+
+`{ accountId, url (≤ 2048; https in production), description, events[] (types or '*'), secretSealed (select: false, secret box), secretPreviousSealed (select: false; signs 24 h after a rotation), rotatedAt, includePersonalData (default false), active, disabledReason (failing | manual), disabledAt, failureStreak (events given up in a row), failingSince (first failure since the last success), lastDeliveryAt, lastDeliveryStatus, createdBy }`. ≤ 10 per account. Indexes `{ accountId, createdAt: -1 }`, `{ accountId, active }`, `{ active, failingSince }` (health sweep).
+
+#### WebhookEvent (`webhookEvents`) — Phase 15
+
+The outbox: `{ _id: 'evt_<ulid>', accountId, type, data (full; the personal-data filter runs per endpoint), createdAt }`. TTL 30 days on `createdAt`; index `{ accountId, createdAt: -1 }`. Written by `emitAccountEvent` only.
+
+#### WebhookDelivery (`webhookDeliveries`) — Phase 15
+
+`{ accountId, endpointId, eventId, type, test, status (pending | succeeded | failed | gave_up), attempt, nextAttemptAt, lastAttemptAt, responseStatus, responseMs, responseSnippet (≤ 1 KB text), error, attempts[] (last 10: attempt, at, ok, responseStatus, responseMs, error) }`. Unique `{ endpointId, eventId }` partial on `test: false`; `{ accountId, endpointId, createdAt: -1, _id: -1 }`; TTL 30 days on `createdAt`. Never payloads or request headers.
+
 #### AuditLog (`auditLogs`) — Phase 2
 
 | Field  | Type                                                                  | R   | Notes                                                                            |

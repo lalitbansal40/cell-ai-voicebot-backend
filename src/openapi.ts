@@ -48,6 +48,7 @@ import './modules/team/team.schema';
 import './modules/templates/templates.openapi';
 import './modules/wallet/topups.schema';
 import './modules/wallet/wallet.schema';
+import './modules/webhooks/endpoints.schema';
 import './modules/whatsapp-billing/whatsapp-billing.openapi';
 import './modules/whatsapp-calling/calling.openapi';
 import './modules/whatsapp/whatsapp.openapi';

@@ -3,13 +3,16 @@ import { ApiKeyModel } from '../models/api-key.model';
 import { ApiRequestLogModel } from '../models/api-request-log.model';
 import { CallModel } from '../models/call.model';
 import { MessageModel } from '../models/message.model';
+import { WebhookDeliveryModel } from '../models/webhook-delivery.model';
+import { WebhookEndpointModel } from '../models/webhook-endpoint.model';
+import { WebhookEventModel } from '../models/webhook-event.model';
 
 export const EXTERNAL_REF_INDEX = 'external_ref';
 
 /**
  * Phase 15 integrations: API key allowlist / expiry / usage fields, `externalRef`
  * indexes on calls and messages, the API request log (TTL 7 days). Additive and
- * idempotent; no data backfill. (Contacts already have the unique per-account
+ * idempotent; no data backfill. T15.3: the webhook collections and their indexes. (Contacts already have the unique per-account
  * `externalId` index since Phase 3.)
  */
 export const integrationsMigration: Migration = {
@@ -23,6 +26,10 @@ export const integrationsMigration: Migration = {
     await ApiRequestLogModel.createIndexes();
     await CallModel.createIndexes();
     await MessageModel.createIndexes();
+    // webhooks (T15.3): endpoints, the outbox and the delivery log (TTL 30 days)
+    await WebhookEndpointModel.createIndexes();
+    await WebhookEventModel.createIndexes();
+    await WebhookDeliveryModel.createIndexes();
   },
   down: async (db) => {
     for (const name of ['calls', 'messages']) {
@@ -33,7 +40,13 @@ export const integrationsMigration: Migration = {
     await db
       .collection('apiKeys')
       .updateMany({}, { $unset: { ipAllowlist: '', expiresAt: '', usage: '' } });
-    if ((await db.listCollections({ name: 'apiRequestLogs' }).toArray()).length)
-      await db.dropCollection('apiRequestLogs');
+    for (const name of [
+      'apiRequestLogs',
+      'webhookEndpoints',
+      'webhookEvents',
+      'webhookDeliveries',
+    ]) {
+      if ((await db.listCollections({ name }).toArray()).length) await db.dropCollection(name);
+    }
   },
 };

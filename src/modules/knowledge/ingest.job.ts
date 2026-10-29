@@ -8,7 +8,6 @@ import { AI_LIMITS } from '../../config/limits';
 import { chunkText, DEFAULT_CHUNK_OPTIONS } from '../../core/ai/chunker';
 import { embedTexts } from '../../core/ai/embed';
 import { fetchPage, type HttpToolOptions } from '../../core/ai/http-tool';
-import { outgoingPolicy } from '../../core/ai/ip-guard';
 import type { AiJobData, AiJobs } from '../../core/ai/jobs';
 import {
   normalizeText,
@@ -32,6 +31,7 @@ import {
 } from '../../db/models/knowledge-source.model';
 import { AppError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
+import { outgoingPolicy } from '../../shared/net/url-guard';
 
 import { notifySource, refreshKbCounts, requeueSources } from './knowledge.service';
 

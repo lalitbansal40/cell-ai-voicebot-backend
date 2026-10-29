@@ -276,12 +276,15 @@ const contact = await Contact.findOne({ _id: id, accountId: ctx.accountId });
 const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId });
 ```
 
-## 14. Outbound webhooks (preview — built in Phase 15)
+## 14. Outbound webhooks (Phase 15, ADR 0046)
 
-- `POST` with JSON body `{ "id": "evt_…", "type": "call.completed", "createdAt": "…", "data": { … } }`.
-- Headers: `X-Webhook-Id`, `X-Webhook-Timestamp` (unix seconds), `X-Webhook-Signature: v1=<hex HMAC-SHA256(secret, timestamp + "." + rawBody)>`.
-- Receivers should reject timestamps older than 5 minutes.
-- Retries with backoff: 1 min, 5 min, 30 min, 2 h, 12 h; the endpoint is disabled after repeated failures and the account is notified.
+- Endpoints: `/api/v1/webhook-endpoints` (`integrations.manage` / key scope `webhooks:manage`): list, create (≤ 10 per account → 422 `WEBHOOK_ENDPOINT_LIMIT`; the secret `whsec_…` is returned once), get, patch (`url`, `description`, `events`, `includePersonalData`, `active: false` pauses), delete, `POST /:id/test { type }`, `POST /:id/rotate-secret` (new secret once; the old one keeps signing 24 h), `POST /:id/enable`, `GET /:id/deliveries` (status, type, from / to, cursor); `POST /api/v1/webhook-deliveries/:id/replay`.
+- URLs: https only in production; private / local / metadata addresses, credentials in the URL and unresolvable names → 422 `WEBHOOK_URL_BLOCKED` — checked at save **and** at every delivery (DNS re-resolved, every address checked, the pinned address dialed). No redirects.
+- `POST` with JSON body `{ "id": "evt_<ulid>", "type": "call.completed", "apiVersion": "2026-10", "createdAt": "…", "accountId": "…", "data": { … } }`; personal fields (`phone`, `name`, `summary`, `text`) only with `includePersonalData`.
+- Headers: `Content-Type: application/json`, `User-Agent: NotifyNow-Webhooks/1.0`, `X-Webhook-Id`, `X-Webhook-Timestamp` (unix seconds), `X-Webhook-Signature: v1=<hex HMAC-SHA256(secret, timestamp + "." + rawBody)>[, v1=<previous secret's>]`.
+- Receivers reject timestamps older than 5 minutes and de-duplicate on `id` (at-least-once, unordered).
+- Retries: 1 min, 5 min, 30 min, 2 h, 12 h, then `gave_up`; 5 given up in a row or 24 h failing → the endpoint is disabled, owners / admins get a notification + e-mail. 10 s timeout, payload ≤ 64 KB, the answer's first 1 KB (text only) is kept 30 days.
+- Guide for receivers: [docs/api/webhooks.md](../api/webhooks.md).
 
 ## 14a. Call flows (Phase 6)
 

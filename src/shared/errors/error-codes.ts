@@ -222,6 +222,14 @@ export const ERROR_CODES = {
     message: 'This API key is not allowed from this IP address.',
   },
   API_KEY_EXPIRED: { status: 401, message: 'This API key has expired.' },
+  WEBHOOK_URL_BLOCKED: {
+    status: 422,
+    message: 'This address is not allowed for webhooks.',
+  },
+  WEBHOOK_ENDPOINT_LIMIT: {
+    status: 422,
+    message: 'You already have the most webhooks allowed. Remove one first.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

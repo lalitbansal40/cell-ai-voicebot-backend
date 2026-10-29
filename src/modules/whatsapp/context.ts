@@ -1,8 +1,8 @@
 import type { Redis } from 'ioredis';
 
 import type { Env } from '../../config/env';
-import { open, seal } from '../../core/ai/secret-box';
 import type { MetaClient } from '../../core/meta';
+import { open, seal } from '../../shared/crypto/secret-box';
 
 /** Everything the WhatsApp services need (built once by the server, injected in tests). */
 export interface WhatsAppContext {
