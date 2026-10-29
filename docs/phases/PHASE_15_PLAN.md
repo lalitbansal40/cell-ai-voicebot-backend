@@ -1,6 +1,6 @@
 # Phase 15 — Integrations, Public API & Webhooks (Detailed Plan)
 
-**Status:** Draft — 2026-10-29 · **Branch:** `feature/phase-15-integrations` (both repos, from `main` = backend `acf5d8b`, frontend `a6c9533`; the frontend branch is created at the first frontend task) · **Overview:** [BUILD_PLAN_V2.md](../plans/BUILD_PLAN_V2.md) §4 Phase 15 · **Previous:** [PHASE_14_PLAN.md](PHASE_14_PLAN.md) · [sign-off](PHASE_14_SIGNOFF.md)
+**Status:** Locked — 2026-10-29 (owner defaults §7 #1–#14 in force) · **Branch:** `feature/phase-15-integrations` (both repos, from `main` = backend `acf5d8b`, frontend `a6c9533`; the frontend branch is created at the first frontend task) · **Overview:** [BUILD_PLAN_V2.md](../plans/BUILD_PLAN_V2.md) §4 Phase 15 · **Previous:** [PHASE_14_PLAN.md](PHASE_14_PLAN.md) · [sign-off](PHASE_14_SIGNOFF.md)
 
 > **Live context:** the app now runs for the client at `https://wa.notifynow.in` (brand **NotifyNow**, NotifyNow Private Limited) on the client's own server and database; Meta App Review is being prepared in parallel (`docs/meta/APP_REVIEW.md`). Phase 15 is code-only in our repos; the client deploys `main` when the owner says so. Rule: a production fix lands on `main` first (own `fix(...)` commit), then `main` is **merged** into the phase branch (no rebase of a pushed branch).
 
@@ -129,12 +129,12 @@ Rules:
 | `whatsapp.call.started` / `.ended` / `.missed` | WhatsApp calls                                   | callId, contactId, direction, durationSec, answeredBy (user id)                                |
 | `contact.opted_out` / `.opted_in`              | STOP / START or DND change                       | contactId, channel, source                                                                     |
 
-**Dashboard (Settings → Integrations → Webhooks):** list, add (URL, events, personal-data switch), secret shown once with copy, **Send test event** (choose a type, see the response), delivery log with filters + **Replay**, re-enable a disabled endpoint, rotate secret. Docs page: payload samples per event + signature verification code (Node, Python, PHP) — the code samples are executed in tests.
+**Dashboard (Integrations → Webhooks, `/integrations/webhooks` — the existing hidden `Integrations` nav item, `phase: 15`):** list, add (URL, events, personal-data switch), secret shown once with copy, **Send test event** (choose a type, see the response), delivery log with filters + **Replay**, re-enable a disabled endpoint, rotate secret. Docs page: payload samples per event + signature verification code (Node, Python, PHP) — the code samples are executed in tests.
 
 ### 1d. Call ke baad WhatsApp (post-call messages)
 
 - **Flow step "Send WhatsApp" becomes real:** when a call ends, every `outcome.messages[]` entry with `channel: 'whatsapp'` becomes a **post-call message**: the account's connected number (or the one chosen in the step — new optional `channelId` in the step config), the approved template by name + language, rendered params; sent through `prepareTemplateSend` (same rules as the dashboard: approved template, marketing frequency limit, opt-out, DND, wallet hold) **after** the call is settled. `send_sms` stays queued (SMS gateway is Phase 18) and the step shows "SMS sending starts with phone lines".
-- **Outcome rules** (`outcomeRules`, Settings → Integrations → After the call): "When a call ends with outcome **X** (or sentiment / promise found / not answered N times), send template **T** to the contact, **now** or **after D minutes / at the next H:00 inside calling hours**". Variables from contact fields, call variables and insights (`{{promise_date}}`, `{{promise_amount}}`). ≤ 20 rules per account, evaluated after insights (or after the call when insights are off), each rule once per call.
+- **Outcome rules** (`outcomeRules`, Integrations → After the call, `/integrations/after-call`): "When a call ends with outcome **X** (or sentiment / promise found / not answered N times), send template **T** to the contact, **now** or **after D minutes / at the next H:00 inside calling hours**". Variables from contact fields, call variables and insights (`{{promise_date}}`, `{{promise_amount}}`). ≤ 20 rules per account, evaluated after insights (or after the call when insights are off), each rule once per call.
 - **Guards:** never send twice for the same call + rule (`postCallMessages` unique key `callId + source`), skip with a reason (`opted_out`, `dnd`, `no_template`, `no_number`, `low_balance`, `marketing_limit`, `outside_window_text_only`) shown on the call page ("After the call: payment reminder sent ✓ / skipped — opted out").
 - **Model:** `postCallMessages`: `accountId`, `callId`, `source` (`flow:<nodeId>` | `rule:<ruleId>`), `templateId`, `params`, `scheduledAt`, `status` (`scheduled | sent | skipped | failed`), `reason`, `messageId`. Job `postcall.send` on the `whatsapp` queue (delayed jobs for "after D minutes").
 - **Call page + inbox:** the call detail shows "After the call" rows; the message appears in the inbox chat like any template send (origin `system`).
@@ -150,7 +150,7 @@ Default (§7 #4): **no Google OAuth in Phase 15** (Google's sensitive-scope veri
 ### 1f. Developer experience
 
 - **Docs page** (`/api/docs`, public in production for the public API part — §7 #6): getting started (create key → whoami → first call → webhook), auth, errors, idempotency, rate limits, pagination, webhooks + signatures, every public route with examples, changelog. Generated from OpenAPI (tags `Public API`), plus hand-written guides in `docs/api/*.md` rendered on the page.
-- **Settings → Developers** (frontend): API keys (scopes, usage, IP allowlist, expiry), request log, webhooks, "Try it" (whoami with a pasted key — never stored).
+- **Settings → API keys** (the existing tab, extended): scopes grouped by area, usage, IP allowlist, expiry, request log, "Try it" (whoami with a pasted key — never stored). Webhooks, outcome rules and Sheet imports live under **Integrations** (`/integrations/:tab`).
 - **Mocks:** `/mock/payment-link` (returns a fake payment URL for a loan id — used by templates' URL button in demos) and `/mock/webhook-receiver` (dev only: stores the last 50 deliveries in memory, shows the signature check) — `MOCK_APIS_ENABLED` only.
 
 ### 1g. Security
@@ -169,21 +169,21 @@ Default (§7 #4): **no Google OAuth in Phase 15** (Google's sensitive-scope veri
 
 ## 2. Tasks ka overview
 
-| #           | Task                                                                                                                                                                    | Repo | Size | Depends on  |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---- | ----------- |
-| T15.1       | Public API foundation: scopes, `apiKeyAuth` on existing routes, per-key limits, request log, IP allowlist / expiry, `externalRef`                                       | BE   | L    | —           |
-| T15.2       | Public send + trigger routes: contacts upsert / bulk, messages text / template, WhatsApp call trigger, templates read                                                   | BE   | M    | T15.1       |
-| T15.3       | Webhook core: outbox (`emitAccountEvent`), endpoints, signing, delivery queue, retries, disable, replay, test                                                           | BE   | L    | T15.1       |
-| T15.4       | Event wiring: every catalogue event emitted from its single place + payload builders + personal-data filter                                                             | BE   | M    | T15.3       |
-| P15-B1-DONE | checkpoint (backend core green, external-client integration test)                                                                                                       | BE   | —    |             |
-| T15.5       | Post-call WhatsApp: flow step sends, outcome rules, scheduler, guards, call-page rows                                                                                   | BE   | L    | T15.4       |
-| T15.6       | Google Sheets in (published CSV, scheduled) + Apps Script receiver + Zapier / Make docs                                                                                 | BE   | M    | T15.3       |
-| T15.7       | Frontend: Settings → Developers (keys, usage, IP, log), Integrations → Webhooks (test, log, replay), After the call (rules), Sheets imports, call-page "After the call" | FE   | L    | T15.2–T15.6 |
-| P15-B2-DONE | checkpoint (both repos, Playwright twice)                                                                                                                               | both | —    |             |
-| T15.8       | Docs page + guides + signature samples (tested) + mocks (`payment-link`, `webhook-receiver`)                                                                            | both | M    | T15.3       |
-| T15.9       | Seeds, Playwright specs, security tests (isolation, scopes matrix, SSRF, replay), perf (1,000 webhooks / min)                                                           | both | M    | all         |
-| T15.10      | Gap audit, ADR 0045 (public API) + 0046 (webhooks), setup + runbook, READMEs, CHANGELOGs, BUILD_PLAN_V2, sign-off                                                       | both | M    | all         |
-| P15-B3-DONE | final verify + report                                                                                                                                                   | both | —    |             |
+| #           | Task                                                                                                                                                                                 | Repo | Size | Depends on  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | ---- | ----------- |
+| T15.1       | Public API foundation: scopes, `apiKeyAuth` on existing routes, per-key limits, request log, IP allowlist / expiry, `externalRef`                                                    | BE   | L    | —           |
+| T15.2       | Public send + trigger routes: contacts upsert / bulk, messages text / template, WhatsApp call trigger, templates read                                                                | BE   | M    | T15.1       |
+| T15.3       | Webhook core: outbox (`emitAccountEvent`), endpoints, signing, delivery queue, retries, disable, replay, test                                                                        | BE   | L    | T15.1       |
+| T15.4       | Event wiring: every catalogue event emitted from its single place + payload builders + personal-data filter                                                                          | BE   | M    | T15.3       |
+| P15-B1-DONE | checkpoint (backend core green, external-client integration test)                                                                                                                    | BE   | —    |             |
+| T15.5       | Post-call WhatsApp: flow step sends, outcome rules, scheduler, guards, call-page rows                                                                                                | BE   | L    | T15.4       |
+| T15.6       | Google Sheets in (published CSV, scheduled) + Apps Script receiver + Zapier / Make docs                                                                                              | BE   | M    | T15.3       |
+| T15.7       | Frontend: Settings → API keys (scopes, usage, IP, log), Integrations (`/integrations`: Webhooks, After the call, Google Sheets), flow Send WhatsApp step, call-page "After the call" | FE   | L    | T15.2–T15.6 |
+| P15-B2-DONE | checkpoint (both repos, Playwright twice)                                                                                                                                            | both | —    |             |
+| T15.8       | Docs page + guides + signature samples (tested) + mocks (`payment-link`, `webhook-receiver`)                                                                                         | both | M    | T15.3       |
+| T15.9       | Seeds, Playwright specs, security tests (isolation, scopes matrix, SSRF, replay), perf (1,000 webhooks / min)                                                                        | both | M    | all         |
+| T15.10      | Gap audit, ADR 0045 (public API) + 0046 (webhooks), setup + runbook, READMEs, CHANGELOGs, BUILD_PLAN_V2, sign-off                                                                    | both | M    | all         |
+| P15-B3-DONE | final verify + report                                                                                                                                                                | both | —    |             |
 
 ---
 
@@ -247,10 +247,10 @@ Backend full verify (each command separately, coverage), external-client test gr
 
 ### T15.7 — Frontend (both screens + call page)
 
-1. **Settings → Developers:** API keys table (scopes chips, last used, 24 h / 7 d requests, IP allowlist, expiry, edit), create dialog with grouped scopes, request log drawer, "Test a key" (whoami), link to docs.
-2. **Settings → Integrations → Webhooks:** list (status, events, last delivery), add / edit (URL, events multi-select, personal-data switch with a plain warning), secret once + copy, **Send test**, deliveries table (filters, response, **Replay**), disabled banner + enable, rotate secret.
-3. **Settings → Integrations → After the call:** rules list + editor (when / send / timing, variable mapping with a live template preview), enable / disable, order.
-4. **Contacts → Import from Google Sheet:** URL + schedule + mapping (reuse the import wizard), scheduled imports list.
+1. **Settings → API keys (existing tab, extended):** API keys table (scopes chips, last used, 24 h / 7 d requests, IP allowlist, expiry, edit), create dialog with grouped scopes, request log drawer, "Test a key" (whoami), link to docs.
+2. **Integrations → Webhooks (`/integrations/webhooks`; nav `LIVE_PHASE` 14 → 15 shows the item):** list (status, events, last delivery), add / edit (URL, events multi-select, personal-data switch with a plain warning), secret once + copy, **Send test**, deliveries table (filters, response, **Replay**), disabled banner + enable, rotate secret.
+3. **Integrations → After the call (`/integrations/after-call`):** rules list + editor (when / send / timing, variable mapping with a live template preview), enable / disable, order.
+4. **Integrations → Google Sheets (`/integrations/sheets`)** + an entry in the contacts import wizard ("Import from Google Sheet"): URL + schedule + mapping (reuse the wizard), scheduled imports list.
 5. **Flow builder:** Send WhatsApp step — number picker, template picker (approved only), params with variables; "sent after the call" hint; Send SMS step shows "starts with phone lines".
 6. **Call detail:** "After the call" card (rows with status / reason / link to the chat).
 7. Tests (unit + component): forms validation, permission views (only `integrations.manage` / `apikeys.manage`), empty / error states; API client tests; generated types.
@@ -342,3 +342,4 @@ Batch 1 (backend core): T15.1 → T15.2 → T15.3 → T15.4 → **P15-B1-DONE**.
 ## Changelog
 
 - 2026-10-29: plan drafted after Phase 14 sign-off and the NotifyNow brand change. Built on a code survey of `main` (`acf5d8b`): API keys + scopes + `apiKeyAuth` exist but no route uses them; `modules/public-api` and `modules/webhooks` are empty; flow `send_whatsapp` / `send_sms` only queue (nothing sends them); SSRF guard lives in AI functions; idempotency, rate limiting, template / inbox send, single calls and the realtime event catalogue are reusable. 14 owner questions with defaults (§7).
+- 2026-10-29: run prompt prepared (one-paste autonomous run) — literals locked: modules, models, limits, scopes (+6 → 13), routes, payload + signature, events (11), jobs, error codes (+6 → 96), audit actions (+12 → 150), notification (+1 → 33); defaults in use for §7 #1–#14.
