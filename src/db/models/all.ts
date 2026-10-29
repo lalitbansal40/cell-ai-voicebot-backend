@@ -6,6 +6,7 @@ import './agent-usage.model';
 import './ai-agent.model';
 import './analytics-mark.model';
 import './api-key.model';
+import './api-request-log.model';
 import './audit-log.model';
 import './auth-code.model';
 import './call-event.model';

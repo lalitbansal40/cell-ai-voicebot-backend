@@ -2,7 +2,7 @@ import { INSIGHTS_LIMITS } from '../../config/limits';
 import type { CallInsightOutput } from '../../db/models/call-insight.model';
 import { INSIGHT_STATUSES, SENTIMENTS, DISPOSITION_SOURCES } from '../../db/models/call.model';
 import { registry } from '../../shared/openapi/registry';
-import { bearer, errors, ok } from '../../shared/openapi/responses';
+import { bearer, bearerOrKey, errors, ok, PUBLIC_API_TAG } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
 
@@ -163,6 +163,7 @@ export const DispositionsSchema = registry.register(
 // ── OpenAPI paths ───────────────────────────────────────────────────────────
 
 const tags = ['Insights'];
+const publicTags = [...tags, PUBLIC_API_TAG];
 const json = <T extends z.ZodType>(schema: T) => ({
   body: { content: { 'application/json': { schema } } },
 });
@@ -170,9 +171,9 @@ const json = <T extends z.ZodType>(schema: T) => ({
 registry.registerPath({
   method: 'get',
   path: '/api/v1/calls/{id}/insights',
-  tags,
+  tags: publicTags,
   summary: 'Post-call AI insights of a call: latest version + history (calls.read)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: InsightParams },
   responses: {
     200: ok(CallInsightsViewSchema),

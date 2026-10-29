@@ -1,4 +1,4 @@
-import { CALL_LIMITS, CAMPAIGN_LIMITS, FLOW_LIMITS } from '../../config/limits';
+import { CALL_LIMITS, CAMPAIGN_LIMITS, FLOW_LIMITS, PUBLIC_API_LIMITS } from '../../config/limits';
 import { CALL_EVENT_TYPES } from '../../db/models/call-event.model';
 import {
   CALL_END_REASONS,
@@ -11,7 +11,7 @@ import {
 import { TRANSCRIPT_SOURCES, TRANSCRIPT_SPEAKERS } from '../../db/models/transcript-turn.model';
 import { CursorPageMetaSchema } from '../../shared/openapi/common.schemas';
 import { registry } from '../../shared/openapi/registry';
-import { bearer, errors, ok } from '../../shared/openapi/responses';
+import { bearer, bearerOrKey, errors, ok, PUBLIC_API_TAG } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { CursorQuerySchema, ObjectIdSchema } from '../../shared/validation/schemas';
 
@@ -79,6 +79,13 @@ export const StartCallBody = z
       .optional()
       .openapi({ description: 'Flows: `published` (default) or a version number' }),
     agentId: ObjectIdSchema.optional(),
+    externalRef: z
+      .string()
+      .trim()
+      .min(1)
+      .max(PUBLIC_API_LIMITS.externalRefMax)
+      .optional()
+      .openapi({ description: 'Your own id for the call — echoed in the call view and webhooks' }),
   })
   .superRefine((b, ctx) => {
     if (Boolean(b.flowId) === Boolean(b.agentId)) {
@@ -108,6 +115,13 @@ export const ListCallsQuery = z
     from: z.iso.datetime({ offset: true }).optional(),
     to: z.iso.datetime({ offset: true }).optional(),
     q: z.string().trim().min(1).max(80).optional().openapi({ description: 'Contact name' }),
+    externalRef: z
+      .string()
+      .trim()
+      .min(1)
+      .max(PUBLIC_API_LIMITS.externalRefMax)
+      .optional()
+      .openapi({ description: 'Calls started with this `externalRef` (public API)' }),
     disposition: z
       .string()
       .regex(/^[a-z0-9_]{1,40}(,[a-z0-9_]{1,40}){0,29}$/)
@@ -182,6 +196,7 @@ export const CallSchema = registry.register(
     outcome: z.record(z.string(), z.unknown()),
     disposition: z.string().nullable(),
     dispositionSource: z.enum(DISPOSITION_SOURCES).nullable(),
+    externalRef: z.string().nullable(),
     insights: z
       .object({
         status: z.enum(INSIGHT_STATUSES),
@@ -285,6 +300,7 @@ export const RecordingLinkSchema = registry.register(
 // ── OpenAPI paths ───────────────────────────────────────────────────────────
 
 const tags = ['Calls'];
+const publicTags = [...tags, PUBLIC_API_TAG];
 const read = { 401: errors[401], 403: errors[403], 404: errors[404] };
 const base = '/api/v1/calls';
 
@@ -306,9 +322,9 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: base,
-  tags,
+  tags: publicTags,
   summary: 'Calls of the account, newest first (calls.read, cursor pagination)',
-  security: bearer,
+  security: bearerOrKey,
   request: { query: ListCallsQuery },
   responses: {
     200: {
@@ -339,18 +355,18 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: `${base}/{id}`,
-  tags,
+  tags: publicTags,
   summary: 'One call: outcome, metrics, cost (calls.read)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: CallParams },
   responses: { 200: ok(CallSchema), ...read },
 });
 registry.registerPath({
   method: 'get',
   path: `${base}/{id}/transcript`,
-  tags,
+  tags: publicTags,
   summary: `Final transcript turns (calls.read; up to ${String(CALL_LIMITS.transcriptListedMax)})`,
-  security: bearer,
+  security: bearerOrKey,
   request: { params: CallParams },
   responses: { 200: ok(z.array(TranscriptTurnSchema)), ...read },
 });
@@ -386,9 +402,9 @@ registry.registerPath({
 registry.registerPath({
   method: 'post',
   path: base,
-  tags,
+  tags: publicTags,
   summary: `Call one contact now (calls.trigger + flows.read / agents.read, Idempotency-Key, ${String(CAMPAIGN_LIMITS.singleCallsPerMinutePerUser)} / min / user) — dry-run provider (simulated, never charged) until phone lines exist; the dial guard applies: 422 CALL_OUTSIDE_WINDOW (details[0].message = next window start), 422 CALL_NOT_ALLOWED (DND / opted out / daily or weekly limit / minimum gap)`,
-  security: bearer,
+  security: bearerOrKey,
   request: {
     headers: z.object({ 'idempotency-key': z.string() }),
     body: { content: { 'application/json': { schema: StartCallBody } } },

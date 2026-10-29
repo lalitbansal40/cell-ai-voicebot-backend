@@ -302,6 +302,8 @@ export interface MessageSystem {
 export interface MessageDoc {
   _id: Types.ObjectId;
   accountId: Types.ObjectId;
+  /** The sender's own id for this message (public API / after-call sends, ≤ 100; Phase 15). */
+  externalRef?: string | null;
   conversationId: Types.ObjectId;
   channelId: Types.ObjectId;
   contactId: Types.ObjectId;
@@ -516,6 +518,7 @@ const contextSchema = sub<MessageContext>({
 });
 
 const schema = new Schema<MessageDoc>({
+  externalRef: { type: String, default: null, maxlength: 100 },
   conversationId: { type: Schema.Types.ObjectId, required: true },
   channelId: { type: Schema.Types.ObjectId, required: true },
   contactId: { type: Schema.Types.ObjectId, required: true },
@@ -644,6 +647,10 @@ schema.index(
   { unique: true, partialFilterExpression: { waMessageId: { $type: 'string' } } },
 );
 schema.index({ accountId: 1, conversationId: 1, at: -1, _id: -1 });
+schema.index(
+  { accountId: 1, externalRef: 1 },
+  { name: 'external_ref', partialFilterExpression: { externalRef: { $type: 'string' } } },
+);
 // retention purge
 schema.index({ at: 1 });
 // Phase 14 analytics sweep (changed rows by `updatedAt`)

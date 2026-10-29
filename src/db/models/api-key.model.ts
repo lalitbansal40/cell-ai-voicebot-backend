@@ -14,9 +14,21 @@ export interface ApiKeyDoc {
   scopes: string[];
   lastUsedAt?: Date | null;
   revokedAt?: Date | null;
+  /** Client IPs / CIDR ranges allowed to use the key (empty = any; ≤ 20). */
+  ipAllowlist: string[];
+  /** The key stops working at this time (null = never). */
+  expiresAt?: Date | null;
+  /** Requests per day, the last 7 days (`day` = YYYY-MM-DD UTC). */
+  usage: ApiKeyUsageDay[];
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ApiKeyUsageDay {
+  day: string;
+  reads: number;
+  writes: number;
 }
 
 const schema = new Schema<ApiKeyDoc>({
@@ -26,6 +38,12 @@ const schema = new Schema<ApiKeyDoc>({
   scopes: { type: [String], default: [] },
   lastUsedAt: { type: Date, default: null },
   revokedAt: { type: Date, default: null },
+  ipAllowlist: { type: [String], default: [] },
+  expiresAt: { type: Date, default: null },
+  usage: {
+    type: [{ _id: false, day: String, reads: Number, writes: Number }],
+    default: [],
+  },
   createdBy: { type: Schema.Types.ObjectId, required: true },
 });
 schema.plugin(basePlugin, { hide: ['keyHash'] });

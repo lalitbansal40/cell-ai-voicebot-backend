@@ -51,7 +51,8 @@ const uploadPhoto: RequestHandler = (req, res, next) => {
 /** `/api/v1/whatsapp/channels/:id/profile` — business profile (read `whatsapp.read`, edit `whatsapp.manage`). */
 export const createBusinessProfileRouter = (ctx: WhatsAppContext): Router => {
   const router = Router();
-  router.use(authenticate());
+  // keys pass through to the public template routes below (their routes stay session-only)
+  router.use(authenticate({ apiKeys: true }));
   const manage = [
     requirePermission('whatsapp.manage'),
     blockWhenImpersonating(),

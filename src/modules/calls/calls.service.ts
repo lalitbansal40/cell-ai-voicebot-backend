@@ -149,6 +149,7 @@ export const toCallView = (c: CallDoc, names: Names) => {
     outcome: { ...c.outcome },
     disposition: c.disposition,
     dispositionSource: c.dispositionSource ?? null,
+    externalRef: c.externalRef ?? null,
     insights: c.insights
       ? {
           status: c.insights.status,
@@ -287,6 +288,7 @@ export const callsFilter = async (
   if (query.mode) filter.mode = query.mode;
   // Phase 14 record filters
   if (query.disposition) filter.disposition = { $in: query.disposition };
+  if (query.externalRef) filter.externalRef = query.externalRef;
   if (query.sentiment) filter['insights.sentiment'] = query.sentiment;
   if (query.hasPromise !== undefined)
     filter['insights.hasPromise'] = query.hasPromise ? true : { $ne: true };

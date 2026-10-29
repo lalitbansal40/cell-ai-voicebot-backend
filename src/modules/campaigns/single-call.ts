@@ -146,7 +146,8 @@ export const startSingleCall = async (
     contactId: contact._id.toString(),
     source,
     variables,
-    initiatedBy: auth.userId ?? null,
+    initiatedBy: auth.userId ?? auth.keyOwnerId ?? null,
+    externalRef: body.externalRef ?? null,
     dryRun: {
       seed: new Types.ObjectId().toString(),
       // a manual call is made to hear the flow with this contact: the simulated

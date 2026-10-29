@@ -96,6 +96,8 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `REPORT_RANGE_INVALID`                      | 422  | Report date range longer than 366 days or the start after the end                                                                                                                  | 14    |
 | `RETENTION_OUT_OF_BOUNDS`                   | 422  | Retention days outside the allowed range (minimums, platform / superadmin maximum, recordings ≤ calls)                                                                             | 14    |
 | `REPORT_SUBSCRIPTION_LIMIT`                 | 422  | A person already has 5 report e-mails                                                                                                                                              | 14    |
+| `API_KEY_IP_DENIED`                         | 403  | The API key has an IP allowlist and the client IP (`req.ip`, `X-Forwarded-For` only per `TRUST_PROXY`) is not in it                                                                | 15    |
+| `API_KEY_EXPIRED`                           | 401  | The API key's expiry date has passed                                                                                                                                               | 15    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

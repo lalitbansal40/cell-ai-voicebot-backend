@@ -207,11 +207,43 @@ The file's **magic bytes** must match too (an `.xlsx` is a ZIP: `PK\x03\x04`; a 
 
 ## 12. Dashboard API vs public API
 
-Both use the **same `/api/v1/...` paths and the same envelopes**. Only authentication differs:
+Both use the **same `/api/v1/...` paths, services and envelopes** (ADR 0045 — "one API, two auths"). Only authentication differs:
 
 - Dashboard: `Authorization: Bearer <accessToken>` + role permissions.
-- Public API: `X-API-Key` + key **scopes**. Current scopes (`src/modules/api-keys/scopes.ts`, Phase 10 may add more): `calls:read`, `calls:write`, `contacts:read`, `contacts:write`, `campaigns:read`, `campaigns:write`, `webhooks:manage`.
-- API keys (Phase 2): created by owners / admins (`apikeys.manage`), format `cav_live_` (production) / `cav_test_` + 32 base62 characters, stored as SHA-256, the full key is returned **once** (`Cache-Control: no-store`), max 20 active per account. `GET /api/v1/api-keys/whoami` checks a key.
+- Public API: `X-API-Key: cav_live_…` + key **scopes**. A route opens to keys with `access({ permission, scope })` (`src/shared/middlewares/access.ts`) inside a router that runs `authenticate({ apiKeys: true })`; every other route stays session-only (`requirePermission` always refuses keys). A request with both headers is treated as a session. Routes open to keys carry the OpenAPI tag **`Public API`** and both security schemes.
+- API keys (Phase 2, extended in Phase 15): created by owners / admins (`apikeys.manage`), format `cav_live_` (production) / `cav_test_` + 32 base62 characters, stored as SHA-256, the full key is returned **once** (`Cache-Control: no-store`), max 20 active per account. `GET /api/v1/api-keys/whoami` checks a key. `PATCH /api/v1/api-keys/:id` changes name, scopes, IP allowlist and expiry (audit `apikey.updated`); `GET /api/v1/api-keys/scopes` lists the catalogue; `GET /api/v1/api-keys/:id/requests` pages the request log.
+
+**Scopes** (`src/modules/api-keys/scopes.ts`, 13):
+
+| Group     | Scope                  | Opens                                                                                               |
+| --------- | ---------------------- | --------------------------------------------------------------------------------------------------- |
+| Calls     | `calls:read`           | `GET /calls`, `/calls/:id`, `/calls/:id/transcript`, `/calls/:id/insights`, `/calls/:id/after-call` |
+| Calls     | `calls:write`          | `POST /calls` (one call to a contact; `variables`, `externalRef`)                                   |
+| Calls     | `whatsapp-calls:write` | `POST /whatsapp/calls` (AI calls only — `mode: 'ai'`)                                               |
+| Contacts  | `contacts:read`        | `GET /contacts`, `/contacts/:id`                                                                    |
+| Contacts  | `contacts:write`       | `POST /contacts` (`?upsert=phone\|externalId`), `PATCH /contacts/:id`, `POST /contacts/bulk-upsert` |
+| Campaigns | `campaigns:read`       | `GET /campaigns`, `/campaigns/:id`, `/campaigns/:id/contacts`, `/campaigns/:id/runs`                |
+| Campaigns | `campaigns:write`      | `POST /campaigns`, `/campaigns/:id/start\|pause\|resume\|cancel`                                    |
+| WhatsApp  | `messages:read`        | `GET /messages/:id`                                                                                 |
+| WhatsApp  | `messages:write`       | `POST /messages/template`, `POST /messages/text`                                                    |
+| WhatsApp  | `templates:read`       | `GET /whatsapp/templates` (approved only for keys)                                                  |
+| Reports   | `reports:read`         | `GET /reports/:tab`                                                                                 |
+| Reports   | `exports:write`        | `POST /exports/calls\|messages\|report`, `GET /exports/:id` (never phone numbers)                   |
+| Webhooks  | `webhooks:manage`      | `/webhook-endpoints/*`, `POST /webhook-deliveries/:id/replay`                                       |
+
+Inside the services a key acts with the permissions its scopes imply (`SCOPE_PERMISSIONS`, e.g. `calls:write` → `calls.trigger` + `flows.read` + `agents.read`); keys never get `contacts.export`. Records a key creates name the **key's creator** where a user is stored (`createdBy`, `startedBy`); the audit actor is `{ type: 'api_key', id }`. Missing scope → 403 `AUTH_FORBIDDEN` with `details: [{ path: 'scope', message: '<scope> is required' }]`.
+
+**Key checks** (`src/shared/middlewares/api-key-auth.ts`, cached in-process ≤ 30 s — a revoke / edit drops the entry at once on that instance, other instances within 30 s):
+
+- revoked / unknown → 401 `AUTH_UNAUTHENTICATED`; past `expiresAt` → 401 `API_KEY_EXPIRED`;
+- `ipAllowlist` (≤ 20 IPs / CIDR ranges, IPv4 + IPv6, empty = any) against `req.ip` — `X-Forwarded-For` counts only through `TRUST_PROXY` → 403 `API_KEY_IP_DENIED`;
+- suspended account → reads only (403 `AUTH_ACCOUNT_SUSPENDED` on writes).
+
+**Per-key limits** (`publicApiGate`, `src/modules/public-api/key-limits.ts`, Redis `rl:key:<id>:r|w`): 600 reads and 60 writes a minute per key, `RateLimit-*` headers, 429 `RATE_LIMITED` + `Retry-After`. Dashboard sessions keep the global per-IP limiter only. Calls and messages are further limited by the dial / send limits and the wallet.
+
+**Request log** (`apiRequestLogs`, TTL 7 days): one row per key request after the response — method, route **template** (`/api/v1/calls/:id`), status, ms, request id. Never ids, query values, bodies or the key. Usage counters per key and UTC day (last 7 days) are flushed at most once per key every 10 s; the dashboard shows requests in the last 24 h (log) and 7 days (counters).
+
+**`externalRef`** (≤ 100 chars) on calls and messages: the caller's own id, accepted by `POST /calls` / message sends, echoed in views and webhooks, filter `GET /calls?externalRef=`. Contacts keep `externalId` (unique per account).
 
 ## 13. Tenant scoping (security rule)
 

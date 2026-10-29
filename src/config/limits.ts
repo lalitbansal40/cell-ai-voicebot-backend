@@ -590,3 +590,42 @@ export const RETENTION_LIMITS = {
   /** Rows per purge batch (resumable: each batch is deleted before the next is read). */
   purgeBatch: 1000,
 } as const;
+
+/** Public API (Phase 15, PHASE_15_PLAN §1b). Per-key limits apply to `X-API-Key` requests only. */
+export const PUBLIC_API_LIMITS = {
+  writesPerMinute: 60,
+  readsPerMinute: 600,
+  bulkUpsertMax: 1_000,
+  externalRefMax: 100,
+  ipAllowlistMax: 20,
+  callVariablesMax: 50,
+  requestLogTtlDays: 7,
+  /** Revoked / changed keys stop working within this time. */
+  keyCacheSec: 30,
+} as const;
+
+/** Outbound webhooks (Phase 15, PHASE_15_PLAN §1c). */
+export const WEBHOOK_LIMITS = {
+  endpointsPerAccount: 10,
+  timeoutMs: 10_000,
+  retryDelaysSec: [60, 300, 1_800, 7_200, 43_200],
+  disableAfterGivenUp: 5,
+  disableAfterFailingHours: 24,
+  responseSnippetBytes: 1_024,
+  eventTtlDays: 30,
+  secretRotationOverlapHours: 24,
+  maxPayloadBytes: 64 * 1024,
+} as const;
+
+/** WhatsApp after a call (Phase 15, PHASE_15_PLAN §1d). */
+export const POSTCALL_LIMITS = {
+  rulesPerAccount: 20,
+  maxDelayMinutes: 1_440,
+} as const;
+
+/** Scheduled Google-Sheet imports (Phase 15, PHASE_15_PLAN §1e). */
+export const SHEET_IMPORT_LIMITS = {
+  importsPerAccount: 5,
+  allowedHosts: ['docs.google.com'],
+  /** Same byte / row caps as file imports (CONTACT_LIMITS). */
+} as const;

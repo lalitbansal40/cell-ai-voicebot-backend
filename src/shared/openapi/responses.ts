@@ -46,3 +46,8 @@ export const noContentResponse = { description: 'No content' };
 export const bearer = [{ bearerAuth: [] as string[] }];
 /** Public API key security requirement. */
 export const apiKey = [{ apiKeyAuth: [] as string[] }];
+
+/** Routes open to both (ADR 0045): a dashboard session or an API key with the route's scope. */
+export const bearerOrKey: Record<string, string[]>[] = [{ bearerAuth: [] }, { apiKeyAuth: [] }];
+/** OpenAPI tag of every route an API key can call (the docs page lists these first). */
+export const PUBLIC_API_TAG = 'Public API';

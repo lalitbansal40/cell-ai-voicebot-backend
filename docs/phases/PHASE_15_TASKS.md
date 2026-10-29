@@ -4,7 +4,7 @@ Plan: [PHASE_15_PLAN.md](PHASE_15_PLAN.md) · Branch: `feature/phase-15-integrat
 
 | ✓   | #      | Task                                                                                                                                      | Repo | Size |
 | --- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---- |
-| [ ] | T15.1  | Public API foundation: scopes, session-or-key guard on existing routes, per-key limits, request log, IP allowlist / expiry, `externalRef` | BE   | L    |
+| [x] | T15.1  | Public API foundation: scopes, session-or-key guard on existing routes, per-key limits, request log, IP allowlist / expiry, `externalRef` | BE   | L    |
 | [ ] | T15.2  | Public send + trigger routes: contacts upsert / bulk, messages text / template, WhatsApp call trigger, templates read                     | BE   | M    |
 | [ ] | T15.3  | Webhook core: outbox, endpoints, signing + rotation, delivery queue, retries, auto-disable, replay, test event                            | BE   | L    |
 | [ ] | T15.4  | Event wiring for the whole catalogue, personal-data filter, external-client integration test                                              | BE   | M    |

@@ -7,6 +7,8 @@ import { verifyAccessToken } from '../../modules/auth/tokens';
 import { PLATFORM_PERMISSIONS } from '../../modules/rbac/permissions';
 import { AppError, UnauthenticatedError } from '../errors/app-error';
 
+import { apiKeyContext, isApiKeyRequest, resolveApiKey } from './api-key-auth';
+
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** `Authorization: Bearer <token>` → the token, else undefined. */
@@ -19,63 +21,78 @@ export const bearerToken = (header: string | undefined): string | undefined => {
  * Dashboard auth (ADR 0009): verifies the access JWT, then loads the user,
  * role and account on every request so disabling a user, changing a role or
  * suspending an account takes effect immediately. Sets `req.auth`.
+ *
+ * `apiKeys: true` (routers with public-API routes, ADR 0045): a request with
+ * `X-API-Key` and no session is authenticated by the key instead — with no
+ * permissions, so only routes guarded by `access({ scope })` let it through.
  */
-export const authenticate = (): RequestHandler => async (req, _res, next) => {
-  const token = bearerToken(req.get('authorization'));
-  if (!token) throw new UnauthenticatedError();
-  const claims = await verifyAccessToken(token);
+export const authenticate =
+  ({ apiKeys = false }: { apiKeys?: boolean } = {}): RequestHandler =>
+  async (req, _res, next) => {
+    if (apiKeys && isApiKeyRequest(req)) {
+      const key = await resolveApiKey(req);
+      req.auth = apiKeyContext(key);
+      req.log = req.log.child({ accountId: key.accountId, apiKeyId: key.id });
+      next();
+      return;
+    }
+    const token = bearerToken(req.get('authorization'));
+    if (!token) throw new UnauthenticatedError();
+    const claims = await verifyAccessToken(token);
 
-  const user = await UserModel.findById(claims.sub)
-    .select({
-      accountId: 1,
-      roleId: 1,
-      status: 1,
-      emailVerifiedAt: 1,
-      tokenVersion: 1,
-      platformRole: 1,
-    })
-    .lean();
-  if (!user || user.accountId.toString() !== claims.acc) throw new UnauthenticatedError();
-  if (user.tokenVersion !== claims.tv) throw new UnauthenticatedError();
-  if (user.status === 'disabled') throw new AppError('AUTH_USER_DISABLED');
-  if (user.status !== 'active') throw new UnauthenticatedError();
-  if (!user.emailVerifiedAt) throw new AppError('AUTH_EMAIL_NOT_VERIFIED');
+    const user = await UserModel.findById(claims.sub)
+      .select({
+        accountId: 1,
+        roleId: 1,
+        status: 1,
+        emailVerifiedAt: 1,
+        tokenVersion: 1,
+        platformRole: 1,
+      })
+      .lean();
+    if (!user || user.accountId.toString() !== claims.acc) throw new UnauthenticatedError();
+    if (user.tokenVersion !== claims.tv) throw new UnauthenticatedError();
+    if (user.status === 'disabled') throw new AppError('AUTH_USER_DISABLED');
+    if (user.status !== 'active') throw new UnauthenticatedError();
+    if (!user.emailVerifiedAt) throw new AppError('AUTH_EMAIL_NOT_VERIFIED');
 
-  const [role, account] = await Promise.all([
-    RoleModel.findOne({ _id: user.roleId, accountId: user.accountId })
-      .select({ key: 1, permissions: 1 })
-      .lean(),
-    AccountModel.findById(user.accountId).select({ status: 1, timezone: 1, isPlatform: 1 }).lean(),
-  ]);
-  if (!role || !account) throw new UnauthenticatedError();
+    const [role, account] = await Promise.all([
+      RoleModel.findOne({ _id: user.roleId, accountId: user.accountId })
+        .select({ key: 1, permissions: 1 })
+        .lean(),
+      AccountModel.findById(user.accountId)
+        .select({ status: 1, timezone: 1, isPlatform: 1 })
+        .lean(),
+    ]);
+    if (!role || !account) throw new UnauthenticatedError();
 
-  const superadmin = user.platformRole === 'superadmin' && !claims.imp;
-  if (account.status === 'suspended' && !superadmin && !READ_METHODS.has(req.method)) {
-    throw new AppError('AUTH_ACCOUNT_SUSPENDED');
-  }
+    const superadmin = user.platformRole === 'superadmin' && !claims.imp;
+    if (account.status === 'suspended' && !superadmin && !READ_METHODS.has(req.method)) {
+      throw new AppError('AUTH_ACCOUNT_SUSPENDED');
+    }
 
-  const permissions = new Set<string>(role.permissions);
-  if (superadmin) for (const p of PLATFORM_PERMISSIONS) permissions.add(p);
+    const permissions = new Set<string>(role.permissions);
+    if (superadmin) for (const p of PLATFORM_PERMISSIONS) permissions.add(p);
 
-  req.auth = {
-    kind: 'user',
-    accountId: claims.acc,
-    userId: claims.sub,
-    roleId: role._id.toString(),
-    roleKey: role.key,
-    permissions,
-    ...(superadmin ? { platformRole: 'superadmin' as const } : {}),
-    ...(claims.imp ? { impersonatorId: claims.imp } : {}),
-    sessionId: claims.sid,
-    tokenVersion: user.tokenVersion,
-    ...(claims.exp ? { tokenExpiresAt: new Date(claims.exp * 1000) } : {}),
-    account: {
-      id: account._id.toString(),
-      status: account.status,
-      timezone: account.timezone,
-      isPlatform: account.isPlatform,
-    },
+    req.auth = {
+      kind: 'user',
+      accountId: claims.acc,
+      userId: claims.sub,
+      roleId: role._id.toString(),
+      roleKey: role.key,
+      permissions,
+      ...(superadmin ? { platformRole: 'superadmin' as const } : {}),
+      ...(claims.imp ? { impersonatorId: claims.imp } : {}),
+      sessionId: claims.sid,
+      tokenVersion: user.tokenVersion,
+      ...(claims.exp ? { tokenExpiresAt: new Date(claims.exp * 1000) } : {}),
+      account: {
+        id: account._id.toString(),
+        status: account.status,
+        timezone: account.timezone,
+        isPlatform: account.isPlatform,
+      },
+    };
+    req.log = req.log.child({ accountId: claims.acc, userId: claims.sub });
+    next();
   };
-  req.log = req.log.child({ accountId: claims.acc, userId: claims.sub });
-  next();
-};

@@ -224,6 +224,8 @@ describe('startServer (e2e)', () => {
       'queues',
       'email',
       'redis',
+      // Phase 15: buffered API key usage counters are written before Mongo closes
+      'api-key-usage',
       'mongo',
     ]);
     expect(logLines.some((l) => l.msg === 'shutdown: complete')).toBe(true);

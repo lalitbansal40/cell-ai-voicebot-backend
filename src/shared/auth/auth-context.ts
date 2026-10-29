@@ -9,6 +9,8 @@ export interface AuthContext {
   accountId: string;
   userId?: string;
   apiKeyId?: string;
+  /** API keys: the user who created the key (owner of what the key creates, e.g. exports). */
+  keyOwnerId?: string;
   roleId?: string;
   roleKey?: string;
   permissions: ReadonlySet<string>;
@@ -28,4 +30,11 @@ export interface AuthContext {
 export const requireAuth = (req: Request): AuthContext => {
   if (!req.auth) throw new UnauthenticatedError();
   return req.auth;
+};
+
+/** The user a request acts for: the signed-in user, or the creator of the API key. */
+export const actingUserId = (auth: AuthContext): string => {
+  const id = auth.userId ?? auth.keyOwnerId;
+  if (!id) throw new UnauthenticatedError();
+  return id;
 };

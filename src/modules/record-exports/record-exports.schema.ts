@@ -1,7 +1,14 @@
 import { CALL_PROVIDERS, CALL_STATUSES, SENTIMENTS } from '../../db/models/call.model';
 import { EXPORT_FORMATS, EXPORT_KINDS } from '../../db/models/export-job.model';
 import { registry } from '../../shared/openapi/registry';
-import { bearer, errors, ok, okPage } from '../../shared/openapi/responses';
+import {
+  bearer,
+  bearerOrKey,
+  errors,
+  ok,
+  okPage,
+  PUBLIC_API_TAG,
+} from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema, PaginationQuerySchema } from '../../shared/validation/schemas';
 import { REPORT_TABS, ReportQuery } from '../reports/reports.schema';
@@ -86,6 +93,7 @@ export const RecordExportSchema = registry.register(
 );
 
 const tags = ['Exports'];
+const publicTags = [...tags, PUBLIC_API_TAG];
 const json = <T extends z.ZodType>(schema: T) => ({
   body: { content: { 'application/json': { schema } } },
 });
@@ -100,38 +108,38 @@ const created = {
 registry.registerPath({
   method: 'post',
   path: '/api/v1/exports/calls',
-  tags,
+  tags: publicTags,
   summary:
     'Export calls as CSV / XLSX (calls.export; includePhone needs contacts.export; ≤ 200,000 rows; one export at a time; never while impersonating)',
-  security: bearer,
+  security: bearerOrKey,
   request: json(ExportCallsBody),
   responses: created,
 });
 registry.registerPath({
   method: 'post',
   path: '/api/v1/exports/messages',
-  tags,
+  tags: publicTags,
   summary: 'Export WhatsApp message metadata — never the text (reports.export; ≤ 200,000 rows)',
-  security: bearer,
+  security: bearerOrKey,
   request: json(ExportMessagesBody),
   responses: created,
 });
 registry.registerPath({
   method: 'post',
   path: '/api/v1/exports/report',
-  tags,
+  tags: publicTags,
   summary: "Export a report tab's numbers (reports.export)",
-  security: bearer,
+  security: bearerOrKey,
   request: json(ExportReportBody),
   responses: created,
 });
 registry.registerPath({
   method: 'get',
   path: '/api/v1/exports/{id}',
-  tags,
+  tags: publicTags,
   summary:
     'An export of calls / messages / a report; a 15-minute download link once ready (the kind’s permission)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: ExportParams },
   responses: { 200: ok(RecordExportSchema), 401: errors[401], 403: errors[403], 404: errors[404] },
 });

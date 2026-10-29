@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import type { AiJobs } from '../../core/ai/jobs';
 import { accepted, ok } from '../../shared/http/envelope';
+import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import {
   blockWhenImpersonating,
@@ -29,10 +30,10 @@ import {
 /** `/api/v1/calls/:id/insights|disposition` (Phase 14). Mounted beside the calls router. */
 export const createCallInsightsRouter = (deps: { jobs: AiJobs }): Router => {
   const router = Router();
-  router.use(authenticate());
+  router.use(authenticate({ apiKeys: true }));
   router.get(
     '/:id/insights',
-    requirePermission('calls.read'),
+    access({ permission: 'calls.read', scope: 'calls:read' }),
     ...handle({ params: InsightParams }, async ({ params, req, res }) => {
       ok(res, await getInsights(req, params.id));
     }),

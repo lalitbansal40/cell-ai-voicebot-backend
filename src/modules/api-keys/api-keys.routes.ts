@@ -10,8 +10,20 @@ import {
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
-import { ApiKeyIdParams, CreateApiKeyBody } from './api-keys.schema';
-import { createApiKey, listApiKeys, revokeApiKey } from './api-keys.service';
+import {
+  ApiKeyIdParams,
+  ApiKeyRequestsQuery,
+  CreateApiKeyBody,
+  scopeCatalogue,
+  UpdateApiKeyBody,
+} from './api-keys.schema';
+import {
+  createApiKey,
+  listApiKeys,
+  listKeyRequests,
+  revokeApiKey,
+  updateApiKey,
+} from './api-keys.service';
 
 /** `/api/v1/api-keys` — dashboard management + `whoami` for key holders. */
 export const createApiKeysRouter = (): Router => {
@@ -30,6 +42,9 @@ export const createApiKeysRouter = (): Router => {
   router.get('/', authenticate(), requirePermission('apikeys.read'), async (req, res) => {
     ok(res, await listApiKeys(req));
   });
+  router.get('/scopes', authenticate(), requirePermission('apikeys.read'), (_req, res) => {
+    ok(res, scopeCatalogue());
+  });
   router.post(
     '/',
     authenticate(),
@@ -39,6 +54,29 @@ export const createApiKeysRouter = (): Router => {
       res.set('Cache-Control', 'no-store');
       created(res, await createApiKey(req, body));
     }),
+  );
+  router.patch(
+    '/:id',
+    authenticate(),
+    requirePermission('apikeys.manage'),
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ApiKeyIdParams, body: UpdateApiKeyBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await updateApiKey(req, params.id, body));
+      },
+    ),
+  );
+  router.get(
+    '/:id/requests',
+    authenticate(),
+    requirePermission('apikeys.read'),
+    ...handle(
+      { params: ApiKeyIdParams, query: ApiKeyRequestsQuery },
+      async ({ params, query, req, res }) => {
+        ok(res, await listKeyRequests(req, params.id, query));
+      },
+    ),
   );
   router.delete(
     '/:id',

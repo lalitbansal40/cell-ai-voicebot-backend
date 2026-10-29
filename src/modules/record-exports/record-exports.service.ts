@@ -26,7 +26,7 @@ import { FlowModel } from '../../db/models/flow.model';
 import { MessageModel, type MessageDoc } from '../../db/models/message.model';
 import { UserModel } from '../../db/models/user.model';
 import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
-import { requireAuth } from '../../shared/auth/auth-context';
+import { actingUserId, requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import {
   AppError,
@@ -147,7 +147,7 @@ const start = async (
       columns: [],
       status: 'pending',
       progress: { processed: 0, total: input.total },
-      createdBy: new Types.ObjectId(auth.userId),
+      createdBy: new Types.ObjectId(actingUserId(auth)),
     });
     await jobs.enqueue('records.export', {
       accountId: accountId.toString(),

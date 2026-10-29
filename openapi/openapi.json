@@ -464,7 +464,8 @@
               "report.exported",
               "report_subscription.created",
               "report_subscription.updated",
-              "report_subscription.deleted"
+              "report_subscription.deleted",
+              "apikey.updated"
             ]
           },
           "actor": {
@@ -1456,8 +1457,12 @@
           "name": { "type": "string" },
           "prefix": { "type": "string", "example": "cav_live_ab12" },
           "scopes": { "type": "array", "items": { "type": "string" } },
+          "ipAllowlist": { "type": "array", "items": { "type": "string" } },
+          "expiresAt": { "type": ["string", "null"] },
           "lastUsedAt": { "type": ["string", "null"] },
           "revokedAt": { "type": ["string", "null"] },
+          "requests24h": { "type": "integer" },
+          "requests7d": { "type": "integer" },
           "createdBy": { "type": "string" },
           "createdAt": { "type": "string" }
         },
@@ -1466,11 +1471,37 @@
           "name",
           "prefix",
           "scopes",
+          "ipAllowlist",
+          "expiresAt",
           "lastUsedAt",
           "revokedAt",
+          "requests24h",
+          "requests7d",
           "createdBy",
           "createdAt"
         ]
+      },
+      "ApiKeyScopeInfo": {
+        "type": "object",
+        "properties": {
+          "scope": { "type": "string" },
+          "group": { "type": "string" },
+          "description": { "type": "string" }
+        },
+        "required": ["scope", "group", "description"]
+      },
+      "ApiRequestLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "method": { "type": "string" },
+          "route": { "type": "string", "example": "/api/v1/calls/:id" },
+          "status": { "type": "integer" },
+          "ms": { "type": "integer" },
+          "requestId": { "type": "string" },
+          "at": { "type": "string" }
+        },
+        "required": ["id", "method", "route", "status", "ms", "requestId", "at"]
       },
       "CreatedApiKey": {
         "type": "object",
@@ -4638,6 +4669,7 @@
             "type": ["string", "null"],
             "enum": ["flow", "agent", "user", "ai", null]
           },
+          "externalRef": { "type": ["string", "null"] },
           "insights": {
             "type": ["object", "null"],
             "properties": {
@@ -4759,6 +4791,7 @@
           "outcome",
           "disposition",
           "dispositionSource",
+          "externalRef",
           "insights",
           "languageDetected",
           "metrics",
@@ -11298,15 +11331,28 @@
                       "enum": [
                         "calls:read",
                         "calls:write",
+                        "whatsapp-calls:write",
                         "contacts:read",
                         "contacts:write",
                         "campaigns:read",
                         "campaigns:write",
+                        "messages:read",
+                        "messages:write",
+                        "templates:read",
+                        "reports:read",
+                        "exports:write",
                         "webhooks:manage"
                       ]
                     },
                     "minItems": 1
-                  }
+                  },
+                  "ipAllowlist": {
+                    "type": "array",
+                    "items": { "type": "string", "maxLength": 50 },
+                    "maxItems": 20,
+                    "example": ["203.0.113.0/24", "2001:db8::/32"]
+                  },
+                  "expiresAt": { "type": ["string", "null"], "format": "date-time" }
                 },
                 "required": ["name", "scopes"],
                 "additionalProperties": false
@@ -11352,6 +11398,96 @@
       }
     },
     "/api/v1/api-keys/{id}": {
+      "patch": {
+        "tags": ["API keys"],
+        "summary": "Change a key: name, scopes, IP allowlist, expiry (apikeys.manage; takes effect within 30 s)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 60 },
+                  "scopes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "calls:read",
+                        "calls:write",
+                        "whatsapp-calls:write",
+                        "contacts:read",
+                        "contacts:write",
+                        "campaigns:read",
+                        "campaigns:write",
+                        "messages:read",
+                        "messages:write",
+                        "templates:read",
+                        "reports:read",
+                        "exports:write",
+                        "webhooks:manage"
+                      ]
+                    },
+                    "minItems": 1
+                  },
+                  "ipAllowlist": {
+                    "type": "array",
+                    "items": { "type": "string", "maxLength": 50 },
+                    "maxItems": 20,
+                    "example": ["203.0.113.0/24", "2001:db8::/32"]
+                  },
+                  "expiresAt": { "type": ["string", "null"], "format": "date-time" }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ApiKey" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": ["API keys"],
         "summary": "Revoke an API key (idempotent)",
@@ -11366,6 +11502,105 @@
         ],
         "responses": {
           "204": { "description": "No content" },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys/scopes": {
+      "get": {
+        "tags": ["API keys"],
+        "summary": "Scope catalogue with groups (apikeys.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ApiKeyScopeInfo" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys/{id}/requests": {
+      "get": {
+        "tags": ["API keys"],
+        "summary": "Requests made with a key, newest first (last 7 days; route templates only)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/ApiRequestLog" }
+                        },
+                        "nextCursor": { "type": ["string", "null"] }
+                      },
+                      "required": ["items", "nextCursor"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
@@ -12750,9 +12985,9 @@
     },
     "/api/v1/contacts": {
       "get": {
-        "tags": ["Contacts"],
+        "tags": ["Contacts", "Public API"],
         "summary": "Contacts with search, filters, sort, pagination (contacts.read)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "integer", "minimum": 1, "default": 1 },
@@ -12888,9 +13123,9 @@
         }
       },
       "post": {
-        "tags": ["Contacts"],
+        "tags": ["Contacts", "Public API"],
         "summary": "Create a contact (contacts.write). A live duplicate phone / external id → 409 with existingId; a deleted one is revived.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -13044,9 +13279,9 @@
     },
     "/api/v1/contacts/{id}": {
       "get": {
-        "tags": ["Contacts"],
+        "tags": ["Contacts", "Public API"],
         "summary": "One contact with its list names",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -13086,9 +13321,9 @@
         }
       },
       "patch": {
-        "tags": ["Contacts"],
+        "tags": ["Contacts", "Public API"],
         "summary": "Update a contact — variables merge, `null` clears; tags / lists replace",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -19666,9 +19901,9 @@
     },
     "/api/v1/calls": {
       "get": {
-        "tags": ["Calls"],
+        "tags": ["Calls", "Public API"],
         "summary": "Calls of the account, newest first (calls.read, cursor pagination)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
@@ -19767,6 +20002,18 @@
           {
             "schema": {
               "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "Calls started with this `externalRef` (public API)"
+            },
+            "required": false,
+            "description": "Calls started with this `externalRef` (public API)",
+            "name": "externalRef",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
               "pattern": "^[a-z0-9_]{1,40}(,[a-z0-9_]{1,40}){0,29}$",
               "description": "Comma-separated outcome keys (Phase 14)"
             },
@@ -19854,9 +20101,9 @@
         }
       },
       "post": {
-        "tags": ["Calls"],
+        "tags": ["Calls", "Public API"],
         "summary": "Call one contact now (calls.trigger + flows.read / agents.read, Idempotency-Key, 10 / min / user) — dry-run provider (simulated, never charged) until phone lines exist; the dial guard applies: 422 CALL_OUTSIDE_WINDOW (details[0].message = next window start), 422 CALL_NOT_ALLOWED (DND / opted out / daily or weekly limit / minimum gap)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string" },
@@ -19880,7 +20127,13 @@
                     ],
                     "description": "Flows: `published` (default) or a version number"
                   },
-                  "agentId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                  "agentId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "externalRef": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "Your own id for the call — echoed in the call view and webhooks"
+                  }
                 },
                 "required": ["contactId"],
                 "additionalProperties": false
@@ -19975,9 +20228,9 @@
     },
     "/api/v1/calls/{id}": {
       "get": {
-        "tags": ["Calls"],
+        "tags": ["Calls", "Public API"],
         "summary": "One call: outcome, metrics, cost (calls.read)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -20025,9 +20278,9 @@
     },
     "/api/v1/calls/{id}/transcript": {
       "get": {
-        "tags": ["Calls"],
+        "tags": ["Calls", "Public API"],
         "summary": "Final transcript turns (calls.read; up to 2000)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -20252,9 +20505,9 @@
     },
     "/api/v1/campaigns": {
       "get": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Campaigns of the account with stats (campaigns.read, cursor pagination)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
@@ -20382,9 +20635,9 @@
         }
       },
       "post": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Create a draft (campaigns.write; 60 writes / min / user)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -20753,9 +21006,9 @@
     },
     "/api/v1/campaigns/{id}": {
       "get": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Campaign with stats, estimate and waiting info (campaigns.read)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -21229,9 +21482,9 @@
     },
     "/api/v1/campaigns/{id}/start": {
       "post": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Start now or schedule (campaigns.run, Idempotency-Key) — 409 CAMPAIGN_NOT_RUNNABLE, 429 CAMPAIGN_LIMIT_REACHED",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -21375,9 +21628,9 @@
     },
     "/api/v1/campaigns/{id}/pause": {
       "post": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Pause (campaigns.run); live calls finish",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -21443,9 +21696,9 @@
     },
     "/api/v1/campaigns/{id}/resume": {
       "post": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Resume (campaigns.run) — refused while the pause cause holds",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -21511,9 +21764,9 @@
     },
     "/api/v1/campaigns/{id}/cancel": {
       "post": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Cancel (campaigns.run); `hangUpLive` ends the live calls too",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -21590,9 +21843,9 @@
     },
     "/api/v1/campaigns/{id}/contacts": {
       "get": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Per-contact results (campaigns.read) — phones as the last 4 digits only",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -21755,9 +22008,9 @@
     },
     "/api/v1/campaigns/{id}/runs": {
       "get": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Runs of a recurring campaign, newest first (campaigns.read)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -26523,9 +26776,9 @@
     },
     "/api/v1/whatsapp/templates": {
       "get": {
-        "tags": ["WhatsApp templates"],
+        "tags": ["WhatsApp templates", "Public API"],
         "summary": "Templates of the account — list rows carry no bodies or examples (templates.read)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -27625,8 +27878,8 @@
     },
     "/api/v1/whatsapp/calls": {
       "post": {
-        "tags": ["WhatsApp calling"],
-        "security": [{ "bearerAuth": [] }],
+        "tags": ["WhatsApp calling", "Public API"],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "summary": "Place a human or AI WhatsApp call (calls.trigger; 10/minute/user; Idempotency-Key)",
         "parameters": [
           {
@@ -28174,9 +28427,9 @@
     },
     "/api/v1/calls/{id}/insights": {
       "get": {
-        "tags": ["Insights"],
+        "tags": ["Insights", "Public API"],
         "summary": "Post-call AI insights of a call: latest version + history (calls.read)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -28666,9 +28919,9 @@
     },
     "/api/v1/reports/overview": {
       "get": {
-        "tags": ["Reports"],
+        "tags": ["Reports", "Public API"],
         "summary": "Report: overview (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": {
@@ -28812,9 +29065,9 @@
     },
     "/api/v1/reports/calls": {
       "get": {
-        "tags": ["Reports"],
+        "tags": ["Reports", "Public API"],
         "summary": "Report: calls (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": {
@@ -28958,9 +29211,9 @@
     },
     "/api/v1/reports/whatsapp": {
       "get": {
-        "tags": ["Reports"],
+        "tags": ["Reports", "Public API"],
         "summary": "Report: whatsapp (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": {
@@ -29104,9 +29357,9 @@
     },
     "/api/v1/reports/templates": {
       "get": {
-        "tags": ["Reports"],
+        "tags": ["Reports", "Public API"],
         "summary": "Report: templates (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": {
@@ -29250,9 +29503,9 @@
     },
     "/api/v1/reports/campaigns": {
       "get": {
-        "tags": ["Reports"],
+        "tags": ["Reports", "Public API"],
         "summary": "Report: campaigns (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": {
@@ -29396,9 +29649,9 @@
     },
     "/api/v1/reports/flows": {
       "get": {
-        "tags": ["Reports"],
+        "tags": ["Reports", "Public API"],
         "summary": "Report: flows (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": {
@@ -29542,9 +29795,9 @@
     },
     "/api/v1/reports/agents": {
       "get": {
-        "tags": ["Reports"],
+        "tags": ["Reports", "Public API"],
         "summary": "Report: agents (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": {
@@ -29688,9 +29941,9 @@
     },
     "/api/v1/reports/team": {
       "get": {
-        "tags": ["Reports"],
+        "tags": ["Reports", "Public API"],
         "summary": "Report: team (reports.read; ≤ 366 days; cached 60 s; ETag / 304; 422 REPORT_RANGE_INVALID)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": {
@@ -29834,9 +30087,9 @@
     },
     "/api/v1/exports/calls": {
       "post": {
-        "tags": ["Exports"],
+        "tags": ["Exports", "Public API"],
         "summary": "Export calls as CSV / XLSX (calls.export; includePhone needs contacts.export; ≤ 200,000 rows; one export at a time; never while impersonating)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -29938,9 +30191,9 @@
     },
     "/api/v1/exports/messages": {
       "post": {
-        "tags": ["Exports"],
+        "tags": ["Exports", "Public API"],
         "summary": "Export WhatsApp message metadata — never the text (reports.export; ≤ 200,000 rows)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -30004,9 +30257,9 @@
     },
     "/api/v1/exports/report": {
       "post": {
-        "tags": ["Exports"],
+        "tags": ["Exports", "Public API"],
         "summary": "Export a report tab's numbers (reports.export)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -30125,9 +30378,9 @@
     },
     "/api/v1/exports/{id}": {
       "get": {
-        "tags": ["Exports"],
+        "tags": ["Exports", "Public API"],
         "summary": "An export of calls / messages / a report; a 15-minute download link once ready (the kind’s permission)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },

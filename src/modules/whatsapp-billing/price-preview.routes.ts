@@ -13,7 +13,8 @@ import { pricePreview } from './price-preview.service';
 /** `POST /api/v1/whatsapp/price-preview` — read-only price of one message (inbox / templates readers). */
 export const createPricePreviewRouter = (): Router => {
   const router = Router();
-  router.use(authenticate());
+  // keys pass through to the public template routes below (their routes stay session-only)
+  router.use(authenticate({ apiKeys: true }));
   router.post(
     '/price-preview',
     requireAnyPermission('inbox.read', 'templates.read'),

@@ -3,8 +3,8 @@ import { Router } from 'express';
 import { REPORT_LIMITS } from '../../config/limits';
 import { tenantFilter } from '../../shared/auth/tenant';
 import { getLogger } from '../../shared/logger';
+import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
-import { requirePermission } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
 import { cachedReport, reportCacheKey, sha1, type ReportCacheStore } from './cache';
@@ -17,10 +17,10 @@ export const createReportsRouter = (deps: {
   now?: () => Date;
 }): Router => {
   const router = Router();
-  router.use(authenticate());
+  router.use(authenticate({ apiKeys: true }));
   router.get(
     '/:tab',
-    requirePermission('reports.read'),
+    access({ permission: 'reports.read', scope: 'reports:read' }),
     ...handle({ params: ReportParams, query: ReportQuery }, async ({ params, query, req, res }) => {
       const started = Date.now();
       const now = deps.now?.() ?? new Date();

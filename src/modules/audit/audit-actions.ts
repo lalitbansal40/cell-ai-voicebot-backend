@@ -144,6 +144,8 @@ export const AUDIT_ACTIONS = [
   'report_subscription.created',
   'report_subscription.updated',
   'report_subscription.deleted',
+  // Phase 15 (integrations)
+  'apikey.updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

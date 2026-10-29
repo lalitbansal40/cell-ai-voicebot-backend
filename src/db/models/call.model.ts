@@ -225,6 +225,8 @@ export interface CallDoc {
   testPhone: string | null;
   outcome: Record<string, unknown>;
   disposition: string | null;
+  /** The caller's own id for this call (public API, ≤ 100 chars; Phase 15). */
+  externalRef?: string | null;
   /** Phase 14; `null` on calls before it or when a flow / agent left no source. */
   dispositionSource?: DispositionSource | null;
   /** Phase 14 post-call AI; `null` until the insights sweep looks at the call. */
@@ -361,6 +363,7 @@ const schema = new Schema<CallDoc>(
     testPhone: { type: String, default: null, select: false },
     outcome: { type: Schema.Types.Mixed, default: () => ({}) },
     disposition: { type: String, default: null },
+    externalRef: { type: String, default: null, maxlength: 100 },
     dispositionSource: { type: String, enum: [...DISPOSITION_SOURCES, null], default: null },
     insights: {
       type: new Schema<CallInsightsState>(
@@ -398,6 +401,10 @@ schema.plugin(basePlugin, { hide: ['testPhone'] });
 schema.plugin(tenantPlugin);
 schema.index({ accountId: 1, createdAt: -1, _id: -1 });
 schema.index({ accountId: 1, status: 1 });
+schema.index(
+  { accountId: 1, externalRef: 1 },
+  { name: 'external_ref', partialFilterExpression: { externalRef: { $type: 'string' } } },
+);
 schema.index({ accountId: 1, campaignId: 1, status: 1 });
 schema.index({ accountId: 1, contactId: 1, createdAt: -1 });
 schema.index({ accountId: 1, 'source.flowId': 1, createdAt: -1 });

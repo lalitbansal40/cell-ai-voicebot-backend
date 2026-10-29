@@ -20,7 +20,14 @@ import {
 import { EXPORT_FORMATS } from '../../db/models/export-job.model';
 import { CursorPageMetaSchema } from '../../shared/openapi/common.schemas';
 import { registry } from '../../shared/openapi/registry';
-import { bearer, errors, noContentResponse, ok } from '../../shared/openapi/responses';
+import {
+  bearer,
+  bearerOrKey,
+  errors,
+  noContentResponse,
+  ok,
+  PUBLIC_API_TAG,
+} from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { CursorQuerySchema, ObjectIdSchema } from '../../shared/validation/schemas';
 import { CallingWindowInput } from '../account/account.schema';
@@ -357,6 +364,7 @@ export const CampaignEstimateSchema = registry.register(
 // ── paths ───────────────────────────────────────────────────────────────────
 
 const tags = ['Campaigns'];
+const publicTags = [...tags, PUBLIC_API_TAG];
 const base = '/api/v1/campaigns';
 const json = <T extends z.ZodType>(schema: T) => ({
   body: { content: { 'application/json': { schema } } },
@@ -384,18 +392,18 @@ const idempotencyHeader = z.object({
 registry.registerPath({
   method: 'get',
   path: base,
-  tags,
+  tags: publicTags,
   summary: 'Campaigns of the account with stats (campaigns.read, cursor pagination)',
-  security: bearer,
+  security: bearerOrKey,
   request: { query: ListCampaignsQuery },
   responses: { 200: cursorPage(CampaignListItemSchema, 'Campaigns'), ...common, 422: errors[422] },
 });
 registry.registerPath({
   method: 'post',
   path: base,
-  tags,
+  tags: publicTags,
   summary: `Create a draft (campaigns.write; ${String(CAMPAIGN_LIMITS.writesPerMinutePerUser)} writes / min / user)`,
-  security: bearer,
+  security: bearerOrKey,
   request: json(CreateCampaignBody),
   responses: { 201: ok(CampaignSchema), ...writes },
 });
@@ -432,9 +440,9 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: `${base}/{id}`,
-  tags,
+  tags: publicTags,
   summary: 'Campaign with stats, estimate and waiting info (campaigns.read)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: CampaignParams },
   responses: { 200: ok(CampaignSchema), ...common },
 });
@@ -478,10 +486,10 @@ registry.registerPath({
 registry.registerPath({
   method: 'post',
   path: `${base}/{id}/start`,
-  tags,
+  tags: publicTags,
   summary:
     'Start now or schedule (campaigns.run, Idempotency-Key) — 409 CAMPAIGN_NOT_RUNNABLE, 429 CAMPAIGN_LIMIT_REACHED',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: CampaignParams, headers: idempotencyHeader },
   responses: { 200: ok(CampaignSchema), ...writes },
 });
@@ -493,9 +501,9 @@ for (const [action, summary] of [
   registry.registerPath({
     method: 'post',
     path: `${base}/{id}/${action}`,
-    tags,
+    tags: action === 'unschedule' ? tags : publicTags,
     summary,
-    security: bearer,
+    security: action === 'unschedule' ? bearer : bearerOrKey,
     request: { params: CampaignParams },
     responses: { 200: ok(CampaignSchema), ...writes },
   });
@@ -503,18 +511,18 @@ for (const [action, summary] of [
 registry.registerPath({
   method: 'post',
   path: `${base}/{id}/cancel`,
-  tags,
+  tags: publicTags,
   summary: 'Cancel (campaigns.run); `hangUpLive` ends the live calls too',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: CampaignParams, ...json(CancelCampaignBody) },
   responses: { 200: ok(CampaignSchema), ...writes },
 });
 registry.registerPath({
   method: 'get',
   path: `${base}/{id}/contacts`,
-  tags,
+  tags: publicTags,
   summary: 'Per-contact results (campaigns.read) — phones as the last 4 digits only',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: CampaignParams, query: ListCampaignContactsQuery },
   responses: {
     200: cursorPage(CampaignContactRowSchema, 'Campaign contacts'),
@@ -525,9 +533,9 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: `${base}/{id}/runs`,
-  tags,
+  tags: publicTags,
   summary: 'Runs of a recurring campaign, newest first (campaigns.read)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: CampaignParams },
   responses: { 200: ok(z.array(CampaignListItemSchema)), ...common },
 });

@@ -383,7 +383,11 @@ export const createContact = async (
     listIds,
     dnd: await isOnDnd(ctx.accountId, phoneE164),
     optedOutAt: null,
-    source: { type: 'manual' as const, importJobId: null },
+    // the public API records where the contact came from
+    source: {
+      type: req.auth?.kind === 'api_key' ? ('api' as const) : ('manual' as const),
+      importJobId: null,
+    },
     lastCalledAt: null,
     callCount: 0,
   };

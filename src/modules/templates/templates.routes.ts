@@ -8,6 +8,7 @@ import type { StorageProvider } from '../../core/storage';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { AppError, ValidationError } from '../../shared/errors/app-error';
 import { created, ok } from '../../shared/http/envelope';
+import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
 import {
@@ -96,7 +97,7 @@ const uploadExample: RequestHandler = (req, res, next) => {
  */
 export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
   const router = Router();
-  router.use(authenticate());
+  router.use(authenticate({ apiKeys: true }));
   const tx: TemplateContext = {
     wa: deps.ctx,
     jobs: deps.jobs,
@@ -125,9 +126,14 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
 
   router.get(
     '/templates',
-    read,
+    access({ permission: 'templates.read', scope: 'templates:read' }),
     ...handle({ query: ListTemplatesQuery }, async ({ query, req, res }) => {
-      ok(res, await listTemplates(accountOf(req), query));
+      // API keys see approved templates only (the ones they can send)
+      const keyQuery =
+        req.auth?.kind === 'api_key'
+          ? { ...query, status: ['APPROVED' as const], includeDeleted: false }
+          : query;
+      ok(res, await listTemplates(accountOf(req), keyQuery));
     }),
   );
   // static paths before `/:id`

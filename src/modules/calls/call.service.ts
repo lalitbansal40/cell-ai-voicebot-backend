@@ -73,6 +73,8 @@ export interface StartOutboundCallInput {
   campaign?: { campaignId: string; campaignContactId: string; attempt: number };
   /** The user of a single "Call now"; `null` for campaign calls. */
   initiatedBy: string | null;
+  /** Public API: the caller's own id for the call (echoed in webhooks). */
+  externalRef?: string | null;
   /** Campaign concurrency (the group slot limit); single calls use the web group (3). */
   groupLimit?: number;
   dryRun?: DryRunSettings & { speed: number; gate?: VirtualGate };
@@ -320,6 +322,7 @@ export class CallManager {
         campaignContactId: input.campaign?.campaignContactId ?? null,
         attempt: input.campaign?.attempt ?? null,
         startedBy: input.initiatedBy,
+        externalRef: input.externalRef ?? null,
         variables: input.variables,
         timestamps: { queuedAt: new Date(this.clock.now()) },
       });

@@ -1,5 +1,5 @@
 import { registry } from '../../shared/openapi/registry';
-import { bearer, errors, ok } from '../../shared/openapi/responses';
+import { bearer, bearerOrKey, errors, ok, PUBLIC_API_TAG } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 
 import {
@@ -17,6 +17,7 @@ import {
 } from './templates.schema';
 
 const tags = ['WhatsApp templates'];
+const publicTags = [...tags, PUBLIC_API_TAG];
 const base = '/api/v1/whatsapp/templates';
 const json = <T extends z.ZodType>(schema: T) => ({
   body: { content: { 'application/json': { schema } } },
@@ -36,9 +37,9 @@ const writes = {
 registry.registerPath({
   method: 'get',
   path: base,
-  tags,
+  tags: publicTags,
   summary: 'Templates of the account — list rows carry no bodies or examples (templates.read)',
-  security: bearer,
+  security: bearerOrKey,
   request: { query: ListTemplatesQuery },
   responses: { 200: ok(z.array(TemplateListItemSchema)), ...reads },
 });

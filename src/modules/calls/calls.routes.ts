@@ -3,6 +3,7 @@ import type { Store } from 'express-rate-limit';
 
 import { CALL_LIMITS, CAMPAIGN_LIMITS } from '../../config/limits';
 import { accepted, created, ok } from '../../shared/http/envelope';
+import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { idempotency } from '../../shared/middlewares/idempotency';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
@@ -31,8 +32,10 @@ export type CallsRouterDeps = CallsDeps & { webCallStore?: Store; calloutStore?:
 /** `/api/v1/calls` — browser test calls, history, transcripts, recordings (PHASE_7_PLAN §1o). */
 export const createCallsRouter = (deps: CallsRouterDeps): Router => {
   const router = Router();
-  router.use(authenticate());
+  router.use(authenticate({ apiKeys: true }));
   const read = requirePermission('calls.read');
+  // public API (ADR 0045): same routes, a key with the scope instead of the permission
+  const apiRead = access({ permission: 'calls.read', scope: 'calls:read' });
   const trigger = [requirePermission('calls.trigger'), blockWhenImpersonating()];
   const listen = [requirePermission('calls.listen'), blockWhenImpersonating()];
   const webCallLimiter = createRateLimiter({
@@ -45,14 +48,15 @@ export const createCallsRouter = (deps: CallsRouterDeps): Router => {
   const calloutLimiter = createRateLimiter({
     windowMs: 60_000,
     limit: CAMPAIGN_LIMITS.singleCallsPerMinutePerUser,
-    keyGenerator: (req) => `callout:${req.auth?.userId ?? 'anonymous'}`,
+    keyGenerator: (req) => `callout:${req.auth?.userId ?? req.auth?.apiKeyId ?? 'anonymous'}`,
     ...(deps.calloutStore ? { store: deps.calloutStore } : {}),
   });
 
   // one outbound call to a contact ("Call now", Phase 8)
   router.post(
     '/',
-    ...trigger,
+    access({ permission: 'calls.trigger', scope: 'calls:write' }),
+    blockWhenImpersonating(),
     calloutLimiter,
     idempotency({ scope: (req) => req.auth?.accountId }),
     ...handle({ body: StartCallBody }, async ({ body, req, res }) => {
@@ -69,7 +73,7 @@ export const createCallsRouter = (deps: CallsRouterDeps): Router => {
   );
   router.get(
     '/',
-    read,
+    apiRead,
     ...handle({ query: ListCallsQuery }, async ({ query, req, res }) => {
       const page = await listCalls(req, query);
       ok(res, page.items, page.meta);
@@ -81,14 +85,14 @@ export const createCallsRouter = (deps: CallsRouterDeps): Router => {
   });
   router.get(
     '/:id',
-    read,
+    apiRead,
     ...handle({ params: CallParams }, async ({ params, req, res }) => {
       ok(res, await getCall(req, params.id));
     }),
   );
   router.get(
     '/:id/transcript',
-    read,
+    apiRead,
     ...handle({ params: CallParams }, async ({ params, req, res }) => {
       ok(res, await callTranscript(req, params.id));
     }),

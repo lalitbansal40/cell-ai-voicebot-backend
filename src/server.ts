@@ -59,6 +59,7 @@ import { resetProgressThrottle } from './modules/campaigns/progress';
 import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { queueInboxJobs } from './modules/inbox/jobs';
+import { flushApiKeyUsage } from './modules/public-api/request-log';
 import { queueTemplateJobs } from './modules/templates/jobs';
 import type { CallsFastPathEvent } from './modules/whatsapp/context';
 import { connectFakeStatusWebhooks } from './modules/whatsapp/fake-statuses';
@@ -289,6 +290,10 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     payments: createPaymentProvider(env),
     topupRateLimitStore: createRedisRateLimitStore(redis, 'rl:topup:'),
     reportCache: redis,
+    publicApiStores: {
+      read: createRedisRateLimitStore(redis, 'rl:'),
+      write: createRedisRateLimitStore(redis, 'rl:'),
+    },
     aiProvider,
     aiJobs,
     aiRateLimitStores: {
@@ -318,6 +323,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     },
   });
   const server = createServer(app);
+  lifecycle.onShutdown('api-key-usage', flushApiKeyUsage, 45);
 
   await listen(server, options.port ?? env.PORT, env.HOST);
   const { port } = server.address() as AddressInfo;

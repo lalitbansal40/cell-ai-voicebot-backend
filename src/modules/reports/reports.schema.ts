@@ -1,6 +1,6 @@
 import { REPORT_LIMITS } from '../../config/limits';
 import { registry } from '../../shared/openapi/registry';
-import { bearer, errors, ok } from '../../shared/openapi/responses';
+import { bearerOrKey, errors, ok, PUBLIC_API_TAG } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
 
@@ -90,9 +90,9 @@ for (const tab of REPORT_TABS) {
   registry.registerPath({
     method: 'get',
     path: `/api/v1/reports/${tab}`,
-    tags: ['Reports'],
+    tags: ['Reports', PUBLIC_API_TAG],
     summary: `Report: ${tab} (reports.read; ≤ ${String(REPORT_LIMITS.maxRangeDays)} days; cached ${String(REPORT_LIMITS.cacheTtlSec)} s; ETag / 304; 422 REPORT_RANGE_INVALID)`,
-    security: bearer,
+    security: bearerOrKey,
     request: { query: ReportQuery },
     responses: {
       200: ok(ReportResponseSchema),

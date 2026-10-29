@@ -1,5 +1,5 @@
 import { registry } from '../../shared/openapi/registry';
-import { bearer, errors, ok } from '../../shared/openapi/responses';
+import { bearer, bearerOrKey, errors, ok, PUBLIC_API_TAG } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { CallSchema } from '../calls/calls.schema';
 
@@ -17,6 +17,7 @@ import {
 import { CallAvailabilityBody, CallingSettingsPatch } from './calling.schema';
 
 const tags = ['WhatsApp calling'];
+const publicTags = [...tags, PUBLIC_API_TAG];
 const failures = {
   401: errors[401],
   403: errors[403],
@@ -79,8 +80,8 @@ registry.registerPath({
 registry.registerPath({
   method: 'post',
   path: '/api/v1/whatsapp/calls',
-  tags,
-  security: bearer,
+  tags: publicTags,
+  security: bearerOrKey,
   summary: 'Place a human or AI WhatsApp call (calls.trigger; 10/minute/user; Idempotency-Key)',
   request: {
     headers: z.object({ 'idempotency-key': z.string() }),

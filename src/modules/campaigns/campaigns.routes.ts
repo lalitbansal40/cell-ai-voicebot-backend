@@ -3,6 +3,7 @@ import type { Store } from 'express-rate-limit';
 
 import { CAMPAIGN_LIMITS } from '../../config/limits';
 import { accepted, created, noContent, ok } from '../../shared/http/envelope';
+import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { idempotency } from '../../shared/middlewares/idempotency';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
@@ -58,14 +59,22 @@ export const createCampaignsRouter = ({
   rateLimitStore,
 }: CampaignsRouterDeps = {}): Router => {
   const router = Router();
-  router.use(authenticate());
+  router.use(authenticate({ apiKeys: true }));
   const writes = createRateLimiter({
     windowMs: 60_000,
     limit: CAMPAIGN_LIMITS.writesPerMinutePerUser,
-    keyGenerator: (req) => `campaign:${req.auth?.userId ?? 'anonymous'}`,
+    keyGenerator: (req) => `campaign:${req.auth?.userId ?? req.auth?.apiKeyId ?? 'anonymous'}`,
     ...(rateLimitStore ? { store: rateLimitStore } : {}),
   });
   const read = requirePermission('campaigns.read');
+  // public API (ADR 0045): a key with the scope instead of the permission
+  const apiRead = access({ permission: 'campaigns.read', scope: 'campaigns:read' });
+  const api = (permission: 'campaigns.write' | 'campaigns.run') =>
+    [
+      access({ permission, scope: 'campaigns:write' }),
+      blockWhenImpersonating(),
+      writes,
+    ] as RequestHandler[];
   // impersonators look, never change (PHASE_8_PLAN §1q)
   const as = (permission: 'campaigns.write' | 'campaigns.run' | 'campaigns.export') =>
     [requirePermission(permission), blockWhenImpersonating(), writes] as RequestHandler[];
@@ -81,7 +90,7 @@ export const createCampaignsRouter = ({
   );
   router.get(
     '/',
-    read,
+    apiRead,
     ...handle({ query: ListCampaignsQuery }, async ({ query, req, res }) => {
       const page = await listCampaigns(req, query);
       ok(res, page.items, page.meta);
@@ -89,7 +98,7 @@ export const createCampaignsRouter = ({
   );
   router.post(
     '/',
-    ...as('campaigns.write'),
+    ...api('campaigns.write'),
     ...handle({ body: CreateCampaignBody }, async ({ body, req, res }) => {
       created(res, await createCampaign(req, body));
     }),
@@ -104,7 +113,7 @@ export const createCampaignsRouter = ({
   );
   router.get(
     '/:id',
-    read,
+    apiRead,
     ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
       ok(res, await getCampaign(req, params.id));
     }),
@@ -143,7 +152,7 @@ export const createCampaignsRouter = ({
   );
   router.post(
     '/:id/start',
-    ...as('campaigns.run'),
+    ...api('campaigns.run'),
     idempotency({ scope: accountScope }),
     ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
       ok(res, await startCampaign(req, params.id));
@@ -158,21 +167,21 @@ export const createCampaignsRouter = ({
   );
   router.post(
     '/:id/pause',
-    ...as('campaigns.run'),
+    ...api('campaigns.run'),
     ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
       ok(res, await pauseCampaign(req, params.id));
     }),
   );
   router.post(
     '/:id/resume',
-    ...as('campaigns.run'),
+    ...api('campaigns.run'),
     ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
       ok(res, await resumeCampaign(req, params.id));
     }),
   );
   router.post(
     '/:id/cancel',
-    ...as('campaigns.run'),
+    ...api('campaigns.run'),
     ...handle(
       { params: CampaignParams, body: CancelCampaignBody },
       async ({ params, body, req, res }) => {
@@ -182,7 +191,7 @@ export const createCampaignsRouter = ({
   );
   router.get(
     '/:id/contacts',
-    read,
+    apiRead,
     ...handle(
       { params: CampaignParams, query: ListCampaignContactsQuery },
       async ({ params, query, req, res }) => {
@@ -193,7 +202,7 @@ export const createCampaignsRouter = ({
   );
   router.get(
     '/:id/runs',
-    read,
+    apiRead,
     ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
       ok(res, (await listCampaignRuns(req, params.id)).items);
     }),

@@ -217,6 +217,11 @@ export const ERROR_CODES = {
     status: 422,
     message: 'You already get the most report e-mails allowed. Remove one first.',
   },
+  API_KEY_IP_DENIED: {
+    status: 403,
+    message: 'This API key is not allowed from this IP address.',
+  },
+  API_KEY_EXPIRED: { status: 401, message: 'This API key has expired.' },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

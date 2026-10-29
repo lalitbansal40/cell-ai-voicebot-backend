@@ -3,9 +3,10 @@ import type { Store } from 'express-rate-limit';
 import { Types } from 'mongoose';
 
 import { UserModel } from '../../db/models/user.model';
-import { requireAuth } from '../../shared/auth/auth-context';
-import { AppError } from '../../shared/errors/app-error';
+import { actingUserId, requireAuth } from '../../shared/auth/auth-context';
+import { AppError, ValidationError } from '../../shared/errors/app-error';
 import { created, ok } from '../../shared/http/envelope';
+import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { idempotency } from '../../shared/middlewares/idempotency';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
@@ -46,6 +47,21 @@ const actor = (req: Request) => {
   };
 };
 
+/** Who starts a call: a user, or an API key acting for the user who created it (the audit names the key). */
+const caller = (req: Request) => {
+  const auth = requireAuth(req);
+  if (auth.kind !== 'api_key') return actor(req);
+  const userId = new Types.ObjectId(actingUserId(auth));
+  return {
+    type: 'api_key' as const,
+    id: new Types.ObjectId(auth.apiKeyId),
+    userId,
+    accountId: new Types.ObjectId(auth.accountId),
+    impersonatorId: null,
+    ip: req.ip ?? null,
+  };
+};
+
 /** Settings and permissions share the exact runtime used by webhook and media handlers. */
 export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps): Router => {
   const router = Router();
@@ -58,7 +74,7 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
       '/calls/:id/media-ticket',
       '/users/me/call-availability',
     ],
-    authenticate(),
+    authenticate({ apiKeys: true }),
   );
   const read = requirePermission('calls.read');
   const manage = [requirePermission('whatsapp.calling.manage'), blockWhenImpersonating()];
@@ -67,7 +83,10 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
     createRateLimiter({
       limit,
       windowMs,
-      keyGenerator: (req) => `${name}:${number ? String(req.params.id) : requireAuth(req).userId}`,
+      keyGenerator: (req) => {
+        const auth = requireAuth(req);
+        return `${name}:${number ? String(req.params.id) : (auth.userId ?? auth.apiKeyId)}`;
+      },
       ...(store ? { store } : {}),
     });
   const settingsLimit = limiter('wa-calling-settings', 10, 60_000, stores.settings, true);
@@ -135,13 +154,16 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
   );
   router.post(
     '/whatsapp/calls',
-    requirePermission('calls.trigger'),
+    access({ permission: 'calls.trigger', scope: 'whatsapp-calls:write' }),
     blockWhenImpersonating(),
     limiter('wa-call', 10, 60_000, stores.calls),
     idempotency({ scope: (req) => req.auth?.accountId }),
     ...handle({ body: StartWhatsAppCallBody }, async ({ req, res, body }) => {
       if (!runtime.calls) throw new AppError('CALL_CAPACITY');
-      const who = actor(req);
+      // API keys start AI calls only (nobody is at a browser to talk)
+      if (requireAuth(req).kind === 'api_key' && body.mode !== 'ai')
+        throw new ValidationError([{ path: 'mode', message: 'API keys can start AI calls only' }]);
+      const who = caller(req);
       if (
         body.mode === 'ai' &&
         body.program &&

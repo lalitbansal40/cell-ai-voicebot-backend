@@ -22,6 +22,7 @@ import { createDocsRouter } from './modules/docs/docs.routes';
 import { createFilesRouter } from './modules/files/files.routes';
 import type { ReadinessDeps } from './modules/health/health.controller';
 import { createHealthRouter } from './modules/health/health.routes';
+import { publicApiGate, type PublicApiStores } from './modules/public-api/key-limits';
 import type { ReportCacheStore } from './modules/reports/cache';
 import { createApiRouter, type AiDeps, type CallsApiDeps, type WhatsAppDeps } from './routes';
 import { getAppInfo } from './shared/app-info';
@@ -74,6 +75,8 @@ export interface AppDeps {
   whatsapp?: WhatsAppDeps;
   /** Phase 14 report cache (the app Redis in `server.ts`); none in most tests. */
   reportCache?: ReportCacheStore;
+  /** Phase 15 per-key limiter stores (`rl:key:<id>:r|w`); MemoryStore when omitted. */
+  publicApiStores?: PublicApiStores;
 }
 
 /**
@@ -102,6 +105,7 @@ export const createApp = ({
   campaigns = {},
   whatsapp,
   reportCache,
+  publicApiStores = {},
 }: AppDeps): Express => {
   // Wallet low-balance / exhausted alerts run after every committed wallet change.
   registerWalletAlerts();
@@ -141,6 +145,8 @@ export const createApp = ({
   app.use('/api/v1', health);
   if (storage instanceof LocalStorage) app.use(createFilesRouter(storage));
   if (env.API_DOCS_ENABLED) app.use(createDocsRouter());
+  // Public API (X-API-Key): key check, request log and per-key limits before any router.
+  app.use('/api/v1', publicApiGate(publicApiStores));
   app.use(
     '/api/v1',
     createApiRouter({

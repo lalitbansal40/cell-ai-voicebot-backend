@@ -469,7 +469,9 @@ const freeName = async (accountId: Types.ObjectId, base: string): Promise<string
 };
 
 const userOf = (req: Request): Types.ObjectId | null => {
-  const id = requireAuth(req).userId;
+  const auth = requireAuth(req);
+  // API keys act for the user who created the key
+  const id = auth.userId ?? auth.keyOwnerId;
   return id ? new Types.ObjectId(id) : null;
 };
 

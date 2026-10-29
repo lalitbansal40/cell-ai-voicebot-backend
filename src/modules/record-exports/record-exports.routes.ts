@@ -2,11 +2,11 @@ import { Router } from 'express';
 
 import type { StorageProvider } from '../../core/storage';
 import { accepted, ok } from '../../shared/http/envelope';
+import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import {
   blockWhenImpersonating,
   requireAnyPermission,
-  requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 import { unavailableContactJobs, type ContactJobs } from '../contacts/jobs';
@@ -32,24 +32,24 @@ export const createRecordExportsRouter = ({
   jobs = unavailableContactJobs,
 }: { storage?: StorageProvider; jobs?: ContactJobs } = {}): Router => {
   const router = Router();
-  router.use(authenticate(), blockWhenImpersonating());
+  router.use(authenticate({ apiKeys: true }), blockWhenImpersonating());
   router.post(
     '/calls',
-    requirePermission('calls.export'),
+    access({ permission: 'calls.export', scope: 'exports:write' }),
     ...handle({ body: ExportCallsBody }, async ({ body, req, res }) => {
       accepted(res, await createCallsExport(req, body, jobs));
     }),
   );
   router.post(
     '/messages',
-    requirePermission('reports.export'),
+    access({ permission: 'reports.export', scope: 'exports:write' }),
     ...handle({ body: ExportMessagesBody }, async ({ body, req, res }) => {
       accepted(res, await createMessagesExport(req, body, jobs));
     }),
   );
   router.post(
     '/report',
-    requirePermission('reports.export'),
+    access({ permission: 'reports.export', scope: 'exports:write' }),
     ...handle({ body: ExportReportBody }, async ({ body, req, res }) => {
       accepted(res, await createReportExport(req, body, jobs));
     }),
@@ -64,7 +64,7 @@ export const createRecordExportsRouter = ({
   );
   router.get(
     '/:id',
-    requireAnyPermission('calls.export', 'reports.export'),
+    access({ permission: ['calls.export', 'reports.export'], scope: 'exports:write' }),
     ...handle({ params: ExportParams }, async ({ params, req, res }) => {
       if (!storage) throw new Error('File storage is not configured');
       ok(res, await getRecordExport(req, params.id, storage));
