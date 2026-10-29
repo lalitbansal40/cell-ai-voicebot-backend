@@ -394,9 +394,11 @@ export const createInboxRouter = (deps: InboxRouterDeps): Router => {
 };
 
 /** `/api/v1/inbox` when WhatsApp is off: every route 503 `WHATSAPP_NOT_CONFIGURED`. */
-export const createInboxDisabledRouter = (): Router => {
+export const createInboxDisabledRouter = ({
+  apiKeys = false,
+}: { apiKeys?: boolean } = {}): Router => {
   const router = Router();
-  router.use(authenticate());
+  router.use(authenticate({ apiKeys }));
   router.use(() => {
     throw new AppError('WHATSAPP_NOT_CONFIGURED');
   });

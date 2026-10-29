@@ -74,6 +74,10 @@ export const startSingleCall = async (
   let source: CallSource;
   let variables: Record<string, string>;
   let templateKey: string | null = null;
+  // public API: flow variables / agent values for this call (numbers as text)
+  const overrides = body.variables
+    ? Object.fromEntries(Object.entries(body.variables).map(([k, v]) => [k, String(v)]))
+    : null;
   if (body.flowId) {
     if (!auth.permissions.has('flows.read')) throw new ForbiddenError();
     const flow = await findFlow(accountId, body.flowId);
@@ -88,6 +92,7 @@ export const startSingleCall = async (
       contactId: contact._id,
       variables: undefined,
       testPhone: undefined,
+      overrides,
     });
     source = {
       kind: 'flow',
@@ -103,6 +108,12 @@ export const startSingleCall = async (
     if (!agent) throw new NotFoundError('Agent not found');
     if (!agent.isActive) {
       throw new ValidationError([{ path: 'agentId', message: 'This agent is switched off' }]);
+    }
+    const unknown = Object.keys(overrides ?? {}).filter((k) => !agent.allowedVariables.includes(k));
+    if (unknown.length) {
+      throw new ValidationError(
+        unknown.map((k) => ({ path: `variables.${k}`, message: 'Not a value this agent uses' })),
+      );
     }
     source = { kind: 'agent', agentId: agent._id };
     variables = (await contactVariables(accountId, contact._id, agent.allowedVariables)).values;
@@ -148,6 +159,7 @@ export const startSingleCall = async (
     variables,
     initiatedBy: auth.userId ?? auth.keyOwnerId ?? null,
     externalRef: body.externalRef ?? null,
+    manualVariables: overrides,
     dryRun: {
       seed: new Types.ObjectId().toString(),
       // a manual call is made to hear the flow with this contact: the simulated

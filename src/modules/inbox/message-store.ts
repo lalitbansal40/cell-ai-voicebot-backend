@@ -35,6 +35,7 @@ export type NewMessage = NormalizedContent &
       | 'template'
       | 'billing'
       | 'call'
+      | 'externalRef'
     >
   >;
 

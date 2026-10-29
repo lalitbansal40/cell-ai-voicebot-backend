@@ -97,7 +97,15 @@ export const agentScript = async (
       new Types.ObjectId(String(call.contactId)),
       agent.allowedVariables,
     );
-    values = found.values;
+    // a public-API call may set some of the agent's allowed values
+    values = {
+      ...found.values,
+      ...Object.fromEntries(
+        Object.entries(call.manualVariables ?? {}).filter(([k]) =>
+          agent.allowedVariables.includes(k),
+        ),
+      ),
+    };
     contact = contactTemplateValues(found.contact);
   } else {
     values = manualVariables(call.manualVariables ?? undefined, agent.allowedVariables);

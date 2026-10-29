@@ -75,6 +75,8 @@ export interface StartOutboundCallInput {
   initiatedBy: string | null;
   /** Public API: the caller's own id for the call (echoed in webhooks). */
   externalRef?: string | null;
+  /** Public API `variables`: flow variables / agent values set for this call. */
+  manualVariables?: Record<string, string> | null;
   /** Campaign concurrency (the group slot limit); single calls use the web group (3). */
   groupLimit?: number;
   dryRun?: DryRunSettings & { speed: number; gate?: VirtualGate };
@@ -324,6 +326,7 @@ export class CallManager {
         startedBy: input.initiatedBy,
         externalRef: input.externalRef ?? null,
         variables: input.variables,
+        manualVariables: input.manualVariables ?? null,
         timestamps: { queuedAt: new Date(this.clock.now()) },
       });
       call = created.toObject({ transform: false });

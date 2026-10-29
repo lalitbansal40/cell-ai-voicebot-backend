@@ -62,7 +62,9 @@ export const flowScript = async (call: CallDoc, deps: FlowScriptDeps): Promise<S
     .lean<{ testPhone: string | null }>();
   const { contact, seed } = await resolveStartValues(accountId, graph, {
     contactId: call.contactId,
-    variables: call.manualVariables,
+    variables: call.contactId ? undefined : call.manualVariables,
+    // a public-API call with a contact: its `variables` seed the flow
+    overrides: call.contactId ? call.manualVariables : undefined,
     testPhone: withPhone?.testPhone ?? null,
   });
   // campaign calls: the audience snapshot wins for the fields the flow uses

@@ -3,14 +3,21 @@ import { Router } from 'express';
 import { accepted, created, noContent, ok } from '../../shared/http/envelope';
 import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
-import { requirePermission } from '../../shared/middlewares/require-permission';
+import { idempotency } from '../../shared/middlewares/idempotency';
+import {
+  blockWhenImpersonating,
+  requirePermission,
+} from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
+import { bulkUpsertContacts, upsertContact } from '../public-api/contacts-upsert.service';
 
 import { BulkBody } from './bulk.schema';
 import { runBulk } from './bulk.service';
 import {
+  BulkUpsertBody,
   ContactIdParams,
   CreateContactBody,
+  CreateContactQuery,
   ListContactsQuery,
   SearchContactsBody,
   UpdateContactBody,
@@ -62,11 +69,30 @@ export const createContactsRouter = ({
     }),
   );
   router.post(
+    '/bulk-upsert',
+    apiWrite,
+    blockWhenImpersonating(),
+    idempotency({ required: false, scope: (req) => req.auth?.accountId }),
+    ...handle({ body: BulkUpsertBody }, async ({ body, req, res }) => {
+      ok(res, await bulkUpsertContacts(req, body.rows, body.upsert));
+    }),
+  );
+  router.post(
     '/',
     apiWrite,
-    ...handle({ body: CreateContactBody }, async ({ body, req, res }) => {
-      created(res, await createContact(req, body));
-    }),
+    idempotency({ required: false, scope: (req) => req.auth?.accountId }),
+    ...handle(
+      { body: CreateContactBody, query: CreateContactQuery },
+      async ({ body, query, req, res }) => {
+        if (!query.upsert) {
+          created(res, await createContact(req, body));
+          return;
+        }
+        const r = await upsertContact(req, body, query.upsert);
+        if (r.created) created(res, r.contact);
+        else ok(res, r.contact);
+      },
+    ),
   );
   router.get(
     '/:id',

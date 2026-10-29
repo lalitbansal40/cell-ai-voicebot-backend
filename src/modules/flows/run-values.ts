@@ -45,12 +45,31 @@ export const resolveStartValues = async (
     contactId: Types.ObjectId | null;
     variables?: Record<string, string> | null | undefined;
     testPhone?: string | null | undefined;
+    /** Public API `POST /calls` `variables`: flow variables only, also with a contact (422 per key). */
+    overrides?: Record<string, string> | null | undefined;
   },
 ): Promise<{ contact: RunContact; seed: Record<string, RunValue> }> => {
   const seed: Record<string, RunValue> = {};
-  if (input.contactId) return { contact: await loadContact(accountId, input.contactId), seed };
-  const contactNames = new Set((await accountVariables(accountId)).map((v) => v.name));
   const flowTypes = new Map(graph.variables.map((v) => [v.name, v.type]));
+  if (input.contactId) {
+    const contact = await loadContact(accountId, input.contactId);
+    const errors: { path: string; message: string }[] = [];
+    for (const [name, raw] of Object.entries(input.overrides ?? {})) {
+      const type = flowTypes.get(name);
+      if (!type) {
+        errors.push({ path: `variables.${name}`, message: 'Not a variable of this flow' });
+        continue;
+      }
+      try {
+        seed[name] = coerce(type, raw.trim());
+      } catch {
+        errors.push({ path: `variables.${name}`, message: `Not a valid ${type}` });
+      }
+    }
+    if (errors.length) throw new ValidationError(errors);
+    return { contact, seed };
+  }
+  const contactNames = new Set((await accountVariables(accountId)).map((v) => v.name));
   const display: Record<string, string> = {};
   const details: { path: string; message: string }[] = [];
   for (const [name, raw] of Object.entries(input.variables ?? {})) {

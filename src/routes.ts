@@ -48,6 +48,7 @@ import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes';
 import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
 import { createWebhooksRouter } from './modules/payments/webhooks.routes';
+import { createMessagesRouter } from './modules/public-api/messages.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
 import { createRecordExportsRouter } from './modules/record-exports/record-exports.routes';
@@ -81,6 +82,7 @@ import { createCallingRouter } from './modules/whatsapp-calling/calling.routes';
 import type { CallingJobs } from './modules/whatsapp-calling/jobs';
 import type { CallingRuntime } from './modules/whatsapp-calling/runtime';
 import { createInboxCallingHook } from './modules/whatsapp-calling/webhooks';
+import { AppError } from './shared/errors/app-error';
 
 /** Everything under /api/v1. Add each module router here. */
 /** What the contact modules need: file storage + the background job queue (Phase 3). */
@@ -273,6 +275,18 @@ export const createApiRouter = ({
     );
     router.use('/whatsapp', createWhatsAppRouter(whatsappRuntime));
     router.use(
+      '/messages',
+      createMessagesRouter(() => {
+        const storage = whatsappRuntime.storage ?? contacts.storage;
+        if (!storage) throw new AppError('PROVIDER_UNAVAILABLE', 'File storage is not configured.');
+        return {
+          wa: whatsappRuntime.ctx,
+          storage,
+          jobs: whatsappRuntime.inboxJobs ?? unavailableInboxJobs,
+        };
+      }),
+    );
+    router.use(
       '/inbox',
       createInboxRouter({
         ctx: whatsappRuntime.ctx,
@@ -293,6 +307,7 @@ export const createApiRouter = ({
   } else {
     router.use('/whatsapp', createWhatsAppDisabledRouter());
     router.use('/inbox', createInboxDisabledRouter());
+    router.use('/messages', createInboxDisabledRouter({ apiKeys: true }));
   }
   router.use(
     '/webhooks',

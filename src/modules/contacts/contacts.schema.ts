@@ -1,3 +1,4 @@
+import { PUBLIC_API_LIMITS } from '../../config/limits';
 import { CONTACT_SOURCE_TYPES } from '../../db/models/contact.model';
 import { registry } from '../../shared/openapi/registry';
 import {
@@ -57,6 +58,39 @@ export const UpdateContactBody = z
   .refine((b) => Object.keys(b).length > 0, 'Nothing to update');
 
 export const ContactIdParams = z.strictObject({ id: ObjectIdSchema });
+
+/** Public API: `POST /contacts?upsert=phone|externalId` updates the matching contact instead of a 409. */
+export const CreateContactQuery = z.strictObject({
+  upsert: z.enum(['phone', 'externalId']).optional(),
+});
+
+export const BulkUpsertBody = z.strictObject({
+  upsert: z.enum(['phone', 'externalId']).default('phone'),
+  rows: z.array(CreateContactBody).min(1).max(PUBLIC_API_LIMITS.bulkUpsertMax),
+});
+
+export const BulkUpsertResultSchema = registry.register(
+  'ContactBulkUpsertResult',
+  z.object({
+    created: z.number().int(),
+    updated: z.number().int(),
+    failed: z.number().int(),
+    results: z.array(
+      z.object({
+        index: z.number().int(),
+        status: z.enum(['created', 'updated', 'failed']),
+        id: z.string().optional(),
+        error: z
+          .object({
+            code: z.string(),
+            message: z.string(),
+            details: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
+          })
+          .optional(),
+      }),
+    ),
+  }),
+);
 
 const BoolQuery = z
   .enum(['true', 'false'])
@@ -177,15 +211,27 @@ registry.registerPath({
   path: '/api/v1/contacts',
   tags: publicTags,
   summary:
-    'Create a contact (contacts.write). A live duplicate phone / external id → 409 with existingId; a deleted one is revived.',
+    'Create a contact (contacts.write). A live duplicate phone / external id → 409 with existingId; a deleted one is revived. `?upsert=phone|externalId` updates the matching contact instead (200). Opt-out / DND are never cleared here.',
   security: bearerOrKey,
-  request: json(CreateContactBody),
+  request: { ...json(CreateContactBody), query: CreateContactQuery },
   responses: {
+    200: ok(ContactSchema, 'Updated (upsert matched an existing contact)'),
     201: ok(ContactSchema, 'Created'),
     403: errors[403],
     409: errors[409],
     422: errors[422],
   },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/contacts/bulk-upsert',
+  tags: publicTags,
+  summary:
+    'Create or update up to 1,000 contacts by phone or externalId (contacts.write) — a result per row; one bad row never stops the others. Idempotency-Key optional.',
+  security: bearerOrKey,
+  request: json(BulkUpsertBody),
+  responses: { 200: ok(BulkUpsertResultSchema), 403: errors[403], 422: errors[422] },
 });
 
 registry.registerPath({

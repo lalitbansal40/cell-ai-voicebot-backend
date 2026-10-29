@@ -17,6 +17,7 @@ import {
   type MessageContactCard,
   type MessageDoc,
   type MessageMedia,
+  type MessageOrigin,
 } from '../../db/models/message.model';
 import { UserModel } from '../../db/models/user.model';
 import {
@@ -531,6 +532,11 @@ export const sendMessage = async (
   actor: SendActor,
   conversationId: string,
   input: SendMessageInput,
+  /** Phase 15: public API (`origin: 'api'`) and after-call sends (`'system'`) carry an externalRef. */
+  options: {
+    origin?: Extract<MessageOrigin, 'agent' | 'api' | 'system'>;
+    externalRef?: string | null;
+  } = {},
 ): Promise<{ message: MessageDoc; created: boolean }> => {
   const conversation = await ConversationModel.findOne({
     _id: new Types.ObjectId(conversationId),
@@ -590,12 +596,13 @@ export const sendMessage = async (
     ...built.content,
     context: input.type === 'reaction' ? null : reply.context,
     direction: 'out',
-    origin: 'agent',
+    origin: options.origin ?? 'agent',
     status: 'queued',
     sentBy: actor.userId,
     clientId: input.clientId,
     at: now,
     statusHistory: [{ status: 'queued', at: now }],
+    ...(options.externalRef ? { externalRef: options.externalRef } : {}),
     ...(prepared ? { template: templateRef(prepared) } : {}),
     billing: charge?.billing ?? null,
   };

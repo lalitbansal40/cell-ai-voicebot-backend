@@ -86,6 +86,18 @@ export const StartCallBody = z
       .max(PUBLIC_API_LIMITS.externalRefMax)
       .optional()
       .openapi({ description: 'Your own id for the call — echoed in the call view and webhooks' }),
+    variables: z
+      .record(z.string().min(1).max(40), z.union([z.string().max(1000), z.number()]))
+      .refine(
+        (v) => Object.keys(v).length <= PUBLIC_API_LIMITS.callVariablesMax,
+        `At most ${String(PUBLIC_API_LIMITS.callVariablesMax)} variables`,
+      )
+      .optional()
+      .openapi({
+        description:
+          'Values for this call: flow variables (flows) or values the agent uses (agents) — others are refused per key',
+        example: { due_amount: 2500, due_date: '2026-11-05' },
+      }),
   })
   .superRefine((b, ctx) => {
     if (Boolean(b.flowId) === Boolean(b.agentId)) {
