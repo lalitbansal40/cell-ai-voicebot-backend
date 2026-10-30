@@ -1199,7 +1199,9 @@
               "webhook_endpoint.enabled",
               "outcome_rule.created",
               "outcome_rule.updated",
-              "outcome_rule.deleted"
+              "outcome_rule.deleted",
+              "sheet_import.created",
+              "sheet_import.deleted"
             ]
           },
           "actor": {
@@ -6688,6 +6690,88 @@
           "sample": { "type": "array", "items": { "$ref": "#/components/schemas/Contact" } }
         },
         "required": ["count", "sample"]
+      },
+      "SheetPreview": {
+        "type": "object",
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": { "type": "integer" },
+                "header": { "type": "string" },
+                "samples": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["index", "header", "samples"]
+            }
+          },
+          "rowCount": { "type": "integer" },
+          "suggestedMapping": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ImportColumnMapping" }
+          }
+        },
+        "required": ["columns", "rowCount", "suggestedMapping"]
+      },
+      "SheetImport": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "schedule": { "type": "string", "enum": ["once", "hourly", "daily"] },
+          "mapping": {
+            "type": "object",
+            "properties": {
+              "columns": {
+                "type": "array",
+                "items": { "type": "object", "additionalProperties": {} }
+              }
+            },
+            "required": ["columns"]
+          },
+          "listId": { "type": "string" },
+          "listName": { "type": ["string", "null"] },
+          "updateExisting": { "type": "boolean" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "active": { "type": "boolean" },
+          "nextRunAt": { "type": ["string", "null"] },
+          "lastRunAt": { "type": ["string", "null"] },
+          "lastStatus": {
+            "type": ["string", "null"],
+            "enum": ["ok", "failed", "busy", "running", null]
+          },
+          "lastError": { "type": ["string", "null"] },
+          "lastResult": {
+            "type": ["object", "null"],
+            "properties": {
+              "importJobId": { "type": ["string", "null"] },
+              "rows": { "type": "integer" },
+              "created": { "type": "integer" },
+              "updated": { "type": "integer" },
+              "failed": { "type": "integer" }
+            },
+            "required": ["importJobId", "rows", "created", "updated", "failed"]
+          },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "schedule",
+          "mapping",
+          "listId",
+          "listName",
+          "updateExisting",
+          "tags",
+          "active",
+          "nextRunAt",
+          "lastRunAt",
+          "lastStatus",
+          "lastError",
+          "lastResult",
+          "createdAt"
+        ]
       },
       "AppInfo": {
         "type": "object",
@@ -26959,6 +27043,246 @@
       "delete": {
         "tags": ["Segments"],
         "summary": "Delete a segment (contacts are not affected)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": { "description": "No content" },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sheet-imports": {
+      "get": {
+        "tags": ["Contact imports"],
+        "summary": "Google Sheet imports (contacts.import) — the sheet link is never returned",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/SheetImport" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Contact imports"],
+        "summary": "Import contacts from a Google Sheet published as CSV — once, hourly or daily (≤ 5); checked and queued now. 422 SHEET_URL_INVALID",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "example": "https://docs.google.com/spreadsheets/d/e/2PACX-…/pub?gid=0&single=true&output=csv"
+                  },
+                  "schedule": { "type": "string", "enum": ["once", "hourly", "daily"] },
+                  "mapping": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/ImportColumnMapping" },
+                    "minItems": 1,
+                    "maxItems": 200
+                  },
+                  "updateExisting": { "type": "boolean", "default": true },
+                  "tags": {
+                    "type": "array",
+                    "items": { "type": "string", "maxLength": 40 },
+                    "maxItems": 20,
+                    "default": []
+                  }
+                },
+                "required": ["name", "url", "schedule", "mapping"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/SheetImport" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sheet-imports/preview": {
+      "post": {
+        "tags": ["Contact imports"],
+        "summary": "Columns, sample values and a suggested mapping of a published sheet (nothing stored)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "example": "https://docs.google.com/spreadsheets/d/e/2PACX-…/pub?gid=0&single=true&output=csv"
+                  }
+                },
+                "required": ["url"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/SheetPreview" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sheet-imports/{id}/run": {
+      "post": {
+        "tags": ["Contact imports"],
+        "summary": "Import the sheet again now",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/SheetImport" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sheet-imports/{id}": {
+      "delete": {
+        "tags": ["Contact imports"],
+        "summary": "Stop importing this sheet (imported contacts and their list stay)",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {

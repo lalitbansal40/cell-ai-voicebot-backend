@@ -5,6 +5,7 @@ import { CallModel } from '../models/call.model';
 import { MessageModel } from '../models/message.model';
 import { OutcomeRuleModel } from '../models/outcome-rule.model';
 import { PostCallMessageModel } from '../models/post-call-message.model';
+import { SheetImportModel } from '../models/sheet-import.model';
 import { WebhookDeliveryModel } from '../models/webhook-delivery.model';
 import { WebhookEndpointModel } from '../models/webhook-endpoint.model';
 import { WebhookEventModel } from '../models/webhook-event.model';
@@ -35,6 +36,8 @@ export const integrationsMigration: Migration = {
     // after the call (T15.5): rules and the messages they / flows schedule
     await OutcomeRuleModel.createIndexes();
     await PostCallMessageModel.createIndexes();
+    // Google-Sheet imports (T15.6)
+    await SheetImportModel.createIndexes();
   },
   down: async (db) => {
     for (const name of ['calls', 'messages']) {
@@ -50,6 +53,9 @@ export const integrationsMigration: Migration = {
       'webhookEndpoints',
       'webhookEvents',
       'webhookDeliveries',
+      'outcomeRules',
+      'postCallMessages',
+      'sheetImports',
     ]) {
       if ((await db.listCollections({ name }).toArray()).length) await db.dropCollection(name);
     }

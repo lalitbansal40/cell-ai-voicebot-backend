@@ -226,6 +226,10 @@ export const ERROR_CODES = {
     status: 422,
     message: 'This address is not allowed for webhooks.',
   },
+  SHEET_URL_INVALID: {
+    status: 422,
+    message: 'Use the link of a Google Sheet published to the web as CSV.',
+  },
   OUTCOME_RULE_LIMIT: {
     status: 422,
     message: 'You already have the most after-call rules allowed. Remove one first.',

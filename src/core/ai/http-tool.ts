@@ -278,7 +278,18 @@ export interface PageFetch {
 export const fetchPage = async (
   url: string,
   options: HttpToolOptions,
-  { maxBytes, timeoutMs }: { maxBytes: number; timeoutMs: number },
+  {
+    maxBytes,
+    timeoutMs,
+    types = /^text\/(html|plain)\b/,
+    accept = 'text/html, text/plain;q=0.9',
+  }: {
+    maxBytes: number;
+    timeoutMs: number;
+    /** Accepted content types (Phase 15 sheet imports: CSV). */
+    types?: RegExp;
+    accept?: string;
+  },
 ): Promise<PageFetch> => {
   const signal = AbortSignal.timeout(timeoutMs);
   const empty = Buffer.alloc(0);
@@ -287,7 +298,7 @@ export const fetchPage = async (
       {
         url: new URL(url),
         method: 'GET',
-        headers: { accept: 'text/html, text/plain;q=0.9' },
+        headers: { accept },
         body: null,
       },
       options,
@@ -299,7 +310,7 @@ export const fetchPage = async (
     if (status < 200 || status > 299) {
       return { ok: false, error: `http_${status}`, httpStatus: status, contentType, body: empty };
     }
-    if (!/^text\/(html|plain)\b/.test(contentType)) {
+    if (!types.test(contentType)) {
       return { ok: false, error: 'unsupported_type', httpStatus: status, contentType, body: empty };
     }
     return { ok: true, httpStatus: status, contentType, body };

@@ -1,5 +1,6 @@
 import type { Job, Worker } from 'bullmq';
 
+import { getEnv } from '../../../config/env';
 import { runExport } from '../../../modules/contact-exports/export.job';
 import { runImport } from '../../../modules/contact-imports/run.job';
 import { validateImport } from '../../../modules/contact-imports/validate.job';
@@ -9,6 +10,7 @@ import type { ContactJobData, ContactJobName, ContactJobs } from '../../../modul
 import { isContactJobName } from '../../../modules/contacts/jobs';
 import { deleteFieldValues } from '../../../modules/custom-fields/custom-fields.jobs';
 import { runRecordExport } from '../../../modules/record-exports/record-exports.service';
+import { runSheetImport } from '../../../modules/sheet-imports/run.job';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -36,6 +38,8 @@ export const CONTACT_JOB_HANDLERS: ContactJobHandlers = {
   'export.run': (data, ctx) => runExport(data, ctx),
   // Phase 14: calls / messages / report exports
   'records.export': (data, ctx) => runRecordExport(data, ctx),
+  'sheets.import': (data, ctx) =>
+    runSheetImport({ env: getEnv(), storage: ctx.storage, logger: ctx.logger }, data),
   'bulk.run': (data) => bulkJob(data),
 };
 

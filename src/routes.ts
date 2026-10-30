@@ -60,6 +60,7 @@ import type { ReportCacheStore } from './modules/reports/cache';
 import { createReportsRouter } from './modules/reports/reports.routes';
 import { createRetentionRouter } from './modules/retention/retention.routes';
 import { createSegmentsRouter } from './modules/segments/segments.routes';
+import { createSheetImportsRouter } from './modules/sheet-imports/sheet-imports.routes';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
 import { unavailableTemplateJobs, type TemplateJobs } from './modules/templates/jobs';
@@ -331,6 +332,10 @@ export const createApiRouter = ({
     createContactImportsRouter({ storage: contacts.storage, jobs: contacts.jobs }),
   );
   router.use('/custom-fields', createCustomFieldsRouter({ jobs: contacts.jobs }));
+  router.use(
+    '/sheet-imports',
+    createSheetImportsRouter({ env, ...(contacts.jobs ? { jobs: contacts.jobs } : {}) }),
+  );
   router.use(
     '/agents',
     createAgentsRouter({

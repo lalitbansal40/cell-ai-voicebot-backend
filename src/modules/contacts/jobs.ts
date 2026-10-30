@@ -17,6 +17,8 @@ export interface ContactJobData {
   };
   'field.delete_values': { accountId: string; key: string };
   'list.delete_members': { accountId: string; listId: string };
+  /** Phase 15: one run of a scheduled Google-Sheet import. */
+  'sheets.import': { accountId: string; sheetImportId: string; runKey: string };
 }
 
 export type ContactJobName = keyof ContactJobData;
@@ -29,6 +31,7 @@ export const CONTACT_JOB_NAMES = [
   'bulk.run',
   'field.delete_values',
   'list.delete_members',
+  'sheets.import',
 ] as const satisfies readonly ContactJobName[];
 
 export const isContactJobName = (value: string): value is ContactJobName =>
@@ -48,7 +51,12 @@ const JOB_OPTIONS: JobsOptions = {
 
 export const queueContactJobs = (queue: Queue): ContactJobs => ({
   async enqueue(name, data) {
-    await queue.add(name, data, JOB_OPTIONS);
+    // sheet runs: one job per run (`sheet-<id>-<runKey>`, ids never contain `:`)
+    const jobId =
+      name === 'sheets.import'
+        ? `sheet-${(data as ContactJobData['sheets.import']).sheetImportId}-${(data as ContactJobData['sheets.import']).runKey}`
+        : undefined;
+    await queue.add(name, data, { ...JOB_OPTIONS, ...(jobId ? { jobId } : {}) });
   },
 });
 

@@ -369,6 +369,11 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 - **Sending** (`postcall.send` on the `whatsapp` queue, delayed to `scheduledAt`): everything is checked again, then the inbox template send with `origin: system`, no sender, the call's `externalRef`, a wallet hold and the marketing limit. Skip reasons (exact): `opted_out`, `dnd`, `no_template`, `template_not_approved`, `no_number`, `no_phone`, `low_balance`, `marketing_limit`, `rule_disabled`, `call_not_eligible` (no contact). A row leaves `scheduled` once; job retries never send twice.
 - `GET /api/v1/calls/:id/after-call` (`calls.read` / `calls:read`): `[{ id, source: flow | rule, nodeId, ruleId, ruleName, templateName, language, status: scheduled | sent | skipped | failed, reason, scheduledAt, sentAt, messageId, conversationId }]`. The sent message is in the inbox and its status reaches webhooks as `whatsapp.message.status` with the call's `externalRef`.
 
+## 14i. Google Sheets + CRM (Phase 15)
+
+- `/api/v1/sheet-imports` (`contacts.import`, dashboard only): `POST { name, url, schedule: once | hourly | daily, mapping (import column mapping, existing fields only), updateExisting, tags }` — the URL must be a sheet published as CSV (`https://docs.google.com/spreadsheets/d/e/<id>/pub?…output=csv`, else 422 `SHEET_URL_INVALID`), downloaded at once through the URL guard (≤ 2 redirects, CSV only, the file-import size / row limits) to check it and the mapping; ≤ 5 per account (409). `GET` (never the link), `POST /:id/run` (202; 409 while running), `DELETE /:id` (contacts and the list stay). Runs: `sheets.import` on the contacts queue (`sheet-<id>-<runKey>`), queued by maintenance `sheet-imports` every 15 minutes; each run is a normal import job with the error file.
+- Results out: the Apps Script receiver (`docs/integrations/apps-script-receiver.gs`, logic tested in `scripts/lib/sheets-receiver.ts`) — guide `docs/integrations/google-sheets.md`. CRM recipes: `docs/integrations/zapier-make-n8n.md`.
+
 ## 15. Versioning & deprecation
 
 - The contract is served at **`GET /api/v1/openapi.json`** (OpenAPI 3.1, raw document — **not** wrapped in the success envelope) and browsable at **`/api/docs`** (Swagger UI, off in production unless `API_DOCS_ENABLED=true`). [ADR 0029](../adr/0029-shared-api-types-via-openapi.md).

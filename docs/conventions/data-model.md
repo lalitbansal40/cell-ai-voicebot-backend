@@ -214,6 +214,10 @@ The outbox: `{ _id: 'evt_<ulid>', accountId, type, data (full; the personal-data
 
 `{ accountId, callId, contactId, source ('flow:<nodeId>' | 'rule:<ruleId>'), ruleId, channelId, templateId, templateName, language, variables (by template key — customer data, never logged), scheduledAt, status (scheduled | sent | skipped | failed), reason, messageId, sentAt }`. Unique `{ accountId, callId, source }` (once per call and source); `{ status, scheduledAt }`.
 
+#### SheetImport (`sheetImports`) — Phase 15
+
+`{ accountId, name, url (select: false — a published Google Sheet CSV link, never returned or logged), schedule (once | hourly | daily), mapping { columns[] } (existing fields only), listId (the list "Google Sheet: <name>"), updateExisting (by phone), tags[], active, nextRunAt, lastRunAt, lastStatus (ok | failed | busy | running), lastError, lastResult { importJobId, rows, created, updated, failed }, createdBy }`. ≤ 5 per account. Indexes `{ accountId, createdAt: -1 }`, `{ active, nextRunAt }`. Each run is a normal `importJobs` row.
+
 #### AuditLog (`auditLogs`) — Phase 2
 
 | Field  | Type                                                                  | R   | Notes                                                                            |

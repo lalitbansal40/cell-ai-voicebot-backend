@@ -44,6 +44,7 @@ import './modules/report-subscriptions/report-subscriptions.schema';
 import './modules/reports/reports.schema';
 import './modules/retention/retention.schema';
 import './modules/segments/segments.schema';
+import './modules/sheet-imports/sheet-imports.schema';
 import './modules/system/system.schema';
 import './modules/team/team.schema';
 import './modules/templates/templates.openapi';

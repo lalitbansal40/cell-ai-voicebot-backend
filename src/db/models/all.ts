@@ -49,6 +49,7 @@ import './refresh-token.model';
 import './report-subscription.model';
 import './role.model';
 import './segment.model';
+import './sheet-import.model';
 import './stats-daily.model';
 import './topup-order.model';
 import './transcript-turn.model';

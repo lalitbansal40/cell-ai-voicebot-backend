@@ -47,6 +47,13 @@ describe('0017-integrations', () => {
     });
     expect(await db().collection('calls').indexExists(EXTERNAL_REF_INDEX)).toBe(true);
     expect(await db().collection('messages').indexExists(EXTERNAL_REF_INDEX)).toBe(true);
+    for (const created of [
+      'webhookEvents',
+      'webhookDeliveries',
+      'postCallMessages',
+      'sheetImports',
+    ])
+      expect((await db().listCollections({ name: created }).toArray()).length).toBe(1);
     const logIndexes = await db().collection('apiRequestLogs').indexes();
     expect(logIndexes.find((i) => i.key.at === 1)?.expireAfterSeconds).toBe(7 * 86_400);
 
@@ -57,7 +64,16 @@ describe('0017-integrations', () => {
     expect(key).not.toHaveProperty('ipAllowlist');
     expect(key).not.toHaveProperty('usage');
     const names = (await db().listCollections().toArray()).map((c) => c.name);
-    expect(names).not.toContain('apiRequestLogs');
+    for (const gone of [
+      'apiRequestLogs',
+      'webhookEndpoints',
+      'webhookEvents',
+      'webhookDeliveries',
+      'outcomeRules',
+      'postCallMessages',
+      'sheetImports',
+    ])
+      expect(names).not.toContain(gone);
     await migration().down(db()); // safe twice
   });
 });

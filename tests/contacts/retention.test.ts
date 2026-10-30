@@ -162,6 +162,7 @@ describe('maintenance worker', () => {
       ['analytics-reconcile', '30 2 * * *'],
       ['reports-email', '5 * * * *'],
       ['webhook-health', '*/10 * * * *'],
+      ['sheet-imports', '*/15 * * * *'],
     ]);
     const run = processMaintenanceJob({ logger, storage });
     // the worker uses the real clock: rows made by the tests above (dated from

@@ -6,6 +6,7 @@ import { sweepAnalytics, type AnalyticsDeps } from '../../../modules/analytics/s
 import { purgeAuditLogs } from '../../../modules/audit/audit-purge';
 import { purgeCalls, reapCalls } from '../../../modules/calls/maintenance';
 import { CallRegistry } from '../../../modules/calls/registry';
+import type { ContactJobs } from '../../../modules/contacts/jobs';
 import {
   purgeDeletedContacts,
   purgeExportFiles,
@@ -16,6 +17,7 @@ import { purgeDeletedFlows } from '../../../modules/flows/maintenance';
 import { INBOX_RETENTION_CRON, INBOX_RETENTION_JOB } from '../../../modules/inbox/jobs';
 import { runInboxRetention } from '../../../modules/inbox/retention.job';
 import { sendDueReports } from '../../../modules/report-subscriptions/report-subscriptions.service';
+import { queueDueSheetImports } from '../../../modules/sheet-imports/run.job';
 import { checkWebhookHealth, webhookRuntime } from '../../../modules/webhooks/deliver.job';
 import { purgeWebhookEvents } from '../../../modules/whatsapp/webhook-processor';
 import type { StorageProvider } from '../../storage';
@@ -47,6 +49,8 @@ export const ANALYTICS_RECONCILE_JOB = 'analytics-reconcile';
 export const REPORTS_EMAIL_JOB = 'reports-email';
 /** Phase 15: webhook endpoints failing for 24 h are turned off. */
 export const WEBHOOK_HEALTH_JOB = 'webhook-health';
+/** Phase 15: scheduled Google-Sheet imports that are due. */
+export const SHEET_IMPORTS_JOB = 'sheet-imports';
 
 /** Repeatable maintenance jobs (UTC crons). */
 export const MAINTENANCE_SCHEDULES = [
@@ -64,12 +68,15 @@ export const MAINTENANCE_SCHEDULES = [
   { name: ANALYTICS_RECONCILE_JOB, pattern: '30 2 * * *' },
   { name: REPORTS_EMAIL_JOB, pattern: '5 * * * *' },
   { name: WEBHOOK_HEALTH_JOB, pattern: '*/10 * * * *' },
+  { name: SHEET_IMPORTS_JOB, pattern: '*/15 * * * *' },
 ] as const;
 
 export interface MaintenanceDeps extends Pick<QueueFactoryDeps, 'logger'> {
   storage?: StorageProvider;
   /** Live-call registry (calls reaper); default from REDIS_URL. */
   registry?: CallRegistry;
+  /** Phase 15: queues the due sheet imports on the contacts queue. */
+  contactJobs?: ContactJobs;
   /** Analytics lock + watermarks (tests: a prefixed client); default from REDIS_URL. */
   analytics?: Pick<AnalyticsDeps, 'redis' | 'prefix'>;
 }
@@ -143,6 +150,9 @@ export const processMaintenanceJob =
           logger: deps.logger,
         });
         break;
+      case SHEET_IMPORTS_JOB:
+        result = deps.contactJobs ? await queueDueSheetImports(deps.contactJobs) : { queued: 0 };
+        break;
       case WEBHOOK_HEALTH_JOB:
         result = await checkWebhookHealth(webhookRuntime(getEnv()));
         break;
@@ -159,7 +169,7 @@ export const processMaintenanceJob =
 
 /** Starts the `maintenance` worker and schedules the purges. */
 export const startMaintenanceWorker = async (
-  deps: QueueFactoryDeps & { storage?: StorageProvider },
+  deps: QueueFactoryDeps & { storage?: StorageProvider; contactJobs?: ContactJobs },
 ): Promise<{ queue: Queue; worker: Worker<unknown, Record<string, number>> }> => {
   const queue = createQueue(QUEUES.maintenance, deps);
   const worker = createWorker<unknown, Record<string, number>>(
