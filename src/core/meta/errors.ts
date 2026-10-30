@@ -14,6 +14,8 @@ export const META_ERROR_CODES = {
   codeExpired: 36007,
   /** Authorization code already used. */
   codeUsed: 36009,
+  /** Permission denied, e.g. a WABA field only Business Solution Providers may read. */
+  permissionDenied: 10,
 } as const;
 
 const SECRET_PATTERNS: RegExp[] = [

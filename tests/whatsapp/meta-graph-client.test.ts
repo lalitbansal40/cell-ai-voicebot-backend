@@ -300,6 +300,22 @@ describe('Graph client — retries and errors', () => {
     expect(stub.requests).toHaveLength(1);
   });
 
+  it('getWaba without primary_funding_id when Meta keeps it for Solution Providers', async () => {
+    const bsp =
+      'This action requires that the Business that owns this App is a Business Solution Provider for WhatsApp.';
+    stub.next(graphFail(400, 10, bsp), json(200, fixture('graph-waba.json')));
+    const waba = await client().getWaba(TOKEN, WABA);
+    expect(waba.currency).toBe('INR');
+    expect(waba.primaryFundingId).toBeNull();
+    expect(stub.requests).toHaveLength(2);
+    expect(last().query.fields).not.toContain('primary_funding_id');
+    expect(last().query.fields).toContain('owner_business_info');
+    // other errors are not retried without the field
+    stub.next(graphFail(400, 100));
+    await expect(client().getWaba(TOKEN, WABA)).rejects.toMatchObject({ code: 100 });
+    expect(stub.requests).toHaveLength(3);
+  });
+
   it('error body on HTTP 200 is an error', async () => {
     stub.next(graphFail(200, 100));
     await expect(client().getWaba(TOKEN, WABA)).rejects.toMatchObject({ status: 200, code: 100 });
