@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 15 · Batch 1 (T15.1–T15.4) — public API, outbound webhooks** — 2026-10-30
+  - One API, two auths (ADR 0045): the dashboard routes for contacts, calls, insights, campaigns, reports, exports, templates and WhatsApp AI calls accept an `X-API-Key` with the route's scope (`access({ permission, scope })`); 13 grouped scopes; keys get an IP allowlist, an expiry, per-key limits (600 reads / 60 writes a minute), a 7-day request log, daily usage and `PATCH /api-keys/:id`; `externalRef` on calls and messages; migration `0017-integrations`.
+  - Contacts upsert by phone / externalId and bulk upsert (≤ 1,000, a result per row); `POST /messages/template` / `/text` and `GET /messages/:id` through the inbox send path (`origin: api`, Idempotency-Key required); `POST /calls` `variables`; keys see approved templates only. The API never clears an opt-out or DND.
+  - Outbound webhooks (ADR 0046): outbox + one job per attempt (1 m, 5 m, 30 m, 2 h, 12 h), HMAC-SHA256 over the raw bytes (golden vectors from openssl), secret rotation with a 24 h overlap, auto-disable after 5 events given up or 24 h failing (notification + e-mail + audit), test event, delivery log, replay; the URL guard (moved to `shared/net`) runs at save and at every delivery. All 11 events wired, one per real change.
+  - External-client integration test: an API key and a local receiver → contact → call → signed `call.completed` → the same result from `GET /calls/:id`; template → `whatsapp.message.status` sent / delivered / read.
+  - Tests 3331 → 3479, coverage 96.17 / 87.72 / 95.88 / 97.67. Flakes (pass alone 3 / 3): two `dispatcher.test.ts` cases under full-suite load.
+
 - **Phase 14 · Batch 3 (T14.9–T14.10) — demo history, perf, security, sign-off** — 2026-10-28
   - `db:seed` (and the staging review demo, as test traffic) adds 60 days of report history: calls of every kind with "Demo:" insights, WhatsApp messages with statuses, AI charges through the engine, rollups rebuilt (no OpenAI calls).
   - `npm run perf:reports` (throw-away `cav_perf`): 100,000 calls + 500,000 messages over 400 days → every report tab ≤ 225 ms p95 over 7 / 30 / 365 days, index scans only, recount 0 differences.
