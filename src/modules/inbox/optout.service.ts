@@ -5,6 +5,7 @@ import type { ConversationDoc } from '../../db/models/conversation.model';
 import { DndEntryModel } from '../../db/models/dnd-entry.model';
 import { recordAudit } from '../audit/audit.service';
 import { addDndEntries } from '../dnd/dnd.service';
+import { publishContactOpt } from '../webhooks/publish';
 
 import { inboxNow, type InboxContext } from './context';
 import { emitMessageCreated } from './events';
@@ -104,6 +105,7 @@ export const handleKeywords = async (
     );
     emitMessageCreated(await insertSystemLine(conversation, 'opted_out', now));
     await audit(conversation, contact, 'inbox.contact_opted_out', { kind });
+    await publishContactOpt(contact, 'opted_out', 'whatsapp', 'stop_keyword', now);
     if (settings.optOutReply)
       await confirm(ix, conversation, contact, kind, settings.optOutReplyText);
     return kind;
@@ -128,6 +130,7 @@ export const handleKeywords = async (
     await insertSystemLine(conversation, dndKept ? 'opted_in_dnd_kept' : 'opted_in', now),
   );
   await audit(conversation, contact, 'inbox.contact_opted_in', { kind, dndKept });
+  await publishContactOpt(contact, 'opted_in', 'whatsapp', 'start_keyword', now);
   if (settings.optInReply) await confirm(ix, conversation, contact, kind, settings.optInReplyText);
   return kind;
 };

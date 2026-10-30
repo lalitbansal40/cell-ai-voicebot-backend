@@ -89,14 +89,30 @@ export const emitAccountEvent = async (
   accountId: Types.ObjectId | string,
   type: WebhookEventType,
   data: Record<string, unknown>,
-  { session, at = new Date() }: { session?: ClientSession; at?: Date } = {},
+  {
+    session,
+    at = new Date(),
+    key,
+  }: {
+    session?: ClientSession;
+    at?: Date;
+    /** De-duplication key: a second event with the same key is dropped (retries, redeliveries). */
+    key?: string;
+  } = {},
 ): Promise<string | null> => {
   const account = typeof accountId === 'string' ? new Types.ObjectId(accountId) : accountId;
   const id = newEventId(at.getTime());
   try {
-    await WebhookEventModel.create([{ _id: id, accountId: account, type, data, createdAt: at }], {
-      ...(session ? { session } : {}),
-    });
+    try {
+      await WebhookEventModel.create(
+        [{ _id: id, accountId: account, type, data, key: key ?? null, createdAt: at }],
+        { ...(session ? { session } : {}) },
+      );
+    } catch (err) {
+      // the same real change was already published (a retry, a redelivery)
+      if ((err as { code?: number }).code === 11000 && key) return null;
+      throw err;
+    }
     const run = async () => {
       if (session && !(await WebhookEventModel.exists({ _id: id }))) return; // rolled back
       const queued = await fanOut(id, account, type);

@@ -9,6 +9,7 @@ import { MessageModel, type MessageDoc } from '../../db/models/message.model';
 import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
 import { getLogger } from '../../shared/logger';
 import { recordTemplateUsage } from '../templates/template.service';
+import { publishMessageStatus } from '../webhooks/publish';
 
 import { applyChannelEffect } from './channel-effects';
 import type { InboxContext } from './context';
@@ -115,6 +116,7 @@ const applyOne = async (
     ).lean<MessageDoc>();
     if (!updated) continue; // another status won the race — re-read and re-check
     emitMessageUpdated(updated);
+    await publishMessageStatus(updated);
     const conv = await syncLastMessageStatus(updated);
     if (conv) emitConversation(conv);
     await applyChannelEffect(ix.wa, channel._id, effect);

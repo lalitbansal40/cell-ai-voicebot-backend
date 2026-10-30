@@ -41,7 +41,7 @@ export const SAMPLE_DATA: Record<WebhookEventType, Record<string, unknown>> = {
     flowId: ID.flow,
     agentId: null,
     status: 'completed',
-    endReason: 'hangup_bot',
+    endReason: 'hangup_node',
     durationSec: 94,
     costMicros: 2_350_000,
     disposition: 'promise_to_pay',

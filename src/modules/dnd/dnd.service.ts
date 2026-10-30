@@ -12,6 +12,7 @@ import { auditRequest } from '../audit/audit.service';
 import { toPublicContact, type PublicContact } from '../contacts/contacts.service';
 import { loadContactContext } from '../contacts/context';
 import { normalizePhone, phoneDigits } from '../contacts/normalize';
+import { publishContactOpt, publishPhoneOpt } from '../webhooks/publish';
 
 export const OPT_OUT_REASON = 'Opted out';
 
@@ -123,6 +124,7 @@ export const addDnd = async (
       target: { type: 'dnd_entry', id: entry._id.toString() },
       meta: { count: 1, source: 'manual' },
     });
+    await publishPhoneOpt(accountId, phone.e164, 'opted_out', 'dnd_list');
   }
   return { entry: toPublicDnd(entry), created: created > 0 };
 };
@@ -146,6 +148,7 @@ export const removeDnd = async (req: Request, id: string): Promise<void> => {
     target: { type: 'dnd_entry', id: entry._id.toString() },
     meta: { optOutCleared: false },
   });
+  await publishPhoneOpt(entry.accountId, entry.phoneE164, 'opted_in', 'dnd_list');
 };
 
 const findContact = async (req: Request, id: string): Promise<ContactDoc> => {
@@ -174,6 +177,7 @@ export const optOut = async (req: Request, id: string): Promise<PublicContact> =
   await auditRequest(req, 'contact.opted_out', {
     target: { type: 'contact', id: contact._id.toString() },
   });
+  await publishContactOpt(updated ?? contact, 'opted_out', 'calls', 'manual');
   return toPublicContact(updated ?? contact);
 };
 
@@ -199,5 +203,6 @@ export const undoOptOut = async (req: Request, id: string): Promise<PublicContac
     target: { type: 'contact', id: contact._id.toString() },
     meta: { optOutCleared: true },
   });
+  if (contact.optedOutAt) await publishContactOpt(contact, 'opted_in', 'calls', 'manual');
   return toPublicContact(updated ?? contact);
 };

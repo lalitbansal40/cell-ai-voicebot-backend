@@ -53,8 +53,184 @@ By default payloads carry ids, statuses, outcomes and amounts only. Turn on **In
 | `whatsapp.call.started` · `whatsapp.call.ended` · `whatsapp.call.missed` | WhatsApp calls                                            |
 | `contact.opted_out` · `contact.opted_in`                                 | STOP / START or a do-not-call change                      |
 
-The `data` of each event, with samples, is listed in [Event payloads](#event-payloads) (filled in T15.4).
+The `data` of each event, with samples, is listed in [Event payloads](#event-payloads).
 
 ## Event payloads
 
-_Filled in T15.4 from the payload builders._
+The `data` of each event (made-up values). Fields marked personal — `phone`, `name`, `summary`, `text` — are sent only to endpoints with **Include personal data**.
+
+### `call.started`
+
+```json
+{
+  "callId": "6720f0a1b2c3d4e5f6a7b8c9",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "contactExternalId": "CUST-1001",
+  "externalRef": "loan-1001",
+  "provider": "dryrun",
+  "direction": "outbound",
+  "campaignId": "6720f0a1b2c3d4e5f6a7b8cb",
+  "flowId": "6720f0a1b2c3d4e5f6a7b8cc",
+  "agentId": null,
+  "phone": "+919876543210",
+  "name": "Asha Verma"
+}
+```
+
+### `call.completed`
+
+```json
+{
+  "callId": "6720f0a1b2c3d4e5f6a7b8c9",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "contactExternalId": "CUST-1001",
+  "externalRef": "loan-1001",
+  "provider": "dryrun",
+  "direction": "outbound",
+  "campaignId": "6720f0a1b2c3d4e5f6a7b8cb",
+  "flowId": "6720f0a1b2c3d4e5f6a7b8cc",
+  "agentId": null,
+  "status": "completed",
+  "endReason": "hangup_node",
+  "durationSec": 94,
+  "costMicros": 2350000,
+  "disposition": "promise_to_pay",
+  "dispositionSource": "flow",
+  "recording": true,
+  "phone": "+919876543210",
+  "name": "Asha Verma"
+}
+```
+
+### `call.insights.ready`
+
+```json
+{
+  "callId": "6720f0a1b2c3d4e5f6a7b8c9",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "externalRef": "loan-1001",
+  "status": "done",
+  "sentiment": "positive",
+  "disposition": "promise_to_pay",
+  "keyInfo": {
+    "promiseDate": "2026-11-05",
+    "promiseAmountMicros": 2500000000
+  },
+  "summary": "The customer agreed to pay ₹2,500 on 5 November."
+}
+```
+
+### `campaign.completed`
+
+```json
+{
+  "campaignId": "6720f0a1b2c3d4e5f6a7b8cb",
+  "runLabel": null,
+  "counts": {
+    "contacts": 120,
+    "calls": 168,
+    "answered": 92,
+    "completed": 115,
+    "failed": 5
+  },
+  "outcomes": {
+    "promise_to_pay": 31,
+    "callback": 12
+  },
+  "costMicros": 412500000
+}
+```
+
+### `whatsapp.message.received`
+
+```json
+{
+  "messageId": "6720f0a1b2c3d4e5f6a7b8cd",
+  "conversationId": "6720f0a1b2c3d4e5f6a7b8ce",
+  "channelId": "6720f0a1b2c3d4e5f6a7b8cf",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "contactExternalId": "CUST-1001",
+  "type": "text",
+  "phone": "+919876543210",
+  "name": "Asha Verma",
+  "text": "I paid this morning"
+}
+```
+
+### `whatsapp.message.status`
+
+```json
+{
+  "messageId": "6720f0a1b2c3d4e5f6a7b8cd",
+  "conversationId": "6720f0a1b2c3d4e5f6a7b8ce",
+  "channelId": "6720f0a1b2c3d4e5f6a7b8cf",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "externalRef": "reminder-77",
+  "status": "delivered",
+  "errorCode": null,
+  "chargeMicros": 115000
+}
+```
+
+### `whatsapp.call.started`
+
+```json
+{
+  "callId": "6720f0a1b2c3d4e5f6a7b8c9",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "channelId": "6720f0a1b2c3d4e5f6a7b8cf",
+  "direction": "inbound",
+  "answeredBy": "6720f0a1b2c3d4e5f6a7b8d0",
+  "phone": "+919876543210"
+}
+```
+
+### `whatsapp.call.ended`
+
+```json
+{
+  "callId": "6720f0a1b2c3d4e5f6a7b8c9",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "channelId": "6720f0a1b2c3d4e5f6a7b8cf",
+  "direction": "inbound",
+  "durationSec": 182,
+  "answeredBy": "6720f0a1b2c3d4e5f6a7b8d0",
+  "phone": "+919876543210"
+}
+```
+
+### `whatsapp.call.missed`
+
+```json
+{
+  "callId": "6720f0a1b2c3d4e5f6a7b8c9",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "channelId": "6720f0a1b2c3d4e5f6a7b8cf",
+  "direction": "inbound",
+  "phone": "+919876543210"
+}
+```
+
+### `contact.opted_out`
+
+```json
+{
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "contactExternalId": "CUST-1001",
+  "channel": "whatsapp",
+  "source": "stop_keyword",
+  "phone": "+919876543210"
+}
+```
+
+### `contact.opted_in`
+
+```json
+{
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "contactExternalId": "CUST-1001",
+  "channel": "whatsapp",
+  "source": "start_keyword",
+  "phone": "+919876543210"
+}
+```

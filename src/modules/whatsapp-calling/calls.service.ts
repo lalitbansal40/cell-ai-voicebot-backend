@@ -54,6 +54,7 @@ import { touchLastMessage, upsertConversation } from '../inbox/conversation-stor
 import { emitConversation, emitMessageCreated } from '../inbox/events';
 import { blankContent, insertMessage } from '../inbox/message-store';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
+import { publishCallCompleted } from '../webhooks/publish';
 import { openSecret } from '../whatsapp/context';
 
 import { activeRestrictions } from './availability';
@@ -844,6 +845,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         disposition: null,
         costMicros: 0,
       });
+      await publishCallCompleted(entry.callId);
       throw mapped;
     }
     entry.waCallId = waCallId;

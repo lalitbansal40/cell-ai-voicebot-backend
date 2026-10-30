@@ -8,6 +8,7 @@ import { RoleModel } from '../../db/models/role.model';
 import { UserModel } from '../../db/models/user.model';
 import { getLogger } from '../../shared/logger';
 import { notify, type Recipient } from '../notifications/notifications.service';
+import { publishCampaignCompleted } from '../webhooks/publish';
 
 /** Shown after "paused:" (PHASE_8_PROMPT §1 "Notifications"). */
 export const PAUSE_REASON_LABELS: Record<PauseReason, string> = {
@@ -69,6 +70,8 @@ export const notifyCampaignStatus = async (
   by: Types.ObjectId | null,
 ): Promise<void> => {
   try {
+    // Phase 15: `campaign.completed` webhook — campaigns and each recurring run
+    if (campaign.status === 'completed') await publishCampaignCompleted(campaign);
     if (campaign.status === 'completed' && !campaign.schedule.recurrence) {
       await send(
         campaign,

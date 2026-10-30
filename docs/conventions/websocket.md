@@ -94,6 +94,8 @@ JWTs are **never** put in a WebSocket URL (URLs end up in proxy/server logs).
 
 New events must be added to this table in the same PR that emits them.
 
+**Outbound webhooks (Phase 15).** Several realtime events have a webhook twin for outside systems, published from the same code path through `emitAccountEvent` / `modules/webhooks/publish.ts` (one per real change, de-duplicated by key): `call.ended` → `call.completed` (+ `whatsapp.call.ended` / `.missed`), the `in_progress` status → `call.started` (+ `whatsapp.call.started`), `call.insights` (done / skipped / failed) → `call.insights.ready`, `inbox.message.created` (customer) → `whatsapp.message.received`, `inbox.message.updated` (forward status move of our message) → `whatsapp.message.status`; plus `campaign.completed` and `contact.opted_out` / `.opted_in`. Webhooks carry ids by default (personal fields only with the endpoint's opt-in) — see [api.md §14](api.md) and [docs/api/webhooks.md](../api/webhooks.md).
+
 ## 6. Keepalive & reconnect
 
 - Client sends `{ "type": "ping" }` every **25 s**; server replies `{ "type": "pong" }`.

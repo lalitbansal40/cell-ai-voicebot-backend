@@ -48,6 +48,7 @@ import {
 import { getLogger } from '../../shared/logger';
 import { ymdInZone } from '../../shared/time';
 import { auditRequest } from '../audit/audit.service';
+import { publishInsightsReady } from '../webhooks/publish';
 
 import { ModelInsightsSchema, toInsightOutput } from './insights.schema';
 
@@ -130,6 +131,8 @@ const state = (
 });
 
 const emit = (callId: Types.ObjectId, status: string, version: number): void => {
+  // Phase 15: `call.insights.ready` webhook once a version finished (never throws)
+  if (status !== 'pending') void publishInsightsReady(callId, version);
   const rt = tryGetRealtime();
   if (!rt) return;
   void rt

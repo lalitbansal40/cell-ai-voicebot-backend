@@ -11,6 +11,7 @@ import type { ConversationDoc } from '../../db/models/conversation.model';
 import { MessageModel, type MessageDoc } from '../../db/models/message.model';
 import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
 import { getLogger } from '../../shared/logger';
+import { publishMessageReceived } from '../webhooks/publish';
 import { WebhookSchemaError } from '../whatsapp/webhook-handlers';
 
 import { findOrCreateWhatsAppContact } from './contacts';
@@ -132,6 +133,7 @@ export const processCustomerMessage = async (
   }
   if (type !== 'reaction') {
     emitMessageCreated(stored, { replyTo: replyTo ? replyToView(replyTo) : null });
+    await publishMessageReceived(stored);
     conversation = (await touchLastMessage(conversation._id, stored)) ?? conversation;
   }
   if (n.mediaId) await ix.jobs.enqueueMediaDownload(stored._id.toString());
