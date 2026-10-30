@@ -20,6 +20,7 @@ import {
 import {
   graphError,
   invalidResponse,
+  META_ERROR_CODES,
   mediaRefused,
   metaErrorMeta,
   networkError,
@@ -70,6 +71,7 @@ import {
 } from './template-schemas';
 import {
   isAllowedMediaUrl,
+  isMetaApiError,
   type MetaApiError,
   type MetaClient,
   type MetaUploadFile,
@@ -134,7 +136,7 @@ const PHONE_FIELDS = [
   'is_on_biz_app',
 ].join(',');
 
-const WABA_FIELDS = [
+const WABA_BASE_FIELDS = [
   'id',
   'name',
   'currency',
@@ -143,8 +145,8 @@ const WABA_FIELDS = [
   'account_review_status',
   'business_verification_status',
   'owner_business_info',
-  'primary_funding_id',
-].join(',');
+];
+const WABA_FIELDS = [...WABA_BASE_FIELDS, 'primary_funding_id'].join(',');
 
 const PROFILE_FIELDS = [
   'about',
@@ -350,10 +352,16 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
     },
 
     async getWaba(token, wabaId) {
-      const raw = await bearer('waba.get', 'GET', seg(wabaId), token, wabaSchema, {
-        query: { fields: WABA_FIELDS },
-      });
-      return toWaba(raw);
+      const get = (fields: string) =>
+        bearer('waba.get', 'GET', seg(wabaId), token, wabaSchema, { query: { fields } });
+      try {
+        return toWaba(await get(WABA_FIELDS));
+      } catch (err) {
+        // Meta shows `primary_funding_id` only to Business Solution Providers (code 10);
+        // a Tech Provider reads the rest, and the payment method stays unknown (null).
+        if (!isMetaApiError(err) || err.code !== META_ERROR_CODES.permissionDenied) throw err;
+        return { ...toWaba(await get(WABA_BASE_FIELDS.join(','))), primaryFundingId: null };
+      }
     },
 
     async listPhoneNumbers(token, wabaId) {
