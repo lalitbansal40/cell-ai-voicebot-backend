@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 15 · Batch 2 (T15.5–T15.7) — WhatsApp after calls, Google Sheets, integrations screens** — 2026-10-30
+  - Flow "Send WhatsApp" steps now send after the call settles. After-the-call rules (≤ 20) match on outcome, mood, promise, missed calls in a row and call kind, and send at "now", "after N minutes" or "the next calling hour". `postcall.send` re-checks opt-out, DND, template approval, wallet and the marketing limit. Every skip is recorded with an exact reason, and `GET /calls/:id/after-call` lists them.
+  - Scheduled Google Sheet imports (published CSV, once / hourly / daily, ≤ 5 per account) run through the file-import pipeline into their own list. There is an Apps Script receiver for sending events to a sheet, plus Zapier / Make / n8n guides.
+  - Fixed (hotfix `0053a8d` on `main`): a Tech Provider app gets code 10 for the WABA field `primary_funding_id`, which stopped every number at "Action needed". `getWaba` now reads the WABA without it.
+  - Tests 3479 → 3532, coverage 96.07 / 87.4 / 95.68 / 97.59. Playwright 158 / 158 (second run). The first run had 9 load flakes (sign-up timing out under load); all 31 tests in those files passed alone. Backend log grep (8,779 lines): full API keys, `whsec_` secrets, signatures, phones, names, message texts and summaries → 0.
+
 - **Phase 15 · Batch 1 (T15.1–T15.4) — public API, outbound webhooks** — 2026-10-30
   - One API, two auths (ADR 0045): the dashboard routes for contacts, calls, insights, campaigns, reports, exports, templates and WhatsApp AI calls accept an `X-API-Key` with the route's scope (`access({ permission, scope })`); 13 grouped scopes; keys get an IP allowlist, an expiry, per-key limits (600 reads / 60 writes a minute), a 7-day request log, daily usage and `PATCH /api-keys/:id`; `externalRef` on calls and messages; migration `0017-integrations`.
   - Contacts upsert by phone / externalId and bulk upsert (≤ 1,000, a result per row); `POST /messages/template` / `/text` and `GET /messages/:id` through the inbox send path (`origin: api`, Idempotency-Key required); `POST /calls` `variables`; keys see approved templates only. The API never clears an opt-out or DND.

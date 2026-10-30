@@ -10,7 +10,7 @@ Plan: [PHASE_15_PLAN.md](PHASE_15_PLAN.md) · Branch: `feature/phase-15-integrat
 | [x] | T15.4  | Event wiring for the whole catalogue, personal-data filter, external-client integration test                                              | BE   | M    |
 | [x] | T15.5  | Post-call WhatsApp: flow step sends, outcome rules, scheduler, guards, call-page rows                                                     | BE   | L    |
 | [x] | T15.6  | Google Sheets import (published CSV, scheduled), Apps Script receiver, Zapier / Make / n8n docs                                           | BE   | M    |
-| [ ] | T15.7  | Frontend: Developers, Webhooks, After the call, Sheet imports, flow Send WhatsApp step, call-page card                                    | FE   | L    |
+| [x] | T15.7  | Frontend: Developers, Webhooks, After the call, Sheet imports, flow Send WhatsApp step, call-page card                                    | FE   | L    |
 | [ ] | T15.8  | Docs page + guides + tested signature samples + mocks                                                                                     | both | M    |
 | [ ] | T15.9  | Seeds, Playwright specs, perf (1,000 webhooks / min), security tests                                                                      | both | M    |
 | [ ] | T15.10 | Gap audit, ADR 0045 / 0046, setup + runbook, READMEs, CHANGELOGs, BUILD_PLAN_V2, sign-off                                                 | both | M    |
