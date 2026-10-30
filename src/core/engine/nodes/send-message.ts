@@ -19,7 +19,7 @@ const queue = (rt: NodeRuntime, message: QueuedMessage, preview: string) => {
   });
 };
 
-/** Queues an SMS sent after the call (Phase 10 sends it). */
+/** Queues an SMS sent after the call (stays queued until phone lines, Phase 18). */
 export const sendSmsNode: NodeHandler<'send_sms'> = {
   enter: (node, rt) => {
     const text = rt.render(node.config.text, node.id);
@@ -41,7 +41,7 @@ export const sendSmsNode: NodeHandler<'send_sms'> = {
   },
 };
 
-/** Queues a WhatsApp template sent after the call (Phase 10 sends it). */
+/** Queues a WhatsApp template sent after the call (Phase 15: `post-call/collect.ts` sends it). */
 export const sendWhatsappNode: NodeHandler<'send_whatsapp'> = {
   enter: (node, rt) => {
     const params = node.config.params.map((p) => rt.render(p, node.id));
@@ -55,6 +55,7 @@ export const sendWhatsappNode: NodeHandler<'send_whatsapp'> = {
         language: node.config.language,
         params,
         dltTemplateId: null,
+        channelId: node.config.channelId,
         queuedAt: rt.ctx.now().toISOString(),
       },
       `${node.config.templateName}(${params.join(', ')})`,

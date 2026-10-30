@@ -85,6 +85,8 @@ export interface QueuedMessage {
   language: string | null;
   params: string[];
   dltTemplateId: string | null;
+  /** Phase 15: WhatsApp number of a Send WhatsApp step (null = the account's only one). */
+  channelId?: string | null;
   queuedAt: string;
 }
 

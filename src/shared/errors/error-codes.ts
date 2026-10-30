@@ -226,6 +226,10 @@ export const ERROR_CODES = {
     status: 422,
     message: 'This address is not allowed for webhooks.',
   },
+  OUTCOME_RULE_LIMIT: {
+    status: 422,
+    message: 'You already have the most after-call rules allowed. Remove one first.',
+  },
   WEBHOOK_ENDPOINT_LIMIT: {
     status: 422,
     message: 'You already have the most webhooks allowed. Remove one first.',

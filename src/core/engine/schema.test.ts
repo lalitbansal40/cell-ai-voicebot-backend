@@ -188,6 +188,8 @@ describe('node config schemas', () => {
     ['transfer_to_agent', { phone: '+91', timeoutSec: 5 }, 'config.timeoutSec'],
     ['send_sms', { text: 'x'.repeat(L.smsMaxChars + 1) }, 'config.text'],
     ['send_whatsapp', { templateName: 'Bad Name' }, 'config.templateName'],
+    ['send_whatsapp', { templateName: 'ok', language: 'English' }, 'config.language'],
+    ['send_whatsapp', { templateName: 'ok', channelId: 'not-an-id' }, 'config.channelId'],
     [
       'send_whatsapp',
       { templateName: 'ok', params: Array.from({ length: L.waTemplateParamsMax + 1 }, () => 'p') },

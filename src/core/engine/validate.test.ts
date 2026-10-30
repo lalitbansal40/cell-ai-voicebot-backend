@@ -571,7 +571,7 @@ describe('validateFlow', () => {
   it('orders issues deterministically and every code is reachable by a test above', () => {
     const g = withNode('greet', { config: { text: '' } });
     expect(validateFlow(g, ctx)).toEqual(validateFlow(g, ctx));
-    expect(ISSUE_CODES).toHaveLength(23);
+    expect(ISSUE_CODES).toHaveLength(24);
   });
 
   it('validates the largest allowed graph quickly', () => {

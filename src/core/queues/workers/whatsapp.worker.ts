@@ -18,6 +18,8 @@ import {
 import { downloadInboundMedia } from '../../../modules/inbox/media.service';
 import { processReadReceipt } from '../../../modules/inbox/receipts';
 import { processSend } from '../../../modules/inbox/send.job';
+import { POSTCALL_SEND_JOB, type PostCallJobData } from '../../../modules/post-call/jobs';
+import { processPostCallSend } from '../../../modules/post-call/send.job';
 import {
   hasDeferredTemplateEvents,
   runTemplatesBackfill,
@@ -145,6 +147,11 @@ export const processWhatsAppJob =
         };
       }
       if (job.name === INBOX_JOBS.backfill) return runInboxBackfill(ix);
+      // Phase 15: WhatsApp templates after a call
+      if (job.name === POSTCALL_SEND_JOB) {
+        const { postCallMessageId } = job.data as PostCallJobData;
+        return processPostCallSend(ix, postCallMessageId);
+      }
       if (job.name === INBOX_JOBS.historyImport) {
         const { eventId } = job.data as HistoryImportJobData;
         return importHistoryEvent(ix, eventId);

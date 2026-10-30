@@ -256,8 +256,18 @@ const SendSmsConfig = z.strictObject({
 
 const SendWhatsappConfig = z.strictObject({
   templateName: z.string().regex(WA_TEMPLATE_NAME, 'Use a-z, 0-9 and _'),
-  language: z.enum(['hi', 'en']).default('hi'),
+  /** Meta language code of the template (`hi`, `en`, `en_US` …). */
+  language: z
+    .string()
+    .regex(/^[a-z]{2,3}(_[A-Za-z]{2,4})?$/, 'A language code like hi, en or en_US')
+    .default('hi'),
   params: z.array(text(L.shortTextMaxChars)).max(L.waTemplateParamsMax).default([]),
+  /** Phase 15: the WhatsApp number to send from (default: the account's only number). */
+  channelId: z
+    .string()
+    .regex(/^[0-9a-f]{24}$/, 'Choose a WhatsApp number')
+    .nullable()
+    .default(null),
 });
 
 const WaitConfig = z.strictObject({ seconds: int(1, L.waitSecMax).default(5) });

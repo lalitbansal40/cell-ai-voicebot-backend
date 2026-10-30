@@ -40,6 +40,7 @@ import { outgoingPolicy } from '../../shared/net/url-guard';
 import { escapeRegex } from '../../shared/utils/regex';
 import { accountVariables } from '../ai-agents/variables';
 import { auditRequest } from '../audit/audit.service';
+import { whatsappStepIssues } from '../post-call/flow-templates';
 
 import type { CreateFlowBody, ListFlowsQuery, UpdateFlowBody } from './flows.schema';
 import { campaignsUsingFlow } from './in-use';
@@ -245,7 +246,11 @@ export const issuesOf = async (
   accountId: Types.ObjectId,
   graph: FlowGraph,
   deps: Pick<FlowsDeps, 'env' | 'extraPorts'>,
-): Promise<Issue[]> => validateFlow(graph, await validationContext(accountId, graph, deps));
+): Promise<Issue[]> => [
+  ...validateFlow(graph, await validationContext(accountId, graph, deps)),
+  // Phase 15: Send WhatsApp steps warn when their template can't be sent yet
+  ...(await whatsappStepIssues(accountId, graph)),
+];
 
 /** `FLOW_INVALID` with the issues as details. */
 export const flowInvalid = (issues: Issue[]): AppError => {

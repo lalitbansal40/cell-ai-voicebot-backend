@@ -206,6 +206,14 @@ The outbox: `{ _id: 'evt_<ulid>', accountId, type, data (full; the personal-data
 
 `{ accountId, endpointId, eventId, type, test, status (pending | succeeded | failed | gave_up), attempt, nextAttemptAt, lastAttemptAt, responseStatus, responseMs, responseSnippet (≤ 1 KB text), error, attempts[] (last 10: attempt, at, ok, responseStatus, responseMs, error) }`. Unique `{ endpointId, eventId }` partial on `test: false`; `{ accountId, endpointId, createdAt: -1, _id: -1 }`; TTL 30 days on `createdAt`. Never payloads or request headers.
 
+#### OutcomeRule (`outcomeRules`) — Phase 15
+
+`{ accountId, name, active, order, when { dispositions[], sentiment[], hasPromise, notAnsweredInARow, callKinds[] (phone | whatsapp), flowIds[], campaignIds[] }, send { channelId, templateId, params [{ from, key, value }] }, timing { mode (now | after | next_window_hour), delayMinutes }, createdBy }`. ≤ 20 per account. Index `{ accountId, order, createdAt }`.
+
+#### PostCallMessage (`postCallMessages`) — Phase 15
+
+`{ accountId, callId, contactId, source ('flow:<nodeId>' | 'rule:<ruleId>'), ruleId, channelId, templateId, templateName, language, variables (by template key — customer data, never logged), scheduledAt, status (scheduled | sent | skipped | failed), reason, messageId, sentAt }`. Unique `{ accountId, callId, source }` (once per call and source); `{ status, scheduledAt }`.
+
 #### AuditLog (`auditLogs`) — Phase 2
 
 | Field  | Type                                                                  | R   | Notes                                                                            |

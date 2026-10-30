@@ -152,6 +152,9 @@ export const AUDIT_ACTIONS = [
   'webhook_endpoint.secret_rotated',
   'webhook_endpoint.disabled',
   'webhook_endpoint.enabled',
+  'outcome_rule.created',
+  'outcome_rule.updated',
+  'outcome_rule.deleted',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

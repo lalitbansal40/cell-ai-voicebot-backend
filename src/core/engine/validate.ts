@@ -39,6 +39,8 @@ export const ISSUE_CODES = [
   'sms_long',
   'speak_long',
   'limits_exceeded',
+  // Phase 15: a Send WhatsApp step whose template isn't approved on the number (warning)
+  'template_not_approved',
 ] as const;
 export type IssueCode = (typeof ISSUE_CODES)[number];
 

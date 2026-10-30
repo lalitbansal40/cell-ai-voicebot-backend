@@ -3,6 +3,8 @@ import { ApiKeyModel } from '../models/api-key.model';
 import { ApiRequestLogModel } from '../models/api-request-log.model';
 import { CallModel } from '../models/call.model';
 import { MessageModel } from '../models/message.model';
+import { OutcomeRuleModel } from '../models/outcome-rule.model';
+import { PostCallMessageModel } from '../models/post-call-message.model';
 import { WebhookDeliveryModel } from '../models/webhook-delivery.model';
 import { WebhookEndpointModel } from '../models/webhook-endpoint.model';
 import { WebhookEventModel } from '../models/webhook-event.model';
@@ -30,6 +32,9 @@ export const integrationsMigration: Migration = {
     await WebhookEndpointModel.createIndexes();
     await WebhookEventModel.createIndexes();
     await WebhookDeliveryModel.createIndexes();
+    // after the call (T15.5): rules and the messages they / flows schedule
+    await OutcomeRuleModel.createIndexes();
+    await PostCallMessageModel.createIndexes();
   },
   down: async (db) => {
     for (const name of ['calls', 'messages']) {

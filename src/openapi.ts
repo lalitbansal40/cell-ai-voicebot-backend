@@ -35,6 +35,7 @@ import './modules/knowledge/knowledge.schema';
 import './modules/mock-apis/mock.schema';
 import './modules/notifications/notifications.schema';
 import './modules/payments/webhooks.schema';
+import './modules/post-call/rules.schema';
 import './modules/public-api/messages.schema';
 import './modules/rbac/rbac.schema';
 import './modules/realtime-tickets/tickets.schema';

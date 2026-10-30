@@ -47,6 +47,7 @@ import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes';
 import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
 import { createWebhooksRouter } from './modules/payments/webhooks.routes';
+import { createAfterCallRouter, createOutcomeRulesRouter } from './modules/post-call/rules.routes';
 import { createMessagesRouter } from './modules/public-api/messages.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
@@ -376,6 +377,8 @@ export const createApiRouter = ({
   );
   router.use('/campaigns', createCampaignsRouter(campaigns));
   router.use('/calls', createCallInsightsRouter({ jobs: ai.jobs ?? unavailableAiJobs }));
+  router.use('/calls', createAfterCallRouter());
+  router.use('/outcome-rules', createOutcomeRulesRouter());
   router.use('/reports', createReportsRouter({ cache: reports.cache ?? null }));
   router.use('/report-subscriptions', createReportSubscriptionsRouter());
   router.use('/webhook-endpoints', createWebhookEndpointsRouter(webhookRuntime(env, webhooks)));

@@ -598,7 +598,8 @@ export const sendMessage = async (
     direction: 'out',
     origin: options.origin ?? 'agent',
     status: 'queued',
-    sentBy: actor.userId,
+    // our own sends after a call have no person behind them
+    sentBy: options.origin === 'system' ? null : actor.userId,
     clientId: input.clientId,
     at: now,
     statusHistory: [{ status: 'queued', at: now }],

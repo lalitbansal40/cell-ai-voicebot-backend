@@ -1196,7 +1196,10 @@
               "webhook_endpoint.deleted",
               "webhook_endpoint.secret_rotated",
               "webhook_endpoint.disabled",
-              "webhook_endpoint.enabled"
+              "webhook_endpoint.enabled",
+              "outcome_rule.created",
+              "outcome_rule.updated",
+              "outcome_rule.deleted"
             ]
           },
           "actor": {
@@ -4334,13 +4337,18 @@
         "type": "object",
         "properties": {
           "templateName": { "type": "string", "pattern": "^[a-z0-9_]{1,60}$" },
-          "language": { "type": "string", "enum": ["hi", "en"], "default": "hi" },
+          "language": {
+            "type": "string",
+            "pattern": "^[a-z]{2,3}(_[A-Za-z]{2,4})?$",
+            "default": "hi"
+          },
           "params": {
             "type": "array",
             "items": { "type": "string", "maxLength": 300 },
             "maxItems": 10,
             "default": []
-          }
+          },
+          "channelId": { "type": ["string", "null"], "pattern": "^[0-9a-f]{24}$", "default": null }
         },
         "required": ["templateName"],
         "additionalProperties": false
@@ -4572,7 +4580,8 @@
               "error_exit_unconnected",
               "sms_long",
               "speak_long",
-              "limits_exceeded"
+              "limits_exceeded",
+              "template_not_approved"
             ]
           },
           "message": { "type": "string" },
@@ -6250,6 +6259,114 @@
           "createdAt": { "type": "string" }
         },
         "required": ["id", "type", "title", "body", "link", "readAt", "createdAt"]
+      },
+      "OutcomeRule": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "active": { "type": "boolean" },
+          "order": { "type": "integer" },
+          "when": {
+            "type": "object",
+            "properties": {
+              "dispositions": { "type": "array", "items": { "type": "string" } },
+              "sentiment": {
+                "type": "array",
+                "items": { "type": "string", "enum": ["positive", "neutral", "negative"] }
+              },
+              "hasPromise": { "type": ["boolean", "null"] },
+              "notAnsweredInARow": { "type": ["integer", "null"] },
+              "callKinds": {
+                "type": "array",
+                "items": { "type": "string", "enum": ["phone", "whatsapp"] }
+              },
+              "flowIds": { "type": "array", "items": { "type": "string" } },
+              "campaignIds": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": [
+              "dispositions",
+              "sentiment",
+              "hasPromise",
+              "notAnsweredInARow",
+              "callKinds",
+              "flowIds",
+              "campaignIds"
+            ]
+          },
+          "send": {
+            "type": "object",
+            "properties": {
+              "channelId": { "type": ["string", "null"] },
+              "templateId": { "type": "string" },
+              "template": {
+                "type": ["object", "null"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "language": { "type": "string" },
+                  "status": { "type": "string" }
+                },
+                "required": ["name", "language", "status"]
+              },
+              "params": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": { "type": "string", "enum": ["contact", "call", "insights", "text"] },
+                    "key": { "type": ["string", "null"] },
+                    "value": { "type": ["string", "null"] }
+                  },
+                  "required": ["from", "key", "value"]
+                }
+              }
+            },
+            "required": ["channelId", "templateId", "template", "params"]
+          },
+          "timing": {
+            "type": "object",
+            "properties": {
+              "mode": { "type": "string", "enum": ["now", "after", "next_window_hour"] },
+              "delayMinutes": { "type": ["integer", "null"] }
+            },
+            "required": ["mode", "delayMinutes"]
+          },
+          "createdAt": { "type": "string" }
+        },
+        "required": ["id", "name", "active", "order", "when", "send", "timing", "createdAt"]
+      },
+      "AfterCallMessage": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "type": "string", "enum": ["flow", "rule"] },
+          "nodeId": { "type": ["string", "null"] },
+          "ruleId": { "type": ["string", "null"] },
+          "ruleName": { "type": ["string", "null"] },
+          "templateName": { "type": "string" },
+          "language": { "type": "string" },
+          "status": { "type": "string", "enum": ["scheduled", "sent", "skipped", "failed"] },
+          "reason": { "type": ["string", "null"] },
+          "scheduledAt": { "type": "string" },
+          "sentAt": { "type": ["string", "null"] },
+          "messageId": { "type": ["string", "null"] },
+          "conversationId": { "type": ["string", "null"] }
+        },
+        "required": [
+          "id",
+          "source",
+          "nodeId",
+          "ruleId",
+          "ruleName",
+          "templateName",
+          "language",
+          "status",
+          "reason",
+          "scheduledAt",
+          "sentAt",
+          "messageId",
+          "conversationId"
+        ]
       },
       "ApiMessage": {
         "type": "object",
@@ -23959,6 +24076,425 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outcome-rules": {
+      "get": {
+        "tags": ["After the call"],
+        "summary": "After-the-call rules, in order (integrations.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/OutcomeRule" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["After the call"],
+        "summary": "Add a rule (≤ 20 → 422 OUTCOME_RULE_LIMIT)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "active": { "type": "boolean", "default": true },
+                  "order": { "type": "integer", "minimum": 0, "maximum": 1000, "default": 0 },
+                  "when": {
+                    "type": "object",
+                    "properties": {
+                      "dispositions": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-z0-9_]{1,40}$" },
+                        "maxItems": 30,
+                        "default": []
+                      },
+                      "sentiment": {
+                        "type": "array",
+                        "items": { "type": "string", "enum": ["positive", "neutral", "negative"] },
+                        "default": []
+                      },
+                      "hasPromise": { "type": ["boolean", "null"], "default": null },
+                      "notAnsweredInARow": {
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": 10,
+                        "default": null
+                      },
+                      "callKinds": {
+                        "type": "array",
+                        "items": { "type": "string", "enum": ["phone", "whatsapp"] },
+                        "default": []
+                      },
+                      "flowIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 20,
+                        "default": []
+                      },
+                      "campaignIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 20,
+                        "default": []
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "send": {
+                    "type": "object",
+                    "properties": {
+                      "channelId": {
+                        "type": ["string", "null"],
+                        "pattern": "^[a-f0-9]{24}$/i",
+                        "default": null
+                      },
+                      "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                      "params": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string",
+                              "enum": ["contact", "call", "insights", "text"]
+                            },
+                            "key": {
+                              "type": ["string", "null"],
+                              "minLength": 1,
+                              "maxLength": 60,
+                              "default": null
+                            },
+                            "value": {
+                              "type": ["string", "null"],
+                              "maxLength": 200,
+                              "default": null
+                            }
+                          },
+                          "required": ["from"],
+                          "additionalProperties": false
+                        },
+                        "maxItems": 20,
+                        "default": []
+                      }
+                    },
+                    "required": ["templateId"],
+                    "additionalProperties": false
+                  },
+                  "timing": {
+                    "type": "object",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["now", "after", "next_window_hour"],
+                        "default": "now"
+                      },
+                      "delayMinutes": {
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": 1440,
+                        "default": null
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["name", "when", "send", "timing"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/OutcomeRule" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outcome-rules/{id}": {
+      "patch": {
+        "tags": ["After the call"],
+        "summary": "Change a rule (switch it on / off, reorder, edit)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "active": { "type": "boolean" },
+                  "order": { "type": "integer", "minimum": 0, "maximum": 1000 },
+                  "when": {
+                    "type": "object",
+                    "properties": {
+                      "dispositions": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-z0-9_]{1,40}$" },
+                        "maxItems": 30,
+                        "default": []
+                      },
+                      "sentiment": {
+                        "type": "array",
+                        "items": { "type": "string", "enum": ["positive", "neutral", "negative"] },
+                        "default": []
+                      },
+                      "hasPromise": { "type": ["boolean", "null"], "default": null },
+                      "notAnsweredInARow": {
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": 10,
+                        "default": null
+                      },
+                      "callKinds": {
+                        "type": "array",
+                        "items": { "type": "string", "enum": ["phone", "whatsapp"] },
+                        "default": []
+                      },
+                      "flowIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 20,
+                        "default": []
+                      },
+                      "campaignIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 20,
+                        "default": []
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "send": {
+                    "type": "object",
+                    "properties": {
+                      "channelId": {
+                        "type": ["string", "null"],
+                        "pattern": "^[a-f0-9]{24}$/i",
+                        "default": null
+                      },
+                      "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                      "params": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string",
+                              "enum": ["contact", "call", "insights", "text"]
+                            },
+                            "key": {
+                              "type": ["string", "null"],
+                              "minLength": 1,
+                              "maxLength": 60,
+                              "default": null
+                            },
+                            "value": {
+                              "type": ["string", "null"],
+                              "maxLength": 200,
+                              "default": null
+                            }
+                          },
+                          "required": ["from"],
+                          "additionalProperties": false
+                        },
+                        "maxItems": 20,
+                        "default": []
+                      }
+                    },
+                    "required": ["templateId"],
+                    "additionalProperties": false
+                  },
+                  "timing": {
+                    "type": "object",
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": ["now", "after", "next_window_hour"],
+                        "default": "now"
+                      },
+                      "delayMinutes": {
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": 1440,
+                        "default": null
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/OutcomeRule" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["After the call"],
+        "summary": "Remove a rule (messages already scheduled by it are skipped: rule_disabled)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": { "description": "No content" },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/after-call": {
+      "get": {
+        "tags": ["Calls", "Public API"],
+        "summary": "WhatsApp messages after this call: sent / scheduled / skipped with the reason",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AfterCallMessage" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

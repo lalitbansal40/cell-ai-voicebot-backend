@@ -58,6 +58,7 @@ import { resetProgressThrottle } from './modules/campaigns/progress';
 import { DialRate } from './modules/campaigns/slots';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { queueInboxJobs } from './modules/inbox/jobs';
+import { queuePostCallJobs, setPostCallJobs } from './modules/post-call/jobs';
 import { flushApiKeyUsage } from './modules/public-api/request-log';
 import { queueTemplateJobs } from './modules/templates/jobs';
 import { webhookRuntime } from './modules/webhooks/deliver.job';
@@ -224,6 +225,8 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   };
   // Phase 9: WhatsApp (Meta webhooks now; the channel API joins in T9.6)
   const whatsappQueue = env.WHATSAPP_ENABLED ? createQueue(QUEUES.whatsapp, queueDeps) : undefined;
+  // Phase 15: templates after a call ride the `whatsapp` queue
+  if (whatsappQueue) setPostCallJobs(queuePostCallJobs(whatsappQueue));
   const whatsapp = whatsappQueue
     ? {
         ctx: {
