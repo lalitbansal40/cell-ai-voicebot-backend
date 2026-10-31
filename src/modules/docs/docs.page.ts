@@ -1,5 +1,9 @@
 export const DOCS_PATH = '/api/docs';
 export const OPENAPI_JSON_PATH = '/api/v1/openapi.json';
+export const PUBLIC_OPENAPI_JSON_PATH = '/api/v1/openapi.public.json';
+
+/** `full` = every route (dev / staging); `public` = the Public API only (production). */
+export type DocsMode = 'full' | 'public';
 
 /** Swagger UI shell. No inline scripts — the docs CSP allows `script-src 'self'` only. */
 export const renderDocsPage = (): string => `<!doctype html>
@@ -14,17 +18,34 @@ export const renderDocsPage = (): string => `<!doctype html>
 <body>
 <div id="swagger-ui"></div>
 <script src="${DOCS_PATH}/assets/swagger-ui-bundle.js"></script>
+<script src="${DOCS_PATH}/assets/swagger-ui-standalone-preset.js"></script>
 <script src="${DOCS_PATH}/init.js"></script>
 </body>
 </html>
 `;
 
 /** Boots Swagger UI against our spec (served as a file so CSP needs no 'unsafe-inline'). */
-export const DOCS_INIT_JS = `window.ui = SwaggerUIBundle({
-  url: '${OPENAPI_JSON_PATH}',
-  dom_id: '#swagger-ui',
-  deepLinking: true,
-  displayRequestDuration: true,
-  tryItOutEnabled: true,
-});
-`;
+export const docsInitJs = (mode: DocsMode): string => {
+  const specs =
+    mode === 'public'
+      ? [`  url: '${PUBLIC_OPENAPI_JSON_PATH}',`]
+      : [
+          '  urls: [',
+          `    { name: 'Public API + guides', url: '${PUBLIC_OPENAPI_JSON_PATH}' },`,
+          `    { name: 'All routes (dashboard)', url: '${OPENAPI_JSON_PATH}' },`,
+          '  ],',
+          "  'urls.primaryName': 'Public API + guides',",
+          '  presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],',
+          "  layout: 'StandaloneLayout',",
+        ];
+  return [
+    'window.ui = SwaggerUIBundle({',
+    ...specs,
+    "  dom_id: '#swagger-ui',",
+    '  deepLinking: true,',
+    '  displayRequestDuration: true,',
+    '  tryItOutEnabled: true,',
+    '});',
+    '',
+  ].join('\n');
+};

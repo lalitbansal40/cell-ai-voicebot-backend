@@ -6212,6 +6212,28 @@
         },
         "required": ["found", "outstandingRupees", "dueDate"]
       },
+      "MockPaymentLink": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "example": "https://pay.example.com/l/LN-1001?amount=2500" },
+          "expiresAt": { "type": "string" }
+        },
+        "required": ["url", "expiresAt"]
+      },
+      "MockWebhookReceipt": {
+        "type": "object",
+        "properties": {
+          "at": { "type": "string" },
+          "eventId": { "type": ["string", "null"] },
+          "type": { "type": ["string", "null"] },
+          "verified": {
+            "type": "boolean",
+            "description": "The signature matched an endpoint pointing here"
+          },
+          "bytes": { "type": "integer" }
+        },
+        "required": ["at", "eventId", "type", "verified", "bytes"]
+      },
       "Notification": {
         "type": "object",
         "properties": {
@@ -13896,7 +13918,7 @@
     },
     "/api/v1/api-keys/whoami": {
       "get": {
-        "tags": ["API keys"],
+        "tags": ["API keys", "Public API"],
         "summary": "Check an API key (X-API-Key) — account, key id and scopes",
         "security": [{ "apiKeyAuth": [] }],
         "responses": {
@@ -23910,6 +23932,105 @@
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mock/payment-link": {
+      "post": {
+        "tags": ["Mock APIs (dev only)"],
+        "summary": "Fake payment link for a loan (for \"Call API\" steps and after-call templates)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "loanId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "example": "LN-1001"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 10000000,
+                    "description": "Rupees",
+                    "example": 2500
+                  }
+                },
+                "required": ["loanId", "amount"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A made-up link",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/MockPaymentLink" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mock/webhook-receiver": {
+      "post": {
+        "tags": ["Mock APIs (dev only)"],
+        "summary": "Dev webhook receiver: checks the signature, keeps the last 50 deliveries in memory",
+        "responses": {
+          "200": {
+            "description": "Received",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MockWebhookReceipt" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Mock APIs (dev only)"],
+        "summary": "The last 50 deliveries the dev receiver got (newest first, no payloads)",
+        "responses": {
+          "200": {
+            "description": "Receipts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/MockWebhookReceipt" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mock/dev-receiver": {
+      "get": {
+        "tags": ["Mock APIs (dev only)"],
+        "summary": "The dev webhook receiver address (only while the mocks are on)",
+        "responses": {
+          "200": {
+            "description": "Address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "url": { "type": "string" } },
+                  "required": ["url"]
+                }
+              }
             }
           }
         }

@@ -60,7 +60,8 @@
     "dev:inbox": "tsx --env-file-if-exists=.env scripts/dev-inbox.ts",
     "dev:templates": "tsx --env-file-if-exists=.env scripts/dev-templates.ts",
     "dev:calls-wa": "tsx --env-file-if-exists=.env scripts/dev-calls-wa.ts",
-    "build:ops": "tsc -p tsconfig.ops.json"
+    "build:ops": "tsc -p tsconfig.ops.json",
+    "gen:guides": "tsx scripts/generate-docs-guides.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

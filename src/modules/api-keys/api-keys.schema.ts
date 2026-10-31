@@ -179,7 +179,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: '/api/v1/api-keys/whoami',
-  tags: ['API keys'],
+  tags: ['API keys', 'Public API'],
   summary: 'Check an API key (X-API-Key) — account, key id and scopes',
   security: apiKey,
   responses: {

@@ -31,7 +31,10 @@ import type { ContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
 import { createDevJobsRouter } from './modules/dev-jobs/dev-jobs.routes';
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
-import { createOpenApiHandler } from './modules/docs/openapi.controller';
+import {
+  createOpenApiHandler,
+  createPublicOpenApiHandler,
+} from './modules/docs/openapi.controller';
 import { createFlowAudioRouter } from './modules/flow-audio/flow-audio.routes';
 import { createFlowsRouter } from './modules/flows/flows.routes';
 import { createInboxDisabledRouter, createInboxRouter } from './modules/inbox/inbox.routes';
@@ -181,6 +184,7 @@ export const createApiRouter = ({
     | 'RAZORPAY_KEY_SECRET'
     | 'RAZORPAY_WEBHOOK_SECRET'
     | 'MOCK_APIS_ENABLED'
+    | 'PORT'
     | 'AI_TEXT_MODELS'
     | 'OPENAI_TEXT_MODEL'
     | 'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS'
@@ -240,6 +244,7 @@ export const createApiRouter = ({
   );
   router.use('/ws', createWsTicketsRouter());
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
+  router.get('/openapi.public.json', createPublicOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());
   router.use('/contacts', createOptOutRouter());
@@ -408,7 +413,7 @@ export const createApiRouter = ({
       }),
     );
   }
-  if (env.MOCK_APIS_ENABLED) router.use('/mock', createMockApisRouter());
+  if (env.MOCK_APIS_ENABLED) router.use('/mock', createMockApisRouter(env));
   if (env.MOCK_APIS_ENABLED && env.NODE_ENV !== 'production') {
     router.use(
       '/dev/jobs',

@@ -59,10 +59,13 @@ describe('GET /api/v1/openapi.json', () => {
     expect(second.status).toBe(304);
   });
 
-  it('is served in production too, with Swagger UI off', async () => {
+  it('is served in production too; the docs page shows the public API only', async () => {
     const prod = buildTestApp(production);
     expect((await request(prod).get('/api/v1/openapi.json')).status).toBe(200);
-    expect((await request(prod).get('/api/docs')).status).toBe(404);
+    expect((await request(prod).get('/api/docs')).status).toBe(200);
+    const init = await request(prod).get('/api/docs/init.js');
+    expect(init.text).toContain("url: '/api/v1/openapi.public.json'");
+    expect(init.text).not.toContain("'/api/v1/openapi.json'");
   });
 });
 
@@ -100,7 +103,7 @@ describe('Swagger UI (/api/docs)', () => {
     const html = res.text;
     expect(html).toContain('<div id="swagger-ui"></div>');
     const scripts = html.match(/<script[^>]*>/g) ?? [];
-    expect(scripts.length).toBe(2);
+    expect(scripts.length).toBe(3);
     for (const tag of scripts) expect(tag).toMatch(/src="\/api\/docs\//);
     expect(/<script[^>]*>[^<]+<\/script>/.test(html)).toBe(false);
     expect(/\son[a-z]+=/i.test(html)).toBe(false);
@@ -110,11 +113,13 @@ describe('Swagger UI (/api/docs)', () => {
     expect((await request(app).get('/api/docs/')).status).toBe(200);
   });
 
-  it('serves the init script pointing at our spec', async () => {
+  it('serves the init script pointing at our specs (public first, then every route)', async () => {
     const res = await request(app).get('/api/docs/init.js');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toContain('application/javascript');
+    expect(res.text).toContain("url: '/api/v1/openapi.public.json'");
     expect(res.text).toContain("url: '/api/v1/openapi.json'");
+    expect(res.text).toContain("'urls.primaryName': 'Public API + guides'");
   });
 
   it('serves Swagger UI assets', async () => {
@@ -134,11 +139,12 @@ describe('Swagger UI (/api/docs)', () => {
     }
   });
 
-  it('is off when API_DOCS_ENABLED=false (spec still served)', async () => {
+  it('shows only the public API when API_DOCS_ENABLED=false (full spec still served)', async () => {
     const off = buildTestApp({ API_DOCS_ENABLED: 'false' });
-    const res = await request(off).get('/api/docs');
-    expect(res.status).toBe(404);
-    expect(res.body.error.code).toBe('RESOURCE_NOT_FOUND');
+    expect((await request(off).get('/api/docs')).status).toBe(200);
+    expect((await request(off).get('/api/docs/init.js')).text).not.toContain(
+      "'/api/v1/openapi.json'",
+    );
     expect((await request(off).get('/api/v1/openapi.json')).status).toBe(200);
   });
 

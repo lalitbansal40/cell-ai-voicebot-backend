@@ -2,7 +2,7 @@ import { Router, static as serveStatic } from 'express';
 
 import { docsCsp } from '../../shared/middlewares/security';
 
-import { DOCS_INIT_JS, DOCS_PATH, renderDocsPage } from './docs.page';
+import { DOCS_PATH, docsInitJs, renderDocsPage, type DocsMode } from './docs.page';
 
 // The package's index.js `require`s the 1.5 MB browser bundle; we only need the path.
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS-only helper, no types
@@ -12,10 +12,11 @@ const getAbsoluteFSPath = require('swagger-ui-dist/absolute-path.js') as () => s
 const BLOCKED_ASSETS = new Set(['/index.html', '/swagger-initializer.js']);
 
 /**
- * Swagger UI at /api/docs (only when API_DOCS_ENABLED). Own HTML + init script,
+ * Swagger UI at /api/docs. `full` (API_DOCS_ENABLED) lists every route; `public`
+ * (production) only the Public API + guides (plan §7 #6). Own HTML + init script,
  * static assets from `swagger-ui-dist`, strict CSP on these routes only.
  */
-export const createDocsRouter = (): Router => {
+export const createDocsRouter = (mode: DocsMode = 'full'): Router => {
   const router = Router();
   router.use(DOCS_PATH, docsCsp());
 
@@ -23,8 +24,9 @@ export const createDocsRouter = (): Router => {
   router.get([DOCS_PATH, `${DOCS_PATH}/`], (_req, res) => {
     res.type('html').send(page);
   });
+  const init = docsInitJs(mode);
   router.get(`${DOCS_PATH}/init.js`, (_req, res) => {
-    res.type('application/javascript').send(DOCS_INIT_JS);
+    res.type('application/javascript').send(init);
   });
   router.use(
     `${DOCS_PATH}/assets`,

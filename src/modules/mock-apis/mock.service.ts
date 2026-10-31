@@ -69,3 +69,9 @@ export const mockLoanBalance = (phone: string, now: Date = new Date()): MockLoan
   outstandingRupees: Number(phone.at(-1)) % 2 === 0 ? 0 : MOCK_DEFAULT_AMOUNT_MICROS / MONEY_SCALE,
   dueDate: addDays(ymdInZone(now, ZONE), 5),
 });
+
+/** DEV ONLY: a made-up payment link (never a real gateway), valid for 24 hours. */
+export const mockPaymentLink = (loanId: string, amount: number, now = new Date()) => ({
+  url: `https://pay.example.com/l/${encodeURIComponent(loanId)}?amount=${String(amount)}`,
+  expiresAt: new Date(now.getTime() + 24 * 3_600_000).toISOString(),
+});

@@ -89,3 +89,83 @@ registry.registerPath({
     422: errors[422],
   },
 });
+
+export const PaymentLinkBody = z.strictObject({
+  loanId: z.string().trim().min(1).max(60).openapi({ example: 'LN-1001' }),
+  amount: z.number().positive().max(10_000_000).openapi({ description: 'Rupees', example: 2500 }),
+});
+
+export const MockPaymentLinkSchema = registry.register(
+  'MockPaymentLink',
+  z.object({
+    url: z.string().openapi({ example: 'https://pay.example.com/l/LN-1001?amount=2500' }),
+    expiresAt: z.string(),
+  }),
+);
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/mock/payment-link',
+  tags: ['Mock APIs (dev only)'],
+  summary: 'Fake payment link for a loan (for "Call API" steps and after-call templates)',
+  request: { body: { content: { 'application/json': { schema: PaymentLinkBody } } } },
+  responses: {
+    200: {
+      description: 'A made-up link',
+      content: { 'application/json': { schema: MockPaymentLinkSchema } },
+    },
+    422: errors[422],
+  },
+});
+
+export const MockWebhookReceiptSchema = registry.register(
+  'MockWebhookReceipt',
+  z.object({
+    at: z.string(),
+    eventId: z.string().nullable(),
+    type: z.string().nullable(),
+    verified: z
+      .boolean()
+      .openapi({ description: 'The signature matched an endpoint pointing here' }),
+    bytes: z.number().int(),
+  }),
+);
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/mock/webhook-receiver',
+  tags: ['Mock APIs (dev only)'],
+  summary: 'Dev webhook receiver: checks the signature, keeps the last 50 deliveries in memory',
+  responses: {
+    200: {
+      description: 'Received',
+      content: { 'application/json': { schema: MockWebhookReceiptSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/mock/webhook-receiver',
+  tags: ['Mock APIs (dev only)'],
+  summary: 'The last 50 deliveries the dev receiver got (newest first, no payloads)',
+  responses: {
+    200: {
+      description: 'Receipts',
+      content: { 'application/json': { schema: z.array(MockWebhookReceiptSchema) } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/mock/dev-receiver',
+  tags: ['Mock APIs (dev only)'],
+  summary: 'The dev webhook receiver address (only while the mocks are on)',
+  responses: {
+    200: {
+      description: 'Address',
+      content: { 'application/json': { schema: z.object({ url: z.string() }) } },
+    },
+  },
+});

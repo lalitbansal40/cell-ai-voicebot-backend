@@ -26,7 +26,60 @@ Answer with any `2xx` within **10 seconds**. Anything else (including redirects 
 3. Compute the HMAC and compare with each `v1=` value in constant time.
 4. De-duplicate on `id` (deliveries are at-least-once).
 
-Code samples (Node, Python, PHP) are on the API docs page (Phase 15 T15.8).
+### Node.js
+
+```js
+const crypto = require('node:crypto');
+
+/** `rawBody` = the exact bytes received (e.g. express.raw({ type: 'application/json' })). */
+function verifyNotifyNow(rawBody, headers, secret, toleranceSec = 300) {
+  const ts = Number(headers['x-webhook-timestamp']);
+  if (!Number.isInteger(ts) || Math.abs(Date.now() / 1000 - ts) > toleranceSec) return false;
+  const expected = crypto.createHmac('sha256', secret).update(`${ts}.`).update(rawBody).digest();
+  return String(headers['x-webhook-signature'] || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith('v1='))
+    .some((part) => {
+      const given = Buffer.from(part.slice(3), 'hex');
+      return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+    });
+}
+```
+
+### Python
+
+```python
+import hashlib, hmac, time
+
+def verify_notifynow(raw_body: bytes, headers: dict, secret: str, tolerance_sec: int = 300) -> bool:
+    try:
+        ts = int(headers.get("X-Webhook-Timestamp", ""))
+    except ValueError:
+        return False
+    if abs(time.time() - ts) > tolerance_sec:
+        return False
+    expected = hmac.new(secret.encode(), f"{ts}.".encode() + raw_body, hashlib.sha256).hexdigest()
+    given = [p.strip()[3:] for p in headers.get("X-Webhook-Signature", "").split(",") if p.strip().startswith("v1=")]
+    return any(hmac.compare_digest(g, expected) for g in given)
+```
+
+### PHP
+
+```php
+<?php
+function verify_notifynow(string $rawBody, array $headers, string $secret, int $toleranceSec = 300): bool {
+    $ts = $headers['X-Webhook-Timestamp'] ?? '';
+    if (!ctype_digit($ts) || abs(time() - (int) $ts) > $toleranceSec) return false;
+    $expected = hash_hmac('sha256', $ts . '.' . $rawBody, $secret);
+    foreach (explode(',', $headers['X-Webhook-Signature'] ?? '') as $part) {
+        $part = trim($part);
+        if (str_starts_with($part, 'v1=') && hash_equals($expected, substr($part, 3))) return true;
+    }
+    return false;
+}
+// $ok = verify_notifynow(file_get_contents('php://input'), getallheaders(), getenv('NOTIFYNOW_WEBHOOK_SECRET'));
+```
 
 ## Retries, disabling and replay
 
