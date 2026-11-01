@@ -48,4 +48,5 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0042 | [Staging topology and deployment](0042-staging-topology-deploy.md)                                                                                              | accepted |
 | 0043 | [Report analytics: daily rollups, `updatedAt` sweep, per-entity marks, recount from raw rows](0043-analytics-rollups.md)                                        | accepted |
 | 0044 | [Post-call AI insights: sweep, structured output, AI never overrides a set outcome](0044-post-call-insights.md)                                                 | accepted |
+| 0045 | [Public API: one API, two auths (session or scoped key), per-key limits, public docs](0045-public-api.md)                                                       | accepted |
 | 0046 | [Outbound webhooks: outbox in the emitting path, one job per attempt, HMAC over raw bytes, URL guard at save + delivery](0046-webhooks.md)                      | accepted |

@@ -11,8 +11,8 @@ Plan: [PHASE_15_PLAN.md](PHASE_15_PLAN.md) · Branch: `feature/phase-15-integrat
 | [x] | T15.5  | Post-call WhatsApp: flow step sends, outcome rules, scheduler, guards, call-page rows                                                     | BE   | L    |
 | [x] | T15.6  | Google Sheets import (published CSV, scheduled), Apps Script receiver, Zapier / Make / n8n docs                                           | BE   | M    |
 | [x] | T15.7  | Frontend: Developers, Webhooks, After the call, Sheet imports, flow Send WhatsApp step, call-page card                                    | FE   | L    |
-| [ ] | T15.8  | Docs page + guides + tested signature samples + mocks                                                                                     | both | M    |
-| [ ] | T15.9  | Seeds, Playwright specs, perf (1,000 webhooks / min), security tests                                                                      | both | M    |
-| [ ] | T15.10 | Gap audit, ADR 0045 / 0046, setup + runbook, READMEs, CHANGELOGs, BUILD_PLAN_V2, sign-off                                                 | both | M    |
+| [x] | T15.8  | Docs page + guides + tested signature samples + mocks                                                                                     | both | M    |
+| [x] | T15.9  | Seeds, Playwright specs, perf (1,000 webhooks / min), security tests                                                                      | both | M    |
+| [x] | T15.10 | Gap audit, ADR 0045 / 0046, setup + runbook, READMEs, CHANGELOGs, BUILD_PLAN_V2, sign-off                                                 | both | M    |
 
 Checkpoints: `[P15-B1-DONE]` after T15.4 · `[P15-B2-DONE]` after T15.7 · `[P15-B3-DONE]` after T15.10.

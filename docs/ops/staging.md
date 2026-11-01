@@ -54,6 +54,20 @@ The owner must supply the staging operator and alert/on-call contacts at Gate A.
 - **Report e-mails** go out from `reports-email` at :05 every hour (account-local hour, once per period). A person who left or lost `reports.read` is skipped; their link stops the e-mail.
 - **Retention changes:** an account's shorter period applies on the next `calls-purge` (05:10 UTC) / `inbox-retention` run — say so before a customer saves. A superadmin cap (`Admin → account → Data retention limit`) clamps the account's settings. Purges are batched and resumable; counts are in the maintenance logs and the inbox purge audit row. Rollups are never purged by these jobs (25-month rollup retention runs in `analytics-reconcile`).
 
+## Integrations: public API, webhooks, after-call WhatsApp, Google Sheets (Phase 15)
+
+- **Stuck webhook queue.** Deliveries stay "Retrying" and nothing reaches receivers. Check the `webhooks` queue (`tools.sh status`: waiting / active / delayed) and the worker logs (`webhooks: …`, ids and statuses only). Jobs are one per attempt (`wh-<deliveryId>-<attempt>`), so a restart loses nothing: the next attempt is already a delayed job. A delivery with no job can be sent again with **Replay** (owner / admin) or `POST /api/v1/webhook-deliveries/:id/replay`.
+- **Disabled endpoints.** `webhook-health` (maintenance, every 10 min) turns an endpoint off after 5 events given up in a row or 24 h of failures. Owners / admins get the bell + e-mail `webhook.endpoint_disabled`, and audit `webhook_endpoint.disabled` records it. Ask the customer to fix the receiver, **Turn on**, then replay. A turned-off endpoint gets no new deliveries; nothing is queued for it.
+- **API key incidents.**
+  - **Revoke** in Settings → API keys. It works at once on the instance that revoked it and within 30 s everywhere (in-process cache).
+  - A leaked key: revoke, create a new one, and check its 7-day request log (route templates only) for what it did.
+  - Limit a key to the customer's servers with the IP allowlist. Behind nginx, `TRUST_PROXY` must name the proxy, or every request looks like it came from 127.0.0.1.
+- **After-the-call sends that fail.**
+  - The call page's "After the call" card shows each message with its exact reason: `opted_out`, `dnd`, `no_template`, `template_not_approved`, `no_number`, `no_phone`, `low_balance`, `marketing_limit`, `rule_disabled`, `call_not_eligible`. Most are customer settings (template, wallet, number).
+  - `postcall.send` runs on the `whatsapp` queue at the message's time and re-checks everything before sending.
+  - For a Tech Provider app (no BSP), account billing must be **Customer pays Meta**. "Platform credit line" fails at connect.
+- **Sheet imports.** `sheet-imports` (maintenance, every 15 min) runs due imports; a run stuck for over 1 h is picked up again. A failing sheet shows its error on Integrations → Google Sheets. The usual cause is that the sheet is no longer "Published to the web" as CSV.
+
 ## Local evidence (P13-B1, 26 Oct 2026)
 
 Rehearsal on the Mac: project `cell-ai-voicebot-rehearsal`, the real `compose.yaml` + a rehearsal override (Docker Desktop has no host networking: API / worker on the compose bridge with the API on port 15100, nginx in a container resolving the API through Docker's DNS, Mailpit with STARTTLS and a local CA), `NODE_ENV=production` with generated credentials and format-valid dummy provider keys (no real provider was called), release sources placed exactly as `deploy-from-mac.sh` does. Results with backend `dcc6ce7`:

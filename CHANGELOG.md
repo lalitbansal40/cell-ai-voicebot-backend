@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 15 · Batch 3 (T15.8–T15.10) — public docs, dev mocks, seeds, perf, security, sign-off** — 2026-11-01
+  - `/api/docs` is always served; in production it lists only the Public API routes, with guides from `docs/api/` (`GET /api/v1/openapi.public.json`). Node, Python and PHP signature samples; Node and Python run against the golden vectors.
+  - Dev mocks: `/mock/payment-link`, `/mock/webhook-receiver` (checks signatures, last 50 receipts, no payloads), `/mock/dev-receiver`.
+  - `db:seed` adds a demo key, a webhook, two rules and a paused sheet. `npm run perf:webhooks`: 25,000 / 25,000 deliveries, p95 29 ms. Security: every key route isolated, scope × route matrix.
+  - Fixed: after-call rules never ran for unanswered, too-short or insights-off calls; those calls now also send `call.insights.ready`.
+  - Tests 3532 → 3555, coverage 96.08 / 87.42 / 95.72 / 97.6. Playwright 163 / 163 twice; backend log grep (9,389 lines) → 0.
+  - Docs: ADR 0045, `docs/setup/webhooks.md`, runbook, `docs/ops/release-phase-15.md`, sign-off. Not done: 50 rps API perf, per-account key limits.
+
 - **Phase 15 · Batch 2 (T15.5–T15.7) — WhatsApp after calls, Google Sheets, integrations screens** — 2026-10-30
   - Flow "Send WhatsApp" steps now send after the call settles. After-the-call rules (≤ 20) match on outcome, mood, promise, missed calls in a row and call kind, and send at "now", "after N minutes" or "the next calling hour". `postcall.send` re-checks opt-out, DND, template approval, wallet and the marketing limit. Every skip is recorded with an exact reason, and `GET /calls/:id/after-call` lists them.
   - Scheduled Google Sheet imports (published CSV, once / hourly / daily, ≤ 5 per account) run through the file-import pipeline into their own list. There is an Apps Script receiver for sending events to a sheet, plus Zapier / Make / n8n guides.

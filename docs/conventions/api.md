@@ -262,6 +262,10 @@ Same services as the dashboard; every create accepts `Idempotency-Key` (24 h rep
 
 Messages sent with a key have `origin: 'api'`; a person using `/messages/*` sends as `agent`.
 
+### 12b. Public docs (Phase 15)
+
+`GET /api/v1/openapi.public.json` holds only the routes tagged `Public API`, the schemas they reach and the guides (`docs/api/*.md`, copied by `npm run gen:guides`). `/api/docs` is always served: with `API_DOCS_ENABLED` it also offers the full spec; in production it shows the public one. A new public route needs `access({ permission, scope })` **and** the tag; `tests/security/phase15-routes.test.ts` covers isolation and the scope × route matrix.
+
 ## 13. Tenant scoping (security rule)
 
 - Implementation (Phase 2): `tenantFilter(req)` / `findOwnedOr404(Model, id, req)` in `src/shared/auth/tenant.ts`; `tests/security/tenant-scope.test.ts` fails if any module reads `body|query|params.accountId`. A document of another account answers **404**, never 403.
