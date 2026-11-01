@@ -4,9 +4,9 @@ Plan: [PHASE_16_PLAN.md](PHASE_16_PLAN.md) · Branch: `feature/phase-16-security
 
 | ✓   | #      | Task                                                                                | Repo | Size |
 | --- | ------ | ----------------------------------------------------------------------------------- | ---- | ---- |
-| [ ] | T16.1  | Threat model, data map, secret rotation runbook                                     | docs | S    |
-| [ ] | T16.2  | Dependencies, security headers, docs exposure, cookies / CORS review                | both | S    |
-| [ ] | T16.3  | Key rotation: secret box v2, `keys:reseal`                                          | BE   | M    |
+| [x] | T16.1  | Threat model, data map, secret rotation runbook                                     | docs | S    |
+| [x] | T16.2  | Dependencies, security headers, docs exposure, cookies / CORS review                | both | S    |
+| [x] | T16.3  | Key rotation: secret box v2, `keys:reseal`                                          | BE   | M    |
 | [ ] | T16.4  | Sensitive custom fields encrypted                                                   | both | L    |
 | [ ] | T16.5  | Contact erasure + suppression + leak scan                                           | both | L    |
 | [ ] | T16.6  | Account export + delete with grace                                                  | both | L    |

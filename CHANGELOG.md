@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 16 · Batch 1 (T16.1–T16.3) — threat model, dependency and header fixes, key rotation** — 2026-11-01
+  - `docs/security/THREAT_MODEL.md`, `DATA_MAP.md` (a test requires every model) and `docs/ops/secret-rotation.md`.
+  - `npm audit --omit=dev` reports 0. In production `/api/v1/openapi.json` serves the public spec unless `API_DOCS_ENABLED`. `HSTS_BY_PROXY` ends the double header. `npm run check:headers` tests each DNS address.
+  - Secret box v2 names its key; `ENCRYPTION_KEYS_OLD` and `npm run keys:reseal` rotate keys without downtime (ADR 0047).
+
 - **Phase 15 · Batch 3 (T15.8–T15.10) — public docs, dev mocks, seeds, perf, security, sign-off** — 2026-11-01
   - `/api/docs` is always served; in production it lists only the Public API routes, with guides from `docs/api/` (`GET /api/v1/openapi.public.json`). Node, Python and PHP signature samples; Node and Python run against the golden vectors.
   - Dev mocks: `/mock/payment-link`, `/mock/webhook-receiver` (checks signatures, last 50 receipts, no payloads), `/mock/dev-receiver`.
