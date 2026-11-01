@@ -31,6 +31,8 @@ export interface PublicUser {
 }
 
 export interface PublicAccount {
+  /** An owner asked to delete this account. */
+  deletion: { status: 'scheduled' | 'purging' | 'purged'; scheduledFor: string } | null;
   id: string;
   name: string;
   slug: string;
@@ -86,6 +88,9 @@ export const toPublicAccount = (a: AccountDoc): PublicAccount => ({
   slug: a.slug,
   status: a.status,
   suspendReason: a.suspendReason ?? null,
+  deletion: a.deletion
+    ? { status: a.deletion.status, scheduledFor: a.deletion.scheduledFor.toISOString() }
+    : null,
   ownerId: a.ownerId ? a.ownerId.toString() : null,
   isPlatform: a.isPlatform,
   timezone: a.timezone,

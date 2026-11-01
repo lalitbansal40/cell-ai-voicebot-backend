@@ -20,6 +20,7 @@ export interface ContactJobData {
   'contacts.sensitive_field': { accountId: string; fieldId: string };
   /** Phase 16: erase a list of contacts (ids are on the job row). */
   'contacts.erase': { accountId: string; eraseJobId: string };
+  'account.export': { accountId: string; accountExportId: string };
   'list.delete_members': { accountId: string; listId: string };
   /** Phase 15: one run of a scheduled Google-Sheet import. */
   'sheets.import': { accountId: string; sheetImportId: string; runKey: string };
@@ -36,6 +37,7 @@ export const CONTACT_JOB_NAMES = [
   'field.delete_values',
   'contacts.sensitive_field',
   'contacts.erase',
+  'account.export',
   'list.delete_members',
   'sheets.import',
 ] as const satisfies readonly ContactJobName[];

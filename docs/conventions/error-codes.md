@@ -104,6 +104,9 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `SHEET_URL_INVALID`                         | 422  | A sheet import URL isn't a Google Sheet published as CSV (`https://docs.google.com/spreadsheets/d/e/<id>/pub?…output=csv`), the sheet isn't published (a sign-in page came back), or the file is too big or isn't CSV | 15    |
 | `SENSITIVE_FIELD_NOT_ALLOWED`               | 422  | A search or segment filter used a field marked sensitive                                                                                                                                                              | 16    |
 | `CONTACT_ERASE_BLOCKED`                     | 409  | The contact has a live call; try again when it ends                                                                                                                                                                   | 16    |
+| `ACCOUNT_EXPORT_IN_PROGRESS`                | 409  | One account export runs at a time                                                                                                                                                                                     | 16    |
+| `ACCOUNT_DELETE_BLOCKED`                    | 409  | Money is on hold; try again when it finishes                                                                                                                                                                          | 16    |
+| `REAUTH_FAILED`                             | 422  | The password typed again for a big action was wrong                                                                                                                                                                   | 16    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

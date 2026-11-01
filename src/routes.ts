@@ -52,7 +52,10 @@ import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
 import { createWebhooksRouter } from './modules/payments/webhooks.routes';
 import { createAfterCallRouter, createOutcomeRulesRouter } from './modules/post-call/rules.routes';
-import { createContactEraseRouter } from './modules/privacy/privacy.routes';
+import {
+  createAccountPrivacyRouter,
+  createContactEraseRouter,
+} from './modules/privacy/privacy.routes';
 import { createMessagesRouter } from './modules/public-api/messages.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
@@ -222,6 +225,13 @@ export const createApiRouter = ({
       createInboxSettingsRouter({ retentionDays: whatsapp.ctx.env.INBOX_RETENTION_DAYS }),
     );
   }
+  router.use(
+    '/account',
+    createAccountPrivacyRouter({
+      storage: contacts.storage,
+      jobs: contacts.jobs ?? unavailableContactJobs,
+    }),
+  );
   router.use('/account', createAccountInsightsRouter());
   router.use('/account', createRetentionRouter());
   router.use('/account', createAccountRouter());
@@ -243,7 +253,12 @@ export const createApiRouter = ({
     : undefined;
   router.use(
     '/admin',
-    createAdminRouter({ env, provider: ai.provider, whatsapp: whatsappRuntime }),
+    createAdminRouter({
+      env,
+      provider: ai.provider,
+      whatsapp: whatsappRuntime,
+      storage: contacts.storage,
+    }),
   );
   router.use('/ws', createWsTicketsRouter());
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL, env.API_DOCS_ENABLED));

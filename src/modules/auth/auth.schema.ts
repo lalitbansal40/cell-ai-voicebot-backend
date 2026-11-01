@@ -100,8 +100,14 @@ export const PublicAccountSchema = registry.register(
     id: z.string(),
     name: z.string(),
     slug: z.string(),
-    status: z.enum(['active', 'suspended']),
+    status: z.enum(['active', 'suspended', 'deleted']),
     suspendReason: z.string().nullable(),
+    deletion: z
+      .object({
+        status: z.enum(['scheduled', 'purging', 'purged']),
+        scheduledFor: z.string(),
+      })
+      .nullable(),
     ownerId: z.string().nullable(),
     isPlatform: z.boolean(),
     timezone: z.string(),

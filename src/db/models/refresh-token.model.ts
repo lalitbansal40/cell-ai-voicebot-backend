@@ -3,6 +3,7 @@ import mongoose, { Schema, type Model, type Types } from 'mongoose';
 import { basePlugin } from '../plugins/base';
 
 export const REVOKE_REASONS = [
+  'account_deleted',
   'logout',
   'logout_all',
   'rotated',

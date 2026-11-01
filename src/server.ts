@@ -1,6 +1,8 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
+import type { Types } from 'mongoose';
+
 import { createApp } from './app';
 import { getEnv, type Env } from './config/env';
 import { createAiProvider } from './core/ai';
@@ -63,6 +65,7 @@ import { flushApiKeyUsage } from './modules/public-api/request-log';
 import { queueTemplateJobs } from './modules/templates/jobs';
 import { webhookRuntime } from './modules/webhooks/deliver.job';
 import { queueWebhookJobs, setWebhookJobs } from './modules/webhooks/jobs';
+import { SYSTEM_ACTOR } from './modules/whatsapp/channel-status';
 import type { CallsFastPathEvent } from './modules/whatsapp/context';
 import { connectFakeStatusWebhooks } from './modules/whatsapp/fake-statuses';
 import { queueWhatsAppJobs } from './modules/whatsapp/jobs';
@@ -340,7 +343,17 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   if (env.WORKERS_ENABLED) {
     await startSystemWorker(queueDeps);
     startEmailWorker({ ...queueDeps, provider: emailProvider });
-    await startMaintenanceWorker({ ...queueDeps, storage, contactJobs });
+    await startMaintenanceWorker({
+      ...queueDeps,
+      storage,
+      contactJobs,
+      ...(whatsapp
+        ? {
+            disconnectChannel: (accountId: Types.ObjectId, channelId: string) =>
+              createWhatsAppService(whatsapp.ctx).disconnect(accountId, channelId, SYSTEM_ACTOR),
+          }
+        : {}),
+    });
     startContactsWorker({ ...queueDeps, storage, jobs: contactJobs });
     await startBillingWorker({
       ...queueDeps,

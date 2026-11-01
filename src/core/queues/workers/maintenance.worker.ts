@@ -16,6 +16,8 @@ import { purgeDeletedAudio } from '../../../modules/flow-audio/flow-audio.servic
 import { purgeDeletedFlows } from '../../../modules/flows/maintenance';
 import { INBOX_RETENTION_CRON, INBOX_RETENTION_JOB } from '../../../modules/inbox/jobs';
 import { runInboxRetention } from '../../../modules/inbox/retention.job';
+import { cleanupAccountExports } from '../../../modules/privacy/account-export.job';
+import { runAccountPurges, type PurgeDeps } from '../../../modules/privacy/account-purge.job';
 import { sendDueReports } from '../../../modules/report-subscriptions/report-subscriptions.service';
 import { queueDueSheetImports } from '../../../modules/sheet-imports/run.job';
 import { checkWebhookHealth, webhookRuntime } from '../../../modules/webhooks/deliver.job';
@@ -51,6 +53,10 @@ export const REPORTS_EMAIL_JOB = 'reports-email';
 export const WEBHOOK_HEALTH_JOB = 'webhook-health';
 /** Phase 15: scheduled Google-Sheet imports that are due. */
 export const SHEET_IMPORTS_JOB = 'sheet-imports';
+/** Phase 16: accounts past their deletion grace. */
+export const ACCOUNT_PURGE_JOB = 'account-purge';
+/** Phase 16: whole-account archives older than 7 days. */
+export const ACCOUNT_EXPORTS_CLEANUP_JOB = 'account-exports-cleanup';
 
 /** Repeatable maintenance jobs (UTC crons). */
 export const MAINTENANCE_SCHEDULES = [
@@ -69,10 +75,14 @@ export const MAINTENANCE_SCHEDULES = [
   { name: REPORTS_EMAIL_JOB, pattern: '5 * * * *' },
   { name: WEBHOOK_HEALTH_JOB, pattern: '*/10 * * * *' },
   { name: SHEET_IMPORTS_JOB, pattern: '*/15 * * * *' },
+  { name: ACCOUNT_PURGE_JOB, pattern: '25 * * * *' },
+  { name: ACCOUNT_EXPORTS_CLEANUP_JOB, pattern: '50 3 * * *' },
 ] as const;
 
 export interface MaintenanceDeps extends Pick<QueueFactoryDeps, 'logger'> {
   storage?: StorageProvider;
+  /** Account purge: disconnects a WhatsApp number through the service. */
+  disconnectChannel?: PurgeDeps['disconnectChannel'];
   /** Live-call registry (calls reaper); default from REDIS_URL. */
   registry?: CallRegistry;
   /** Phase 15: queues the due sheet imports on the contacts queue. */
@@ -153,6 +163,15 @@ export const processMaintenanceJob =
       case SHEET_IMPORTS_JOB:
         result = deps.contactJobs ? await queueDueSheetImports(deps.contactJobs) : { queued: 0 };
         break;
+      case ACCOUNT_PURGE_JOB:
+        result = await runAccountPurges({
+          storage: needStorage(deps),
+          ...(deps.disconnectChannel ? { disconnectChannel: deps.disconnectChannel } : {}),
+        });
+        break;
+      case ACCOUNT_EXPORTS_CLEANUP_JOB:
+        result = await cleanupAccountExports(needStorage(deps));
+        break;
       case WEBHOOK_HEALTH_JOB:
         result = await checkWebhookHealth(webhookRuntime(getEnv()));
         break;
@@ -169,7 +188,11 @@ export const processMaintenanceJob =
 
 /** Starts the `maintenance` worker and schedules the purges. */
 export const startMaintenanceWorker = async (
-  deps: QueueFactoryDeps & { storage?: StorageProvider; contactJobs?: ContactJobs },
+  deps: QueueFactoryDeps & {
+    storage?: StorageProvider;
+    contactJobs?: ContactJobs;
+    disconnectChannel?: PurgeDeps['disconnectChannel'];
+  },
 ): Promise<{ queue: Queue; worker: Worker<unknown, Record<string, number>> }> => {
   const queue = createQueue(QUEUES.maintenance, deps);
   const worker = createWorker<unknown, Record<string, number>>(

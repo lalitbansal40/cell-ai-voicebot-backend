@@ -2,6 +2,8 @@ import { Router } from 'express';
 
 import type { Env } from '../../config/env';
 import type { AiProvider } from '../../core/ai/types';
+import type { StorageProvider } from '../../core/storage';
+import { ProviderError } from '../../shared/errors/app-error';
 import { created, noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { requirePlatformAdmin } from '../../shared/middlewares/require-permission';
@@ -24,6 +26,9 @@ import {
 } from './admin.schema';
 import {
   accountDetail,
+  adminCancelDeletion,
+  adminRunDeletion,
+  listAccountDeletions,
   createAccount,
   enableAccount,
   impersonate,
@@ -42,12 +47,15 @@ export const createAdminRouter = ({
   env,
   provider,
   whatsapp,
+  storage,
 }: {
   env: Pick<Env, 'BILLING_SIMULATOR_ENABLED' | 'PAYMENT_PROVIDER'> &
     Parameters<typeof createAdminAiRouter>[0]['env'];
   provider: Pick<AiProvider, 'name'>;
   /** Phase 9: WhatsApp runtime (superadmin WhatsApp tools); absent when WhatsApp is off. */
   whatsapp?: WhatsAppAdminDeps | undefined;
+  /** Phase 16: an account purge removes files. */
+  storage?: StorageProvider | undefined;
 }): Router => {
   const router = Router();
   router.use(authenticate());
@@ -70,6 +78,22 @@ export const createAdminRouter = ({
     '/accounts',
     ...handle({ body: CreateAccountBody }, async ({ body, req, res }) => {
       created(res, await createAccount(req, body));
+    }),
+  );
+  router.get('/account-deletions', async (_req, res) => {
+    ok(res, await listAccountDeletions());
+  });
+  router.post(
+    '/accounts/:id/deletion/cancel',
+    ...handle({ params: AccountIdParams }, async ({ params, req, res }) => {
+      ok(res, await adminCancelDeletion(req, params.id));
+    }),
+  );
+  router.post(
+    '/accounts/:id/deletion/run',
+    ...handle({ params: AccountIdParams }, async ({ params, req, res }) => {
+      if (!storage) throw new ProviderError('PROVIDER_UNAVAILABLE');
+      ok(res, await adminRunDeletion(req, params.id, { storage }));
     }),
   );
   router.post(

@@ -27,9 +27,9 @@ export const bearerToken = (header: string | undefined): string | undefined => {
  * permissions, so only routes guarded by `access({ scope })` let it through.
  */
 export const authenticate =
-  ({ apiKeys = false }: { apiKeys?: boolean } = {}): RequestHandler =>
+  (options: { apiKeys?: boolean; allowSuspended?: boolean } = {}): RequestHandler =>
   async (req, _res, next) => {
-    if (apiKeys && isApiKeyRequest(req)) {
+    if (options.apiKeys && isApiKeyRequest(req)) {
       const key = await resolveApiKey(req);
       req.auth = apiKeyContext(key);
       req.log = req.log.child({ accountId: key.accountId, apiKeyId: key.id });
@@ -67,7 +67,13 @@ export const authenticate =
     if (!role || !account) throw new UnauthenticatedError();
 
     const superadmin = user.platformRole === 'superadmin' && !claims.imp;
-    if (account.status === 'suspended' && !superadmin && !READ_METHODS.has(req.method)) {
+    if (account.status === 'deleted') throw new UnauthenticatedError();
+    if (
+      account.status === 'suspended' &&
+      !superadmin &&
+      !READ_METHODS.has(req.method) &&
+      !options.allowSuspended
+    ) {
       throw new AppError('AUTH_ACCOUNT_SUSPENDED');
     }
 

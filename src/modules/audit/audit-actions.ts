@@ -161,6 +161,11 @@ export const AUDIT_ACTIONS = [
   'custom_field.sensitive_changed',
   'contact.erased',
   'contacts.bulk_erased',
+  'account.export_requested',
+  'account.export_downloaded',
+  'account.delete_requested',
+  'account.delete_canceled',
+  'account.purged',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -11,7 +11,7 @@ import { SuppressionModel } from '../models/suppression.model';
 export const securityPrivacyMigration: Migration = {
   name: '0018-security-privacy',
   up: async (db) => {
-    await syncAllSystemRoles(); // contacts.erase for owners and admins
+    await syncAllSystemRoles(); // contacts.erase, account.export, account.delete
     await SuppressionModel.createIndexes();
     await AccountExportModel.createIndexes();
     await EraseJobModel.createIndexes();
@@ -20,13 +20,13 @@ export const securityPrivacyMigration: Migration = {
       .updateMany({ sensitive: { $exists: false } }, { $set: { sensitive: false } });
     await db
       .collection('accounts')
-      .updateMany({ apiLimits: { $exists: false } }, { $set: { apiLimits: null } });
+      .updateMany({ apiLimits: { $exists: false } }, { $set: { apiLimits: null, deletion: null } });
     await db.collection('users').updateMany({ mfa: { $exists: false } }, { $set: { mfa: null } });
   },
   down: async (db) => {
-    await db
-      .collection('roles')
-      .updateMany({ isSystem: true }, { $pull: { permissions: 'contacts.erase' } } as never);
+    await db.collection('roles').updateMany({ isSystem: true }, {
+      $pull: { permissions: { $in: ['contacts.erase', 'account.export', 'account.delete'] } },
+    } as never);
     await db
       .collection('customFieldDefinitions')
       .updateMany({}, { $unset: { sensitive: '', sensitiveJob: '' } });

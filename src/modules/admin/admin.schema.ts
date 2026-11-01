@@ -291,3 +291,57 @@ registry.registerPath({
     409: errors[409],
   },
 });
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/account-deletions',
+  tags,
+  summary: 'Accounts waiting for deletion, with wallet balance (superadmin)',
+  security: bearer,
+  responses: {
+    200: ok(
+      z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          status: z.enum(['scheduled', 'purging', 'purged']),
+          requestedAt: z.string().nullable(),
+          scheduledFor: z.string().nullable(),
+          balanceMicros: z.number(),
+        }),
+      ),
+    ),
+    401: errors[401],
+    403: errors[403],
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/deletion/cancel',
+  tags,
+  summary: 'Cancel a scheduled account deletion (superadmin)',
+  security: bearer,
+  request: { params: AccountIdParams },
+  responses: {
+    200: ok(z.object({ canceled: z.literal(true) })),
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/deletion/run',
+  tags,
+  summary: 'Purge an account now, only after its waiting period (superadmin)',
+  security: bearer,
+  request: { params: AccountIdParams },
+  responses: {
+    200: ok(z.object({ status: z.enum(['purged', 'waiting']), contacts: z.number() })),
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
+  },
+});

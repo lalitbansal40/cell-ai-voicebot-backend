@@ -12,6 +12,7 @@ import {
   deleteFieldValues,
   moveSensitiveValues,
 } from '../../../modules/custom-fields/custom-fields.jobs';
+import { runAccountExport } from '../../../modules/privacy/account-export.job';
 import { runEraseJob } from '../../../modules/privacy/erase.job';
 import { runRecordExport } from '../../../modules/record-exports/record-exports.service';
 import { runSheetImport } from '../../../modules/sheet-imports/run.job';
@@ -38,6 +39,7 @@ export const CONTACT_JOB_HANDLERS: ContactJobHandlers = {
   'field.delete_values': (data) => deleteFieldValues(data),
   'contacts.sensitive_field': (data) => moveSensitiveValues(data),
   'contacts.erase': (data, ctx) => runEraseJob(data, ctx),
+  'account.export': (data, ctx) => runAccountExport(data, ctx),
   'list.delete_members': (data) => deleteListMembers(data),
   'import.validate': (data, ctx) => validateImport(data, ctx),
   'import.run': (data, ctx, job) => runImport(data, ctx, job),

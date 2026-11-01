@@ -13,6 +13,7 @@ import {
 } from '../../db/models/campaign.model';
 import { RoleModel, type RoleDoc } from '../../db/models/role.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
+import { WalletModel } from '../../db/models/wallet.model';
 import { withTransaction } from '../../db/transaction';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { toObjectId } from '../../shared/auth/tenant';
@@ -33,6 +34,8 @@ import {
 } from '../auth/session';
 import { resumeCampaignDoc } from '../campaigns/campaigns.service';
 import { pauseAccountCampaigns } from '../campaigns/jobs';
+import { cancelDeletion } from '../privacy/account-delete.service';
+import { purgeAccount, type PurgeDeps } from '../privacy/account-purge.job';
 import { syncSystemRoles } from '../rbac/roles.service';
 import {
   assertRetentionCap,
@@ -459,4 +462,49 @@ export const stopImpersonation = async (req: Request): Promise<void> => {
   };
   await recordAudit({ ...entry, accountId: account._id });
   if (impersonator) await recordAudit({ ...entry, accountId: impersonator.accountId });
+};
+
+const DELETION_LIST_MAX = 100;
+
+/** Accounts waiting for deletion, with what is left in the wallet (handled by hand). */
+export const listAccountDeletions = async () => {
+  const accounts = await AccountModel.find({
+    'deletion.status': { $in: ['scheduled', 'purging'] },
+  })
+    .sort({ 'deletion.scheduledFor': 1 })
+    .limit(DELETION_LIST_MAX)
+    .lean<AccountDoc[]>();
+  const wallets = await WalletModel.find({ accountId: { $in: accounts.map((a) => a._id) } })
+    .select({ accountId: 1, balanceMicros: 1 })
+    .lean<{ accountId: Types.ObjectId; balanceMicros: number }[]>();
+  const balance = new Map(wallets.map((w) => [w.accountId.toString(), w.balanceMicros]));
+  return accounts.map((a) => ({
+    id: a._id.toString(),
+    name: a.name,
+    status: a.deletion?.status ?? 'scheduled',
+    requestedAt: a.deletion?.requestedAt.toISOString() ?? null,
+    scheduledFor: a.deletion?.scheduledFor.toISOString() ?? null,
+    balanceMicros: balance.get(a._id.toString()) ?? 0,
+  }));
+};
+
+export const adminCancelDeletion = async (req: Request, id: string) => {
+  const account = await findCustomerAccount(id);
+  await cancelDeletion(account._id);
+  await auditBothSides(req, account, 'account.delete_canceled');
+  return { canceled: true as const };
+};
+
+/** Runs the purge now, only after the grace has passed. */
+export const adminRunDeletion = async (req: Request, id: string, deps: PurgeDeps) => {
+  const account = await findCustomerAccount(id);
+  const due = account.deletion?.scheduledFor;
+  if (account.deletion?.status === 'purged' || !due || due.getTime() > Date.now()) {
+    throw new ConflictError(
+      'CONFLICT_INVALID_STATE',
+      'This account can only be deleted after its waiting period.',
+    );
+  }
+  await auditBothSides(req, account, 'account.purged', { byAdmin: true });
+  return purgeAccount(account._id, deps);
 };

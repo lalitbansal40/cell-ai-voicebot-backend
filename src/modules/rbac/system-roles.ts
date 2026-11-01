@@ -72,7 +72,11 @@ const VIEWER: Permission[] = [
  */
 export const SYSTEM_ROLES: Record<SystemRoleKey, { name: string; permissions: Permission[] }> = {
   owner: { name: 'Owner', permissions: [...PERMISSIONS] },
-  admin: { name: 'Admin', permissions: [...PERMISSIONS] },
+  // exporting everything and deleting the account stay with the owner
+  admin: {
+    name: 'Admin',
+    permissions: PERMISSIONS.filter((p) => p !== 'account.export' && p !== 'account.delete'),
+  },
   manager: { name: 'Manager', permissions: MANAGER },
   agent: { name: 'Agent', permissions: AGENT },
   viewer: { name: 'Viewer', permissions: VIEWER },

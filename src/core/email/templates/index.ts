@@ -1,4 +1,12 @@
 import {
+  accountDeleteCanceled,
+  accountDeleteScheduled,
+  accountExportReady,
+  type AccountDeleteCanceledVars,
+  type AccountDeleteScheduledVars,
+  type AccountExportReadyVars,
+} from './account';
+import {
   accountExists,
   passwordChanged,
   resetPassword,
@@ -55,6 +63,9 @@ export interface EmailTemplateVars {
   'template.disabled': TemplateEmailVars;
   'reports.digest': ReportDigestVars;
   'webhooks.endpoint_disabled': WebhookDisabledVars;
+  'account.export_ready': AccountExportReadyVars;
+  'account.delete_scheduled': AccountDeleteScheduledVars;
+  'account.delete_canceled': AccountDeleteCanceledVars;
 }
 
 export type EmailTemplateKey = keyof EmailTemplateVars;
@@ -77,6 +88,9 @@ const TEMPLATES: { [K in EmailTemplateKey]: (vars: EmailTemplateVars[K]) => Rend
   'template.disabled': templateDisabled,
   'reports.digest': reportDigest,
   'webhooks.endpoint_disabled': webhookEndpointDisabled,
+  'account.export_ready': accountExportReady,
+  'account.delete_scheduled': accountDeleteScheduled,
+  'account.delete_canceled': accountDeleteCanceled,
 };
 
 export const isEmailTemplateKey = (key: string): key is EmailTemplateKey =>

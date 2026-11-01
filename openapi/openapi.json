@@ -142,8 +142,16 @@
           "id": { "type": "string" },
           "name": { "type": "string" },
           "slug": { "type": "string" },
-          "status": { "type": "string", "enum": ["active", "suspended"] },
+          "status": { "type": "string", "enum": ["active", "suspended", "deleted"] },
           "suspendReason": { "type": ["string", "null"] },
+          "deletion": {
+            "type": ["object", "null"],
+            "properties": {
+              "status": { "type": "string", "enum": ["scheduled", "purging", "purged"] },
+              "scheduledFor": { "type": "string" }
+            },
+            "required": ["status", "scheduledFor"]
+          },
           "ownerId": { "type": ["string", "null"] },
           "isPlatform": { "type": "boolean" },
           "timezone": { "type": "string" },
@@ -194,6 +202,7 @@
           "slug",
           "status",
           "suspendReason",
+          "deletion",
           "ownerId",
           "isPlatform",
           "timezone",
@@ -1205,7 +1214,12 @@
               "keys.resealed",
               "custom_field.sensitive_changed",
               "contact.erased",
-              "contacts.bulk_erased"
+              "contacts.bulk_erased",
+              "account.export_requested",
+              "account.export_downloaded",
+              "account.delete_requested",
+              "account.delete_canceled",
+              "account.purged"
             ]
           },
           "actor": {
@@ -3766,6 +3780,39 @@
           "updatedAt"
         ]
       },
+      "AccountExport": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "running", "ready", "failed", "expired"]
+          },
+          "includeRecordings": { "type": "boolean" },
+          "sizeBytes": { "type": ["number", "null"] },
+          "counts": { "type": "object", "additionalProperties": { "type": "number" } },
+          "expiresAt": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" },
+          "url": { "type": ["string", "null"], "description": "Valid for 24 hours" }
+        },
+        "required": [
+          "id",
+          "status",
+          "includeRecordings",
+          "sizeBytes",
+          "counts",
+          "expiresAt",
+          "createdAt"
+        ]
+      },
+      "AccountDeletion": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["scheduled"] },
+          "scheduledFor": { "type": "string" }
+        },
+        "required": ["status", "scheduledFor"]
+      },
       "EraseResult": {
         "type": "object",
         "properties": {
@@ -6315,7 +6362,9 @@
               "whatsapp.call_permission_revoked",
               "analytics.reconcile_mismatch",
               "webhook.endpoint_disabled",
-              "contacts.erase_completed"
+              "contacts.erase_completed",
+              "account.export_ready",
+              "account.delete_scheduled"
             ]
           },
           "title": { "type": "string" },
@@ -12065,6 +12114,177 @@
                       "type": "object",
                       "properties": { "id": { "type": "string" }, "status": { "type": "string" } },
                       "required": ["id", "status"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/account-deletions": {
+      "get": {
+        "tags": ["Superadmin"],
+        "summary": "Accounts waiting for deletion, with wallet balance (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "status": {
+                            "type": "string",
+                            "enum": ["scheduled", "purging", "purged"]
+                          },
+                          "requestedAt": { "type": ["string", "null"] },
+                          "scheduledFor": { "type": ["string", "null"] },
+                          "balanceMicros": { "type": "number" }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "status",
+                          "requestedAt",
+                          "scheduledFor",
+                          "balanceMicros"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/deletion/cancel": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "Cancel a scheduled account deletion (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "canceled": { "type": "boolean", "enum": [true] } },
+                      "required": ["canceled"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/deletion/run": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "Purge an account now, only after its waiting period (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": { "type": "string", "enum": ["purged", "waiting"] },
+                        "contacts": { "type": "number" }
+                      },
+                      "required": ["status", "contacts"]
                     }
                   },
                   "required": ["success", "data"]
@@ -18916,6 +19136,237 @@
           },
           "404": {
             "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/export": {
+      "post": {
+        "tags": ["Privacy"],
+        "summary": "Export all account data as one zip (owner, password again)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "includeRecordings": { "type": "boolean" }
+                },
+                "required": ["password"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AccountExport" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/exports": {
+      "get": {
+        "tags": ["Privacy"],
+        "summary": "Recent account exports (owner)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AccountExport" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/exports/{id}": {
+      "get": {
+        "tags": ["Privacy"],
+        "summary": "One export, with a download link when ready (owner)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AccountExport" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/delete": {
+      "post": {
+        "tags": ["Privacy"],
+        "summary": "Schedule the deletion of this account in 7 days (owner, password and typed name)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "confirmName": { "type": "string", "minLength": 1, "maxLength": 80 }
+                },
+                "required": ["password", "confirmName"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AccountDeletion" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/delete/cancel": {
+      "post": {
+        "tags": ["Privacy"],
+        "summary": "Cancel a scheduled deletion (owner)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "canceled": { "type": "boolean", "enum": [true] } },
+                      "required": ["canceled"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

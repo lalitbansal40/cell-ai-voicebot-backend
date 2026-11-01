@@ -40,9 +40,11 @@ describe('system roles', () => {
     }
   });
 
-  it('owner and admin have every permission; manager ⊆ admin', () => {
+  it('owner has every permission; admin all but whole-account export and delete; manager ⊆ admin', () => {
     expect(set('owner')).toEqual(new Set(PERMISSIONS));
-    expect(set('admin')).toEqual(new Set(PERMISSIONS));
+    expect(set('admin')).toEqual(
+      new Set(PERMISSIONS.filter((p) => p !== 'account.export' && p !== 'account.delete')),
+    );
     for (const p of set('manager')) expect(set('admin').has(p)).toBe(true);
   });
 
