@@ -105,3 +105,7 @@ Small, bounded lists (agent functions, tags, a recording's metadata) may be embe
 
 - Wallet holds, captures, releases **and** their ledger rows always run in **one transaction** (replica set required — local Docker and tests already run a replica set).
 - Keep transactions short; no external API calls inside a transaction.
+
+## Encryption key rotation
+
+Sealed values have the format `v2:<keyId>:<iv>:<tag>:<data>`; `v1` values still open. Every sealed field is listed in `src/shared/crypto/sealed-registry.ts`, and `npm run keys:reseal` moves them to the current key. See [ADR 0047](../adr/0047-encryption-key-rotation.md).

@@ -222,7 +222,7 @@ describe('draft saves', () => {
       stored?.draft as { nodes: { id: string; config: { headers?: Record<string, unknown>[] } }[] }
     ).nodes.find((n) => n.id === 'api')?.config.headers?.[0];
     expect(storedHeader).toMatchObject({ value: null, valueHint: '••••9876' });
-    expect(String(storedHeader?.sealed)).toMatch(/^v1:/);
+    expect(String(storedHeader?.sealed)).toMatch(/^v2:/);
     const view = await request(app).get(`${FLOWS}/${a.id}`).set(auth(manager));
     expect(JSON.stringify(view.body)).not.toContain(secret);
     expect(JSON.stringify(view.body)).not.toContain(String(storedHeader?.sealed));

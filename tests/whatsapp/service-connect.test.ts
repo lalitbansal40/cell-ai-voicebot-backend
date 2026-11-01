@@ -86,7 +86,7 @@ describe('connect — happy paths', () => {
     });
     expect(JSON.stringify(result)).not.toMatch(/tokenSealed|pinSealed|fake_tok_/);
     const stored = await withSecrets(result.channel.id);
-    expect(stored?.tokenSealed).toMatch(/^v1:/);
+    expect(stored?.tokenSealed).toMatch(/^v2:/);
     const token = open(w.ctx.key, stored?.tokenSealed ?? '');
     expect(token).toMatch(/^fake_tok_/);
     expect(open(w.ctx.key, stored?.registration.pinSealed ?? '')).toMatch(/^\d{6}$/);
@@ -418,7 +418,7 @@ describe('connect — conflicts and limits', () => {
       'connecting',
       'connected',
     ]);
-    expect(stored?.tokenSealed).toMatch(/^v1:/);
+    expect(stored?.tokenSealed).toMatch(/^v2:/);
     expect(await actions(first.channel.id)).toContain('whatsapp.channel_reconnected');
   });
 

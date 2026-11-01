@@ -5,6 +5,7 @@ import type { AiAgentDoc } from '../../db/models/ai-agent.model';
 import type { CallEndReason } from '../../db/models/call.model';
 import { chargeCallUsage } from '../../modules/calls/billing';
 import type { BotStream, CallIO } from '../../modules/calls/session';
+import type { SecretKey } from '../../shared/crypto/secret-box';
 import { AppError } from '../../shared/errors/app-error';
 import { assertAgentBudget } from '../ai/budget';
 import { compileAgent, type CompiledAgent } from '../ai/compile';
@@ -52,7 +53,7 @@ export interface AiControllerDeps {
   /** Text model (chat pipeline turns) + embeddings. */
   ai: AiProvider;
   embeddingModel: string;
-  secretKey: Buffer;
+  secretKey: SecretKey;
   http: HttpToolOptions;
   now?: () => Date;
   /** `none` (dry runs): no wallet / cap gate and no knowledge charges. Default `charge`. */

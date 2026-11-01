@@ -3,6 +3,7 @@ import type { Types } from 'mongoose';
 import type { PlaygroundTurn } from '../../db/models/agent-playground-session.model';
 import type { AiAgentDoc, BuiltInTool } from '../../db/models/ai-agent.model';
 import { BUILT_IN_TOOLS } from '../../db/models/ai-agent.model';
+import type { SecretKey } from '../../shared/crypto/secret-box';
 
 import { executeFunction, type HttpToolOptions } from './http-tool';
 import { redactArgs, redactPreview } from './redact';
@@ -21,7 +22,7 @@ export interface ToolRunnerInput {
   company: string;
   /** `{{contact.*}}` values for functions only — never sent to the model. */
   contact: Record<string, unknown>;
-  secretKey: Buffer;
+  secretKey: SecretKey;
   http: HttpToolOptions;
   builtInMode?: 'simulated' | 'live';
 }

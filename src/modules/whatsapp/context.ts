@@ -2,7 +2,7 @@ import type { Redis } from 'ioredis';
 
 import type { Env } from '../../config/env';
 import type { MetaClient } from '../../core/meta';
-import { open, seal } from '../../shared/crypto/secret-box';
+import { open, seal, type SecretKey } from '../../shared/crypto/secret-box';
 
 /** Everything the WhatsApp services need (built once by the server, injected in tests). */
 export interface WhatsAppContext {
@@ -10,7 +10,7 @@ export interface WhatsAppContext {
   meta: MetaClient;
   redis: Redis;
   /** Secret-box key (`secretBoxKey(env)`) — seals business tokens and PINs. */
-  key: Buffer;
+  key: SecretKey;
   now?: () => Date;
   /**
    * Phase 12 webhook fast path: a newly stored `calls` event is handed to the call

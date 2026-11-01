@@ -3,7 +3,7 @@ import { request as httpsRequest } from 'node:https';
 
 import { AI_LIMITS } from '../../config/limits';
 import type { AgentFunction } from '../../db/models/ai-agent.model';
-import { open } from '../../shared/crypto/secret-box';
+import { open, type SecretKey } from '../../shared/crypto/secret-box';
 import { resolvePublicAddress, type GuardPolicy } from '../../shared/net/url-guard';
 import { createTemplate, templateTokens, type Json } from '../templating';
 
@@ -196,7 +196,7 @@ export interface PreparedRequest {
 export const prepareRequest = (
   fn: Pick<AgentFunction, 'method' | 'url' | 'headers' | 'bodyTemplate'>,
   ctx: TemplateContext,
-  secretKey: Buffer,
+  secretKey: SecretKey,
 ): PreparedRequest => {
   const warnings = new Set<string>();
   let url: URL;
@@ -338,7 +338,7 @@ export const executeFunction = async (
     'method' | 'url' | 'headers' | 'bodyTemplate' | 'resultPath' | 'timeoutMs'
   >,
   ctx: TemplateContext,
-  secretKey: Buffer,
+  secretKey: SecretKey,
   options: HttpToolOptions,
 ): Promise<HttpToolResult> => {
   const now = options.now ?? Date.now;

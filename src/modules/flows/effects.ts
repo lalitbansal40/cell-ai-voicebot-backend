@@ -15,7 +15,7 @@ import { flowTemplate } from '../../core/engine/variables';
 import type { Json } from '../../core/templating';
 import { AiAgentModel, type AiAgentDoc } from '../../db/models/ai-agent.model';
 import { FlowAudioModel } from '../../db/models/flow-audio.model';
-import { open } from '../../shared/crypto/secret-box';
+import { open, type SecretKey } from '../../shared/crypto/secret-box';
 import { AppError } from '../../shared/errors/app-error';
 
 export interface FlowEffectsDeps {
@@ -38,7 +38,7 @@ export interface FlowEffectsDeps {
   provider: AiProvider;
   textModel: string;
   embeddingModel: string;
-  secretKey: Buffer;
+  secretKey: SecretKey;
   http: HttpToolOptions;
   now: () => Date;
   /** `none` (dry-run calls): AI intents are neither wallet-checked nor charged. Default `charge`. */

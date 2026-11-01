@@ -1201,7 +1201,8 @@
               "outcome_rule.updated",
               "outcome_rule.deleted",
               "sheet_import.created",
-              "sheet_import.deleted"
+              "sheet_import.deleted",
+              "keys.resealed"
             ]
           },
           "actor": {

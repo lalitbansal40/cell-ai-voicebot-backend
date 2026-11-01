@@ -172,7 +172,7 @@ describe('POST /webhooks/meta', () => {
       status: 'received',
       attempts: 0,
     });
-    expect(messages?.payloadSealed).toMatch(/^v1:/);
+    expect(messages?.payloadSealed).toMatch(/^v2:/);
     expect(messages?.payloadSealed).not.toContain('Test hello');
     expect(events.find((e) => e.field === 'account_update')?.phoneNumberId).toBeNull();
     expect(messages!.expiresAt.getTime() - messages!.receivedAt.getTime()).toBe(7 * 86_400_000);

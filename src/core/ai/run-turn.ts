@@ -3,6 +3,7 @@ import type { Types } from 'mongoose';
 import { AI_LIMITS } from '../../config/limits';
 import type { PlaygroundTurn } from '../../db/models/agent-playground-session.model';
 import type { AiAgentDoc } from '../../db/models/ai-agent.model';
+import type { SecretKey } from '../../shared/crypto/secret-box';
 import { AppError } from '../../shared/errors/app-error';
 import { chargeUsage } from '../billing/engine';
 import { effectiveRateCard } from '../billing/rates';
@@ -43,7 +44,7 @@ export interface TurnInput {
   company: string;
   /** `{{contact.*}}` values for functions only (full phone etc.) — never sent to the model. */
   contact: Record<string, unknown>;
-  secretKey: Buffer;
+  secretKey: SecretKey;
   http: HttpToolOptions;
   embeddingModel: string;
   source?: 'playground' | 'call' | 'flow_simulator';

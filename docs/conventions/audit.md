@@ -51,6 +51,7 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `outcome_rule.deleted`               | user              | outcome_rule        | `name`                                                                                                                        |
 | `sheet_import.created`               | user              | sheet_import        | `name`, `schedule`, `host` (never the sheet id)                                                                               |
 | `sheet_import.deleted`               | user              | sheet_import        | `name`                                                                                                                        |
+| `keys.resealed`                      | system            | —                   | `moved`, `failed` (counts only)                                                                                               |
 | `admin.impersonation_started`        | user (platform)   | account             | `ownerId`, `expiresAt`                                                                                                        |
 | `admin.impersonation_stopped`        | user (platform)   | account             | —                                                                                                                             |
 | `contacts.import_started`            | user              | import_job          | `kind`, `rows`                                                                                                                |

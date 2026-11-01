@@ -28,7 +28,7 @@ import {
 import { UserModel } from '../../db/models/user.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
-import { seal, secretHint } from '../../shared/crypto/secret-box';
+import { seal, secretHint, type SecretKey } from '../../shared/crypto/secret-box';
 import {
   AppError,
   ConflictError,
@@ -51,7 +51,7 @@ export const NAME_COLLATION = { locale: 'en', strength: 2 } as const;
 export interface FlowsDeps {
   env: Pick<Env, 'NODE_ENV' | 'AI_FUNCTIONS_ALLOW_PRIVATE_HOSTS' | 'APP_URL' | 'MOCK_APIS_ENABLED'>;
   /** Secret box key (sealed API request headers). */
-  secretKey: Buffer;
+  secretKey: SecretKey;
   /** Test hook: extra allowed ports for API request nodes. */
   extraPorts?: readonly number[];
 }
@@ -159,7 +159,7 @@ export const parseGraph = (raw: unknown, prefix = 'graph'): FlowGraph => {
  * sealed value stored for the same node + header name. Client `sealed` /
  * `valueHint` values are never trusted.
  */
-export const sealGraph = (graph: FlowGraph, previous: unknown, key: Buffer): FlowGraph => {
+export const sealGraph = (graph: FlowGraph, previous: unknown, key: SecretKey): FlowGraph => {
   const before = new Map(
     list(rec(previous).nodes).map((n) => [String(n.id), list(rec(n.config).headers)]),
   );

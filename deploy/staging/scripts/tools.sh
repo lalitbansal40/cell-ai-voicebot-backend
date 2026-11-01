@@ -5,12 +5,13 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=common.sh
 source "${here}/common.sh"
-op="${1:?usage: tools.sh migrate|sync-indexes|analytics-rebuild|superadmin-create|staging:demo|smoke|email:test [args]}"
+op="${1:?usage: tools.sh migrate|sync-indexes|analytics-rebuild|superadmin-create|keys:reseal|staging:demo|smoke|email:test [args]}"
 shift
 case "${op}" in
   migrate|sync-indexes|analytics-rebuild|superadmin-create) entry="dist/ops/${op}.js" ;;
   staging:demo) entry=dist-tools/scripts/staging-demo.js ;;
   smoke) entry=dist-tools/scripts/smoke.js ;;
+  keys:reseal) entry=dist/ops/keys-reseal.js ;;
   email:test) entry=dist/ops/email-test.js ;;
   *) fail 'unknown tool' ;;
 esac

@@ -99,7 +99,7 @@ describe('function CRUD', () => {
     });
     const stored = await AiAgentModel.findById(agentId).lean();
     const header = stored?.functions[0]?.headers[0];
-    expect(header?.sealed).toMatch(/^v1:/);
+    expect(header?.sealed).toMatch(/^v2:/);
     expect(header?.sealed).not.toContain(SECRET);
     expect(header?.value).toBeNull();
     const log = await AuditLogModel.findOne({ action: 'agent.updated', 'target.id': agentId })

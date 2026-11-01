@@ -157,6 +157,7 @@ export const AUDIT_ACTIONS = [
   'outcome_rule.deleted',
   'sheet_import.created',
   'sheet_import.deleted',
+  'keys.resealed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -73,6 +73,10 @@ const RawEnvSchema = z.object({
   JWT_ACCESS_TTL: z.string().regex(DURATION, 'must look like 15m, 30d, 3600s').default('15m'),
   JWT_REFRESH_TTL: z.string().regex(DURATION, 'must look like 15m, 30d, 3600s').default('30d'),
   ENCRYPTION_KEY: optionalString,
+  /** Previous keys during a rotation (comma list, each base64 of 32 bytes); opened, never written. */
+  ENCRYPTION_KEYS_OLD: optionalString,
+  /** Phone hash of erased and opted-out people. Never rotated: a new key loses every record. */
+  SUPPRESSION_HMAC_KEY: optionalString,
   /** Cookie domain for the refresh cookie (e.g. `.example.com`); empty = host-only. */
   AUTH_COOKIE_DOMAIN: optionalString,
   /** DEV ONLY — password for `npm run db:seed` users (random when empty). */
@@ -448,6 +452,22 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       'ENCRYPTION_KEY',
       'required in production, base64 of exactly 32 bytes',
       key !== undefined && BASE64.test(key) && Buffer.from(key, 'base64').length === 32,
+    );
+  }
+
+  for (const old of (raw.ENCRYPTION_KEYS_OLD ?? '').split(',').filter((k) => k.trim() !== '')) {
+    check(
+      'ENCRYPTION_KEYS_OLD',
+      'each key must be base64 of exactly 32 bytes',
+      BASE64.test(old.trim()) && Buffer.from(old.trim(), 'base64').length === 32,
+    );
+  }
+  if (raw.SUPPRESSION_HMAC_KEY !== undefined) {
+    check(
+      'SUPPRESSION_HMAC_KEY',
+      'must be base64 of at least 32 bytes',
+      BASE64.test(raw.SUPPRESSION_HMAC_KEY) &&
+        Buffer.from(raw.SUPPRESSION_HMAC_KEY, 'base64').length >= 32,
     );
   }
 

@@ -109,7 +109,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('has 127 audit actions incl. the nine Phase 12 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(150); // + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2
+    expect(AUDIT_ACTIONS).toHaveLength(151); // + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2; Phase 16: T16.3 1
     expect(AUDIT_ACTIONS.slice(118, 127)).toEqual([
       'whatsapp.calling_settings_updated',
       'whatsapp.call_permission_requested',

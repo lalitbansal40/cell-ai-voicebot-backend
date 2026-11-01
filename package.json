@@ -42,6 +42,7 @@
     "superadmin:create": "tsx --env-file-if-exists=.env scripts/superadmin-create.ts",
     "staging:demo": "tsx --env-file-if-exists=.env scripts/staging-demo.ts",
     "smoke": "tsx scripts/smoke.ts",
+    "keys:reseal": "tsx --env-file-if-exists=.env scripts/keys-reseal.ts",
     "check:headers": "tsx scripts/check-live-headers.ts",
     "samples:contacts": "tsx scripts/make-contact-samples.ts",
     "fixtures:knowledge": "tsx scripts/make-knowledge-fixtures.ts",

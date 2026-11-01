@@ -16,7 +16,7 @@ import {
   type WebhookEndpointDoc,
 } from '../../db/models/webhook-endpoint.model';
 import { WebhookEventModel } from '../../db/models/webhook-event.model';
-import { open, secretBoxKey } from '../../shared/crypto/secret-box';
+import { open, secretBoxKey, type SecretKey } from '../../shared/crypto/secret-box';
 import { getLogger } from '../../shared/logger';
 import {
   outgoingPolicy,
@@ -37,7 +37,7 @@ const INTEGRATIONS_LINK = '/integrations/webhooks';
 /** Where a webhook may be delivered + test hooks (fake resolver / dial to a local receiver). */
 export interface WebhookRuntime extends ResolveOptions {
   /** Sealing key of the secrets (`secretBoxKey(env)`). */
-  key: Buffer;
+  key: SecretKey;
   policy: GuardPolicy;
   env: Pick<Env, 'FRONTEND_URL'>;
   now?: () => Date;
