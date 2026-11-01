@@ -238,6 +238,10 @@ export const ERROR_CODES = {
     status: 422,
     message: 'You already have the most webhooks allowed. Remove one first.',
   },
+  SENSITIVE_FIELD_NOT_ALLOWED: {
+    status: 422,
+    message: "A field marked sensitive can't be searched or filtered.",
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

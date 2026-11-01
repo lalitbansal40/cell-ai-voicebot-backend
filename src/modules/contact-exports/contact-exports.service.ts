@@ -126,6 +126,7 @@ export const createExport = async (
   }
   try {
     const job = await ExportJobModel.create({
+      maskSensitive: auth.kind === 'api_key',
       _id,
       accountId,
       scope: body.scope,

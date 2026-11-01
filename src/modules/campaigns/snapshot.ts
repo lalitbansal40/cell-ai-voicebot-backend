@@ -18,7 +18,7 @@ import {
   audienceBatches,
   audienceQuery,
   classifyRow,
-  displayValues,
+  storedValues,
   type ClassifyContext,
   type UsedField,
 } from './audience';
@@ -136,7 +136,7 @@ export const takeSnapshot = async (
           seq,
           phoneE164: row.phoneE164,
           name: row.name ?? null,
-          variables: displayValues(row, used),
+          variables: storedValues(row, used),
           status: skip ? 'skipped' : 'pending',
           skipReason: skip,
           dueRank: DUE_RANK.fresh,

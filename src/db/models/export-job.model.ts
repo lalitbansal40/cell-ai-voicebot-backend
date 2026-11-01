@@ -47,6 +47,8 @@ export interface ExportJobDoc {
   fileKey?: string | null;
   errorMessage?: string | null;
   createdBy: Types.ObjectId;
+  /** Started with an API key: sensitive fields stay masked in the file. */
+  maskSensitive?: boolean;
   completedAt?: Date | null;
   expiresAt?: Date | null;
   createdAt: Date;
@@ -72,6 +74,7 @@ const schema = new Schema<ExportJobDoc>(
     fileKey: { type: String, default: null },
     errorMessage: { type: String, default: null },
     createdBy: { type: Schema.Types.ObjectId, required: true },
+    maskSensitive: { type: Boolean, default: false },
     completedAt: { type: Date, default: null },
     expiresAt: { type: Date, default: null },
   },

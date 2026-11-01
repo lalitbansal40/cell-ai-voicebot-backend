@@ -13,6 +13,7 @@ import { accountVariables, formatVariable, type VariableInfo } from '../ai-agent
 import { segmentQuery } from '../contacts/contacts.service';
 import { compileContext, loadContactContext } from '../contacts/context';
 import { compileOrThrow } from '../contacts/filter/compile';
+import { isEncrypted, SENSITIVE_MASK } from '../privacy/sensitive';
 
 import { isValidPhone } from './dial-guard';
 
@@ -98,10 +99,19 @@ export const displayValues = (row: AudienceRow, used: readonly UsedField[]) => {
   for (const f of used) {
     if (f.name === 'name') values.name = row.name ?? '';
     else if (f.name === 'phone_last4') values.phone_last4 = row.phoneE164.slice(-4);
-    else values[f.name] = formatVariable(f.type, vars[f.name]);
+    else {
+      const value = vars[f.name];
+      values[f.name] = isEncrypted(value) ? SENSITIVE_MASK : formatVariable(f.type, value);
+    }
   }
   return values;
 };
+
+/** What the campaign row stores: sensitive values stay out; the call reads the contact. */
+export const storedValues = (row: AudienceRow, used: readonly UsedField[]) =>
+  Object.fromEntries(
+    Object.entries(displayValues(row, used)).filter(([, value]) => value !== SENSITIVE_MASK),
+  );
 
 /** Used fields without a value (the last-4 digits always exist). */
 export const missingFields = (row: AudienceRow, used: readonly UsedField[]): string[] => {

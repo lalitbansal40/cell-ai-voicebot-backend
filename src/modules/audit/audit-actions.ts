@@ -158,6 +158,7 @@ export const AUDIT_ACTIONS = [
   'sheet_import.created',
   'sheet_import.deleted',
   'keys.resealed',
+  'custom_field.sensitive_changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

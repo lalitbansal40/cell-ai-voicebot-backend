@@ -15,6 +15,7 @@ import {
 import { getLogger } from '../../shared/logger';
 import { formatInr } from '../../shared/money';
 import { contactVariables } from '../ai-agents/variables';
+import { sealTextValues, sensitiveKeys } from '../privacy/sensitive';
 
 import { channelFor, schedulePostCall, variablesFor } from './collect';
 import { scheduledAtFor } from './timing';
@@ -78,11 +79,15 @@ export const ruleValues = async (
       ? (await contactVariables(call.accountId, call.contactId, contactKeys).catch(() => null))
           ?.values
       : undefined;
+  const sensitive = contactKeys.length ? await sensitiveKeys(call.accountId) : new Set<string>();
+  // a queued row holds sealed text for a sensitive field; the send job opens it
+  const stored = (k: string, value: string): string =>
+    sealTextValues({ [k]: value }, sensitive)[k] ?? '';
   const key = insight?.output?.keyInfo;
   return params.map((p) => {
     if (p.from === 'text') return p.value ?? '';
     const k = p.key ?? '';
-    if (p.from === 'contact') return contact?.[k] ?? '';
+    if (p.from === 'contact') return stored(k, contact?.[k] ?? '');
     if (p.from === 'call') {
       if (k === 'disposition') return call.disposition ?? '';
       if (k === 'duration_sec') return String(call.durationSec);

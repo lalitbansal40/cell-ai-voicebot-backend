@@ -27,8 +27,15 @@ const keysOf = (key: SecretKey): SecretKeys =>
   Buffer.isBuffer(key) ? { current: key, all: [key] } : key;
 
 /** First 8 hex characters of the derived key's SHA-256: names the key without revealing it. */
-export const keyIdOf = (key: Buffer): string =>
-  createHash('sha256').update(key).digest('hex').slice(0, 8);
+const keyIds = new WeakMap<Buffer, string>();
+export const keyIdOf = (key: Buffer): string => {
+  let id = keyIds.get(key);
+  if (!id) {
+    id = createHash('sha256').update(key).digest('hex').slice(0, 8);
+    keyIds.set(key, id);
+  }
+  return id;
+};
 
 const derive = (material: Buffer | string): Buffer =>
   createHmac('sha256', material).update('secret-box-v1').digest();

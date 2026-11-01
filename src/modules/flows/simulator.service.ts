@@ -28,6 +28,7 @@ import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
 import { outgoingPolicy } from '../../shared/net/url-guard';
 import { addDays, ymdInZone } from '../../shared/time';
+import { openTextValues, sealTextValues, sensitiveKeys } from '../privacy/sensitive';
 import { accountTimezone } from '../wallet/wallet.service';
 
 import { createFlowEffects } from './effects';
@@ -255,7 +256,7 @@ const runContact = async (run: FlowRunDoc & { testPhone?: string | null }): Prom
   }
   const state = run.state as unknown as FlowRunState;
   return {
-    display: state.contact,
+    display: openTextValues(state.contact),
     phone: run.testPhone ?? null,
     externalId: null,
     templateValues: run.testPhone ? { phone: run.testPhone, name: state.contact.name ?? '' } : {},
@@ -364,7 +365,10 @@ const persist = async (
   const update = {
     status: last.state.status,
     waiting: last.waiting,
-    state: last.state,
+    state: {
+      ...last.state,
+      contact: sealTextValues(last.state.contact, await sensitiveKeys(run.accountId)),
+    },
     transcript,
     trace,
     costMicros: run.costMicros + cost,

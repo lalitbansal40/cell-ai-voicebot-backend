@@ -28,6 +28,7 @@ import {
 } from '../../db/models/transcript-turn.model';
 import type { Logger } from '../../shared/logger';
 import { collectFlowMessages } from '../post-call/collect';
+import { withoutSensitive } from '../privacy/sensitive';
 import { publishCallCompleted, publishCallStarted } from '../webhooks/publish';
 
 import type { CallBillingPort } from './billing';
@@ -601,7 +602,7 @@ export class CallSession {
               ? 'agent'
               : 'flow'
             : null,
-          variables: result.variables,
+          variables: await withoutSensitive(this.deps.call.accountId, result.variables),
           languageDetected: result.languageDetected,
           metrics: this.metrics,
           cost,

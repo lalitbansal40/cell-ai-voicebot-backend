@@ -5,7 +5,7 @@ import { Types } from 'mongoose';
 import { DISPOSITIONS } from '../../../db/models/ai-agent.model';
 import type { FieldType } from '../../../db/models/custom-field.model';
 import type { ErrorDetail } from '../../../shared/errors/app-error';
-import { ValidationError } from '../../../shared/errors/app-error';
+import { AppError, ValidationError } from '../../../shared/errors/app-error';
 import { escapeRegex } from '../../../shared/utils/regex';
 import { normalizePhone, phoneDigits } from '../normalize/phone';
 import { normalizeTag } from '../normalize/tags';
@@ -22,12 +22,14 @@ import {
 
 export interface CompileContext {
   /** Field definitions by key (type decides operators and value parsing). */
-  fields: ReadonlyMap<string, { type: FieldType }>;
+  fields: ReadonlyMap<string, { type: FieldType; sensitive?: boolean }>;
   /** "Today" for relative date operators is evaluated in this timezone. */
   timezone: string;
   country: CountryCode;
   now?: Date;
 }
+
+const SENSITIVE_FILTER_PROBLEM = 'This field is marked sensitive and cannot be filtered on';
 
 export interface CompiledFilter {
   query: Record<string, unknown>;
@@ -153,6 +155,7 @@ const compileCondition = (cond: FilterCondition, ctx: CompileContext): Condition
   }
   const field = ctx.fields.get(cond.key);
   if (!field) return { problem: { field: 'key', message: `Unknown field "${cond.key}"` } };
+  if (field.sensitive) return { problem: { field: 'key', message: SENSITIVE_FILTER_PROBLEM } };
   const allowed = OPERATORS_BY_TYPE[field.type] as readonly FilterOperator[];
   if (!allowed.includes(cond.op)) {
     return {
@@ -280,6 +283,14 @@ export const compileOrThrow = (
   prefix = 'filter',
 ): Record<string, unknown> => {
   const { query, problems } = compileContactFilter(accountId, filter, ctx);
+  const sensitive = problems.filter((p) => p.message === SENSITIVE_FILTER_PROBLEM);
+  if (sensitive.length) {
+    throw new AppError(
+      'SENSITIVE_FIELD_NOT_ALLOWED',
+      undefined,
+      sensitive.map((p) => ({ ...p, path: prefix ? `${prefix}.${p.path}` : p.path })),
+    );
+  }
   if (problems.length) {
     throw new ValidationError(
       problems.map((p) => ({ ...p, path: prefix ? `${prefix}.${p.path}` : p.path })),

@@ -57,6 +57,7 @@ export interface ContactDoc {
   email?: string | null;
   /** Client's own id (loan / CRM id), unique per account when set. */
   externalId?: string | null;
+  /** A field marked sensitive holds `{ $enc }`: read through `modules/privacy/sensitive.ts`. */
   variables: Map<string, VariableValue>;
   tags: string[];
   listIds: Types.ObjectId[];

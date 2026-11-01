@@ -24,6 +24,8 @@ export interface PublicCustomField {
   required: boolean;
   defaultValue: string | number | null;
   order: number;
+  sensitive: boolean;
+  sensitiveJob: { status: 'running' | 'done' | 'failed'; done: number; total: number } | null;
   usageCount?: number;
   createdAt: string;
   updatedAt: string;
@@ -37,6 +39,8 @@ export const toPublicField = (f: CustomFieldDoc, usageCount?: number): PublicCus
   required: f.required,
   defaultValue: f.defaultValue ?? null,
   order: f.order,
+  sensitive: f.sensitive === true,
+  sensitiveJob: f.sensitiveJob ?? null,
   ...(usageCount === undefined ? {} : { usageCount }),
   createdAt: f.createdAt.toISOString(),
   updatedAt: f.updatedAt.toISOString(),
@@ -146,8 +150,17 @@ export const updateCustomField = async (
     type?: FieldType;
     required?: boolean;
     defaultValue?: string | number | null;
+    sensitive?: boolean;
   },
+  jobs: ContactJobs,
 ): Promise<PublicCustomField> => {
+  const { sensitive: wanted, ...rest } = body;
+  if (wanted !== undefined && Object.keys(rest).length === 0) {
+    return setFieldSensitive(req, id, wanted, jobs);
+  }
+  if (wanted !== undefined) {
+    throw new ValidationError([{ path: 'sensitive', message: 'Change this setting on its own' }]);
+  }
   const field = await findField(req, id);
   const typeChanges = body.type !== undefined && body.type !== field.type;
   if (typeChanges) {
@@ -164,6 +177,11 @@ export const updateCustomField = async (
   if (body.label !== undefined) set.label = body.label;
   if (body.required !== undefined) set.required = body.required;
   if (typeChanges) set.type = type;
+  if (body.defaultValue !== undefined && body.defaultValue !== null && field.sensitive) {
+    throw new ValidationError([
+      { path: 'defaultValue', message: "A sensitive field can't have a default value" },
+    ]);
+  }
   if (body.defaultValue !== undefined) {
     set.defaultValue = await parseDefault(field.accountId, type, body.defaultValue);
   } else if (typeChanges) {
@@ -178,6 +196,40 @@ export const updateCustomField = async (
   await auditRequest(req, 'custom_field.updated', {
     target: { type: 'custom_field', id: field._id.toString() },
     meta: { key: field.key, fields: Object.keys(set) },
+  });
+  return toPublicField(updated);
+};
+
+/**
+ * Marks a field sensitive or not. New writes follow at once; a job moves the existing values,
+ * and every reader handles both forms meanwhile.
+ */
+export const setFieldSensitive = async (
+  req: Request,
+  id: string,
+  sensitive: boolean,
+  jobs: ContactJobs,
+): Promise<PublicCustomField> => {
+  const field = await findField(req, id);
+  if (field.sensitive === sensitive) return toPublicField(field);
+  if (sensitive && field.defaultValue !== null && field.defaultValue !== undefined) {
+    throw new ValidationError([
+      { path: 'sensitive', message: 'Remove the default value before marking this sensitive' },
+    ]);
+  }
+  const updated = await CustomFieldModel.findOneAndUpdate(
+    { _id: field._id, accountId: field.accountId },
+    { $set: { sensitive, sensitiveJob: { status: 'running', done: 0, total: 0 } } },
+    { returnDocument: 'after' },
+  ).lean<CustomFieldDoc>();
+  if (!updated) throw new NotFoundError();
+  await jobs.enqueue('contacts.sensitive_field', {
+    accountId: field.accountId.toString(),
+    fieldId: field._id.toString(),
+  });
+  await auditRequest(req, 'custom_field.sensitive_changed', {
+    target: { type: 'custom_field', id: field._id.toString() },
+    meta: { key: field.key, sensitive },
   });
   return toPublicField(updated);
 };

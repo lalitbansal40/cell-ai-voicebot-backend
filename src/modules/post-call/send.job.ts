@@ -18,6 +18,7 @@ import { getLogger } from '../../shared/logger';
 import type { InboxContext } from '../inbox/context';
 import { startConversation } from '../inbox/conversations.service';
 import { sendMessage } from '../inbox/outbound.service';
+import { openTextValues } from '../privacy/sensitive';
 
 /** Send-time refusals of the inbox / template path → our skip reasons. */
 const REASON_OF: Record<string, PostCallSkipReason> = {
@@ -112,7 +113,7 @@ export const processPostCallSend = async (
       {
         type: 'template',
         templateId: row.templateId?.toString() ?? '',
-        variables: row.variables,
+        variables: openTextValues(row.variables),
         clientId: `postcall-${row._id.toString()}`,
       },
       { origin: 'system', externalRef: call?.externalRef ?? null },

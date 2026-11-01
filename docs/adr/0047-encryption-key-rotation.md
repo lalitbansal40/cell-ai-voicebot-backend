@@ -27,6 +27,12 @@ Secrets at rest were sealed with one key and a format that didn't say which key 
 
 `SUPPRESSION_HMAC_KEY` is never rotated, because a new key would lose every suppression.
 
+## Sensitive fields
+
+A custom field marked sensitive is stored as `{ $enc: 'v2:…' }`. `modules/privacy/sensitive.ts` is the one read and write path, and a guard test enforces it. Lists show `••••`; the contact page and exports need `contacts.export`; API keys never get the value. Copies on calls and campaign rows leave the value out, and run state and queued messages hold sealed text.
+
+What the bot says or a template sends is stored as conversation, so a spoken or sent value appears in transcripts and messages until retention or erase removes it.
+
 ## Consequences
 
 - Rotating needs no downtime; steps are in `docs/ops/secret-rotation.md`.

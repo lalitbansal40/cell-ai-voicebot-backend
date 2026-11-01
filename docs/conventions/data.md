@@ -109,3 +109,5 @@ Small, bounded lists (agent functions, tags, a recording's metadata) may be embe
 ## Encryption key rotation
 
 Sealed values have the format `v2:<keyId>:<iv>:<tag>:<data>`; `v1` values still open. Every sealed field is listed in `src/shared/crypto/sealed-registry.ts`, and `npm run keys:reseal` moves them to the current key. See [ADR 0047](../adr/0047-encryption-key-rotation.md).
+
+Read contact variables only through `readContactVariables` (`modules/privacy/sensitive.ts`). A field marked sensitive holds `{ $enc }`.

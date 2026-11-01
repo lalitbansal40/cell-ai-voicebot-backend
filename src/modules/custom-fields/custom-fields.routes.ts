@@ -55,7 +55,7 @@ export const createCustomFieldsRouter = ({
     ...handle(
       { params: CustomFieldIdParams, body: UpdateCustomFieldBody },
       async ({ params, body, req, res }) => {
-        ok(res, await updateCustomField(req, params.id, body));
+        ok(res, await updateCustomField(req, params.id, body, jobs));
       },
     ),
   );

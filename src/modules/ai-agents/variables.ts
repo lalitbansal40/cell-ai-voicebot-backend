@@ -4,6 +4,7 @@ import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import { CustomFieldModel, type CustomFieldDoc } from '../../db/models/custom-field.model';
 import { NotFoundError } from '../../shared/errors/app-error';
 import { formatInr } from '../../shared/money';
+import { readContactVariables } from '../privacy/sensitive';
 
 /** Contact facts the model may be allowed to see besides custom fields. */
 export const BUILT_IN_VARIABLES = ['name', 'phone_last4'] as const;
@@ -60,14 +61,14 @@ export const contactVariables = async (
     .lean<Pick<ContactDoc, 'phoneE164' | 'name' | 'externalId' | 'variables'>>();
   if (!contact) throw new NotFoundError('Contact not found');
   const types = new Map((await accountVariables(accountId)).map((v) => [v.name, v.type]));
-  const vars = (contact.variables ?? {}) as unknown as Record<string, unknown>;
+  const vars = readContactVariables(contact, { purpose: 'call' });
   const values: Record<string, string> = {};
   for (const name of allowed) {
     if (name === 'name') values.name = contact.name ?? '';
     else if (name === 'phone_last4') values.phone_last4 = contact.phoneE164.slice(-4);
     else values[name] = formatVariable(types.get(name) ?? 'text', vars[name]);
   }
-  return { values, contact };
+  return { values, contact: { ...contact, variables: vars as unknown as ContactDoc['variables'] } };
 };
 
 /** Manual playground / preview values: only allowed names, trimmed, ≤ 200 chars. */

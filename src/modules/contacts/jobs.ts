@@ -16,6 +16,8 @@ export interface ContactJobData {
     payload: Record<string, unknown>;
   };
   'field.delete_values': { accountId: string; key: string };
+  /** Phase 16: seal or open a field's values after its setting changed. */
+  'contacts.sensitive_field': { accountId: string; fieldId: string };
   'list.delete_members': { accountId: string; listId: string };
   /** Phase 15: one run of a scheduled Google-Sheet import. */
   'sheets.import': { accountId: string; sheetImportId: string; runKey: string };
@@ -30,6 +32,7 @@ export const CONTACT_JOB_NAMES = [
   'records.export',
   'bulk.run',
   'field.delete_values',
+  'contacts.sensitive_field',
   'list.delete_members',
   'sheets.import',
 ] as const satisfies readonly ContactJobName[];

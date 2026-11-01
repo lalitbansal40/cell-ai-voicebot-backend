@@ -8,7 +8,10 @@ import { deleteListMembers } from '../../../modules/contact-lists/contact-lists.
 import { bulkJob } from '../../../modules/contacts/bulk.service';
 import type { ContactJobData, ContactJobName, ContactJobs } from '../../../modules/contacts/jobs';
 import { isContactJobName } from '../../../modules/contacts/jobs';
-import { deleteFieldValues } from '../../../modules/custom-fields/custom-fields.jobs';
+import {
+  deleteFieldValues,
+  moveSensitiveValues,
+} from '../../../modules/custom-fields/custom-fields.jobs';
 import { runRecordExport } from '../../../modules/record-exports/record-exports.service';
 import { runSheetImport } from '../../../modules/sheet-imports/run.job';
 import type { StorageProvider } from '../../storage';
@@ -32,6 +35,7 @@ export type ContactJobHandlers = { [N in ContactJobName]?: ContactJobHandler<N> 
 /** Processors per job name — each task of Phase 3 registers its own here. */
 export const CONTACT_JOB_HANDLERS: ContactJobHandlers = {
   'field.delete_values': (data) => deleteFieldValues(data),
+  'contacts.sensitive_field': (data) => moveSensitiveValues(data),
   'list.delete_members': (data) => deleteListMembers(data),
   'import.validate': (data, ctx) => validateImport(data, ctx),
   'import.run': (data, ctx, job) => runImport(data, ctx, job),

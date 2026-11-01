@@ -18,6 +18,7 @@ import {
   type WhatsAppTemplateDoc,
 } from '../../db/models/whatsapp-template.model';
 import { AppError } from '../../shared/errors/app-error';
+import { readContactVariables } from '../privacy/sensitive';
 
 import { componentOf, headerFormat } from './components';
 import { formatPhone, formatVariableValue } from './format';
@@ -93,14 +94,8 @@ const fromSource = (
       return s.value?.trim() || null;
     case 'field': {
       const key = s.value ?? '';
-      const raw =
-        contact.variables instanceof Map
-          ? contact.variables.get(key)
-          : (contact.variables as unknown as Record<string, unknown> | undefined)?.[key];
-      return formatVariableValue(
-        fieldTypes.get(key) ?? 'text',
-        raw as string | number | null | undefined,
-      );
+      const raw = readContactVariables(contact, { purpose: 'send' })[key];
+      return formatVariableValue(fieldTypes.get(key) ?? 'text', raw);
     }
     case 'ask':
       return null;

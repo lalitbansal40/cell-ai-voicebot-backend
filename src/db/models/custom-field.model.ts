@@ -17,6 +17,10 @@ export interface CustomFieldDoc {
   /** Stored form (currency in micros, date `YYYY-MM-DD`). */
   defaultValue?: string | number | null;
   order: number;
+  /** Values are stored sealed as `{ $enc }` (ADR 0047). */
+  sensitive: boolean;
+  /** Progress of sealing / opening the existing values. */
+  sensitiveJob?: { status: 'running' | 'done' | 'failed'; done: number; total: number } | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +32,8 @@ const schema = new Schema<CustomFieldDoc>({
   required: { type: Boolean, default: false },
   defaultValue: { type: Schema.Types.Mixed, default: null },
   order: { type: Number, default: 0 },
+  sensitive: { type: Boolean, default: false },
+  sensitiveJob: { type: Schema.Types.Mixed, default: null },
 });
 schema.plugin(basePlugin);
 schema.plugin(tenantPlugin);

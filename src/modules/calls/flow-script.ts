@@ -6,6 +6,7 @@ import { FLOW_LIMITS } from '../../config/limits';
 import type { HttpToolOptions } from '../../core/ai/http-tool';
 import type { AiProvider } from '../../core/ai/types';
 import { mongoStatsRecorder } from '../../core/engine/stats';
+import type { FlowRunState } from '../../core/engine/types';
 import type { StorageProvider } from '../../core/storage';
 import { decodedAudio } from '../../core/voice/audio/decode';
 import { FlowHost, type AiStepEnd, type AiStepRequest } from '../../core/voice/flow-host';
@@ -19,6 +20,7 @@ import { outgoingPolicy } from '../../shared/net/url-guard';
 import { createFlowEffects } from '../flows/effects';
 import { findFlow, type FlowsDeps } from '../flows/flows.service';
 import { resolveStartValues, resolveVersion, type RunContact } from '../flows/run-values';
+import { sealTextValues, sensitiveKeys } from '../privacy/sensitive';
 import { accountTimezone } from '../wallet/wallet.service';
 
 import type { ScriptChoice } from './scripts';
@@ -115,6 +117,11 @@ export const flowScript = async (call: CallDoc, deps: FlowScriptDeps): Promise<S
     ...(deps.billing ? { billing: deps.billing } : {}),
   });
   const callId = call._id.toString();
+  const sensitive = await sensitiveKeys(accountId);
+  const storedState = (state: FlowRunState): FlowRunState => ({
+    ...state,
+    contact: sealTextValues(state.contact, sensitive),
+  });
   const host = new FlowHost({
     graph,
     ctx: { now, timezone, company, mode: 'call', stats },
@@ -139,7 +146,7 @@ export const flowScript = async (call: CallDoc, deps: FlowScriptDeps): Promise<S
     onStep: async (result) => {
       await stats.flush();
       await deps.redis
-        ?.set(`call:state:${callId}`, JSON.stringify(result.state), 'EX', 2 * 60 * 60)
+        ?.set(`call:state:${callId}`, JSON.stringify(storedState(result.state)), 'EX', 2 * 60 * 60)
         .catch(() => undefined);
     },
     onFinish: async (state, trace) => {
@@ -147,7 +154,7 @@ export const flowScript = async (call: CallDoc, deps: FlowScriptDeps): Promise<S
         { _id: run._id },
         {
           $set: {
-            state,
+            state: storedState(state),
             status: 'ended',
             waiting: null,
             trace: trace.slice(-FLOW_LIMITS.traceRowsMax),

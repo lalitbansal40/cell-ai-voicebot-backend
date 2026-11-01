@@ -1,6 +1,7 @@
 import type { Collection, Document } from 'mongodb';
 
 import { AiAgentModel } from '../../db/models/ai-agent.model';
+import { ContactModel } from '../../db/models/contact.model';
 import { FlowVersionModel } from '../../db/models/flow-version.model';
 import { FlowModel } from '../../db/models/flow.model';
 import { MetaWebhookEventModel } from '../../db/models/meta-webhook-event.model';
@@ -10,7 +11,7 @@ import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
 /**
  * Every field holding a value sealed with the secret box. `keys:reseal` works from this list,
  * and a test fails when a model gains a `*Sealed` / `sealed` field that isn't here.
- * `path` uses `*` for "each item of this array".
+ * `path` uses `*` for "each item of this array" and `%` for "each key of this object".
  */
 export interface SealedField {
   name: string;
@@ -59,6 +60,7 @@ export const SEALED_FIELDS: SealedField[] = [
     collection: raw(FlowVersionModel),
     path: `graph.${flowHeaders}`,
   },
+  { name: 'contacts.variables.$enc', collection: raw(ContactModel), path: 'variables.%.$enc' },
 ];
 
 export interface SealedValue {
@@ -75,6 +77,11 @@ export const readSealedValues = (doc: unknown, pattern: string): SealedValue[] =
       return typeof node === 'string' && node !== '' ? [{ path: at.join('.'), value: node }] : [];
     }
     if (node === null || typeof node !== 'object') return [];
+    if (head === '%') {
+      return Object.entries(node as Record<string, unknown>).flatMap(([key, item]) =>
+        walk(item, rest, [...at, key]),
+      );
+    }
     if (head === '*') {
       if (!Array.isArray(node)) return [];
       return node.flatMap((item, i) => walk(item, rest, [...at, String(i)]));
@@ -85,4 +92,4 @@ export const readSealedValues = (doc: unknown, pattern: string): SealedValue[] =
 };
 
 /** The field to project and to page by: everything before the first `*`. */
-export const projectionRoot = (pattern: string): string => pattern.split('.*')[0] ?? pattern;
+export const projectionRoot = (pattern: string): string => pattern.split(/\.[*%]/)[0] ?? pattern;

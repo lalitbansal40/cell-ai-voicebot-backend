@@ -2,6 +2,7 @@
  * DEV ONLY — Phase 3 performance check (PHASE_3_PLAN T3.12).
  *   npm run bench:contacts            (default 50,000 rows)
  *   npm run bench:contacts -- 10000
+ *   npm run bench:contacts -- 100000 --sensitive   (every field sealed, Phase 16)
  * Creates a throw-away account, runs the real validate + import jobs on a
  * generated sheet, times contact list queries, then deletes everything it made.
  * Needs `npm run infra:up`. Refuses NODE_ENV=production.
@@ -76,6 +77,7 @@ const main = async () => {
   const env = getEnv();
   if (env.NODE_ENV === 'production') throw new Error('bench:contacts is disabled in production');
   const rows = Number(process.argv[2] ?? 50_000);
+  const sensitive = process.argv.includes('--sensitive');
   const logger = createLogger({ NODE_ENV: env.NODE_ENV, LOG_LEVEL: 'warn' });
   await connectMongo(env, logger);
   const root = mkdtempSync(path.join(tmpdir(), 'cav-bench-'));
@@ -84,6 +86,7 @@ const main = async () => {
   const accountId = account._id;
   try {
     await CustomFieldModel.create({
+      sensitive,
       accountId,
       key: 'loan_amount',
       label: 'Loan Amount',
@@ -142,6 +145,7 @@ const main = async () => {
     for (const col of columns) {
       if (col.target === 'new_field' && col.key && col.type) {
         await CustomFieldModel.create({
+          sensitive,
           accountId,
           key: col.key,
           label: col.label,

@@ -17,6 +17,7 @@ import { AppError, NotFoundError, ValidationError } from '../../shared/errors/ap
 import type { AuditAction } from '../audit/audit-actions';
 import { recordAudit, type AuditActorInput } from '../audit/audit.service';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
+import { readContactVariables } from '../privacy/sensitive';
 import { markNeedsReconnect } from '../whatsapp/channel-status';
 import { openSecret } from '../whatsapp/context';
 
@@ -414,11 +415,7 @@ export const getContactPanel = async (ix: InboxContext, actor: InboxActor, id: s
           email: contact.email ?? null,
           tags: contact.tags,
           lists: lists.map((l) => ({ id: l._id.toString(), name: l.name })),
-          variables: Object.fromEntries(
-            contact.variables instanceof Map
-              ? contact.variables
-              : Object.entries(contact.variables ?? {}),
-          ),
+          variables: readContactVariables(contact, { purpose: 'list' }),
           dnd: contact.dnd,
           optedOutAt: iso(contact.optedOutAt),
           deleted: Boolean(contact.deletedAt),

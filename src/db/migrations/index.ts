@@ -17,6 +17,7 @@ import { meta2026Migration } from './0014-meta-2026';
 import { analyticsMigration } from './0015-analytics';
 import { insightsMigration } from './0016-insights';
 import { integrationsMigration } from './0017-integrations';
+import { securityPrivacyMigration } from './0018-security-privacy';
 
 /** Ordered migration registry. Add new files here (no fs globbing — keeps builds simple). */
 export const MIGRATIONS: Migration[] = [
@@ -37,4 +38,5 @@ export const MIGRATIONS: Migration[] = [
   analyticsMigration,
   insightsMigration,
   integrationsMigration,
+  securityPrivacyMigration,
 ];

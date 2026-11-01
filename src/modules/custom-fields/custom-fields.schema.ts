@@ -58,6 +58,9 @@ export const UpdateCustomFieldBody = z
     type: FieldTypeSchema.optional(),
     required: z.boolean().optional(),
     defaultValue: DefaultValueInput.optional(),
+    sensitive: z.boolean().optional().openapi({
+      description: 'Seal this field at rest; existing values move in the background',
+    }),
   })
   .refine((b) => Object.keys(b).length > 0, 'Nothing to update');
 
@@ -87,6 +90,14 @@ export const CustomFieldSchema = registry.register(
       .nullable()
       .openapi({ description: 'Stored form: currency in micros, date `YYYY-MM-DD`' }),
     order: z.number(),
+    sensitive: z.boolean(),
+    sensitiveJob: z
+      .object({
+        status: z.enum(['running', 'done', 'failed']),
+        done: z.number(),
+        total: z.number(),
+      })
+      .nullable(),
     usageCount: z
       .number()
       .optional()

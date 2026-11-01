@@ -13,6 +13,7 @@ import {
 } from '../../db/models/contact.model';
 import { DndEntryModel } from '../../db/models/dnd-entry.model';
 import { SegmentModel } from '../../db/models/segment.model';
+import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import {
   ConflictError,
@@ -22,6 +23,7 @@ import {
 } from '../../shared/errors/app-error';
 import type { SortField } from '../../shared/validation/schemas';
 import { auditRequest } from '../audit/audit.service';
+import { readContactVariables, sealContactVariables, SENSITIVE_MASK } from '../privacy/sensitive';
 
 import type {
   CONTACT_SORT_FIELDS,
@@ -78,7 +80,7 @@ export const toPublicContact = (c: ContactDoc): PublicContact => ({
   name: c.name ?? null,
   email: c.email ?? null,
   externalId: c.externalId ?? null,
-  variables: variablesObject(c.variables),
+  variables: readContactVariables(c, { purpose: 'list' }),
   tags: [...c.tags],
   listIds: c.listIds.map((id) => id.toString()),
   dnd: c.dnd,
@@ -206,9 +208,15 @@ const listNames = async (accountId: Types.ObjectId, ids: Types.ObjectId[]) => {
 };
 
 export const getContact = async (req: Request, id: string): Promise<PublicContact> => {
+  const auth = requireAuth(req);
   const contact = await findLive(req, id);
   return {
     ...toPublicContact(contact),
+    variables: readContactVariables(contact, {
+      purpose: 'view',
+      // API keys never get them; on the contact page they follow `contacts.export`
+      reveal: auth.kind === 'user' && auth.permissions.has('contacts.export'),
+    }),
     lists: await listNames(contact.accountId, contact.listIds),
   };
 };
@@ -285,6 +293,7 @@ const normalizeInput = (
         delete merged[key];
         continue;
       }
+      if (raw === SENSITIVE_MASK) continue; // a form sent back the mask: no change
       const parsed = parseFieldValue(field.type, raw, { country: ctx.country });
       if (!parsed.ok) {
         errors.push({
@@ -304,7 +313,10 @@ const normalizeInput = (
         errors.push({ path: `variables.${key}`, message: 'Required' });
       }
     }
-    variables = checked.variables;
+    variables = sealContactVariables(
+      checked.variables,
+      new Set(ctx.fields.filter((f) => f.sensitive).map((f) => f.key)),
+    ) as Record<string, VariableValue>;
   }
 
   if (errors.length) throw new ValidationError(errors);

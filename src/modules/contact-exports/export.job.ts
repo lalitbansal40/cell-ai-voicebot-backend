@@ -14,6 +14,7 @@ import type { ContactJobData } from '../contacts/jobs';
 import { releaseJobLock } from '../contacts/locks';
 import { formatFieldValue } from '../contacts/normalize';
 import { createProgressReporter } from '../contacts/progress';
+import { readContactVariables } from '../privacy/sensitive';
 
 import { selectionQuery } from './contact-exports.service';
 
@@ -25,8 +26,9 @@ export const exportRow = (
   columns: string[],
   ctx: ContactContext,
   listNames: Map<string, string>,
+  maskSensitive = false,
 ): string[] => {
-  const variables = (c.variables as unknown as Record<string, string | number> | undefined) ?? {};
+  const variables = readContactVariables(c, { purpose: maskSensitive ? 'list' : 'export' });
   return columns.map((col) => {
     switch (col) {
       case 'phone':
@@ -105,7 +107,8 @@ export const runExport = async (
         .limit(CONTACT_LIMITS.exportBatchSize)
         .lean<ContactDoc[]>();
       if (!page.length) break;
-      for (const c of page) records.push(exportRow(c, job.columns, ctx, listNames));
+      for (const c of page)
+        records.push(exportRow(c, job.columns, ctx, listNames, job.maskSensitive === true));
       processed += page.length;
       lastId = page[page.length - 1]?._id ?? null;
       await ExportJobModel.updateOne(

@@ -22,6 +22,7 @@ import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import type { SecretKey } from '../../shared/crypto/secret-box';
 import { ConflictError, NotFoundError } from '../../shared/errors/app-error';
 import { outgoingPolicy } from '../../shared/net/url-guard';
+import { withoutSensitive } from '../privacy/sensitive';
 import { accountTimezone } from '../wallet/wallet.service';
 
 import { findAgent } from './agents.service';
@@ -139,7 +140,7 @@ const openSession = async (
     agentId,
     userId,
     contactId: values.contactId,
-    variables: values.variables,
+    variables: await withoutSensitive(accountId, values.variables),
     testPhone: values.testPhone,
     turns: opening ? [{ role: 'assistant', text: opening, at: now }] : [],
     expiresAt: new Date(now.getTime() + PLAYGROUND_TTL_MS),

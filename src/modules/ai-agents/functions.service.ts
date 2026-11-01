@@ -35,6 +35,7 @@ import {
 } from '../../shared/errors/app-error';
 import { outgoingPolicy, urlBlockReason, type GuardPolicy } from '../../shared/net/url-guard';
 import { auditRequest } from '../audit/audit.service';
+import { readContactVariables } from '../privacy/sensitive';
 
 import type { CreateFunctionBody, TestFunctionBody, UpdateFunctionBody } from './agents.schema';
 import { findAgent, toAgentView } from './agents.service';
@@ -347,7 +348,7 @@ type ContactFields = Pick<ContactDoc, 'phoneE164' | 'name' | 'externalId' | 'var
 export const contactTemplateValues = (contact: ContactFields | null): Record<string, unknown> =>
   contact
     ? {
-        ...((contact.variables ?? {}) as unknown as Record<string, unknown>),
+        ...readContactVariables(contact, { purpose: 'function' }),
         phone: contact.phoneE164,
         name: contact.name ?? '',
         externalId: contact.externalId ?? '',

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AccountModel } from '../../src/db/models/account.model';
 import { AiAgentModel } from '../../src/db/models/ai-agent.model';
 import { AuditLogModel } from '../../src/db/models/audit-log.model';
+import { ContactModel } from '../../src/db/models/contact.model';
 import { FlowVersionModel } from '../../src/db/models/flow-version.model';
 import { FlowModel } from '../../src/db/models/flow.model';
 import { MetaWebhookEventModel } from '../../src/db/models/meta-webhook-event.model';
@@ -73,6 +74,10 @@ const seed = async (keys = OLD) => {
   });
   await FlowModel.collection.insertOne({ accountId, draft: graph(v('draft')) });
   await FlowVersionModel.collection.insertOne({ accountId, graph: graph(v('version')) });
+  await ContactModel.collection.insertOne({
+    accountId,
+    variables: { loan: { $enc: v('loan') }, branch: 'Pune' },
+  });
 };
 
 /** Every sealed value now in the database. */
@@ -91,7 +96,14 @@ const allValues = async () => {
 
 beforeEach(async () => {
   await Promise.all(
-    [WhatsAppChannelModel, MetaWebhookEventModel, WebhookEndpointModel, AiAgentModel, FlowModel]
+    [
+      WhatsAppChannelModel,
+      MetaWebhookEventModel,
+      WebhookEndpointModel,
+      AiAgentModel,
+      FlowModel,
+      ContactModel,
+    ]
       .map((m) => m.collection.deleteMany({}))
       .concat(FlowVersionModel.collection.deleteMany({})),
   );
@@ -236,6 +248,7 @@ describe('sealed registry is complete', () => {
     expect(writers).toEqual([
       'modules/ai-agents/functions.service.ts',
       'modules/flows/flows.service.ts',
+      'modules/privacy/sensitive.ts',
       'modules/webhooks/endpoints.service.ts',
       'modules/whatsapp/context.ts',
     ]);

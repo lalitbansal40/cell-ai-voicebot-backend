@@ -22,6 +22,7 @@ import { CallModel, type CallDoc, type CallSource } from '../../db/models/call.m
 import { AppError } from '../../shared/errors/app-error';
 import type { Logger } from '../../shared/logger';
 import { DialSlots, type SlotLease } from '../campaigns/slots';
+import { withoutSensitive } from '../privacy/sensitive';
 import type { CallControlBus } from '../whatsapp-calling/bus';
 
 import { CallBilling } from './billing';
@@ -237,7 +238,7 @@ export class CallManager {
       source: input.source,
       contactId: input.contactId,
       startedBy: input.userId,
-      variables: input.variables,
+      variables: await withoutSensitive(input.accountId, input.variables),
       manualVariables: input.manualVariables ?? null,
       testPhone: input.testPhone ?? null,
       timestamps: { queuedAt: new Date(this.clock.now()) },
@@ -325,7 +326,7 @@ export class CallManager {
         attempt: input.campaign?.attempt ?? null,
         startedBy: input.initiatedBy,
         externalRef: input.externalRef ?? null,
-        variables: input.variables,
+        variables: await withoutSensitive(input.accountId, input.variables),
         manualVariables: input.manualVariables ?? null,
         timestamps: { queuedAt: new Date(this.clock.now()) },
       });

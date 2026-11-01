@@ -11,6 +11,7 @@ import { acquireJobLock, refreshJobLock, releaseJobLock } from '../contacts/lock
 import { buildSearchText } from '../contacts/normalize';
 import { createProgressReporter } from '../contacts/progress';
 import { addDndEntries } from '../dnd/dnd.service';
+import { sealContactVariables, sensitiveKeys } from '../privacy/sensitive';
 
 import {
   addToTotals,
@@ -60,6 +61,7 @@ const contactWrites = async (
         }
       : undefined;
 
+  const sensitive = await sensitiveKeys(job.accountId);
   const created = rows.filter((r) => r.outcome === 'created');
   const deleted = created.length
     ? await ContactModel.find({
@@ -86,7 +88,7 @@ const contactWrites = async (
         name: c.name ?? null,
         email: c.email ?? null,
         externalId: c.externalId ?? null,
-        variables: r.variables ?? {},
+        variables: sealContactVariables(r.variables ?? {}, sensitive),
         tags,
         listIds: listId ? [listId] : [],
         dnd: Boolean(r.onDnd),
@@ -145,7 +147,8 @@ const contactWrites = async (
     if (c.name) set.name = c.name;
     if (c.email) set.email = c.email;
     if (c.externalId) set.externalId = c.externalId;
-    for (const [key, value] of Object.entries(c.variables)) set[`variables.${key}`] = value;
+    for (const [key, value] of Object.entries(sealContactVariables(c.variables, sensitive)))
+      set[`variables.${key}`] = value;
     const consent = consentFor(r);
     if (consent) set.consent = consent;
     set.searchText = buildSearchText({
