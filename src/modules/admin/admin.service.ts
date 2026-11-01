@@ -269,6 +269,7 @@ export const accountDetail = async (id: string) => {
   for (const s of byStatus) usersByStatus[s._id] = s.n;
   return {
     account: toPublicAccount(account),
+    apiLimits: account.apiLimits ?? null,
     owner: owner ? toPublicUser(owner) : null,
     usersCount: usersByStatus.invited + usersByStatus.active + usersByStatus.disabled,
     usersByStatus,
@@ -507,4 +508,15 @@ export const adminRunDeletion = async (req: Request, id: string, deps: PurgeDeps
   }
   await auditBothSides(req, account, 'account.purged', { byAdmin: true });
   return purgeAccount(account._id, deps);
+};
+
+export const setAccountApiLimits = async (
+  req: Request,
+  id: string,
+  apiLimits: { readsPerMinute: number; writesPerMinute: number } | null,
+) => {
+  const account = await findCustomerAccount(id);
+  await AccountModel.updateOne({ _id: account._id }, { $set: { apiLimits } });
+  await auditBothSides(req, account, 'account.api_limits_changed', apiLimits ?? { reset: true });
+  return { apiLimits };
 };

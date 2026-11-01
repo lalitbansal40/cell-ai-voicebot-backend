@@ -37,6 +37,8 @@ export interface UserDoc {
   invite?: UserInvite | null;
   lastLoginAt?: Date | null;
   passwordChangedAt?: Date | null;
+  /** Superadmin second step (Phase 16); never leaves the server. */
+  mfa?: UserMfa | null;
   /** Phase 12 — absent on users created before migration 0013 (= `available`). */
   callAvailability?: CallAvailability;
   deletedAt: Date | null;
@@ -45,9 +47,20 @@ export interface UserDoc {
 }
 
 /** Fields that must never leave the server. */
-export const USER_SECRET_FIELDS = ['passwordHash', 'tokenVersion', 'invite'] as const;
+export const USER_SECRET_FIELDS = ['passwordHash', 'tokenVersion', 'invite', 'mfa'] as const;
+
+export interface UserMfa {
+  secretSealed: string;
+  /** `null` until a code confirms the setup. */
+  enabledAt: Date | null;
+  /** The last time-step used, so a code can't be accepted twice. */
+  lastStep: number | null;
+  verifiedAt: Date | null;
+  recoveryHashes: string[];
+}
 
 const schema = new Schema<UserDoc>({
+  mfa: { type: Schema.Types.Mixed, default: null, select: false },
   name: { type: String, required: true, trim: true, maxlength: 80 },
   email: { type: String, required: true, lowercase: true, trim: true, maxlength: 254 },
   phone: { type: String, default: null },

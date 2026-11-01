@@ -1,6 +1,6 @@
 import { AuditLogModel } from '../../db/models/audit-log.model';
 
-export const AUDIT_RETENTION_DAYS = 365;
+export const AUDIT_RETENTION_DAYS = 730;
 const BATCH = 10_000;
 
 /** Deletes audit entries older than the retention period, in batches. Returns the count. */

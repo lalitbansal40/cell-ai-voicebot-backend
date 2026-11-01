@@ -251,6 +251,8 @@ export const ERROR_CODES = {
     message: 'Money is on hold for a live call or send. Try again when it finishes.',
   },
   REAUTH_FAILED: { status: 422, message: 'That password is not correct.' },
+  MFA_REQUIRED: { status: 403, message: 'Enter your two-step code to continue.' },
+  MFA_INVALID: { status: 422, message: 'That code is not correct.' },
   SENSITIVE_FIELD_NOT_ALLOWED: {
     status: 422,
     message: "A field marked sensitive can't be searched or filtered.",

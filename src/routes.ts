@@ -14,6 +14,7 @@ import type { FunctionsDeps } from './modules/ai-agents/functions.service';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
+import { createMfaRouter } from './modules/auth/mfa.routes';
 import { createBillingRouter } from './modules/billing/billing.routes';
 import { createInvoicesRouter } from './modules/billing/invoices.routes';
 import type { CallManager } from './modules/calls/call.service';
@@ -184,6 +185,7 @@ export const createApiRouter = ({
     Env,
     | 'APP_URL'
     | 'API_DOCS_ENABLED'
+    | 'MFA_ENFORCED_FOR_ADMINS'
     | 'FRONTEND_URL'
     | 'CORS_ORIGINS'
     | 'NODE_ENV'
@@ -237,6 +239,7 @@ export const createApiRouter = ({
     }),
   );
   router.use('/account', createAccountInsightsRouter());
+  router.use('/auth/mfa', createMfaRouter());
   router.use('/account', createComplianceRouter());
   router.use('/admin', createAdminComplianceRouter());
   router.use('/account', createRetentionRouter());

@@ -595,6 +595,9 @@ export const RETENTION_LIMITS = {
 export const PUBLIC_API_LIMITS = {
   writesPerMinute: 60,
   readsPerMinute: 600,
+  /** A superadmin can raise one account's limits up to these. */
+  writesPerMinuteMax: 600,
+  readsPerMinuteMax: 6_000,
   bulkUpsertMax: 1_000,
   externalRefMax: 100,
   ipAllowlistMax: 20,

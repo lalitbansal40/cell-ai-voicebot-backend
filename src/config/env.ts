@@ -53,6 +53,10 @@ const RawEnvSchema = z.object({
   API_DOCS_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
   /** nginx sends Strict-Transport-Security, so the API must not (one owner, no double header). */
   HSTS_BY_PROXY: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+  /** Big superadmin actions need a fresh two-step code. Turn on after setup. */
+  MFA_ENFORCED_FOR_ADMINS: z
+    .enum(['true', 'false'], { message: 'must be true or false' })
+    .optional(),
 
   MONGODB_URI: z
     .string()
@@ -258,6 +262,7 @@ export type Env = Readonly<
     | 'MAIL_FROM'
     | 'API_DOCS_ENABLED'
     | 'HSTS_BY_PROXY'
+    | 'MFA_ENFORCED_FOR_ADMINS'
     | 'PAYMENT_PROVIDER'
     | 'FAKE_PAYMENT_SECRET'
     | 'BILLING_SELLER_NAME'
@@ -297,6 +302,7 @@ export type Env = Readonly<
     MAIL_FROM: string;
     API_DOCS_ENABLED: boolean;
     HSTS_BY_PROXY: boolean;
+    MFA_ENFORCED_FOR_ADMINS: boolean;
     PAYMENT_PROVIDER: 'fake' | 'razorpay';
     /** Only for the fake provider (never set in production). */
     FAKE_PAYMENT_SECRET: string | undefined;
@@ -741,6 +747,7 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     API_DOCS_ENABLED:
       raw.API_DOCS_ENABLED !== undefined ? raw.API_DOCS_ENABLED === 'true' : !production,
     HSTS_BY_PROXY: raw.HSTS_BY_PROXY === 'true',
+    MFA_ENFORCED_FOR_ADMINS: raw.MFA_ENFORCED_FOR_ADMINS === 'true',
     PAYMENT_PROVIDER: paymentProvider,
     FAKE_PAYMENT_SECRET:
       paymentProvider === 'fake'

@@ -168,6 +168,10 @@ export const AUDIT_ACTIONS = [
   'account.purged',
   'compliance.exported',
   'compliance.ceiling_changed',
+  'account.api_limits_changed',
+  'mfa.enabled',
+  'mfa.disabled',
+  'mfa.recovery_used',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

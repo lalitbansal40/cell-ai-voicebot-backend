@@ -1221,7 +1221,11 @@
               "account.delete_canceled",
               "account.purged",
               "compliance.exported",
-              "compliance.ceiling_changed"
+              "compliance.ceiling_changed",
+              "account.api_limits_changed",
+              "mfa.enabled",
+              "mfa.disabled",
+              "mfa.recovery_used"
             ]
           },
           "actor": {
@@ -1336,6 +1340,14 @@
             "allOf": [{ "$ref": "#/components/schemas/PublicUser" }, { "type": ["object", "null"] }]
           },
           "usersCount": { "type": "integer" },
+          "apiLimits": {
+            "type": ["object", "null"],
+            "properties": {
+              "readsPerMinute": { "type": "number" },
+              "writesPerMinute": { "type": "number" }
+            },
+            "required": ["readsPerMinute", "writesPerMinute"]
+          },
           "usersByStatus": {
             "type": "object",
             "properties": {
@@ -1424,6 +1436,7 @@
           "account",
           "owner",
           "usersCount",
+          "apiLimits",
           "usersByStatus",
           "limits",
           "retention",
@@ -12364,6 +12377,91 @@
         }
       }
     },
+    "/api/v1/admin/accounts/{id}/api-limits": {
+      "patch": {
+        "tags": ["Superadmin"],
+        "summary": "Set this account's API key limits per minute; null = default (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "apiLimits": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "readsPerMinute": { "type": "integer", "minimum": 1, "maximum": 6000 },
+                      "writesPerMinute": { "type": "integer", "minimum": 1, "maximum": 600 }
+                    },
+                    "required": ["readsPerMinute", "writesPerMinute"]
+                  }
+                },
+                "required": ["apiLimits"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "apiLimits": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "readsPerMinute": { "type": "integer", "minimum": 1, "maximum": 6000 },
+                            "writesPerMinute": { "type": "integer", "minimum": 1, "maximum": 600 }
+                          },
+                          "required": ["readsPerMinute", "writesPerMinute"]
+                        }
+                      },
+                      "required": ["apiLimits"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/agents": {
       "get": {
         "tags": ["AI agents"],
@@ -19547,6 +19645,253 @@
                       },
                       "required": ["start", "end"],
                       "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/status": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Whether two-step sign-in is on and enforced (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": { "type": "boolean" },
+                        "enforced": { "type": "boolean" }
+                      },
+                      "required": ["enabled", "enforced"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/setup": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Start two-step sign-in: the secret and otpauth link (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "secret": { "type": "string" },
+                        "otpauthUrl": { "type": "string" }
+                      },
+                      "required": ["secret", "otpauthUrl"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/confirm": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Turn it on with a code; returns 10 recovery codes once (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "code": { "type": "string", "minLength": 6, "maxLength": 20 } },
+                "required": ["code"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "recoveryCodes": { "type": "array", "items": { "type": "string" } }
+                      },
+                      "required": ["recoveryCodes"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/verify": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Check a code or a recovery code before a big action (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "code": { "type": "string", "minLength": 6, "maxLength": 20 } },
+                "required": ["code"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "verified": { "type": "boolean", "enum": [true] } },
+                      "required": ["verified"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/disable": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Turn it off with the password and a code (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "code": { "type": "string", "minLength": 6, "maxLength": 20 }
+                },
+                "required": ["password", "code"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "disabled": { "type": "boolean", "enum": [true] } },
+                      "required": ["disabled"]
                     }
                   },
                   "required": ["success", "data"]

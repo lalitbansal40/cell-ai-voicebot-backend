@@ -133,7 +133,7 @@ describe('refresh reuse is audited', () => {
 });
 
 describe('purge', () => {
-  it('deletes only entries older than 365 days (also via the maintenance job)', async () => {
+  it('deletes only entries older than 2 years (also via the maintenance job)', async () => {
     const x = await createTestAccount();
     const now = new Date('2026-10-08T00:00:00Z');
     await AuditLogModel.insertMany([
@@ -141,19 +141,19 @@ describe('purge', () => {
         accountId: x.account._id,
         actor: { type: 'system' },
         action: 'auth.login',
-        at: new Date('2025-10-01T00:00:00Z'),
+        at: new Date('2024-10-01T00:00:00Z'),
       },
       {
         accountId: x.account._id,
         actor: { type: 'system' },
         action: 'auth.login',
-        at: new Date('2025-10-07T00:00:00Z'),
+        at: new Date('2024-10-07T00:00:00Z'),
       },
       {
         accountId: x.account._id,
         actor: { type: 'system' },
         action: 'auth.login',
-        at: new Date('2025-10-09T00:00:00Z'),
+        at: new Date('2024-10-09T00:00:00Z'),
       },
     ]);
     expect(await purgeAuditLogs(now)).toBeGreaterThanOrEqual(2);

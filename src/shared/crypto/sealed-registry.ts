@@ -5,6 +5,7 @@ import { ContactModel } from '../../db/models/contact.model';
 import { FlowVersionModel } from '../../db/models/flow-version.model';
 import { FlowModel } from '../../db/models/flow.model';
 import { MetaWebhookEventModel } from '../../db/models/meta-webhook-event.model';
+import { UserModel } from '../../db/models/user.model';
 import { WebhookEndpointModel } from '../../db/models/webhook-endpoint.model';
 import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
 
@@ -60,6 +61,7 @@ export const SEALED_FIELDS: SealedField[] = [
     collection: raw(FlowVersionModel),
     path: `graph.${flowHeaders}`,
   },
+  { name: 'users.mfa.secretSealed', collection: raw(UserModel), path: 'mfa.secretSealed' },
   { name: 'contacts.variables.$enc', collection: raw(ContactModel), path: 'variables.%.$enc' },
 ];
 

@@ -26,9 +26,13 @@ export const bearerToken = (header: string | undefined): string | undefined => {
  * `X-API-Key` and no session is authenticated by the key instead — with no
  * permissions, so only routes guarded by `access({ scope })` let it through.
  */
-export const authenticate =
-  (options: { apiKeys?: boolean; allowSuspended?: boolean } = {}): RequestHandler =>
-  async (req, _res, next) => {
+const guard = (handler: RequestHandler): RequestHandler =>
+  Object.assign(handler, { isAuthGuard: true });
+
+export const authenticate = (
+  options: { apiKeys?: boolean; allowSuspended?: boolean } = {},
+): RequestHandler =>
+  guard(async (req, _res, next) => {
     if (options.apiKeys && isApiKeyRequest(req)) {
       const key = await resolveApiKey(req);
       req.auth = apiKeyContext(key);
@@ -101,4 +105,4 @@ export const authenticate =
     };
     req.log = req.log.child({ accountId: claims.acc, userId: claims.sub });
     next();
-  };
+  });

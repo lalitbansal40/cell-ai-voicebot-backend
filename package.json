@@ -41,6 +41,7 @@
     "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
     "superadmin:create": "tsx --env-file-if-exists=.env scripts/superadmin-create.ts",
     "staging:demo": "tsx --env-file-if-exists=.env scripts/staging-demo.ts",
+    "gen:rate-limits": "tsx scripts/gen-rate-limits.ts",
     "smoke": "tsx scripts/smoke.ts",
     "keys:reseal": "tsx --env-file-if-exists=.env scripts/keys-reseal.ts",
     "check:headers": "tsx scripts/check-live-headers.ts",

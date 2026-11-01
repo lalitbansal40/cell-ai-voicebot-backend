@@ -107,6 +107,8 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `ACCOUNT_EXPORT_IN_PROGRESS`                | 409  | One account export runs at a time                                                                                                                                                                                     | 16    |
 | `ACCOUNT_DELETE_BLOCKED`                    | 409  | Money is on hold; try again when it finishes                                                                                                                                                                          | 16    |
 | `REAUTH_FAILED`                             | 422  | The password typed again for a big action was wrong                                                                                                                                                                   | 16    |
+| `MFA_REQUIRED`                              | 403  | A big superadmin action needs a fresh two-step code                                                                                                                                                                   | 16    |
+| `MFA_INVALID`                               | 422  | The two-step or recovery code was wrong or already used                                                                                                                                                               | 16    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

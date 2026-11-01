@@ -11,6 +11,7 @@ import { ContactModel } from '../../src/db/models/contact.model';
 import { FlowVersionModel } from '../../src/db/models/flow-version.model';
 import { FlowModel } from '../../src/db/models/flow.model';
 import { MetaWebhookEventModel } from '../../src/db/models/meta-webhook-event.model';
+import { UserModel } from '../../src/db/models/user.model';
 import { WebhookEndpointModel } from '../../src/db/models/webhook-endpoint.model';
 import { WhatsAppChannelModel } from '../../src/db/models/whatsapp-channel.model';
 import { auditRun, parseResealArgs, resealAll } from '../../src/ops/keys-reseal';
@@ -74,6 +75,7 @@ const seed = async (keys = OLD) => {
   });
   await FlowModel.collection.insertOne({ accountId, draft: graph(v('draft')) });
   await FlowVersionModel.collection.insertOne({ accountId, graph: graph(v('version')) });
+  await UserModel.collection.insertOne({ accountId, mfa: { secretSealed: v('mfa') } });
   await ContactModel.collection.insertOne({
     accountId,
     variables: { loan: { $enc: v('loan') }, branch: 'Pune' },
@@ -103,6 +105,7 @@ beforeEach(async () => {
       AiAgentModel,
       FlowModel,
       ContactModel,
+      UserModel,
     ]
       .map((m) => m.collection.deleteMany({}))
       .concat(FlowVersionModel.collection.deleteMany({})),
@@ -247,6 +250,7 @@ describe('sealed registry is complete', () => {
     // a new writer means a new sealed field: add it to the registry, then to this list
     expect(writers).toEqual([
       'modules/ai-agents/functions.service.ts',
+      'modules/auth/mfa.service.ts',
       'modules/flows/flows.service.ts',
       'modules/privacy/sensitive.ts',
       'modules/webhooks/endpoints.service.ts',

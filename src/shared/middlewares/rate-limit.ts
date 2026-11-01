@@ -8,7 +8,7 @@ import { RateLimitedError } from '../errors/app-error';
 export interface RateLimiterOptions {
   windowMs: number;
   /** A number, or one per request (e.g. a higher limit for one route). */
-  limit: number | ((req: Request) => number);
+  limit: number | ((req: Request) => number | Promise<number>);
   /** Defaults to the client IP (honours `trust proxy`). */
   keyGenerator?: (req: Request) => string;
   /** Counter store. MemoryStore by default; the server passes a Redis store (shared across instances). */
@@ -36,11 +36,14 @@ export const createRateLimiter = (options: RateLimiterOptions): RequestHandler =
 
 /** Every request, per IP; health checks are exempt. */
 export const globalRateLimiter = (overrides: Partial<RateLimiterOptions> = {}): RequestHandler =>
-  createRateLimiter({
-    ...GLOBAL_RATE_LIMIT,
-    skip: (req) => UNLIMITED_PATHS.includes(req.path),
-    ...overrides,
-  });
+  Object.assign(
+    createRateLimiter({
+      ...GLOBAL_RATE_LIMIT,
+      skip: (req) => UNLIMITED_PATHS.includes(req.path),
+      ...overrides,
+    }),
+    { isGlobalLimiter: true },
+  );
 
 /** For login / reset / OTP routes (Phase 2) — not mounted globally. */
 export const strictRateLimiter = (overrides: Partial<RateLimiterOptions> = {}): RequestHandler =>
