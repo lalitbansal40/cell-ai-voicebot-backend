@@ -1,10 +1,9 @@
 import type { Request } from 'express';
-import { Types } from 'mongoose';
+import type { Types } from 'mongoose';
 import type { z } from 'zod';
 
 import { createWallet } from '../../core/billing/wallets';
-import { APP_NAME } from '../../core/email/templates/layout';
-import { notifyAccount } from '../../core/realtime/notify';
+import { notifyAccount, notifyUser } from '../../core/realtime/notify';
 import { AccountModel, type AccountDoc } from '../../db/models/account.model';
 import { AuditLogModel, type AuditLogDoc } from '../../db/models/audit-log.model';
 import {
@@ -17,12 +16,14 @@ import { UserModel, type UserDoc } from '../../db/models/user.model';
 import { withTransaction } from '../../db/transaction';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { toObjectId } from '../../shared/auth/tenant';
-import { ConflictError, NotFoundError, TooManyAttemptsError } from '../../shared/errors/app-error';
+import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
 import { uniqueSlug } from '../account/slug';
 import type { AuditAction } from '../audit/audit-actions';
 import { recordAudit } from '../audit/audit.service';
-import { IMPERSONATION_TTL, INVITE_TTL_MS } from '../auth/auth.constants';
-import { hmacToken, randomToken } from '../auth/hmac';
+import { IMPERSONATION_TTL } from '../auth/auth.constants';
+import { randomToken } from '../auth/hmac';
+import { hashPassword, validatePasswordPolicy } from '../auth/password';
+import { revokeAllForUser } from '../auth/refresh.service';
 import {
   accessTokenFor,
   buildSessionBody,
@@ -38,7 +39,6 @@ import {
   retentionViewOf,
   type RetentionView,
 } from '../retention/retention.service';
-import { INVITE_RESEND_COOLDOWN_MS, sendInvite } from '../team/team.service';
 import { accountWhatsApp } from '../whatsapp/whatsapp-admin.service';
 
 import type { AccountLimitsBody, CreateAccountBody, ListAccountsQuery } from './admin.schema';
@@ -87,7 +87,13 @@ export const createAccount = async (req: Request, body: z.infer<typeof CreateAcc
   const duplicate = () =>
     new ConflictError('CONFLICT_DUPLICATE', 'This e-mail already belongs to a user.');
   if (await UserModel.exists({ email })) throw duplicate();
-  const token = randomToken();
+  const issues = validatePasswordPolicy(
+    body.ownerPassword,
+    { email, name: body.ownerName },
+    'body.ownerPassword',
+  );
+  if (issues.length) throw new ValidationError(issues);
+  const passwordHash = await hashPassword(body.ownerPassword);
   const now = new Date();
   let made: { account: AccountDoc; owner: UserDoc };
   try {
@@ -113,14 +119,10 @@ export const createAccount = async (req: Request, body: z.infer<typeof CreateAcc
             name: body.ownerName,
             email,
             phone: body.ownerPhone ?? null,
-            passwordHash: null,
-            status: 'invited',
-            invite: {
-              tokenHash: hmacToken(token),
-              expiresAt: new Date(now.getTime() + INVITE_TTL_MS),
-              invitedBy: new Types.ObjectId(requireAuth(req).userId),
-              lastSentAt: now,
-            },
+            passwordHash,
+            passwordChangedAt: now,
+            status: 'active',
+            emailVerifiedAt: now,
           },
         ],
         { session },
@@ -134,44 +136,52 @@ export const createAccount = async (req: Request, body: z.infer<typeof CreateAcc
     if ((err as { code?: number }).code === 11000) throw duplicate();
     throw err;
   }
-  await sendInvite(
-    made.owner,
-    { inviterName: APP_NAME, accountName: made.account.name, roleName: 'Owner' },
-    token,
-  );
   await auditBothSides(req, made.account, 'account.created');
   return toPublicAccount(made.account);
 };
 
-/** A new link for an owner who hasn't accepted yet (the old one stops working). */
-export const resendOwnerInvite = async (req: Request, id: string): Promise<void> => {
+/**
+ * Sets the owner's password. Their sessions end at once. An owner invited earlier becomes active,
+ * and the old invitation link stops working.
+ */
+export const setOwnerPassword = async (
+  req: Request,
+  id: string,
+  password: string,
+): Promise<void> => {
   const account = await findCustomerAccount(id);
   const owner = account.ownerId ? await UserModel.findById(account.ownerId).lean<UserDoc>() : null;
-  if (owner?.status !== 'invited' || !owner.invite) {
-    throw new ConflictError('CONFLICT_INVALID_STATE', 'The owner has no pending invitation.');
-  }
-  const since = Date.now() - owner.invite.lastSentAt.getTime();
-  if (since < INVITE_RESEND_COOLDOWN_MS) {
-    throw new TooManyAttemptsError((INVITE_RESEND_COOLDOWN_MS - since) / 1000);
-  }
-  const token = randomToken();
+  if (!owner) throw new ConflictError('CONFLICT_INVALID_STATE', 'This account has no owner.');
+  const issues = validatePasswordPolicy(
+    password,
+    { email: owner.email, name: owner.name },
+    'body.password',
+  );
+  if (issues.length) throw new ValidationError(issues);
   const now = new Date();
   await UserModel.updateOne(
     { _id: owner._id },
     {
       $set: {
-        'invite.tokenHash': hmacToken(token),
-        'invite.expiresAt': new Date(now.getTime() + INVITE_TTL_MS),
-        'invite.lastSentAt': now,
+        passwordHash: await hashPassword(password),
+        passwordChangedAt: now,
+        ...(owner.status === 'invited'
+          ? { status: 'active', emailVerifiedAt: owner.emailVerifiedAt ?? now }
+          : {}),
       },
+      $inc: { tokenVersion: 1 },
+      ...(owner.status === 'invited' ? { $unset: { invite: '' } } : {}),
     },
   );
-  await sendInvite(
-    owner,
-    { inviterName: APP_NAME, accountName: account.name, roleName: 'Owner' },
-    token,
+  await revokeAllForUser(owner._id, 'password_changed');
+  notifyUser(
+    account._id.toString(),
+    owner._id.toString(),
+    'session.revoked',
+    { reason: 'password_changed' },
+    { close: true },
   );
-  await auditBothSides(req, account, 'team.invite_resent');
+  await auditBothSides(req, account, 'auth.password_reset');
 };
 
 export const listAccounts = async (query: z.infer<typeof ListAccountsQuery>) => {

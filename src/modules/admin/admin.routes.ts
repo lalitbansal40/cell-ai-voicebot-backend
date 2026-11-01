@@ -17,6 +17,7 @@ import {
   AccountIdParams,
   AccountLimitsBody,
   CreateAccountBody,
+  SetOwnerPasswordBody,
   ListAccountsQuery,
   RetentionCapBody,
   SuspendBody,
@@ -28,9 +29,9 @@ import {
   impersonate,
   listAccounts,
   pauseAllCampaigns,
-  resendOwnerInvite,
   resumeAdminPaused,
   setAccountLimits,
+  setOwnerPassword,
   setRetentionCap,
   stopImpersonation,
   suspendAccount,
@@ -72,11 +73,14 @@ export const createAdminRouter = ({
     }),
   );
   router.post(
-    '/accounts/:id/resend-owner-invite',
-    ...handle({ params: AccountIdParams }, async ({ params, req, res }) => {
-      await resendOwnerInvite(req, params.id);
-      noContent(res);
-    }),
+    '/accounts/:id/owner-password',
+    ...handle(
+      { params: AccountIdParams, body: SetOwnerPasswordBody },
+      async ({ params, body, req, res }) => {
+        await setOwnerPassword(req, params.id, body.password);
+        noContent(res);
+      },
+    ),
   );
   router.get(
     '/accounts/:id',
