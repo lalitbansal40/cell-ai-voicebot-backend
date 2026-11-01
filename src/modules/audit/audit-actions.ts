@@ -159,6 +159,8 @@ export const AUDIT_ACTIONS = [
   'sheet_import.deleted',
   'keys.resealed',
   'custom_field.sensitive_changed',
+  'contact.erased',
+  'contacts.bulk_erased',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

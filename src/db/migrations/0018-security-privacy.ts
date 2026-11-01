@@ -1,3 +1,4 @@
+import { syncAllSystemRoles } from '../../modules/rbac/roles.service';
 import type { Migration } from '../migrate';
 import { AccountExportModel } from '../models/account-export.model';
 import { EraseJobModel } from '../models/erase-job.model';
@@ -10,6 +11,7 @@ import { SuppressionModel } from '../models/suppression.model';
 export const securityPrivacyMigration: Migration = {
   name: '0018-security-privacy',
   up: async (db) => {
+    await syncAllSystemRoles(); // contacts.erase for owners and admins
     await SuppressionModel.createIndexes();
     await AccountExportModel.createIndexes();
     await EraseJobModel.createIndexes();
@@ -22,6 +24,9 @@ export const securityPrivacyMigration: Migration = {
     await db.collection('users').updateMany({ mfa: { $exists: false } }, { $set: { mfa: null } });
   },
   down: async (db) => {
+    await db
+      .collection('roles')
+      .updateMany({ isSystem: true }, { $pull: { permissions: 'contacts.erase' } } as never);
     await db
       .collection('customFieldDefinitions')
       .updateMany({}, { $unset: { sensitive: '', sensitiveJob: '' } });

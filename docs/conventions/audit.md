@@ -53,6 +53,8 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `sheet_import.deleted`               | user              | sheet_import        | `name`                                                                                                                        |
 | `keys.resealed`                      | system            | —                   | `moved`, `failed` (counts only)                                                                                               |
 | `custom_field.sensitive_changed`     | user              | custom_field        | `key`, `sensitive`                                                                                                            |
+| `contact.erased`                     | user              | contact             | `stores` (count)                                                                                                              |
+| `contacts.bulk_erased`               | user              | erase_job           | `count`                                                                                                                       |
 | `admin.impersonation_started`        | user (platform)   | account             | `ownerId`, `expiresAt`                                                                                                        |
 | `admin.impersonation_stopped`        | user (platform)   | account             | —                                                                                                                             |
 | `contacts.import_started`            | user              | import_job          | `kind`, `rows`                                                                                                                |

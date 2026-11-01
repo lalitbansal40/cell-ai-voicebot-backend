@@ -28,6 +28,7 @@ import { createContactImportsRouter } from './modules/contact-imports/contact-im
 import { createContactListsRouter } from './modules/contact-lists/contact-lists.routes';
 import { createContactTagsRouter, createContactsRouter } from './modules/contacts/contacts.routes';
 import type { ContactJobs } from './modules/contacts/jobs';
+import { unavailableContactJobs } from './modules/contacts/jobs';
 import { createCustomFieldsRouter } from './modules/custom-fields/custom-fields.routes';
 import { createDevJobsRouter } from './modules/dev-jobs/dev-jobs.routes';
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
@@ -51,6 +52,7 @@ import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
 import { createWebhooksRouter } from './modules/payments/webhooks.routes';
 import { createAfterCallRouter, createOutcomeRulesRouter } from './modules/post-call/rules.routes';
+import { createContactEraseRouter } from './modules/privacy/privacy.routes';
 import { createMessagesRouter } from './modules/public-api/messages.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
@@ -249,6 +251,13 @@ export const createApiRouter = ({
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());
   router.use('/contacts', createOptOutRouter());
+  router.use(
+    '/contacts',
+    createContactEraseRouter({
+      storage: contacts.storage,
+      jobs: contacts.jobs ?? unavailableContactJobs,
+    }),
+  );
   router.use('/contacts', createContactsRouter({ jobs: contacts.jobs }));
   router.use(
     '/contact-exports',

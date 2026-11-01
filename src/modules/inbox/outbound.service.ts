@@ -27,6 +27,7 @@ import {
 import { withTransaction } from '../../db/transaction';
 import { AppError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
+import { isBlockedForOutreach } from '../privacy/suppression';
 import {
   assertMarketingFrequency,
   assertTemplateAllowed,
@@ -73,6 +74,10 @@ export const assertCanSend = async (
   ).lean<WhatsAppChannelDoc>();
   if (!channel || !SENDABLE.has(channel.status)) throw new AppError('WHATSAPP_CHANNEL_NOT_READY');
   if (conversation.blocked) throw new AppError('WHATSAPP_RECIPIENT_BLOCKED');
+  // a template is business-initiated: an opt-out outlives erasure
+  if (!window && (await isBlockedForOutreach(conversation.accountId, [conversation.phoneE164]))) {
+    throw new AppError('WHATSAPP_RECIPIENT_BLOCKED');
+  }
   // templates (Phase 11) are the way to write when the window is closed
   if (window && !isWindowOpen(conversation, now)) {
     throw new AppError('WHATSAPP_WINDOW_CLOSED', undefined, [

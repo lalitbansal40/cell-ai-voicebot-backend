@@ -24,6 +24,7 @@ import {
 import type { SortField } from '../../shared/validation/schemas';
 import { auditRequest } from '../audit/audit.service';
 import { readContactVariables, sealContactVariables, SENSITIVE_MASK } from '../privacy/sensitive';
+import { isBlockedForOutreach, suppressedPhones } from '../privacy/suppression';
 
 import type {
   CONTACT_SORT_FIELDS,
@@ -358,7 +359,9 @@ export const isPhoneOnDnd = async (
   phones: readonly string[],
 ): Promise<boolean> =>
   phones.length > 0 &&
-  Boolean(await DndEntryModel.exists({ accountId, phoneE164: { $in: [...new Set(phones)] } }));
+  (Boolean(await DndEntryModel.exists({ accountId, phoneE164: { $in: [...new Set(phones)] } })) ||
+    // an opt-out or DND of an erased person lives on as a suppression
+    (await isBlockedForOutreach(accountId, phones)));
 
 const isOnDnd = (accountId: Types.ObjectId, phoneE164: string): Promise<boolean> =>
   isPhoneOnDnd(accountId, [phoneE164]);
@@ -381,6 +384,14 @@ export const createContact = async (
   const input = normalizeInput(ctx, body);
   const phoneE164 = input.phoneE164 as string;
   const externalId = (input.set.externalId as string | null | undefined) ?? null;
+  // a person can be added back by hand after a plain erase; never by an API key or after an opt-out
+  const suppression = (await suppressedPhones(ctx.accountId, [phoneE164])).get(phoneE164);
+  if (suppression && (suppression !== 'erased' || requireAuth(req).kind === 'api_key')) {
+    throw new ConflictError(
+      'CONFLICT_INVALID_STATE',
+      "This number was erased or opted out, so it can't be added again.",
+    );
+  }
   await assertNoDuplicates(ctx.accountId, { phoneE164, externalId });
   const listIds = await assertOwnLists(ctx.accountId, body.listIds ?? []);
   const fields = {

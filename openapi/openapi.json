@@ -1203,7 +1203,9 @@
               "sheet_import.created",
               "sheet_import.deleted",
               "keys.resealed",
-              "custom_field.sensitive_changed"
+              "custom_field.sensitive_changed",
+              "contact.erased",
+              "contacts.bulk_erased"
             ]
           },
           "actor": {
@@ -3764,6 +3766,31 @@
           "updatedAt"
         ]
       },
+      "EraseResult": {
+        "type": "object",
+        "properties": {
+          "erased": { "type": "boolean", "enum": [true] },
+          "counts": {
+            "type": "object",
+            "additionalProperties": { "type": "number" },
+            "description": "Rows changed per store"
+          }
+        },
+        "required": ["erased", "counts"]
+      },
+      "EraseJob": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "type": "string", "enum": ["queued", "running", "done", "failed"] },
+          "total": { "type": "number" },
+          "done": { "type": "number" },
+          "retried": { "type": "number" },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": ["id", "status", "total", "done", "retried", "createdAt", "updatedAt"]
+      },
       "DndEntry": {
         "type": "object",
         "properties": {
@@ -6287,7 +6314,8 @@
               "whatsapp.calling_restricted",
               "whatsapp.call_permission_revoked",
               "analytics.reconcile_mismatch",
-              "webhook.endpoint_disabled"
+              "webhook.endpoint_disabled",
+              "contacts.erase_completed"
             ]
           },
           "title": { "type": "string" },
@@ -18704,6 +18732,190 @@
           },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contacts/{id}/erase": {
+      "post": {
+        "tags": ["Privacy"],
+        "summary": "Erase a contact everywhere and keep the number suppressed (contacts.erase)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "string",
+                    "enum": ["ERASE"],
+                    "description": "Type ERASE to confirm"
+                  }
+                },
+                "required": ["confirm"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/EraseResult" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contacts/bulk-erase": {
+      "post": {
+        "tags": ["Privacy"],
+        "summary": "Erase up to 1,000 contacts in the background (contacts.erase)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                    "minItems": 1,
+                    "maxItems": 1000
+                  },
+                  "confirm": {
+                    "type": "string",
+                    "enum": ["ERASE"],
+                    "description": "Type ERASE to confirm"
+                  }
+                },
+                "required": ["ids", "confirm"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/EraseJob" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contacts/erase-jobs/{id}": {
+      "get": {
+        "tags": ["Privacy"],
+        "summary": "Progress of a bulk erase (contacts.erase)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/EraseJob" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

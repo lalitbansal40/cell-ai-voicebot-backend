@@ -238,6 +238,10 @@ export const ERROR_CODES = {
     status: 422,
     message: 'You already have the most webhooks allowed. Remove one first.',
   },
+  CONTACT_ERASE_BLOCKED: {
+    status: 409,
+    message: 'This contact is on a live call. Try again when the call ends.',
+  },
   SENSITIVE_FIELD_NOT_ALLOWED: {
     status: 422,
     message: "A field marked sensitive can't be searched or filtered.",
