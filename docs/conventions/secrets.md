@@ -1,5 +1,7 @@
 # Secrets & Environment Variables Policy
 
+Rotation steps for every secret: [secret-rotation.md](../ops/secret-rotation.md).
+
 ## Naming
 
 - Env vars use `UPPER_SNAKE_CASE`.
