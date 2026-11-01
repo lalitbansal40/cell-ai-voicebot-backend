@@ -39,6 +39,7 @@ import { SEED_CAMPAIGN_NAMES, SEED_CAMPAIGN_SEGMENT, seedCampaigns } from './see
 import { DEMO_CONTACT_COUNT, seedContacts } from './seed-contacts';
 import { SEED_FLOW_NAMES, seedFlows } from './seed-flows';
 import { seedInbox } from './seed-inbox';
+import { seedIntegrations } from './seed-integrations';
 import { seedTemplates } from './seed-templates';
 import { SEED_WHATSAPP_NUMBER, seedWhatsApp } from './seed-whatsapp';
 
@@ -185,6 +186,15 @@ const main = async (): Promise<void> => {
         ? `WhatsApp calling: skipped (${demoCallsWa.skipped})`
         : `WhatsApp calling: enabled on the demo number, ${String(demoCallsWa.permissions)} call permissions, ${String(demoCallsWa.calls)} past calls (fake Meta)`,
     );
+
+    const integrations = await seedIntegrations(account._id, {
+      env,
+      ownerId: owner?._id ?? account._id,
+    });
+    console.info(
+      `Integrations: demo API key${integrations.apiKey ? '' : ' (exists)'}, webhook to the dev receiver${integrations.webhook ? '' : ' (exists)'}, ${String(integrations.rules)} new after-the-call rules${integrations.skipped ? ` (${integrations.skipped})` : ''}, paused sheet import${integrations.sheet ? '' : ' (exists)'}`,
+    );
+    if (integrations.apiKey) console.info(`Demo API key (shown once): ${integrations.apiKey}`);
 
     const history = await seedAnalytics(account._id);
     console.info(

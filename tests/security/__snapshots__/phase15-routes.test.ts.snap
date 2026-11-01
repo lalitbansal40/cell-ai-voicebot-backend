@@ -1,0 +1,162 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Phase 15 public API routes (security) > scope × route matrix (each route opens to exactly its scope) 1`] = `
+{
+  "DELETE /api/v1/webhook-endpoints/{id}": [
+    "webhooks:manage",
+  ],
+  "GET /api/v1/api-keys/whoami": [
+    "calls:read",
+    "calls:write",
+    "whatsapp-calls:write",
+    "contacts:read",
+    "contacts:write",
+    "campaigns:read",
+    "campaigns:write",
+    "messages:read",
+    "messages:write",
+    "templates:read",
+    "reports:read",
+    "exports:write",
+    "webhooks:manage",
+  ],
+  "GET /api/v1/calls": [
+    "calls:read",
+  ],
+  "GET /api/v1/calls/{id}": [
+    "calls:read",
+  ],
+  "GET /api/v1/calls/{id}/after-call": [
+    "calls:read",
+  ],
+  "GET /api/v1/calls/{id}/insights": [
+    "calls:read",
+  ],
+  "GET /api/v1/calls/{id}/transcript": [
+    "calls:read",
+  ],
+  "GET /api/v1/campaigns": [
+    "campaigns:read",
+  ],
+  "GET /api/v1/campaigns/{id}": [
+    "campaigns:read",
+  ],
+  "GET /api/v1/campaigns/{id}/contacts": [
+    "campaigns:read",
+  ],
+  "GET /api/v1/campaigns/{id}/runs": [
+    "campaigns:read",
+  ],
+  "GET /api/v1/contacts": [
+    "contacts:read",
+  ],
+  "GET /api/v1/contacts/{id}": [
+    "contacts:read",
+  ],
+  "GET /api/v1/exports/{id}": [
+    "exports:write",
+  ],
+  "GET /api/v1/messages/{id}": [
+    "messages:read",
+  ],
+  "GET /api/v1/reports/agents": [
+    "reports:read",
+  ],
+  "GET /api/v1/reports/calls": [
+    "reports:read",
+  ],
+  "GET /api/v1/reports/campaigns": [
+    "reports:read",
+  ],
+  "GET /api/v1/reports/flows": [
+    "reports:read",
+  ],
+  "GET /api/v1/reports/overview": [
+    "reports:read",
+  ],
+  "GET /api/v1/reports/team": [
+    "reports:read",
+  ],
+  "GET /api/v1/reports/templates": [
+    "reports:read",
+  ],
+  "GET /api/v1/reports/whatsapp": [
+    "reports:read",
+  ],
+  "GET /api/v1/webhook-endpoints": [
+    "webhooks:manage",
+  ],
+  "GET /api/v1/webhook-endpoints/{id}": [
+    "webhooks:manage",
+  ],
+  "GET /api/v1/webhook-endpoints/{id}/deliveries": [
+    "webhooks:manage",
+  ],
+  "GET /api/v1/whatsapp/templates": [
+    "templates:read",
+  ],
+  "PATCH /api/v1/contacts/{id}": [
+    "contacts:write",
+  ],
+  "PATCH /api/v1/webhook-endpoints/{id}": [
+    "webhooks:manage",
+  ],
+  "POST /api/v1/calls": [
+    "calls:write",
+  ],
+  "POST /api/v1/campaigns": [
+    "campaigns:write",
+  ],
+  "POST /api/v1/campaigns/{id}/cancel": [
+    "campaigns:write",
+  ],
+  "POST /api/v1/campaigns/{id}/pause": [
+    "campaigns:write",
+  ],
+  "POST /api/v1/campaigns/{id}/resume": [
+    "campaigns:write",
+  ],
+  "POST /api/v1/campaigns/{id}/start": [
+    "campaigns:write",
+  ],
+  "POST /api/v1/contacts": [
+    "contacts:write",
+  ],
+  "POST /api/v1/contacts/bulk-upsert": [
+    "contacts:write",
+  ],
+  "POST /api/v1/exports/calls": [
+    "exports:write",
+  ],
+  "POST /api/v1/exports/messages": [
+    "exports:write",
+  ],
+  "POST /api/v1/exports/report": [
+    "exports:write",
+  ],
+  "POST /api/v1/messages/template": [
+    "messages:write",
+  ],
+  "POST /api/v1/messages/text": [
+    "messages:write",
+  ],
+  "POST /api/v1/webhook-deliveries/{id}/replay": [
+    "webhooks:manage",
+  ],
+  "POST /api/v1/webhook-endpoints": [
+    "webhooks:manage",
+  ],
+  "POST /api/v1/webhook-endpoints/{id}/enable": [
+    "webhooks:manage",
+  ],
+  "POST /api/v1/webhook-endpoints/{id}/rotate-secret": [
+    "webhooks:manage",
+  ],
+  "POST /api/v1/webhook-endpoints/{id}/test": [
+    "webhooks:manage",
+  ],
+  "POST /api/v1/whatsapp/calls": [
+    "whatsapp-calls:write",
+  ],
+}
+`;

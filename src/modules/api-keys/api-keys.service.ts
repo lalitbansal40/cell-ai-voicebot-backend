@@ -15,7 +15,7 @@ import { sha256Hex } from '../auth/hmac';
 
 export const MAX_ACTIVE_KEYS = 20;
 const BASE62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-const PREFIX_LENGTH = 13;
+export const PREFIX_LENGTH = 13;
 
 /** `cav_live_` (production) / `cav_test_` + 32 base62 chars (~190 bits). */
 export const generateApiKey = (production = getEnv().NODE_ENV === 'production'): string => {
