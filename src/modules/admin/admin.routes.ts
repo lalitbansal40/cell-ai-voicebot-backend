@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import type { Env } from '../../config/env';
 import type { AiProvider } from '../../core/ai/types';
-import { noContent, ok } from '../../shared/http/envelope';
+import { created, noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { requirePlatformAdmin } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
@@ -16,16 +16,19 @@ import {
   AccountCampaignParams,
   AccountIdParams,
   AccountLimitsBody,
+  CreateAccountBody,
   ListAccountsQuery,
   RetentionCapBody,
   SuspendBody,
 } from './admin.schema';
 import {
   accountDetail,
+  createAccount,
   enableAccount,
   impersonate,
   listAccounts,
   pauseAllCampaigns,
+  resendOwnerInvite,
   resumeAdminPaused,
   setAccountLimits,
   setRetentionCap,
@@ -60,6 +63,19 @@ export const createAdminRouter = ({
     ...handle({ query: ListAccountsQuery }, async ({ query, res }) => {
       const { items, meta } = await listAccounts(query);
       ok(res, items, meta);
+    }),
+  );
+  router.post(
+    '/accounts',
+    ...handle({ body: CreateAccountBody }, async ({ body, req, res }) => {
+      created(res, await createAccount(req, body));
+    }),
+  );
+  router.post(
+    '/accounts/:id/resend-owner-invite',
+    ...handle({ params: AccountIdParams }, async ({ params, req, res }) => {
+      await resendOwnerInvite(req, params.id);
+      noContent(res);
     }),
   );
   router.get(
