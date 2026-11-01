@@ -4,7 +4,7 @@ import { basePlugin } from '../plugins/base';
 import { tenantPlugin } from '../plugins/tenant';
 
 /** `whatsapp` = the customer sent an opt-out keyword on WhatsApp (an opt-in keyword removes only these). */
-export const DND_SOURCES = ['manual', 'upload', 'keyword', 'dtmf', 'whatsapp'] as const;
+export const DND_SOURCES = ['manual', 'upload', 'keyword', 'dtmf', 'whatsapp', 'voice'] as const;
 export type DndSource = (typeof DND_SOURCES)[number];
 
 export interface DndEntryDoc {

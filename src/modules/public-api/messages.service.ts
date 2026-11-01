@@ -133,7 +133,13 @@ export const sendTemplateMessage = async (
     },
     { origin: originOf(req), externalRef: body.externalRef ?? null },
   );
-  return { message: apiMessageView(r.message), created: r.created };
+  return {
+    message: {
+      ...apiMessageView(r.message),
+      ...(r.warnings?.length ? { warnings: r.warnings } : {}),
+    },
+    created: r.created,
+  };
 };
 
 /** `POST /messages/text` — inside the 24-hour window only (409 WHATSAPP_WINDOW_CLOSED). */

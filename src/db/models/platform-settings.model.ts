@@ -3,7 +3,11 @@ import mongoose, { Schema, type Model, type Types } from 'mongoose';
 import { WHATSAPP_BILLING_LIMITS, WHATSAPP_CALL_LIMITS } from '../../config/limits';
 import { basePlugin } from '../plugins/base';
 
-export const PLATFORM_SETTING_KEYS = ['whatsappBilling', 'whatsappCalling'] as const;
+export const PLATFORM_SETTING_KEYS = [
+  'whatsappBilling',
+  'whatsappCalling',
+  'callingWindowCeiling',
+] as const;
 export type PlatformSettingKey = (typeof PLATFORM_SETTING_KEYS)[number];
 
 /** Global WhatsApp price settings (superadmin). Accounts may override them. */
@@ -41,7 +45,19 @@ export const DEFAULT_WHATSAPP_CALLING_SETTINGS: WhatsAppCallingSettings = {
   holdExtendMinutes: WHATSAPP_CALL_LIMITS.holdExtendMinutes,
 };
 
+/** The widest calling hours an account may save (a value to confirm with the client). */
+export interface CallingWindowCeiling {
+  start: string;
+  end: string;
+}
+
+export const DEFAULT_CALLING_WINDOW_CEILING: CallingWindowCeiling = {
+  start: '08:00',
+  end: '19:00',
+};
+
 export interface PlatformSettingsValues {
+  callingWindowCeiling: CallingWindowCeiling;
   whatsappBilling: WhatsAppBillingSettings;
   whatsappCalling: WhatsAppCallingSettings;
 }
@@ -58,24 +74,35 @@ export interface PlatformSettingsDoc<K extends PlatformSettingKey = PlatformSett
 type Range = readonly [min: number, max: number];
 
 /** Allowed whole-number range of every field, per key. */
-const VALUE_RANGES: { [K in PlatformSettingKey]: Record<keyof PlatformSettingsValues[K], Range> } =
-  {
-    whatsappBilling: {
-      markupBps: [0, 100_000],
-      platformFeeMicros: [0, Number.MAX_SAFE_INTEGER],
-      holdMaxAgeHours: [1, 24 * 30],
-    },
-    whatsappCalling: {
-      markupBps: [0, 100_000],
-      platformFeePerMinuteMicros: [0, Number.MAX_SAFE_INTEGER],
-      holdMinutes: [1, 60],
-      holdExtendMinutes: [1, 60],
-    },
-  };
+const VALUE_RANGES: {
+  [K in Exclude<PlatformSettingKey, 'callingWindowCeiling'>]: Record<
+    keyof PlatformSettingsValues[K],
+    Range
+  >;
+} = {
+  whatsappBilling: {
+    markupBps: [0, 100_000],
+    platformFeeMicros: [0, Number.MAX_SAFE_INTEGER],
+    holdMaxAgeHours: [1, 24 * 30],
+  },
+  whatsappCalling: {
+    markupBps: [0, 100_000],
+    platformFeePerMinuteMicros: [0, Number.MAX_SAFE_INTEGER],
+    holdMinutes: [1, 60],
+    holdExtendMinutes: [1, 60],
+  },
+};
 
 /** Problems of a settings value for its key (empty = valid). */
 export const platformSettingProblems = (key: unknown, value: unknown): string[] => {
-  const ranges = VALUE_RANGES[key as PlatformSettingKey] as Record<string, Range> | undefined;
+  if (key === 'callingWindowCeiling') {
+    const w = value as Partial<CallingWindowCeiling> | null;
+    return typeof w?.start === 'string' && typeof w.end === 'string'
+      ? []
+      : ['A window is required'];
+  }
+  const ranges = VALUE_RANGES[key as keyof typeof VALUE_RANGES] as
+    Record<string, Range> | undefined;
   if (!ranges) return ['Unknown setting'];
   if (!value || typeof value !== 'object') return ['A value is required'];
   const v = value as Record<string, unknown>;

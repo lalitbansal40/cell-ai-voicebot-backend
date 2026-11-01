@@ -8,6 +8,7 @@ import { requireAuth } from '../../shared/auth/auth-context';
 import { ForbiddenError, NotFoundError } from '../../shared/errors/app-error';
 import { auditRequest } from '../audit/audit.service';
 import { toPublicAccount, type PublicAccount } from '../auth/session';
+import { assertWindowWithinCeiling } from '../compliance/compliance.service';
 
 import type { CALLING_WINDOW_WARNINGS, UpdateAccountBody } from './account.schema';
 
@@ -44,6 +45,7 @@ export const updateAccount = async (
   if (body.settings?.callCaps && !['owner', 'admin'].includes(auth.roleKey ?? '')) {
     throw new ForbiddenError('Only owners and admins can change the call limits.');
   }
+  if (body.settings?.callingWindow) await assertWindowWithinCeiling(body.settings.callingWindow);
   const $set: Record<string, unknown> = {};
   for (const key of ['name', 'timezone', 'country', 'defaultLanguage'] as const) {
     if (body[key] !== undefined) $set[key] = body[key];

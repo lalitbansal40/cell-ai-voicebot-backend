@@ -109,7 +109,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('has 127 audit actions incl. the nine Phase 12 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(159); // + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2; Phase 16: T16.3 1, T16.4 1, T16.5 2, T16.6 5
+    expect(AUDIT_ACTIONS).toHaveLength(161); // + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2; Phase 16: T16.3 1, T16.4 1, T16.5 2, T16.6 5, T16.7 2
     expect(AUDIT_ACTIONS.slice(118, 127)).toEqual([
       'whatsapp.calling_settings_updated',
       'whatsapp.call_permission_requested',
@@ -266,7 +266,11 @@ describe('Phase 12 catalogue', () => {
     expect(WEEK_DAYS).toHaveLength(7);
     expect(CALL_AVAILABILITY).toEqual(['available', 'busy', 'offline']);
     expect(RATE_CARD_KINDS).toEqual(['messaging', 'calling']);
-    expect(PLATFORM_SETTING_KEYS).toEqual(['whatsappBilling', 'whatsappCalling']);
+    expect(PLATFORM_SETTING_KEYS).toEqual([
+      'whatsappBilling',
+      'whatsappCalling',
+      'callingWindowCeiling',
+    ]);
   });
 
   it('owner defaults (plan §7, defaults in use)', () => {

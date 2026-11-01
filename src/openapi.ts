@@ -25,6 +25,7 @@ import './modules/contacts/bulk.schema';
 import './modules/contacts/contacts.schema';
 import './modules/custom-fields/custom-fields.schema';
 import './modules/privacy/privacy.schema';
+import './modules/compliance/compliance.schema';
 import './modules/dnd/dnd.schema';
 import './modules/flow-audio/flow-audio.schema';
 import './modules/flows/flows.schema';

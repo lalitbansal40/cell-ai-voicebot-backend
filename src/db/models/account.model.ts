@@ -117,6 +117,8 @@ export interface AccountSettings {
   /** Said at the start of every recorded call (Phase 7). */
   recordingNotice: string;
   aiDisclosureEnabled: boolean;
+  /** Marketing template without recorded consent: refuse (true) or warn (false, default). */
+  requireOptInForMarketing?: boolean;
   inbox: AccountInboxSettings;
   /** Phase 11 — absent on accounts created before migration 0012. */
   templates?: AccountTemplateSettings;
@@ -337,6 +339,7 @@ const schema = new Schema<AccountDoc>({
       maxlength: CALL_LIMITS.recordingNoticeMaxChars,
     },
     aiDisclosureEnabled: { type: Boolean, default: true },
+    requireOptInForMarketing: { type: Boolean, default: false },
     inbox: {
       sendReadReceipts: { type: Boolean, default: DEFAULT_INBOX_SETTINGS.sendReadReceipts },
       optOutKeywords: {

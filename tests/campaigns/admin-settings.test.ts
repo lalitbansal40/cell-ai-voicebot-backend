@@ -248,7 +248,7 @@ describe('Settings → call caps + calling window warning (T8.6)', () => {
 
   it('warns when the calling window leaves the TRAI / RBI hours', async () => {
     const res = await patch(owner, {
-      settings: { callingWindow: { start: '08:30', end: '20:00', days: [1, 2, 3] } },
+      settings: { callingWindow: { start: '08:30', end: '19:00', days: [1, 2, 3] } },
     });
     expect(res.body.data.callingWindowWarning).toBe('outside_trai');
     const get = await request(app).get('/api/v1/account').set(auth(owner));

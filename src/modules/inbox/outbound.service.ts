@@ -8,6 +8,7 @@ import type { PriceCategory } from '../../core/billing/whatsapp';
 import { REACTIONS_BILLABLE } from '../../core/meta';
 import { storageKey } from '../../core/storage/keys';
 import { isDuplicateKeyError } from '../../db/errors';
+import { AccountModel } from '../../db/models/account.model';
 import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import { ConversationModel, type ConversationDoc } from '../../db/models/conversation.model';
 import { InboxUploadModel, type InboxUploadDoc } from '../../db/models/inbox-upload.model';
@@ -63,6 +64,24 @@ const bad = (path: string, message: string) => new ValidationError([{ path, mess
 /** The 24-hour window: free-form messages only while it is open. */
 export const isWindowOpen = (c: Pick<ConversationDoc, 'windowExpiresAt'>, now: Date): boolean =>
   Boolean(c.windowExpiresAt && c.windowExpiresAt > now);
+
+/** Marketing without recorded consent: a warning, or a refusal with `requireOptInForMarketing`. */
+export const consentWarnings = async (
+  accountId: Types.ObjectId,
+  contact: Pick<ContactDoc, 'consent'>,
+  category: string,
+): Promise<string[]> => {
+  if (category !== 'MARKETING' || contact.consent) return [];
+  const account = await AccountModel.findById(accountId)
+    .select({ 'settings.requireOptInForMarketing': 1 })
+    .lean<{ settings?: { requireOptInForMarketing?: boolean } }>();
+  if (account?.settings?.requireOptInForMarketing) {
+    throw new AppError('TEMPLATE_MARKETING_BLOCKED', undefined, [
+      { path: 'contact', message: 'no_consent' },
+    ]);
+  }
+  return ['no_consent'];
+};
 
 export const assertCanSend = async (
   conversation: ConversationDoc,
@@ -144,6 +163,8 @@ const cardOf = (c: ContactDoc): MessageContactCard => ({
 });
 
 interface Built {
+  /** Shown to the sender; the message still goes. */
+  warnings?: string[];
   content: NormalizedContent;
   uploads: InboxUploadDoc[];
   reactionTarget: MessageDoc | null;
@@ -382,6 +403,7 @@ const buildTemplateContent = async (
   if (template.category === 'MARKETING') {
     await assertMarketingFrequency(actor.accountId, contact._id, now);
   }
+  const warnings = await consentWarnings(actor.accountId, contact, template.category);
   const prepared = await prepareTemplateSend({ template, contact, variables: input.variables });
   const uploads: InboxUploadDoc[] = [];
   let media: MessageMedia | null = null;
@@ -444,6 +466,7 @@ const buildTemplateContent = async (
     uploads,
     reactionTarget: null,
     prepared,
+    warnings,
   };
 };
 
@@ -542,7 +565,7 @@ export const sendMessage = async (
     origin?: Extract<MessageOrigin, 'agent' | 'api' | 'system'>;
     externalRef?: string | null;
   } = {},
-): Promise<{ message: MessageDoc; created: boolean }> => {
+): Promise<{ message: MessageDoc; created: boolean; warnings?: string[] }> => {
   const conversation = await ConversationModel.findOne({
     _id: new Types.ObjectId(conversationId),
     accountId: actor.accountId,
@@ -669,7 +692,7 @@ export const sendMessage = async (
   }
   await announce(conversation, message, { replyTo: reply.target, userId: actor.userId });
   await ix.jobs.enqueueSend(message._id.toString());
-  return { message, created: true };
+  return { message, created: true, warnings: built.warnings ?? [] };
 };
 
 /** A failed outgoing message sent again as a new message (`retryOf`), window re-checked. */

@@ -235,8 +235,9 @@ export const createInboxRouter = (deps: InboxRouterDeps): Router => {
         const actor = actorOf(req);
         const r = await sendMessage(ix(), actor, params.id, body);
         const [view] = await messageViews(actor, [r.message]);
-        if (r.created) created(res, view);
-        else ok(res, view);
+        const out = r.warnings?.length ? { ...view, warnings: r.warnings } : view;
+        if (r.created) created(res, out);
+        else ok(res, out);
       },
     ),
   );

@@ -23,6 +23,10 @@ import {
   createCampaignsRouter,
   type CampaignsRouterDeps,
 } from './modules/campaigns/campaigns.routes';
+import {
+  createAdminComplianceRouter,
+  createComplianceRouter,
+} from './modules/compliance/compliance.routes';
 import { createContactExportsRouter } from './modules/contact-exports/contact-exports.routes';
 import { createContactImportsRouter } from './modules/contact-imports/contact-imports.routes';
 import { createContactListsRouter } from './modules/contact-lists/contact-lists.routes';
@@ -233,6 +237,8 @@ export const createApiRouter = ({
     }),
   );
   router.use('/account', createAccountInsightsRouter());
+  router.use('/account', createComplianceRouter());
+  router.use('/admin', createAdminComplianceRouter());
   router.use('/account', createRetentionRouter());
   router.use('/account', createAccountRouter());
   router.use('/inbox', createChatSummaryRouter({ jobs: ai.jobs ?? unavailableAiJobs }));

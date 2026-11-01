@@ -1219,7 +1219,9 @@
               "account.export_downloaded",
               "account.delete_requested",
               "account.delete_canceled",
-              "account.purged"
+              "account.purged",
+              "compliance.exported",
+              "compliance.ceiling_changed"
             ]
           },
           "actor": {
@@ -3838,6 +3840,51 @@
         },
         "required": ["id", "status", "total", "done", "retried", "createdAt", "updatedAt"]
       },
+      "Compliance": {
+        "type": "object",
+        "properties": {
+          "callingWindow": {
+            "type": "object",
+            "properties": {
+              "start": { "type": "string" },
+              "end": { "type": "string" },
+              "days": { "type": "array", "items": { "type": "number" } }
+            },
+            "required": ["start", "end", "days"]
+          },
+          "ceiling": {
+            "type": "object",
+            "properties": { "start": { "type": "string" }, "end": { "type": "string" } },
+            "required": ["start", "end"]
+          },
+          "timezone": { "type": "string" },
+          "aiDisclosureEnabled": { "type": "boolean" },
+          "recordingEnabled": { "type": "boolean" },
+          "requireOptInForMarketing": { "type": "boolean" },
+          "optOutKeywords": { "type": "array", "items": { "type": "string" } },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "contacts": { "type": "number" },
+              "withConsent": { "type": "number" },
+              "dnd": { "type": "number" },
+              "optedOut": { "type": "number" },
+              "suppressed": { "type": "number" }
+            },
+            "required": ["contacts", "withConsent", "dnd", "optedOut", "suppressed"]
+          }
+        },
+        "required": [
+          "callingWindow",
+          "ceiling",
+          "timezone",
+          "aiDisclosureEnabled",
+          "recordingEnabled",
+          "requireOptInForMarketing",
+          "optOutKeywords",
+          "counts"
+        ]
+      },
       "DndEntry": {
         "type": "object",
         "properties": {
@@ -3846,7 +3893,7 @@
           "reason": { "type": ["string", "null"] },
           "source": {
             "type": "string",
-            "enum": ["manual", "upload", "keyword", "dtmf", "whatsapp"]
+            "enum": ["manual", "upload", "keyword", "dtmf", "whatsapp", "voice"]
           },
           "addedBy": { "type": ["string", "null"] },
           "createdAt": { "type": "string" }
@@ -9363,7 +9410,11 @@
                       },
                       "recordingEnabled": { "type": "boolean" },
                       "recordingNotice": { "type": "string", "minLength": 1, "maxLength": 200 },
-                      "aiDisclosureEnabled": { "type": "boolean" }
+                      "aiDisclosureEnabled": { "type": "boolean" },
+                      "requireOptInForMarketing": {
+                        "type": "boolean",
+                        "description": "Refuse marketing templates to contacts with no recorded consent"
+                      }
                     },
                     "additionalProperties": false
                   }
@@ -19367,6 +19418,150 @@
           },
           "409": {
             "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/compliance": {
+      "get": {
+        "tags": ["Compliance"],
+        "summary": "The calling, consent and opt-out rules in force, with counts (account.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Compliance" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/account/compliance/export": {
+      "get": {
+        "tags": ["Compliance"],
+        "summary": "CSV of DND and opt-out changes; phones masked without contacts.export (account.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": { "text/csv": { "schema": { "type": "string" } } }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/compliance/ceiling": {
+      "get": {
+        "tags": ["Compliance"],
+        "summary": "The widest calling window an account may save (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                        "end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                      },
+                      "required": ["start", "end"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Compliance"],
+        "summary": "Change the widest calling window an account may save (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                  "end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                },
+                "required": ["start", "end"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                        "end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }
+                      },
+                      "required": ["start", "end"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

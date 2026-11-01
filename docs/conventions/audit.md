@@ -60,6 +60,8 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `account.delete_requested`           | user              | account             | `scheduledFor`                                                                                                                |
 | `account.delete_canceled`            | user              | account             | —                                                                                                                             |
 | `account.purged`                     | system            | account             | `contacts` (count)                                                                                                            |
+| `compliance.exported`                | user              | account             | `rows` (count)                                                                                                                |
+| `compliance.ceiling_changed`         | user (platform)   | platform_setting    | `start`, `end`                                                                                                                |
 | `admin.impersonation_started`        | user (platform)   | account             | `ownerId`, `expiresAt`                                                                                                        |
 | `admin.impersonation_stopped`        | user (platform)   | account             | —                                                                                                                             |
 | `contacts.import_started`            | user              | import_job          | `kind`, `rows`                                                                                                                |

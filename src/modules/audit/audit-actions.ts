@@ -166,6 +166,8 @@ export const AUDIT_ACTIONS = [
   'account.delete_requested',
   'account.delete_canceled',
   'account.purged',
+  'compliance.exported',
+  'compliance.ceiling_changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

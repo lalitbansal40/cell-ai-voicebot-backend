@@ -68,6 +68,9 @@ export const UpdateAccountBody = z
           .max(CALL_LIMITS.recordingNoticeMaxChars)
           .optional(),
         aiDisclosureEnabled: z.boolean().optional(),
+        requireOptInForMarketing: z.boolean().optional().openapi({
+          description: 'Refuse marketing templates to contacts with no recorded consent',
+        }),
       })
       .optional(),
   })
