@@ -3,11 +3,16 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { AccountModel } from '../../src/db/models/account.model';
 import { AuditLogModel } from '../../src/db/models/audit-log.model';
+import { RoleModel } from '../../src/db/models/role.model';
+import { UserModel } from '../../src/db/models/user.model';
+import { WalletModel } from '../../src/db/models/wallet.model';
 import { createTestAccount, tokenFor, type TestAccount, type TestUser } from '../helpers/auth';
 import { useTestDb } from '../helpers/db';
+import { lastEmail, useCapturedEmail } from '../helpers/email';
 import { buildTestApp } from '../helpers/test-app';
 
 useTestDb();
+const sent = useCapturedEmail();
 const app = buildTestApp();
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
@@ -259,5 +264,102 @@ describe('impersonation', () => {
         )
       ).status,
     ).toBe(409);
+  });
+});
+
+describe('POST /admin/accounts (superadmin creates an account)', () => {
+  const body = {
+    businessName: 'Manual Finance',
+    ownerName: 'Meera Shah',
+    ownerEmail: 'Meera.Manual@Example.com',
+  };
+
+  it('creates the account, wallet and an invited owner; the invite link sets the password', async () => {
+    const res = await as(superadmin.token).post('/api/v1/admin/accounts', body);
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({ name: 'Manual Finance', status: 'active' });
+    const id = res.body.data.id as string;
+
+    const user = await UserModel.findOne({ email: 'meera.manual@example.com' })
+      .select('+passwordHash')
+      .lean();
+    expect(user).toMatchObject({ status: 'invited', name: 'Meera Shah', passwordHash: null });
+    expect((await AccountModel.findById(id).lean())?.ownerId?.toString()).toBe(
+      user?._id.toString(),
+    );
+    expect(await WalletModel.exists({ accountId: id })).toBeTruthy();
+    const role = await RoleModel.findById(user?.roleId).lean();
+    expect(role?.key).toBe('owner');
+
+    const mail = lastEmail(sent, 'team.invite', 'meera.manual@example.com');
+    expect(mail?.vars).toMatchObject({ inviterName: 'NotifyNow', roleName: 'Owner' });
+    const token = new URL(String(mail?.vars.acceptUrl)).searchParams.get('token');
+    const accepted = await request(app)
+      .post('/api/v1/auth/accept-invite')
+      .send({ token, password: 'blue-tiger-river-42' });
+    expect(accepted.status).toBe(200);
+    expect(accepted.body.data.user.status).toBe('active');
+    expect(accepted.body.data.account.id).toBe(id);
+
+    const audit = await AuditLogModel.find({ action: 'account.created', 'target.id': id }).lean();
+    expect(audit.map((a) => a.accountId.toString()).sort()).toEqual(
+      [id, platform.account._id.toString()].sort(),
+    );
+    expect(JSON.stringify(audit)).not.toContain('meera');
+  });
+
+  it('refuses a used e-mail (409), bad input (422) and non-superadmins (403)', async () => {
+    const taken = await as(superadmin.token).post('/api/v1/admin/accounts', {
+      ...body,
+      ownerEmail: owner.user.email,
+    });
+    expect(taken.status).toBe(409);
+    expect(taken.body.error.code).toBe('CONFLICT_DUPLICATE');
+    expect(
+      (await as(superadmin.token).post('/api/v1/admin/accounts', { businessName: 'x' })).status,
+    ).toBe(422);
+    expect((await as(owner.token).post('/api/v1/admin/accounts', body)).status).toBe(403);
+    expect((await request(app).post('/api/v1/admin/accounts').send(body)).status).toBe(401);
+  });
+
+  it('resends the owner invitation: new link, cooldown, none once accepted', async () => {
+    const res = await as(superadmin.token).post('/api/v1/admin/accounts', {
+      ...body,
+      ownerEmail: 'resend-owner@example.com',
+    });
+    const id = res.body.data.id as string;
+    const url = `/api/v1/admin/accounts/${id}/resend-owner-invite`;
+    const first = String(
+      lastEmail(sent, 'team.invite', 'resend-owner@example.com')?.vars.acceptUrl,
+    );
+
+    expect((await as(superadmin.token).post(url)).status).toBe(429);
+    await UserModel.updateOne(
+      { email: 'resend-owner@example.com' },
+      { $set: { 'invite.lastSentAt': new Date(Date.now() - 120_000) } },
+    );
+    expect((await as(superadmin.token).post(url)).status).toBe(204);
+    const second = String(
+      lastEmail(sent, 'team.invite', 'resend-owner@example.com')?.vars.acceptUrl,
+    );
+    expect(second).not.toBe(first);
+
+    const tokenOf = (u: string) => new URL(u).searchParams.get('token');
+    expect(
+      (
+        await request(app)
+          .post('/api/v1/auth/accept-invite')
+          .send({ token: tokenOf(first), password: 'blue-tiger-river-42' })
+      ).status,
+    ).not.toBe(200);
+    expect(
+      (
+        await request(app)
+          .post('/api/v1/auth/accept-invite')
+          .send({ token: tokenOf(second), password: 'blue-tiger-river-42' })
+      ).status,
+    ).toBe(200);
+    expect((await as(superadmin.token).post(url)).status).toBe(409);
+    expect((await as(owner.token).post(url)).status).toBe(403);
   });
 });

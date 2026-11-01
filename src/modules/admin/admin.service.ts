@@ -1,7 +1,9 @@
 import type { Request } from 'express';
-import type { Types } from 'mongoose';
+import { Types } from 'mongoose';
 import type { z } from 'zod';
 
+import { createWallet } from '../../core/billing/wallets';
+import { APP_NAME } from '../../core/email/templates/layout';
 import { notifyAccount } from '../../core/realtime/notify';
 import { AccountModel, type AccountDoc } from '../../db/models/account.model';
 import { AuditLogModel, type AuditLogDoc } from '../../db/models/audit-log.model';
@@ -12,13 +14,15 @@ import {
 } from '../../db/models/campaign.model';
 import { RoleModel, type RoleDoc } from '../../db/models/role.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
+import { withTransaction } from '../../db/transaction';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { toObjectId } from '../../shared/auth/tenant';
-import { ConflictError, NotFoundError } from '../../shared/errors/app-error';
+import { ConflictError, NotFoundError, TooManyAttemptsError } from '../../shared/errors/app-error';
+import { uniqueSlug } from '../account/slug';
 import type { AuditAction } from '../audit/audit-actions';
 import { recordAudit } from '../audit/audit.service';
-import { IMPERSONATION_TTL } from '../auth/auth.constants';
-import { randomToken } from '../auth/hmac';
+import { IMPERSONATION_TTL, INVITE_TTL_MS } from '../auth/auth.constants';
+import { hmacToken, randomToken } from '../auth/hmac';
 import {
   accessTokenFor,
   buildSessionBody,
@@ -28,14 +32,16 @@ import {
 } from '../auth/session';
 import { resumeCampaignDoc } from '../campaigns/campaigns.service';
 import { pauseAccountCampaigns } from '../campaigns/jobs';
+import { syncSystemRoles } from '../rbac/roles.service';
 import {
   assertRetentionCap,
   retentionViewOf,
   type RetentionView,
 } from '../retention/retention.service';
+import { INVITE_RESEND_COOLDOWN_MS, sendInvite } from '../team/team.service';
 import { accountWhatsApp } from '../whatsapp/whatsapp-admin.service';
 
-import type { AccountLimitsBody, ListAccountsQuery } from './admin.schema';
+import type { AccountLimitsBody, CreateAccountBody, ListAccountsQuery } from './admin.schema';
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -70,6 +76,102 @@ const auditBothSides = async (
   };
   await recordAudit({ ...base, accountId: account._id });
   await recordAudit({ ...base, accountId: auth.accountId });
+};
+
+/**
+ * Superadmin: a customer account with its roles, wallet and an invited owner. Nobody
+ * but the owner knows the password — it is set from the e-mailed invitation.
+ */
+export const createAccount = async (req: Request, body: z.infer<typeof CreateAccountBody>) => {
+  const email = body.ownerEmail.trim().toLowerCase();
+  const duplicate = () =>
+    new ConflictError('CONFLICT_DUPLICATE', 'This e-mail already belongs to a user.');
+  if (await UserModel.exists({ email })) throw duplicate();
+  const token = randomToken();
+  const now = new Date();
+  let made: { account: AccountDoc; owner: UserDoc };
+  try {
+    made = await withTransaction(async (session) => {
+      const [account] = await AccountModel.create(
+        [
+          {
+            name: body.businessName,
+            slug: await uniqueSlug(body.businessName, session),
+            ...(body.timezone ? { timezone: body.timezone } : {}),
+          },
+        ],
+        { session },
+      );
+      if (!account) throw new Error('account not created');
+      const roles = await syncSystemRoles(account._id, session);
+      await createWallet(account._id, session);
+      const [owner] = await UserModel.create(
+        [
+          {
+            accountId: account._id,
+            roleId: roles.owner,
+            name: body.ownerName,
+            email,
+            phone: body.ownerPhone ?? null,
+            passwordHash: null,
+            status: 'invited',
+            invite: {
+              tokenHash: hmacToken(token),
+              expiresAt: new Date(now.getTime() + INVITE_TTL_MS),
+              invitedBy: new Types.ObjectId(requireAuth(req).userId),
+              lastSentAt: now,
+            },
+          },
+        ],
+        { session },
+      );
+      if (!owner) throw new Error('user not created');
+      account.ownerId = owner._id;
+      await account.save({ session });
+      return { account: account.toObject({ transform: false }), owner };
+    });
+  } catch (err) {
+    if ((err as { code?: number }).code === 11000) throw duplicate();
+    throw err;
+  }
+  await sendInvite(
+    made.owner,
+    { inviterName: APP_NAME, accountName: made.account.name, roleName: 'Owner' },
+    token,
+  );
+  await auditBothSides(req, made.account, 'account.created');
+  return toPublicAccount(made.account);
+};
+
+/** A new link for an owner who hasn't accepted yet (the old one stops working). */
+export const resendOwnerInvite = async (req: Request, id: string): Promise<void> => {
+  const account = await findCustomerAccount(id);
+  const owner = account.ownerId ? await UserModel.findById(account.ownerId).lean<UserDoc>() : null;
+  if (owner?.status !== 'invited' || !owner.invite) {
+    throw new ConflictError('CONFLICT_INVALID_STATE', 'The owner has no pending invitation.');
+  }
+  const since = Date.now() - owner.invite.lastSentAt.getTime();
+  if (since < INVITE_RESEND_COOLDOWN_MS) {
+    throw new TooManyAttemptsError((INVITE_RESEND_COOLDOWN_MS - since) / 1000);
+  }
+  const token = randomToken();
+  const now = new Date();
+  await UserModel.updateOne(
+    { _id: owner._id },
+    {
+      $set: {
+        'invite.tokenHash': hmacToken(token),
+        'invite.expiresAt': new Date(now.getTime() + INVITE_TTL_MS),
+        'invite.lastSentAt': now,
+      },
+    },
+  );
+  await sendInvite(
+    owner,
+    { inviterName: APP_NAME, accountName: account.name, roleName: 'Owner' },
+    token,
+  );
+  await auditBothSides(req, account, 'team.invite_resent');
 };
 
 export const listAccounts = async (query: z.infer<typeof ListAccountsQuery>) => {

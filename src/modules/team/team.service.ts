@@ -29,7 +29,7 @@ import { startSession, type AuthSession } from '../auth/session';
 
 import type { InviteBody, ListMembersQuery, UpdateMemberBody } from './team.schema';
 
-const INVITE_RESEND_COOLDOWN_MS = 60_000;
+export const INVITE_RESEND_COOLDOWN_MS = 60_000;
 
 export interface TeamMember {
   id: string;
@@ -77,7 +77,7 @@ const findMember = async (req: Request, id: string): Promise<UserDoc> => {
   return user;
 };
 
-const sendInvite = async (
+export const sendInvite = async (
   user: Pick<UserDoc, '_id' | 'email'>,
   ctx: { inviterName: string; accountName: string; roleName: string },
   token: string,
