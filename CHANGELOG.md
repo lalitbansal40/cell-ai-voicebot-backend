@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Superadmin Add account: password instead of invitation** — 2026-11-01
+  - The superadmin sets the owner's password when creating an account; the owner is active at once and no e-mail is sent.
+  - `POST /api/v1/admin/accounts/:id/owner-password` replaces `resend-owner-invite`: it sets a new password and ends the owner's sessions. An owner invited earlier becomes active.
+
 - **Phase 15 · Batch 3 (T15.8–T15.10) — public docs, dev mocks, seeds, perf, security, sign-off** — 2026-11-01
   - `/api/docs` is always served; in production it lists only the Public API routes, with guides from `docs/api/` (`GET /api/v1/openapi.public.json`). Node, Python and PHP signature samples; Node and Python run against the golden vectors.
   - Dev mocks: `/mock/payment-link`, `/mock/webhook-receiver` (checks signatures, last 50 receipts, no payloads), `/mock/dev-receiver`.

@@ -11444,7 +11444,7 @@
       },
       "post": {
         "tags": ["Superadmin"],
-        "summary": "Create a customer account; the owner gets an invitation e-mail (superadmin)",
+        "summary": "Create a customer account with an owner who can sign in at once (superadmin)",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "content": {
@@ -11470,10 +11470,11 @@
                     "format": "email",
                     "example": "asha@example.com"
                   },
+                  "ownerPassword": { "type": "string", "minLength": 1, "maxLength": 200 },
                   "ownerPhone": { "type": "string" },
                   "timezone": { "type": "string", "example": "Asia/Kolkata" }
                 },
-                "required": ["businessName", "ownerName", "ownerEmail"],
+                "required": ["businessName", "ownerName", "ownerEmail", "ownerPassword"],
                 "additionalProperties": false
               }
             }
@@ -11522,10 +11523,10 @@
         }
       }
     },
-    "/api/v1/admin/accounts/{id}/resend-owner-invite": {
+    "/api/v1/admin/accounts/{id}/owner-password": {
       "post": {
         "tags": ["Superadmin"],
-        "summary": "Send the owner a new invitation link (superadmin)",
+        "summary": "Set the owner's password; the owner's sessions end (superadmin)",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -11535,6 +11536,20 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": { "type": "string", "minLength": 1, "maxLength": 200 }
+                },
+                "required": ["password"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "204": { "description": "No content" },
           "401": {
@@ -11561,8 +11576,8 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           },
-          "429": {
-            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

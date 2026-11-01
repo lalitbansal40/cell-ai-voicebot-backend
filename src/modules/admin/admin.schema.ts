@@ -27,14 +27,17 @@ export const ListAccountsQuery = z.strictObject({
 
 export const AccountIdParams = z.strictObject({ id: ObjectIdSchema });
 
-/** A customer account made by a superadmin; the owner sets a password from the e-mailed invite. */
+/** A customer account made by a superadmin, whose owner can sign in with this password at once. */
 export const CreateAccountBody = z.strictObject({
   businessName: z.string().trim().min(2).max(80).openapi({ example: 'Demo Finance' }),
   ownerName: z.string().trim().min(1).max(80).openapi({ example: 'Asha Verma' }),
   ownerEmail: EmailSchema,
+  ownerPassword: z.string().min(1).max(200),
   ownerPhone: PhoneE164Schema.optional(),
   timezone: TimezoneSchema.optional(),
 });
+/** A superadmin sets the owner's password; the owner's sessions end. */
+export const SetOwnerPasswordBody = z.strictObject({ password: z.string().min(1).max(200) });
 export const SuspendBody = z.strictObject({ reason: z.string().trim().min(3).max(200) });
 export const AccountCampaignParams = z.strictObject({
   id: ObjectIdSchema,
@@ -155,7 +158,7 @@ registry.registerPath({
   method: 'post',
   path: '/api/v1/admin/accounts',
   tags,
-  summary: 'Create a customer account; the owner gets an invitation e-mail (superadmin)',
+  summary: 'Create a customer account with an owner who can sign in at once (superadmin)',
   security: bearer,
   request: json(CreateAccountBody),
   responses: {
@@ -169,18 +172,18 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'post',
-  path: '/api/v1/admin/accounts/{id}/resend-owner-invite',
+  path: '/api/v1/admin/accounts/{id}/owner-password',
   tags,
-  summary: 'Send the owner a new invitation link (superadmin)',
+  summary: "Set the owner's password; the owner's sessions end (superadmin)",
   security: bearer,
-  request: { params: AccountIdParams },
+  request: { params: AccountIdParams, ...json(SetOwnerPasswordBody) },
   responses: {
     204: noContentResponse,
     401: errors[401],
     403: errors[403],
     404: errors[404],
     409: errors[409],
-    429: errors[429],
+    422: errors[422],
   },
 });
 
