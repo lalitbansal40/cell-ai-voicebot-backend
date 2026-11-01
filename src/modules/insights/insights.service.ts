@@ -216,10 +216,12 @@ export const sweepInsights = async (deps: InsightsDeps): Promise<Record<string, 
     }
     if (reason) {
       skipped += 1;
-      await CallModel.updateOne(
+      const marked = await CallModel.updateOne(
         { _id: call._id, insights: null },
         { $set: { insights: state('skipped', 0, reason, now) } },
       );
+      // unanswered, too short or insights off: webhooks and after-the-call rules still run
+      if (marked.modifiedCount) emit(call._id, 'skipped', 0);
       continue;
     }
     const claimed = await CallModel.updateOne(

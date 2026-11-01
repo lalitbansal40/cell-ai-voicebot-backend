@@ -15,7 +15,7 @@ import { OutcomeRuleModel } from '../../src/db/models/outcome-rule.model';
 import { PostCallMessageModel } from '../../src/db/models/post-call-message.model';
 import { WalletModel } from '../../src/db/models/wallet.model';
 import { WhatsAppTemplateModel } from '../../src/db/models/whatsapp-template.model';
-import { finishInsights } from '../../src/modules/insights/insights.service';
+import { finishInsights, sweepInsights } from '../../src/modules/insights/insights.service';
 import { collectFlowMessages } from '../../src/modules/post-call/collect';
 import { evaluateOutcomeRules } from '../../src/modules/post-call/evaluate';
 import { whatsappStepIssues } from '../../src/modules/post-call/flow-templates';
@@ -397,6 +397,40 @@ describe('outcome rules', () => {
     await vi.waitFor(async () => {
       expect(await PostCallMessageModel.countDocuments({ callId: call._id })).toBe(1);
     });
+  });
+
+  it('run when the sweep skips a call: "not answered twice" and calls too short to review', async () => {
+    await rule({
+      when: {
+        dispositions: [],
+        sentiment: [],
+        hasPromise: null,
+        notAnsweredInARow: 2,
+        callKinds: [],
+        flowIds: [],
+        campaignIds: [],
+      },
+    });
+    const who = await contact();
+    const missed = {
+      status: 'no_answer',
+      insights: null,
+      timestamps: { queuedAt: new Date(), answeredAt: null, endedAt: new Date() },
+    };
+    const first = await endedCall(missed, who);
+    const second = await endedCall(missed, who);
+    const later = new Date(Date.now() + 5 * 60_000);
+    await sweepInsights({ jobs: { enqueue: () => Promise.resolve() }, now: () => later } as never);
+    await vi.waitFor(async () => {
+      expect(await PostCallMessageModel.countDocuments({ callId: second._id })).toBe(1);
+    });
+    expect((await CallModel.findById(first._id).lean())?.insights).toMatchObject({
+      status: 'skipped',
+      reason: 'not_answered',
+    });
+    // the sweep marks a call once, so a second sweep schedules nothing new
+    await sweepInsights({ jobs: { enqueue: () => Promise.resolve() }, now: () => later } as never);
+    expect(await PostCallMessageModel.countDocuments({ callId: second._id })).toBe(1);
   });
 });
 
