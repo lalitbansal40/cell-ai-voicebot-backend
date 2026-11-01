@@ -20,6 +20,7 @@ import {
   UnauthenticatedError,
   ValidationError,
 } from '../../shared/errors/app-error';
+import { maskEmail } from '../../shared/utils/mask';
 import { auditRequest, recordAudit } from '../audit/audit.service';
 import { INVITE_TTL_MS } from '../auth/auth.constants';
 import { hmacToken, randomToken } from '../auth/hmac';
@@ -233,7 +234,7 @@ export const revokeInvite = async (req: Request, userId: string): Promise<void> 
   await UserModel.deleteOne({ _id: user._id, status: 'invited' });
   await auditRequest(req, 'team.invite_revoked', {
     target: { type: 'user', id: userId },
-    meta: { email: user.email },
+    meta: { email: maskEmail(user.email) },
   });
   notifyAccount(requireAuth(req).accountId, 'team.changed');
 };
@@ -411,7 +412,7 @@ export const removeMember = async (req: Request, id: string): Promise<void> => {
   );
   await auditRequest(req, 'team.removed', {
     target: { type: 'user', id: target._id.toString() },
-    meta: { email: target.email },
+    meta: { email: maskEmail(target.email) },
   });
   notifyAccount(accountId, 'team.changed');
 };
