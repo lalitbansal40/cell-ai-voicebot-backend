@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
+import { PRODUCTION_APP_ENV } from '../helpers/production-env';
 import { buildTestApp } from '../helpers/test-app';
 
 const ORIGIN = 'http://localhost:3100';
@@ -125,5 +126,19 @@ describe('rate limiting', () => {
     await request(app).get('/health');
     const res = await request(app).get('/health');
     expect(res.status).toBe(200); // never 429
+  });
+});
+
+describe('Strict-Transport-Security has one owner', () => {
+  it('the API sends it in production, and leaves it out with HSTS_BY_PROXY', async () => {
+    const own = await request(buildTestApp(PRODUCTION_APP_ENV)).get('/api/v1/health');
+    expect(own.headers['strict-transport-security']).toContain('max-age=15552000');
+    const proxied = await request(
+      buildTestApp({ ...PRODUCTION_APP_ENV, HSTS_BY_PROXY: 'true' }),
+    ).get('/api/v1/health');
+    expect(proxied.headers['strict-transport-security']).toBeUndefined();
+    expect(proxied.headers['x-content-type-options']).toBe('nosniff');
+    expect(proxied.headers['x-frame-options']).toBeDefined();
+    expect(proxied.headers['referrer-policy']).toBe('no-referrer');
   });
 });

@@ -51,6 +51,8 @@ const RawEnvSchema = z.object({
   LOG_LEVEL: LogLevelSchema.optional(),
   TRUST_PROXY: optionalString,
   API_DOCS_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+  /** nginx sends Strict-Transport-Security, so the API must not (one owner, no double header). */
+  HSTS_BY_PROXY: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
 
   MONGODB_URI: z
     .string()
@@ -251,6 +253,7 @@ export type Env = Readonly<
     | 'SMTP_SECURE'
     | 'MAIL_FROM'
     | 'API_DOCS_ENABLED'
+    | 'HSTS_BY_PROXY'
     | 'PAYMENT_PROVIDER'
     | 'FAKE_PAYMENT_SECRET'
     | 'BILLING_SELLER_NAME'
@@ -289,6 +292,7 @@ export type Env = Readonly<
     SMTP_SECURE: boolean;
     MAIL_FROM: string;
     API_DOCS_ENABLED: boolean;
+    HSTS_BY_PROXY: boolean;
     PAYMENT_PROVIDER: 'fake' | 'razorpay';
     /** Only for the fake provider (never set in production). */
     FAKE_PAYMENT_SECRET: string | undefined;
@@ -716,6 +720,7 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     MAIL_FROM: raw.MAIL_FROM ?? DEV_MAIL_FROM,
     API_DOCS_ENABLED:
       raw.API_DOCS_ENABLED !== undefined ? raw.API_DOCS_ENABLED === 'true' : !production,
+    HSTS_BY_PROXY: raw.HSTS_BY_PROXY === 'true',
     PAYMENT_PROVIDER: paymentProvider,
     FAKE_PAYMENT_SECRET:
       paymentProvider === 'fake'

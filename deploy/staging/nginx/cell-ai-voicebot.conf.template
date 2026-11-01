@@ -47,7 +47,8 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css application/javascript application/json image/svg+xml application/manifest+json;
 
-    # headers on every answer from this server block (the API adds its own via helmet)
+    # headers on every answer from this server block (the API adds its own via helmet;
+    # HSTS_BY_PROXY=true keeps the API from sending a second Strict-Transport-Security)
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Robots-Tag "noindex, nofollow" always;
 
@@ -104,6 +105,7 @@ server {
         add_header Cache-Control "public, max-age=31536000, immutable" always;
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
         add_header X-Content-Type-Options nosniff always;
+        add_header X-Robots-Tag "noindex, nofollow" always;
     }
 
     # the SPA: index.html is never cached (a deploy is seen at once)

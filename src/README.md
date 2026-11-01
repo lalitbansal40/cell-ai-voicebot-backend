@@ -117,7 +117,7 @@ Order matters — every request goes through:
 
 1. `requestId` — accepts a safe `X-Request-Id` or generates a UUID; echoed in the response.
 2. `httpLogger` — pino-http access log (method, path without query, status, time); `req.log` child logger with `requestId`. Health paths are not logged.
-3. `securityHeaders` — helmet (no CSP for the JSON API — the docs router adds `docsCsp()`; HSTS only in production).
+3. `securityHeaders` — helmet (no CSP for the JSON API — the docs router adds `docsCsp()`; HSTS only in production and not with `HSTS_BY_PROXY`).
 4. `corsMiddleware` — exact-match `CORS_ORIGINS` allowlist; unknown origins get no CORS headers.
 5. `globalRateLimiter` — 300 req/min per IP (`trust proxy` aware), `RateLimit-*` headers, 429 envelope; Redis store in the server (MemoryStore in unit tests).
 6. Body parsers — JSON 1 MB, urlencoded 100 KB.

@@ -174,6 +174,7 @@ export const createApiRouter = ({
   env: Pick<
     Env,
     | 'APP_URL'
+    | 'API_DOCS_ENABLED'
     | 'FRONTEND_URL'
     | 'CORS_ORIGINS'
     | 'NODE_ENV'
@@ -243,7 +244,7 @@ export const createApiRouter = ({
     createAdminRouter({ env, provider: ai.provider, whatsapp: whatsappRuntime }),
   );
   router.use('/ws', createWsTicketsRouter());
-  router.get('/openapi.json', createOpenApiHandler(env.APP_URL));
+  router.get('/openapi.json', createOpenApiHandler(env.APP_URL, env.API_DOCS_ENABLED));
   router.get('/openapi.public.json', createPublicOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
   router.use('/rbac', createRbacRouter());

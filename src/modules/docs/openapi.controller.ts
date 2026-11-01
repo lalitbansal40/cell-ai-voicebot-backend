@@ -5,14 +5,17 @@ import { buildOpenApiDocument } from '../../openapi';
 import { buildPublicSpec, type OpenApiDoc } from './public-spec';
 
 /**
- * GET /api/v1/openapi.json — the API contract (ADR 0029). Always on (the
- * public API in Phase 10 needs it; it holds no secrets). Returned raw, not in
- * the success envelope — OpenAPI tools expect a plain document. Built once.
+ * GET /api/v1/openapi.json — the API contract (ADR 0029). Always on. Every route
+ * only with `API_DOCS_ENABLED` (off in production): otherwise the public spec, so
+ * the internet can't read the dashboard and admin route list. Returned raw, not
+ * in the success envelope — OpenAPI tools expect a plain document. Built once.
  */
-export const createOpenApiHandler = (serverUrl: string): RequestHandler => {
-  let document: ReturnType<typeof buildOpenApiDocument> | undefined;
+export const createOpenApiHandler = (serverUrl: string, full: boolean): RequestHandler => {
+  let document: unknown;
   return (_req, res) => {
-    document ??= buildOpenApiDocument({ serverUrl });
+    document ??= full
+      ? buildOpenApiDocument({ serverUrl })
+      : buildPublicSpec(buildOpenApiDocument({ serverUrl }) as unknown as OpenApiDoc);
     res.set('Cache-Control', 'no-cache');
     res.json(document);
   };

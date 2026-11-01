@@ -188,7 +188,46 @@ describe('smoke', () => {
           ),
       },
     );
-    expect(noHsts[0]).toMatchObject({ ok: false, detail: 'no Strict-Transport-Security header' });
+    expect(noHsts[0]).toMatchObject({
+      ok: false,
+      detail: 'no Strict-Transport-Security header; no X-Content-Type-Options: nosniff',
+    });
+    const secured = new Headers({
+      'strict-transport-security': 'max-age=1',
+      'x-content-type-options': 'nosniff',
+    });
+    const answer = (body: string, headers: Headers) => () =>
+      Promise.resolve(new Response(body, { status: 200, headers }));
+    const health = JSON.stringify({ data: { status: 'ok' } });
+    const doubled = new Headers(secured);
+    doubled.append('strict-transport-security', 'max-age=2');
+    const twice = await runSmoke(
+      { url: 'https://staging.example.com', internal: true },
+      { open, fetchImpl: answer(health, doubled) },
+    );
+    expect(twice[0]).toMatchObject({ ok: false, detail: 'Strict-Transport-Security sent twice' });
+    // the app page needs the browser-facing set too
+    const page = await runSmoke(
+      { url: 'https://staging.example.com', internal: false },
+      {
+        open,
+        fetchImpl: (url) => {
+          const path = new URL(url).pathname;
+          if (path === '/') {
+            const headers = new Headers(secured);
+            headers.set('cache-control', 'no-cache');
+            return answer('<div id="root"></div>', headers)();
+          }
+          if (path === '/api/v1/health') return answer(health, secured)();
+          return Promise.resolve(new Response('', { status: 404 }));
+        },
+      },
+    );
+    expect(page.at(-1)).toMatchObject({
+      name: 'app shell + cache headers',
+      ok: false,
+      detail: expect.stringContaining('no Content-Security-Policy') as unknown,
+    });
   });
 
   it('parses arguments; secrets come from the environment only', () => {

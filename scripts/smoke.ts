@@ -13,6 +13,8 @@ import { randomBytes } from 'node:crypto';
 
 import { runOp, say } from '../src/ops/cli';
 
+import { apiHeaderProblems, pageHeaderProblems } from './check-live-headers';
+
 export interface SmokeOptions {
   url: string;
   internal: boolean;
@@ -92,8 +94,10 @@ export const runSmoke = async (
             d.commit === opts.expectCommit,
             `commit ${String(d.commit)}, expected ${opts.expectCommit}`,
           );
-        if (https)
-          need(res.headers.get('strict-transport-security'), 'no Strict-Transport-Security header');
+        if (https) {
+          const problems = apiHeaderProblems(res.headers);
+          need(problems.length === 0, problems.join('; '));
+        }
       },
     ],
     [
@@ -125,6 +129,10 @@ export const runSmoke = async (
             (res.headers.get('cache-control') ?? '').includes('no-cache'),
             'index.html is cached',
           );
+          if (https) {
+            const problems = pageHeaderProblems(res.headers);
+            need(problems.length === 0, problems.join('; '));
+          }
           const asset = /\/assets\/[\w.-]+\.js/.exec(html)?.[0];
           need(asset, 'no script asset in index.html');
           const a = await fetchImpl(`${base}${asset ?? ''}`);

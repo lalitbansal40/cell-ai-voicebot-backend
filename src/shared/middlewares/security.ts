@@ -5,15 +5,18 @@ import type { Env } from '../../config/env';
 
 /**
  * Security headers. CSP is off for the JSON API (no HTML is served); the
- * Swagger UI router (`/api/docs`) adds `docsCsp()`. HSTS only in production.
+ * Swagger UI router (`/api/docs`) adds `docsCsp()`. HSTS only in production, and
+ * not when nginx owns it (`HSTS_BY_PROXY`), so a browser never gets the header twice.
  */
-export const securityHeaders = (env: Pick<Env, 'NODE_ENV'>): RequestHandler =>
+export const securityHeaders = (env: Pick<Env, 'NODE_ENV' | 'HSTS_BY_PROXY'>): RequestHandler =>
   helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
     referrerPolicy: { policy: 'no-referrer' },
     strictTransportSecurity:
-      env.NODE_ENV === 'production' ? { maxAge: 15_552_000, includeSubDomains: true } : false,
+      env.NODE_ENV === 'production' && !env.HSTS_BY_PROXY
+        ? { maxAge: 15_552_000, includeSubDomains: true }
+        : false,
   });
 
 /**

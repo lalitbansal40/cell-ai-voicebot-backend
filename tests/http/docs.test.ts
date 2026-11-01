@@ -61,7 +61,11 @@ describe('GET /api/v1/openapi.json', () => {
 
   it('is served in production too; the docs page shows the public API only', async () => {
     const prod = buildTestApp(production);
-    expect((await request(prod).get('/api/v1/openapi.json')).status).toBe(200);
+    const spec = await request(prod).get('/api/v1/openapi.json');
+    expect(spec.status).toBe(200);
+    expect(spec.body.paths['/api/v1/contacts']).toBeDefined();
+    expect(spec.body.paths['/api/v1/admin/accounts']).toBeUndefined();
+    expect(spec.body.paths['/api/v1/auth/login']).toBeUndefined();
     expect((await request(prod).get('/api/docs')).status).toBe(200);
     const init = await request(prod).get('/api/docs/init.js');
     expect(init.text).toContain("url: '/api/v1/openapi.public.json'");
@@ -139,18 +143,22 @@ describe('Swagger UI (/api/docs)', () => {
     }
   });
 
-  it('shows only the public API when API_DOCS_ENABLED=false (full spec still served)', async () => {
+  it('shows and serves only the public API when API_DOCS_ENABLED=false', async () => {
     const off = buildTestApp({ API_DOCS_ENABLED: 'false' });
     expect((await request(off).get('/api/docs')).status).toBe(200);
     expect((await request(off).get('/api/docs/init.js')).text).not.toContain(
       "'/api/v1/openapi.json'",
     );
-    expect((await request(off).get('/api/v1/openapi.json')).status).toBe(200);
+    const spec = await request(off).get('/api/v1/openapi.json');
+    expect(spec.status).toBe(200);
+    expect(spec.body.paths['/api/v1/admin/accounts']).toBeUndefined();
   });
 
   it('can be enabled in production explicitly', async () => {
     const prod = buildTestApp({ ...production, API_DOCS_ENABLED: 'true' });
     expect((await request(prod).get('/api/docs')).status).toBe(200);
+    const spec = await request(prod).get('/api/v1/openapi.json');
+    expect(spec.body.paths['/api/v1/admin/accounts']).toBeDefined();
   });
 
   it('keeps CSP off on JSON API routes', async () => {

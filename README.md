@@ -403,7 +403,7 @@ The API contract is generated from zod schemas ([ADR 0029](docs/adr/0029-shared-
 - `npm run openapi:check` regenerates and fails if the committed file is stale — CI runs it.
 - The frontend generates its types from this file (`npm run gen:api` in the frontend repo).
 - **Served:** `GET /api/v1/openapi.json` (always on, raw OpenAPI JSON with `servers = APP_URL`).
-- **Swagger UI:** <http://localhost:5100/api/docs> (or <http://localhost:3100/api/docs> through the frontend dev proxy). On by default outside production; production needs `API_DOCS_ENABLED=true`. "Try it out" calls the same origin.
+- **Swagger UI:** <http://localhost:5100/api/docs> (or <http://localhost:3100/api/docs> through the frontend dev proxy). On by default outside production; production needs `API_DOCS_ENABLED=true`, and without it `/api/v1/openapi.json` serves the public spec only. "Try it out" calls the same origin.
 
 ## Testing
 
@@ -458,6 +458,7 @@ Copy `.env.example` → `.env` (gitignored). Every variable is validated at star
 | `LOG_LEVEL`                        | no                | 1       | pino log level                                                                                                                                                                                                     |
 | `TRUST_PROXY`                      | no                | 1       | `false` / `true` / hop count / `loopback` — set behind nginx (Phase 12)                                                                                                                                            |
 | `API_DOCS_ENABLED`                 | no                | 1       | Swagger UI at `/api/docs` — default on outside production, off in production                                                                                                                                       |
+| `HSTS_BY_PROXY`                    | no                | 16      | `true` when nginx sends Strict-Transport-Security, so the API leaves it out (default `false`)                                                                                                                      |
 | `MONGODB_URI`                      | yes               | 1       | MongoDB connection string (replica set)                                                                                                                                                                            |
 | `REDIS_URL`                        | yes               | 1       | Redis connection string                                                                                                                                                                                            |
 | `WORKERS_ENABLED`                  | no                | 1       | `true` (default) / `false` — run BullMQ workers in the API process                                                                                                                                                 |
