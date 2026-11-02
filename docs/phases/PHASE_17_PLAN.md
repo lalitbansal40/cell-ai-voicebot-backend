@@ -51,7 +51,7 @@ Phase 17 ke end tak:
 
 | #   | Finding                                                                                                                                                            | Why it matters                                                                          | Owner                  |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ---------------------- |
-| U1  | `wa.notifynow.in` still has a second A record `45.114.245.71` (old SMS box, HTTPS fails)                                                                           | Some visitors and Meta webhook calls can fail                                           | Client DNS             |
+| U1  | **Closed 2 Nov 2026 (DNS shows one address).** `wa.notifynow.in` still has a second A record `45.114.245.71` (old SMS box, HTTPS fails)                            | Some visitors and Meta webhook calls can fail                                           | Client DNS             |
 | U2  | Secrets (Meta App Secret, env files, review account password) were shared through chat                                                                             | Must be rotated                                                                         | Owner                  |
 | U3  | The deploy repo `Cell24x7/cell-ai-voicebot` is public                                                                                                              | Anyone can read the code and docs; making it private changes how the server pulls       | Owner / client         |
 | U4  | Live health shows `commit: unknown`                                                                                                                                | No one can tell which code runs; rollback target unknown                                | Us (T17.4)             |
@@ -381,6 +381,8 @@ Checkpoints: **P17-B1-DONE** after the code-only tasks; **P17-B2-DONE** after th
 9. A maintenance window for the first managed release.
 
 Never ask for or accept secrets in chat: they go into the server's env files or the owner's password manager.
+
+**Gate P blockers (from T17.1, `docs/ops/PRODUCTION_AUDIT.md` §4):** SSH access + server audit output; how our app runs today; MongoDB replica set and auth; Redis password and `maxmemory-policy`; the Razorpay log line and keys.
 
 ---
 
