@@ -65,25 +65,26 @@ export const startPerf = async (extraEnv: Record<string, string> = {}): Promise<
   const redisUrl = redisDb9(env.REDIS_URL);
   const redis = new Redis(redisUrl, { maxRetriesPerRequest: null });
   await redis.flushdb();
+  const childEnv = {
+    ...process.env,
+    NODE_ENV: 'development',
+    PORT: String(PERF_PORT),
+    HOST: '127.0.0.1',
+    MONGODB_URI: uri,
+    REDIS_URL: redisUrl,
+    LOG_LEVEL: 'error',
+    TRUST_PROXY: '1',
+    WHATSAPP_ENABLED: 'true',
+    META_PROVIDER: 'fake',
+    WORKERS_ENABLED: 'true',
+    EMAIL_DRIVER: 'log',
+    ...extraEnv,
+  };
   const server = spawn(
     process.execPath,
     ['--env-file-if-exists=.env', path.join('dist', 'index.js')],
     {
-      env: {
-        ...process.env,
-        NODE_ENV: 'development',
-        PORT: String(PERF_PORT),
-        HOST: '127.0.0.1',
-        MONGODB_URI: uri,
-        REDIS_URL: redisUrl,
-        LOG_LEVEL: 'error',
-        TRUST_PROXY: '1',
-        WHATSAPP_ENABLED: 'true',
-        META_PROVIDER: 'fake',
-        WORKERS_ENABLED: 'true',
-        EMAIL_DRIVER: 'log',
-        ...extraEnv,
-      },
+      env: { ...childEnv, WORKERS_ENABLED: process.env.PERF_SPLIT ? 'false' : 'true' },
       // PERF_SERVER_LOG=<file> keeps the API's error logs for a failed run
       stdio: [
         'ignore',
@@ -92,6 +93,13 @@ export const startPerf = async (extraEnv: Record<string, string> = {}): Promise<
       ],
     },
   );
+  // PERF_SPLIT=1: API and workers in two processes, as in production (ADR 0049)
+  const worker = process.env.PERF_SPLIT
+    ? spawn(process.execPath, ['--env-file-if-exists=.env', path.join('dist', 'index.js')], {
+        env: { ...childEnv, PORT: String(PERF_PORT + 1), WORKERS_ENABLED: 'true' },
+        stdio: ['ignore', 'ignore', 'inherit'],
+      })
+    : null;
   const deadline = Date.now() + 60_000;
   for (;;) {
     const up = await fetch(`${BASE}/health`).then(
@@ -107,8 +115,10 @@ export const startPerf = async (extraEnv: Record<string, string> = {}): Promise<
     redis,
     stop: async () => {
       server.kill('SIGTERM');
+      worker?.kill('SIGTERM');
       await sleep(2_000);
       if (server.exitCode === null) server.kill('SIGKILL');
+      if (worker && worker.exitCode === null) worker.kill('SIGKILL');
       await redis.flushdb();
       redis.disconnect();
       await mongoose.connection.dropDatabase().catch(() => undefined);

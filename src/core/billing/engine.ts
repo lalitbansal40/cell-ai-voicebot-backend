@@ -24,6 +24,7 @@ import {
 } from './events';
 import { callCharge, holdEstimate, spendShares, type CallUsage } from './pricing';
 import { effectiveRateCard, rateCardById } from './rates';
+import { withWalletLock } from './wallet-lock';
 import { getOrCreateWallet } from './wallets';
 
 /**
@@ -98,8 +99,10 @@ const accountMonth = async (accountId: Types.ObjectId, session: ClientSession): 
 const walletQueues = new Map<string, Promise<unknown>>();
 
 /**
- * One transaction per wallet at a time in this process. Every change writes the same wallet row:
- * run in parallel they conflict, and the driver retries with no pause until it gives up at 120 s.
+ * One transaction per wallet at a time in this process, then across processes (`wallet-lock.ts`).
+ * Every change writes the same wallet row: run in parallel they conflict, and the driver retries
+ * with no pause until it gives up at 120 s. This queue means a process asks Redis once, not once
+ * per waiting change.
  */
 const inWalletOrder = async <T>(accountId: Types.ObjectId, fn: () => Promise<T>): Promise<T> => {
   const key = accountId.toString();
@@ -120,7 +123,9 @@ const run = async (
   outer?: ClientSession,
 ): Promise<TxOutput> => {
   if (outer) return fn(outer);
-  return inWalletOrder(accountId, () => withTransaction(fn));
+  return inWalletOrder(accountId, () =>
+    withWalletLock(accountId.toString(), () => withTransaction(fn)),
+  );
 };
 
 /** Publishes the change after commit (only when we own the transaction). */

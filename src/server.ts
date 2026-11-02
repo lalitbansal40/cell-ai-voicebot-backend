@@ -8,6 +8,7 @@ import { getEnv, type Env } from './config/env';
 import { createAiProvider } from './core/ai';
 import { queueAiJobs } from './core/ai/jobs';
 import { queueBillingJobs } from './core/billing/jobs';
+import { setWalletLockRedis } from './core/billing/wallet-lock';
 import {
   createEmailProvider,
   createEmailService,
@@ -134,6 +135,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   if (env.NODE_ENV !== 'production') await syncAllIndexes(logger);
 
   const redis = getAppRedis(env.REDIS_URL, logger);
+  setWalletLockRedis(redis);
   lifecycle.onShutdown('redis', closeAllRedis, 40);
   if (!(await pingRedis(redis, 5000))) {
     logger.fatal(
