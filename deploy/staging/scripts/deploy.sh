@@ -52,16 +52,23 @@ build_env=(--rm --user "$(id -u):$(id -g)")
 if [[ -f "${CAV_ROOT}/env/frontend.env" ]]; then build_env+=(--env-file "${CAV_ROOT}/env/frontend.env"); fi
 docker run "${build_env[@]}" \
   -e VITE_API_URL=/api/v1 -e VITE_WS_URL= -e npm_config_cache=/tmp/npm-cache \
+  -e "VITE_GIT_SHA=$(cat "${CAV_ROOT}/src/${sha}/frontend.sha")" \
   -v "${CAV_ROOT}/src/${sha}/frontend:/web" -w /web \
   node:24-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205 \
   bash scripts/build-web.sh "${sha}"
 cp -R "${CAV_ROOT}/src/${sha}/frontend/dist/." "${CAV_ROOT}/releases/${sha}/web/"
 printf '%s\n' "${sha}" > "${CAV_ROOT}/releases/${sha}/backend.sha"
 cp "${CAV_ROOT}/src/${sha}/frontend.sha" "${CAV_ROOT}/releases/${sha}/frontend.sha"
+printf '{"commit":"%s","builtAt":"%s"}\n' "$(cat "${CAV_ROOT}/src/${sha}/frontend.sha")" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "${CAV_ROOT}/releases/${sha}/web/version.json"
 # MongoDB Atlas is reached through MONGODB_URI; only a bundled URI starts the mongo service.
 if mongo_external; then dc up -d --wait redis; else dc up -d --wait mongo redis; fi
 dc run --rm --no-deps api node dist/ops/migrate.js up
 dc run --rm --no-deps api node dist/ops/sync-indexes.js
+# A stopped API ends its live calls with the technical line: wait for them first (ADR 0049).
+if valid_sha "${old}"; then
+  # releases older than Phase 17 don't have the command
+  dc run --rm --no-deps api sh -c 'test ! -f dist/ops/live-calls.js || exec node dist/ops/live-calls.js --wait "$1"' sh "${CAV_CALL_DRAIN_SEC:-600}"
+fi
 changed=true
 dc up -d --no-deps api worker
 wait_ready
@@ -70,7 +77,7 @@ if valid_sha "${old}" && [[ "${old}" != "${sha}" ]]; then point_release "${old}"
 point_release "${sha}" current
 # Docker Desktop rehearsal resolves a bridge service address; reload its own proxy
 # after container replacement. Linux staging proxies a fixed loopback address.
-if [[ "${CAV_PROJECT}" == cell-ai-voicebot-rehearsal ]]; then dc exec -T nginx nginx -s reload; fi
+if is_rehearsal; then dc up -d --no-deps nginx; dc exec -T nginx nginx -s reload; fi
 # Probe through nginx as well. Every failure here restores both image and web pointer.
 public_url="$(env_value "${CAV_ROOT}/env/backend.env" APP_URL)"
 dc exec -T api node dist-tools/scripts/smoke.js --url "${CAV_PUBLIC_URL:-${public_url}}" --expect-commit "${sha}"

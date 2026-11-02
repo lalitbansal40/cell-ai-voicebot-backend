@@ -19,7 +19,7 @@ cleanup() {
 }
 trap cleanup EXIT
 begin=$SECONDS
-if [[ "${CAV_PROJECT}" == cell-ai-voicebot-rehearsal ]]; then
+if is_rehearsal; then
   live="$(dc ps -q mongo)"
   mongo_counts "${live}" > "${work}/live.json"
 elif [[ -n "${CAV_LIVE_COUNTS_FILE:-}" ]]; then
@@ -35,7 +35,7 @@ fi
 for kind in mongo.archive.gz uploads.tar.gz counts.json; do
   name="cav-${stamp}-${kind}.age"
   if [[ "${target}" == s3://* ]]; then aws s3 cp --only-show-errors "${target%/}/${name}" "${work}/${name}"
-  else [[ "${CAV_PROJECT}" == cell-ai-voicebot-rehearsal ]] || fail 'local target is rehearsal-only'; cp "${target}/${name}" "${work}/${name}"; fi
+  else is_rehearsal || fail 'local target is rehearsal-only'; cp "${target}/${name}" "${work}/${name}"; fi
   age -d -i "${identity}" -o "${work}/${kind}" "${work}/${name}"
 done
 docker compose -p "${project}" -f "${here}/../restore.compose.yaml" up -d --wait

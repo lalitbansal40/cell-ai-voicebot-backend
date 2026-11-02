@@ -7,12 +7,15 @@ CAV_ROOT="${CAV_ROOT:-/srv/cell-ai-voicebot}"
 CAV_PROJECT="${CAV_PROJECT:-cell-ai-voicebot-staging}"
 case "${CAV_PROJECT}" in
   cell-ai-voicebot-staging|cell-ai-voicebot-rehearsal|cell-ai-voicebot-restore-check) ;;
+  cav-prod|cav-prod-rehearsal) ;;
   *) echo 'Refusing an unrelated compose project' >&2; exit 2 ;;
 esac
 [[ "${CAV_ROOT}" == /* && "${CAV_ROOT}" != / ]] || { echo 'CAV_ROOT must be an absolute app directory' >&2; exit 2; }
 export CAV_ROOT CAV_PROJECT
 
-fail() { echo "staging: $*" >&2; exit 1; }
+fail() { echo "cav: $*" >&2; exit 1; }
+# Rehearsals (a laptop, Docker Desktop) may use local backup targets and their own nginx.
+is_rehearsal() { [[ "${CAV_PROJECT}" == *-rehearsal ]]; }
 valid_sha() { [[ "$1" =~ ^[a-f0-9]{40}$ ]]; }
 env_value() {
   python3 - "$1" "$2" <<'PY'

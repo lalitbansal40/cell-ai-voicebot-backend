@@ -1,0 +1,15 @@
+# Phase 13 bootstrap (before the certificate exists): HTTP only, ACME challenge + 503.
+# Rendered by render-nginx.sh --http-only into /etc/nginx/sites-available/cell-ai-voicebot.conf
+server {
+    listen 80;
+    listen [::]:80;
+    server_name __APP_HOST__;
+    access_log /var/log/nginx/cell-ai-voicebot.access.log cav_noargs;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 503;
+    }
+}

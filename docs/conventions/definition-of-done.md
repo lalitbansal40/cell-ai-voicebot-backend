@@ -13,3 +13,7 @@ A task / PR is **done** only when every item below is true.
 - [ ] PR template filled (what, why, how tested, screenshots for UI)
 - [ ] Follows the conventions: [API](api.md), [error codes](error-codes.md), [WebSocket](websocket.md), [data](data.md), [code style](code-style.md)
 - [ ] Reviewed and merged into `dev`
+
+## Migrations (Phase 17)
+
+Every migration must work with the previous release still running: add first, and remove only in a later release. `rollback.sh` never runs a down-migration, so a release that fails after migrating goes back to code that meets the new schema.

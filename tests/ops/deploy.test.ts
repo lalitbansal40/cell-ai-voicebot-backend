@@ -196,6 +196,138 @@ describe('staging scripts', () => {
     ).toThrow();
   });
 
+  it('waits for live calls before replacing a running release, and not on the first deploy', () => {
+    const root = temp();
+    const bin = path.join(root, 'bin');
+    mkdirSync(bin);
+    for (const folder of ['env', 'uploads', 'deploy', `src/${B}/backend`, `src/${B}/frontend/dist`])
+      mkdirSync(path.join(root, folder), { recursive: true });
+    writeFileSync(path.join(root, 'env/backend.env'), 'APP_URL=https://prod.example.com\n');
+    writeFileSync(path.join(root, 'env/compose.env'), '');
+    writeFileSync(path.join(root, `src/${B}/frontend.sha`), A);
+    writeFileSync(path.join(root, `src/${B}/frontend/dist/index.html`), 'web');
+    const log = path.join(root, 'docker.log');
+    writeFileSync(path.join(bin, 'docker'), `#!/usr/bin/env bash\necho "$*" >> ${log}\nexit 0\n`, {
+      mode: 0o755,
+    });
+    writeFileSync(path.join(bin, 'curl'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 });
+    const env = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH ?? ''}`,
+      CAV_ROOT: root,
+      CAV_PROJECT: 'cav-prod-rehearsal',
+    };
+    const deploy = () =>
+      execFileSync('bash', [path.join(scriptRoot, 'deploy.sh'), B], { env, encoding: 'utf8' });
+    // first deploy: nothing is running yet
+    deploy();
+    expect(readFileSync(log, 'utf8')).not.toContain('live-calls');
+    // a release replacing a running one waits for calls before starting the new containers
+    rmSync(log);
+    mkdirSync(path.join(root, `releases/${A}/web`), { recursive: true });
+    rmSync(path.join(root, 'releases/current'));
+    symlinkSync(A, path.join(root, 'releases/current'));
+    deploy();
+    const calls = readFileSync(log, 'utf8').split('\n');
+    const wait = calls.findIndex(
+      (l) => l.includes('dist/ops/live-calls.js') && l.endsWith(' sh 600'),
+    );
+    const swap = calls.findIndex((l) => l.includes('up -d --no-deps api worker'));
+    expect(wait).toBeGreaterThan(-1);
+    expect(wait).toBeLessThan(swap);
+  });
+
+  describe('release.sh', () => {
+    const git = (cwd: string, ...args: string[]) =>
+      execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', ...args], {
+        cwd,
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
+    /** An installed server, with backup and deploy recording their turn, and a client repo. */
+    const server = (tagMessage: string, tag = `release-20261102-${B.slice(0, 7)}`) => {
+      const root = temp();
+      const origin = path.join(root, 'origin');
+      const sub = path.join(origin, 'cell-ai-voicebot-phase13');
+      mkdirSync(path.join(sub, 'backend'), { recursive: true });
+      mkdirSync(path.join(sub, 'frontend'), { recursive: true });
+      writeFileSync(path.join(sub, 'backend/marker'), 'be');
+      writeFileSync(path.join(sub, 'frontend/marker'), 'fe');
+      git(origin, 'init', '-q');
+      git(origin, 'add', '-A');
+      git(origin, 'commit', '-qm', 'code');
+      git(origin, 'tag', '-a', tag, '-m', tagMessage);
+      mkdirSync(path.join(root, 'env'));
+      mkdirSync(path.join(root, 'deploy/scripts'), { recursive: true });
+      for (const name of ['common.sh']) {
+        writeFileSync(
+          path.join(root, 'deploy/scripts', name),
+          readFileSync(path.join(scriptRoot, name), 'utf8'),
+        );
+      }
+      const release = path.join(root, 'deploy/scripts/release.sh');
+      writeFileSync(
+        release,
+        readFileSync(path.resolve(scriptRoot, '../../production/scripts/release.sh'), 'utf8'),
+        { mode: 0o755 },
+      );
+      const order = path.join(root, 'order.log');
+      for (const name of ['backup.sh', 'deploy.sh']) {
+        writeFileSync(
+          path.join(root, 'deploy/scripts', name),
+          `#!/usr/bin/env bash\necho "${name} $*" >> ${order}\n`,
+          { mode: 0o755 },
+        );
+      }
+      writeFileSync(
+        path.join(root, 'env/backend.env'),
+        ['APP_URL', 'MONGODB_URI', 'REDIS_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']
+          .concat(['ENCRYPTION_KEY', 'SUPPRESSION_HMAC_KEY'])
+          .map((k) => `${k}=secret-value-${k}`)
+          .join('\n'),
+      );
+      writeFileSync(path.join(root, 'env/ops.env'), `RELEASE_REPO_URL=${origin}\n`);
+      const run = (arg = tag) =>
+        execFileSync('bash', [release, arg], {
+          env: { ...process.env, CAV_ROOT: root, CAV_PROJECT: 'cav-prod-rehearsal' },
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      return { root, order, run };
+    };
+    const MESSAGE = `backend ${B}\nfrontend ${C}`;
+
+    it('backs up first, unpacks the tag, deploys the backend sha and records it', () => {
+      const s = server(MESSAGE);
+      const output = s.run();
+      expect(readFileSync(s.order, 'utf8').trim().split('\n')).toEqual([
+        'backup.sh ',
+        `deploy.sh ${B}`,
+      ]);
+      expect(readFileSync(path.join(s.root, `src/${B}/backend/marker`), 'utf8')).toBe('be');
+      expect(readFileSync(path.join(s.root, `src/${B}/frontend/marker`), 'utf8')).toBe('fe');
+      expect(readFileSync(path.join(s.root, `src/${B}/frontend.sha`), 'utf8').trim()).toBe(C);
+      expect(readFileSync(path.join(s.root, 'logs/releases.log'), 'utf8')).toContain(
+        `backend=${B} frontend=${C}`,
+      );
+      expect(output).not.toContain('secret-value');
+    });
+
+    it('refuses a bad tag name, a tag naming no shas, and a missing env key, before any change', () => {
+      const s = server(MESSAGE);
+      expect(() => s.run('main')).toThrow();
+      expect(() => s.run(`release-20261102-${C.slice(0, 7)}`)).toThrow();
+      const noShas = server('just text');
+      expect(() => noShas.run()).toThrow();
+      const noKey = server(MESSAGE);
+      writeFileSync(path.join(noKey.root, 'env/backend.env'), 'APP_URL=https://x.example\n');
+      expect(() => noKey.run()).toThrow(/Command failed/);
+      for (const failed of [s, noShas, noKey]) {
+        expect(readdirSync(failed.root)).not.toContain('order.log');
+      }
+    });
+  });
+
   it('retains recent daily and weekly backups, deletes expired managed objects, and keeps unrelated files', () => {
     const root = temp();
     const now = Date.now();

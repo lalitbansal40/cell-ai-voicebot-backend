@@ -19,3 +19,31 @@ Production runs on the client's shared server; the design is in [ADR 0049](../ad
 ## Access
 
 Who has which key is kept by the owner, never in this file. Our deploy user may use Docker and our folder only. Never connect to `45.114.245.71` (old SMS box) or `13.232.191.62` (the client's other machine).
+
+## Releases
+
+A release is a tag in the client repo, made by `scripts/sync-client-repo.sh`. On the server, as `cav`, in the maintenance window:
+
+```bash
+export CAV_PROJECT=cav-prod
+/srv/cell-ai-voicebot/deploy/scripts/release.sh release-YYYYMMDD-<backend sha7>
+```
+
+It checks env keys by name and 15 % free disk, installs the kit from the tag, backs up, unpacks the source, builds the image and SPA with their commits, migrates, waits up to 10 minutes for live calls to end, starts the new worker and API, checks `/ready` and the commit through nginx, and switches. Any failure after the restart puts the previous release back and exits non-zero. Each release adds a line to `logs/releases.log` and a row to [releases.md](releases.md).
+
+A stopped API ends live calls with the technical line, which is why the release waits. The first cut-over doesn't: nothing tells it about the old setup, so check for live calls by hand first.
+
+**Rollback:** `deploy/scripts/rollback.sh [<40-character sha>]`. Default is the previous release. Migrations stay; see the rule in `definition-of-done.md`.
+
+## Local evidence (T17.4, 2 Nov 2026)
+
+`deploy/production/rehearsal/run.sh` on the Mac: real image and SPA builds, migrations `0001`–`0018`, bundled MongoDB, dummy keys, plain HTTP through a container nginx.
+
+| Step                              | Result                                                          |
+| --------------------------------- | --------------------------------------------------------------- |
+| First deploy                      | Pass, 48 s; `/health` shows the commit                          |
+| Second deploy, with the call wait | Pass, 66 s                                                      |
+| Release that throws at start      | Failed as meant; previous release restored, `current` unchanged |
+| `rollback.sh` to a named release  | Pass, 4 s                                                       |
+
+**Not rehearsed:** TLS, real nginx site file, host networking and UDP media, because Docker Desktop has no host networking. They wait for a staging server.

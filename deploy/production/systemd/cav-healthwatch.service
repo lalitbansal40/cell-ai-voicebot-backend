@@ -1,0 +1,9 @@
+[Unit]
+Description=NotifyNow healthwatch
+After=docker.service
+[Service]
+Type=oneshot
+User=cav
+Environment=CAV_PROJECT=cav-prod
+ExecStart=/srv/cell-ai-voicebot/deploy/scripts/healthwatch.sh
+UMask=0077

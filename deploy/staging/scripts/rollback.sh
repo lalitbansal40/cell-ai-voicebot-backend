@@ -14,5 +14,5 @@ dc up -d --no-deps api worker
 wait_ready
 dc exec -T api node dist-tools/scripts/smoke.js --url "${CAV_INTERNAL_URL:-http://127.0.0.1:5100}" --internal --expect-commit "${sha}"
 point_release "${sha}" current
-if [[ "${CAV_PROJECT}" == cell-ai-voicebot-rehearsal ]]; then dc exec -T nginx nginx -s reload; fi
+if is_rehearsal; then dc exec -T nginx nginx -s reload; fi
 echo "Rollback ready (${sha}); database migrations retained"

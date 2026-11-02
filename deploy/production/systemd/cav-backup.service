@@ -1,0 +1,9 @@
+[Unit]
+Description=NotifyNow encrypted backup
+After=docker.service network-online.target
+[Service]
+Type=oneshot
+User=cav
+Environment=CAV_PROJECT=cav-prod
+ExecStart=/srv/cell-ai-voicebot/deploy/scripts/backup.sh
+UMask=0077

@@ -9,7 +9,7 @@ target="${CAV_BACKUP_TARGET:-$(env_value "${CAV_ROOT}/env/ops.env" BACKUP_TARGET
 [[ -s "${CAV_ROOT}/env/backup.pub" ]] || fail 'age recipient file is missing'
 case "${target}" in
   s3://*/*) load_aws ;;
-  /*) [[ "${CAV_PROJECT}" == cell-ai-voicebot-rehearsal ]] || fail 'staging requires an off-server S3 target' ;;
+  /*) is_rehearsal || fail 'a server requires an off-server S3 target' ;;
   *) fail 'set BACKUP_TARGET to s3://bucket/staging/ (local path only in rehearsal)' ;;
 esac
 mkdir -p "${CAV_ROOT}/backups"
