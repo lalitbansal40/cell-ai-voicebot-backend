@@ -52,3 +52,4 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0046 | [Outbound webhooks: outbox in the emitting path, one job per attempt, HMAC over raw bytes, URL guard at save + delivery](0046-webhooks.md)                      | accepted |
 | 0047 | [Encryption layers and key rotation: v2 format with a key id, sealed-field registry, resumable re-seal](0047-encryption-key-rotation.md)                        | accepted |
 | 0048 | [Erasure and suppression: one erase map, hashed suppressions, money rows kept without personal data](0048-erasure-suppression.md)                               | accepted |
+| 0049 | [Production on the client's shared server: isolated user, folder and project, release tags, calls drained, encrypted backups](0049-production-shared-server.md) | accepted |
