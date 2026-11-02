@@ -387,3 +387,4 @@ Never ask for or accept secrets in chat: they go into the server's env files or 
 ## Changelog
 
 - 2026-11-02: plan drafted after Phase 16 sign-off, from the repos at `main` (backend `96cc375`, frontend `b970099`), the Phase 13 deploy kit and tracker (T13.5–T13.11 open), the Phase 16 open items, and public checks of `wa.notifynow.in` (health `commit: unknown`, HSTS only). Includes the Razorpay `PROVIDER_ERROR` seen on 2 Nov.
+- 2026-11-02: run prompt written (`docs/prompts/PHASE_17_PROMPT.md`), assuming SSH access to production and a staging server (§7 #1, #2 = yes) and the inputs in prompt §0. Adds literals: ADR 0049, audit +2 → 167, `GET /admin/system`, `POST /csp-report`, Redis wallet lock, release tags, backup layout, alert thresholds.
