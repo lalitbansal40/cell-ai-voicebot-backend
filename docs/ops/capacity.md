@@ -51,3 +51,9 @@ the soak. The single 500 fell in the MongoDB stall.
   120 s. Wallet changes now queue in each process.
 - **The global rate limit could refuse Meta's webhooks in a burst.** Signed webhook paths are now exempt.
 - **`whatsapp` worker concurrency** went from 10 to 30.
+
+## Phase 17 (2 Nov 2026, same Mac)
+
+**API messages, 50 / s on one account, API and worker as two processes** (`PERF_SPLIT=1`, as production runs them): before the wallet lock p95 7.7 s and 31 s in two runs; with the Redis wallet lock (`5cd4eb4`) **p95 951 ms**, p50 152 ms, 3,000 / 3,000, no 500, money exact. **Still above the 500 ms target**, so this stays open for the staging server (T17.9). One process with the workers inside it is much slower (p95 16 s): run them apart in production.
+
+**Where the time goes:** a wallet hold alone takes 3.3 ms (p50), so the wallet is not the limit. Under load MongoDB in Docker Desktop used up to 2 CPUs, and every operation waited, even a plain unique insert of the idempotency key (up to 4.7 s). The laptop's database is the limit; the real server decides.
