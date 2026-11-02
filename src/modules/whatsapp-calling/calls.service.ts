@@ -40,6 +40,7 @@ import {
   WhatsAppChannelModel,
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
+import { stringEq } from '../../db/partial-match';
 import { AppError, NotFoundError } from '../../shared/errors/app-error';
 import type { Logger } from '../../shared/logger';
 import { recordAudit, type AuditActorInput } from '../audit/audit.service';
@@ -541,7 +542,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
           WHATSAPP_CALL_LIMITS.claimTtlSec,
         );
         await CallModel.updateOne(
-          { 'whatsapp.waCallId': waCallId },
+          { 'whatsapp.waCallId': stringEq(waCallId) },
           {
             $set: {
               'whatsapp.metaStatus': term.status ?? null,
@@ -1058,7 +1059,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     if (!contact && bsuid)
       contact = await ContactModel.findOne({
         accountId: channel.accountId,
-        'whatsapp.bsuid': bsuid,
+        'whatsapp.bsuid': stringEq(bsuid),
         deletedAt: null,
       }).lean<ContactDoc>();
     if (!contact) {

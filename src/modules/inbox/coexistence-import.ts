@@ -13,6 +13,7 @@ import {
   WhatsAppChannelModel,
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
+import { stringEq } from '../../db/partial-match';
 import { getLogger } from '../../shared/logger';
 import { recordAudit } from '../audit/audit.service';
 import { markConsumed } from '../whatsapp/deferred-events';
@@ -79,7 +80,7 @@ export const processEchoes = async (
     const exists = await MessageModel.exists({
       accountId: channel.accountId,
       channelId: channel._id,
-      waMessageId: n.waMessageId,
+      waMessageId: stringEq(n.waMessageId),
     });
     if (exists) {
       duplicates += 1;
@@ -99,7 +100,7 @@ export const processEchoes = async (
       const target = await MessageModel.findOne({
         accountId: channel.accountId,
         channelId: channel._id,
-        waMessageId: n.content.reaction.targetWaMessageId,
+        waMessageId: stringEq(n.content.reaction.targetWaMessageId ?? ''),
       }).lean();
       if (target) await applyReaction(target, 'agent', n.content.reaction.emoji, at);
     }

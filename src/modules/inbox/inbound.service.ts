@@ -10,6 +10,7 @@ import {
 import type { ConversationDoc } from '../../db/models/conversation.model';
 import { MessageModel, type MessageDoc } from '../../db/models/message.model';
 import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
+import { stringEq } from '../../db/partial-match';
 import { getLogger } from '../../shared/logger';
 import { publishMessageReceived } from '../webhooks/publish';
 import { WebhookSchemaError } from '../whatsapp/webhook-handlers';
@@ -56,7 +57,7 @@ const findByWamid = (channel: WhatsAppChannelDoc, waMessageId: string | null) =>
     ? MessageModel.findOne({
         accountId: channel.accountId,
         channelId: channel._id,
-        waMessageId,
+        waMessageId: stringEq(waMessageId),
       }).lean<MessageDoc>()
     : Promise.resolve(null);
 
@@ -79,7 +80,7 @@ export const processCustomerMessage = async (
   const exists = await MessageModel.exists({
     accountId: channel.accountId,
     channelId: channel._id,
-    waMessageId: n.waMessageId,
+    waMessageId: stringEq(n.waMessageId),
   });
   if (exists) return 'duplicate';
   const at = n.metaTimestamp ?? inboxNow(ix);

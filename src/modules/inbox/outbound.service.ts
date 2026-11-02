@@ -25,6 +25,7 @@ import {
   WhatsAppChannelModel,
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
+import { stringEq } from '../../db/partial-match';
 import { withTransaction } from '../../db/transaction';
 import { AppError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
@@ -548,7 +549,10 @@ const announce = async (
 };
 
 const findByClientId = (actor: SendActor, clientId: string) =>
-  MessageModel.findOne({ accountId: actor.accountId, clientId }).lean<MessageDoc>();
+  MessageModel.findOne({
+    accountId: actor.accountId,
+    clientId: stringEq(clientId),
+  }).lean<MessageDoc>();
 
 /**
  * Sends a message / writes a note (PHASE_10_PLAN §1d): checks, idempotency by

@@ -12,6 +12,7 @@ import { ContactModel } from '../../db/models/contact.model';
 import { FlowModel } from '../../db/models/flow.model';
 import { TranscriptTurnModel } from '../../db/models/transcript-turn.model';
 import { UserModel } from '../../db/models/user.model';
+import { stringEq } from '../../db/partial-match';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter } from '../../shared/auth/tenant';
 import { ForbiddenError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
@@ -288,7 +289,7 @@ export const callsFilter = async (
   if (query.mode) filter.mode = query.mode;
   // Phase 14 record filters
   if (query.disposition) filter.disposition = { $in: query.disposition };
-  if (query.externalRef) filter.externalRef = query.externalRef;
+  if (query.externalRef) filter.externalRef = stringEq(query.externalRef);
   if (query.sentiment) filter['insights.sentiment'] = query.sentiment;
   if (query.hasPromise !== undefined)
     filter['insights.hasPromise'] = query.hasPromise ? true : { $ne: true };

@@ -22,6 +22,7 @@ import {
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
 import { WhatsAppTemplateModel } from '../../db/models/whatsapp-template.model';
+import { stringEq } from '../../db/partial-match';
 import { AppError, NotFoundError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
 import { recordAudit, type AuditActorInput } from '../audit/audit.service';
@@ -542,7 +543,7 @@ export const createCallPermissions = (deps: PermissionDeps) => {
         {
           accountId: channel.accountId,
           channelId: channel._id,
-          waMessageId: input.contextId,
+          waMessageId: stringEq(input.contextId),
           'interactive.kind': 'call_permission_request',
         },
         {

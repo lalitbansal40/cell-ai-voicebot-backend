@@ -123,7 +123,7 @@ export const analyseBatch = async (
       if (externalIds.length) {
         const owners = await ContactModel.find({
           accountId: job.accountId,
-          externalId: { $in: externalIds },
+          externalId: { $in: externalIds, $type: 'string' },
         })
           .select({ externalId: 1, phoneE164: 1 })
           .lean<{ externalId: string; phoneE164: string }[]>();

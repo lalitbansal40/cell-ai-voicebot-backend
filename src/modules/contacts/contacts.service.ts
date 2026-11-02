@@ -13,6 +13,7 @@ import {
 } from '../../db/models/contact.model';
 import { DndEntryModel } from '../../db/models/dnd-entry.model';
 import { SegmentModel } from '../../db/models/segment.model';
+import { stringEq } from '../../db/partial-match';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import {
@@ -346,7 +347,11 @@ const assertNoDuplicates = async (
     if (dup) throw duplicateError('phone', dup._id.toString());
   }
   if (externalId) {
-    const dup = await ContactModel.findOne({ accountId, externalId, ...notSelf })
+    const dup = await ContactModel.findOne({
+      accountId,
+      externalId: stringEq(externalId),
+      ...notSelf,
+    })
       .select({ _id: 1 })
       .lean();
     if (dup) throw duplicateError('externalId', dup._id.toString());

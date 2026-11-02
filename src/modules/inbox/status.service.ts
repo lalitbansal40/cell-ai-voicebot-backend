@@ -7,6 +7,7 @@ import {
 } from '../../core/meta';
 import { MessageModel, type MessageDoc } from '../../db/models/message.model';
 import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
+import { stringEq } from '../../db/partial-match';
 import { getLogger } from '../../shared/logger';
 import { recordTemplateUsage } from '../templates/template.service';
 import { publishMessageStatus } from '../webhooks/publish';
@@ -50,7 +51,7 @@ const applyOne = async (
     const current = await MessageModel.findOne({
       accountId: channel.accountId,
       channelId: channel._id,
-      waMessageId: s.id,
+      waMessageId: stringEq(s.id),
     })
       .select({ status: 1, direction: 1, conversationId: 1, pricing: 1, 'interactive.kind': 1 })
       .lean<

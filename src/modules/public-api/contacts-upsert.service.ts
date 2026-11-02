@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import type { z } from 'zod';
 
 import { ContactModel } from '../../db/models/contact.model';
+import { stringEq } from '../../db/partial-match';
 import { tenantFilter } from '../../shared/auth/tenant';
 import { AppError, ValidationError } from '../../shared/errors/app-error';
 import type { CreateContactBody } from '../contacts/contacts.schema';
@@ -22,7 +23,7 @@ const findMatch = async (req: Request, body: ContactBody, by: UpsertKey) => {
         { path: 'externalId', message: 'Needed to upsert by externalId' },
       ]);
     }
-    return ContactModel.findOne({ accountId, externalId, deletedAt: null })
+    return ContactModel.findOne({ accountId, externalId: stringEq(externalId), deletedAt: null })
       .select({ _id: 1 })
       .lean();
   }
