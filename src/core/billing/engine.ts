@@ -95,13 +95,32 @@ const accountMonth = async (accountId: Types.ObjectId, session: ClientSession): 
   return monthKey(new Date(), account?.timezone ?? 'Asia/Kolkata');
 };
 
+const walletQueues = new Map<string, Promise<unknown>>();
+
+/**
+ * One transaction per wallet at a time in this process. Every change writes the same wallet row:
+ * run in parallel they conflict, and the driver retries with no pause until it gives up at 120 s.
+ */
+const inWalletOrder = async <T>(accountId: Types.ObjectId, fn: () => Promise<T>): Promise<T> => {
+  const key = accountId.toString();
+  const next = (walletQueues.get(key) ?? Promise.resolve()).then(fn);
+  const tail = next.catch(() => undefined);
+  walletQueues.set(key, tail);
+  try {
+    return await next;
+  } finally {
+    if (walletQueues.get(key) === tail) walletQueues.delete(key);
+  }
+};
+
 /** Runs `fn` in its own transaction, or inside the caller's session (caller publishes). */
 const run = async (
+  accountId: Types.ObjectId,
   fn: (session: ClientSession) => Promise<TxOutput>,
   outer?: ClientSession,
 ): Promise<TxOutput> => {
   if (outer) return fn(outer);
-  return withTransaction(fn);
+  return inWalletOrder(accountId, () => withTransaction(fn));
 };
 
 /** Publishes the change after commit (only when we own the transaction). */
@@ -315,33 +334,37 @@ export const credit = async (
   if (amount <= 0) throw new RangeError('Credit must be positive');
   await getOrCreateWallet(accountId);
   return raceSafe(accountId, input.idempotencyKey, async () => {
-    const out = await run(async (session) => {
-      const existing = await findByKey(accountId, input.idempotencyKey, session);
-      if (existing) return replay(accountId, [existing], session);
-      const month = await accountMonth(accountId, session);
-      const wallet = await updateWallet(
-        accountId,
-        session,
-        moneyPipeline(month, { balance: amount }),
-      );
-      if (!wallet) throw new NotFoundError('Wallet not found');
-      const entry = await insertRow(session, {
-        accountId,
-        type: input.type,
-        direction: 'credit',
-        status: 'captured',
-        amountMicros: amount,
-        balanceAfterMicros: wallet.balanceMicros,
-        ref: input.ref,
-        idempotencyKey: input.idempotencyKey,
-        note: input.note ?? null,
-        createdBy: input.createdBy ? oid(input.createdBy) : null,
-      });
-      return {
-        result: { entries: [entry], wallet, replay: false },
-        change: change(accountId, wallet, amount, 0),
-      };
-    }, outer);
+    const out = await run(
+      accountId,
+      async (session) => {
+        const existing = await findByKey(accountId, input.idempotencyKey, session);
+        if (existing) return replay(accountId, [existing], session);
+        const month = await accountMonth(accountId, session);
+        const wallet = await updateWallet(
+          accountId,
+          session,
+          moneyPipeline(month, { balance: amount }),
+        );
+        if (!wallet) throw new NotFoundError('Wallet not found');
+        const entry = await insertRow(session, {
+          accountId,
+          type: input.type,
+          direction: 'credit',
+          status: 'captured',
+          amountMicros: amount,
+          balanceAfterMicros: wallet.balanceMicros,
+          ref: input.ref,
+          idempotencyKey: input.idempotencyKey,
+          note: input.note ?? null,
+          createdBy: input.createdBy ? oid(input.createdBy) : null,
+        });
+        return {
+          result: { entries: [entry], wallet, replay: false },
+          change: change(accountId, wallet, amount, 0),
+        };
+      },
+      outer,
+    );
     return finish(out, outer);
   });
 };
@@ -364,7 +387,7 @@ export const holdForCall = async (input: HoldInput): Promise<EngineResult> => {
   if (amount <= 0) throw new RangeError('Hold must be positive');
   await getOrCreateWallet(accountId);
   return raceSafe(accountId, input.idempotencyKey, async () => {
-    const out = await run(async (session) => {
+    const out = await run(accountId, async (session) => {
       const existing = await findByKey(accountId, input.idempotencyKey, session);
       if (existing) return replay(accountId, [existing], session);
       const month = await accountMonth(accountId, session);
@@ -451,7 +474,7 @@ export const extendHold = async (input: ExtendInput): Promise<ExtendResult> => {
   if (amount <= 0) throw new RangeError('Extension must be positive');
   try {
     const result = await raceSafe(accountId, input.idempotencyKey, async () => {
-      const out = await run(async (session) => {
+      const out = await run(accountId, async (session) => {
         const existing = await findByKey(accountId, input.idempotencyKey, session);
         if (existing) return replay(accountId, [existing], session);
         const current = await LedgerEntryModel.findById(holdId)
@@ -529,7 +552,7 @@ export const settleCall = async (input: SettleInput): Promise<EngineResult> => {
   const holdId = oid(input.holdId);
   const key = `settle:${holdId.toString()}`;
   return raceSafe(accountId, key, async () => {
-    const out = await run(async (session) => {
+    const out = await run(accountId, async (session) => {
       const existing = await findByKey(accountId, key, session);
       if (existing) return replay(accountId, [existing], session);
       const { root, held } = await loadHold(accountId, holdId, session);
@@ -607,7 +630,7 @@ export const releaseHold = async (input: {
 }): Promise<EngineResult> => {
   const accountId = oid(input.accountId);
   const holdId = oid(input.holdId);
-  const out = await run(async (session) => {
+  const out = await run(accountId, async (session) => {
     const { root, held } = await loadHold(accountId, holdId, session);
     if (root.status !== 'held' || held.length === 0) return replay(accountId, [], session);
     const total = held.reduce((sum, r) => sum + r.amountMicros, 0);
@@ -645,7 +668,7 @@ export const chargeUsage = async (input: UsageInput): Promise<EngineResult> => {
   if (amount <= 0) throw new RangeError('Charge must be positive');
   await getOrCreateWallet(accountId);
   return raceSafe(accountId, input.idempotencyKey, async () => {
-    const out = await run(async (session) => {
+    const out = await run(accountId, async (session) => {
       const existing = await findByKey(accountId, input.idempotencyKey, session);
       if (existing) return replay(accountId, [existing], session);
       const month = await accountMonth(accountId, session);
@@ -702,7 +725,7 @@ export const holdForWhatsApp = async (input: WhatsAppHoldInput): Promise<EngineR
   const key = `wa-hold-${input.clientId}`;
   await getOrCreateWallet(accountId);
   return raceSafe(accountId, key, async () => {
-    const out = await run(async (session) => {
+    const out = await run(accountId, async (session) => {
       const existing = await findByKey(accountId, key, session);
       if (existing) return replay(accountId, [existing], session);
       const month = await accountMonth(accountId, session);
@@ -764,7 +787,7 @@ export const captureWhatsApp = async (input: {
   const accountId = oid(input.accountId);
   const key = `wa-capture-${input.messageId}`;
   return raceSafe(accountId, key, async () => {
-    const out = await run(async (session) => {
+    const out = await run(accountId, async (session) => {
       const existing = await findByKey(accountId, key, session);
       if (existing) return replay(accountId, [existing], session);
       const root = await loadWhatsAppHold(accountId, input.holdId, session);
@@ -809,7 +832,7 @@ export const releaseWhatsApp = async (input: {
   reason: string;
 }): Promise<EngineResult> => {
   const accountId = oid(input.accountId);
-  const out = await run(async (session) => {
+  const out = await run(accountId, async (session) => {
     const root = await loadWhatsAppHold(accountId, input.holdId, session);
     if (root.status !== 'held') return replay(accountId, [], session);
     await releaseRows([root._id], input.reason.slice(0, 60), session);
@@ -841,7 +864,7 @@ export const releaseWhatsAppMany = async (input: {
   const accountId = oid(input.accountId);
   if (!input.holdIds.length) return { released: [] };
   let released: Types.ObjectId[] = [];
-  const out = await run(async (session) => {
+  const out = await run(accountId, async (session) => {
     released = [];
     const rows = await LedgerEntryModel.find({
       _id: { $in: input.holdIds.map(oid) },
@@ -893,7 +916,7 @@ export const chargeWhatsAppLate = async (input: {
   const key = `wa-late-${input.messageId}`;
   await getOrCreateWallet(accountId);
   return raceSafe(accountId, key, async () => {
-    const out = await run(async (session) => {
+    const out = await run(accountId, async (session) => {
       const existing = await findByKey(accountId, key, session);
       if (existing) return replay(accountId, [existing], session);
       const month = await accountMonth(accountId, session);
@@ -970,7 +993,7 @@ export const holdForWhatsAppCall = async (input: {
   const key = `wa-call-hold-${input.callId}`;
   await getOrCreateWallet(accountId);
   return raceSafe(accountId, key, async () => {
-    const out = await run(async (session) => {
+    const out = await run(accountId, async (session) => {
       const existing = await findByKey(accountId, key, session);
       if (existing) return replay(accountId, [existing], session);
       const month = await accountMonth(accountId, session);
@@ -1021,7 +1044,7 @@ export const extendWhatsAppCallHold = async (input: {
   }
   try {
     const result = await raceSafe(accountId, key, async () => {
-      const out = await run(async (session) => {
+      const out = await run(accountId, async (session) => {
         const existing = await findByKey(accountId, key, session);
         if (existing) return replay(accountId, [existing], session);
         const month = await accountMonth(accountId, session);
@@ -1090,7 +1113,7 @@ export const settleWhatsAppCall = async (input: {
   if (amount < 0) throw new RangeError('Charge must not be negative');
   const key = `wa-call-settle-${input.callId}`;
   return raceSafe(accountId, key, async () => {
-    const out = await run(async (session) => {
+    const out = await run(accountId, async (session) => {
       const existing = await findByKey(accountId, key, session);
       if (existing) return replay(accountId, [existing], session);
       const { root, held } = await loadWhatsAppCallHold(accountId, holdId, session);
@@ -1159,7 +1182,7 @@ export const releaseWhatsAppCallHold = async (input: {
   reason: string;
 }): Promise<EngineResult> => {
   const accountId = oid(input.accountId);
-  const out = await run(async (session) => {
+  const out = await run(accountId, async (session) => {
     const { root, held } = await loadWhatsAppCallHold(accountId, input.holdId, session);
     if (root.status !== 'held') return replay(accountId, [], session);
     const total = held.reduce((sum, r) => sum + r.amountMicros, 0);
@@ -1208,7 +1231,7 @@ export const adjust = async (input: AdjustInput): Promise<EngineResult> => {
   if (amount <= 0) throw new RangeError('Adjustment must be positive');
   await getOrCreateWallet(accountId);
   return raceSafe(accountId, input.idempotencyKey, async () => {
-    const out = await run(async (session) => {
+    const out = await run(accountId, async (session) => {
       const existing = await findByKey(accountId, input.idempotencyKey, session);
       if (existing) return replay(accountId, [existing], session);
       const month = await accountMonth(accountId, session);
