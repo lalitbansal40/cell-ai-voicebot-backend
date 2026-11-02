@@ -394,7 +394,7 @@ describe('/ws/events limits & lifecycle', () => {
   it('closes idle clients (4008)', async () => {
     const inst = await startInstance({ heartbeatMs: 30, idleMs: 60 });
     const c = connect((await ticketUrl(inst)).url);
-    await opened(c);
+    // no wait for 'open': under load the idle close can come first
     expect((await c.closed).code).toBe(WS_CLOSE.policy);
   });
 

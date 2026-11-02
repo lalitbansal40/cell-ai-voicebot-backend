@@ -153,4 +153,10 @@ print(json.dumps([ok, bad, old]))
     expect(codeBlock('php')).toContain('hash_equals');
     expect(codeBlock('php')).toContain("hash_hmac('sha256', $ts . '.' . $rawBody, $secret)");
   });
+
+  // PHP is not installed everywhere: this runs where it is, and nothing is installed for it
+  it.skipIf(spawnSync('php', ['-v']).status !== 0)('the PHP sample has valid syntax', () => {
+    const run = spawnSync('php', ['-l'], { input: codeBlock('php'), encoding: 'utf8' });
+    expect(run.status, run.stdout).toBe(0);
+  });
 });

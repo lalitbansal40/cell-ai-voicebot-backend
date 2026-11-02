@@ -13,5 +13,5 @@ Plan: [PHASE_16_PLAN.md](PHASE_16_PLAN.md) · Branch: `feature/phase-16-security
 | [x] | T16.7  | Compliance matrix, opt-in record, Compliance page, policy updates                   | both | M    |
 | [x] | T16.8  | Load tests: 5 scenarios + soak                                                      | BE   | M    |
 | [x] | T16.9  | Rate limit inventory, per-account key limits, superadmin 2FA, audit + upload review | both | M    |
-| [ ] | T16.10 | Flake fixes, Playwright + security tests                                            | both | M    |
+| [x] | T16.10 | Flake fixes, Playwright + security tests                                            | both | M    |
 | [ ] | T16.11 | Pen-test checklist, gap audit, docs, sign-off                                       | both | M    |

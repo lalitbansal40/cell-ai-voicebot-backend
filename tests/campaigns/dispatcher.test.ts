@@ -599,8 +599,10 @@ describe('dispatcher (dry run, real calls on virtual time)', () => {
         revision: waiting.revision,
         window: { start: '00:00', end: '23:59', days: [0, 1, 2, 3, 4, 5, 6] },
       });
-      w.clock.advance(200);
+      // keep the clock moving: under load the wake's timer can start after a single advance
+      // (120 × 200 ms stays under the one-minute re-check, so only the wake can pass this)
       for (let i = 0; i < 120 && !(await CallModel.exists({ campaignId: edited })); i += 1) {
+        w.clock.advance(200);
         await sleep(25);
       }
       expect(await CallModel.countDocuments({ campaignId: edited })).toBe(1);

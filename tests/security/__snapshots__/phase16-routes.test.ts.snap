@@ -1,0 +1,16 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Phase 16 routes (security) > only the owner holds export and delete; erase stays with owner and admin 1`] = `
+{
+  "delete": [
+    "owner",
+  ],
+  "erase": [
+    "admin",
+    "owner",
+  ],
+  "export": [
+    "owner",
+  ],
+}
+`;
