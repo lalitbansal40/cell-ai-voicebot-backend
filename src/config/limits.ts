@@ -16,6 +16,15 @@ export const STRICT_RATE_LIMIT = { windowMs: 15 * 60_000, limit: 10 } as const;
 /** Paths never rate-limited or access-logged (health checks land in T1.9). */
 export const UNLIMITED_PATHS: readonly string[] = ['/health', '/ready'];
 
+/**
+ * Signed webhooks all come from a few provider addresses, so a per-IP limit would refuse real
+ * events in a burst. The signature and the size limit protect these instead.
+ */
+export const WEBHOOK_PATHS: readonly string[] = [
+  '/api/v1/webhooks/meta',
+  '/api/v1/webhooks/razorpay',
+];
+
 /** Default lifetime of signed download URLs (seconds). */
 export const SIGNED_URL_TTL_SEC = 900;
 
@@ -374,7 +383,7 @@ export const WHATSAPP_LIMITS = {
   signedRequestMaxAgeSec: 86_400,
   fakeCodeTtlSec: 600,
   lastEventThrottleMs: 60_000,
-  workerConcurrency: 10,
+  workerConcurrency: 30,
   connectLockTtlMs: 60_000,
   /** Health job: channels checked at once. */
   healthConcurrency: 5,

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { AUDIT_ACTIONS } from '../../src/modules/audit/audit-actions';
@@ -9,6 +10,7 @@ import { sanitizeMeta } from '../../src/modules/audit/audit.service';
 import { safeCell } from '../../src/modules/contact-imports/error-report';
 import { assertXlsxSafe } from '../../src/modules/contact-imports/parsers/xlsx';
 import { cleanForExport } from '../../src/modules/privacy/account-export.job';
+import { buildTestApp } from '../helpers/test-app';
 
 const src = path.resolve(__dirname, '..', '..', 'src');
 const files = (dir: string): string[] =>
@@ -124,5 +126,15 @@ describe('files', () => {
       }),
     );
     expect(out).toBe('{"name":"n"}');
+  });
+});
+
+describe('global limit', () => {
+  it('never refuses a signed provider webhook, however many arrive from one address', async () => {
+    const app = buildTestApp({}, { rateLimit: { limit: 1 } });
+    const path = '/api/v1/webhooks/meta';
+    const statuses: number[] = [];
+    for (let i = 0; i < 3; i += 1) statuses.push((await request(app).post(path).send({})).status);
+    expect(statuses).not.toContain(429);
   });
 });

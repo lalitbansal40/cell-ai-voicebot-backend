@@ -2,7 +2,12 @@ import type { Request, RequestHandler } from 'express';
 import { rateLimit, type Store } from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 
-import { GLOBAL_RATE_LIMIT, STRICT_RATE_LIMIT, UNLIMITED_PATHS } from '../../config/limits';
+import {
+  GLOBAL_RATE_LIMIT,
+  STRICT_RATE_LIMIT,
+  UNLIMITED_PATHS,
+  WEBHOOK_PATHS,
+} from '../../config/limits';
 import { RateLimitedError } from '../errors/app-error';
 
 export interface RateLimiterOptions {
@@ -39,7 +44,7 @@ export const globalRateLimiter = (overrides: Partial<RateLimiterOptions> = {}): 
   Object.assign(
     createRateLimiter({
       ...GLOBAL_RATE_LIMIT,
-      skip: (req) => UNLIMITED_PATHS.includes(req.path),
+      skip: (req) => UNLIMITED_PATHS.includes(req.path) || WEBHOOK_PATHS.includes(req.path),
       ...overrides,
     }),
     { isGlobalLimiter: true },
