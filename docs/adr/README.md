@@ -51,3 +51,4 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0045 | [Public API: one API, two auths (session or scoped key), per-key limits, public docs](0045-public-api.md)                                                       | accepted |
 | 0046 | [Outbound webhooks: outbox in the emitting path, one job per attempt, HMAC over raw bytes, URL guard at save + delivery](0046-webhooks.md)                      | accepted |
 | 0047 | [Encryption layers and key rotation: v2 format with a key id, sealed-field registry, resumable re-seal](0047-encryption-key-rotation.md)                        | accepted |
+| 0048 | [Erasure and suppression: one erase map, hashed suppressions, money rows kept without personal data](0048-erasure-suppression.md)                               | accepted |

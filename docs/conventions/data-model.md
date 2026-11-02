@@ -1107,3 +1107,14 @@ Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, r
 3. **Production database** — client DB type unknown ([answers.md](../client/answers.md) #5); MongoDB ≥ 8.2 required.
 4. **Retention periods** for calls, transcripts and recordings — client legal (T0.18).
 5. **Encryption key management** — single `ENCRYPTION_KEY` vs per-account keys / KMS (Phase 11).
+
+## Phase 16 collections and fields
+
+- **`suppressions`:** `accountId`, keyed hash of the phone, reason. Blocks an erased or opted-out number from coming back. Never holds the phone itself.
+- **`eraseJobs`:** a bulk erase: `accountId`, `requestedBy`, `status`, `contactIds`, `total`, `done`, `retried`, `counts`, `expiresAt`.
+- **`accountExports`:** `accountId`, `requestedBy`, `status`, `includeRecordings`, `fileKey`, `sizeBytes`, `counts`, `error`, `expiresAt`.
+- **`accounts.deletion`:** `status`, `requestedAt`, `requestedBy`, `scheduledFor`, `purgedAt`. **`accounts.apiLimits`:** per-minute reads and writes for API keys.
+- **`customFields.sensitive`:** values of such a field are stored as `{ $enc: 'v2:…' }`.
+- **`users.mfa`:** sealed TOTP secret, hashed recovery codes, `enabledAt`.
+
+**Partial indexes:** an index that is partial on `{ field: { $type: 'string' } }` is only used when the query repeats the `$type`. Use `stringEq()` from `src/db/partial-match.ts`, or the query scans.

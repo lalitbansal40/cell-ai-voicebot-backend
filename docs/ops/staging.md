@@ -88,3 +88,25 @@ Rehearsal on the Mac: project `cell-ai-voicebot-rehearsal`, the real `compose.ya
 | nginx access log                                                                                                                               | ✅ no query strings (WebSocket ticket not logged)                                                                    |
 
 Not run on the Mac: the encrypted backup + restore drill — `age` is not installed here and downloading a binary was not allowed in this session. The same `backup.sh` / `restore.sh` passed an earlier rehearsal before commit `3cc340c`; they run for real on the staging server in T13.6 (`provision.sh` installs `age`). No real provider, phone, TLS or firewall check is implied by this section.
+
+## Phase 16 runbook
+
+**Re-sealing after a key rotation.** Run `npm run keys:reseal -- --dry-run` first. It reports how many values
+still use old keys and changes nothing. Then run `npm run keys:reseal`, which writes. It can be stopped
+and started again. Remove the old key from `ENCRYPTION_KEYS_OLD` only when the dry run reports 0.
+Details: `docs/ops/secret-rotation.md`.
+
+**An erase job is stuck.** Look at the job's `status`, `done` and `total` in `eraseJobs`, and at the
+`contacts` queue. Erasing a contact is safe to repeat, so restart the worker and let the job run again.
+Never delete the job row or finish the erase by hand: the shared erase map covers every collection.
+
+**A purge is stuck.** Look at `accounts.deletion` and the `account-purge` maintenance job's logs. The purge
+resumes where it stopped and only touches accounts whose deletion is scheduled and due. To stop one before
+its date, cancel it from the account's settings or from the superadmin deletions card.
+
+**Export files are piling up.** `account-exports-cleanup` removes expired files. If it has stopped, check
+that the maintenance worker is running and that storage is reachable, then let the next run clear them.
+
+**A superadmin lost their phone.** Use a recovery code at the two-step prompt, then turn two-step sign-in
+off and set it up again. With no recovery codes left, another superadmin can't do this for them: clear
+`users.mfa` for that user on the server, with a database backup first, and write it in the audit notes.

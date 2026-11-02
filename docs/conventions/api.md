@@ -385,3 +385,11 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 - Breaking changes go to `/api/v2`; `/api/v1` keeps working until it is retired.
 - Deprecated endpoints send `Deprecation` and `Sunset` headers before removal.
 - Additive changes (new optional fields, new endpoints) are not breaking.
+
+## Phase 16 routes (sessions only, never API keys)
+
+- `POST /contacts/:id/erase`, `POST /contacts/bulk-erase`, `GET /contacts/erase-jobs/:id` (`contacts.erase`, not while impersonating).
+- `POST /account/export`, `GET /account/exports`, `GET /account/exports/:id` (`account.export`), `POST /account/delete`, `POST /account/delete/cancel` (`account.delete`). A suspended account's owner can still use them.
+- `GET /account/compliance`, `GET /account/compliance/export` (`account.read`).
+- `/auth/mfa/status|setup|confirm|verify|disable` (the signed-in superadmin).
+- `PATCH /admin/accounts/:id/api-limits` (superadmin).

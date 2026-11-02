@@ -4,7 +4,17 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Fixed
+
+- Inbound messages and delivery statuses no longer scan an account's messages (partial indexes were not used).
+- Sends no longer answer 500 when many hit one wallet at once.
+
 ### Added
+
+- **Phase 16 · Batch 3 (T16.7–T16.11) — compliance, hardening, load checks** — 2026-11-02
+  - Compliance page and CSV, opt-out words, consent warnings, calling-hours ceiling.
+  - Superadmin two-step sign-in, per-account API key limits, a rate limit inventory, audit kept for 2 years.
+  - Load checks: `perf:inbox`, `perf:api`, `perf:ws`, `perf:soak`; results in `docs/ops/capacity.md`.
 
 - **Phase 16 · Batch 2 (T16.4–T16.6) — sensitive fields, erasure, account export and delete** — 2026-11-02
   - A custom field marked sensitive is sealed at rest. Lists and API keys get the mask; calls and templates get the real value.

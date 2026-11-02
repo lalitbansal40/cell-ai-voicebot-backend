@@ -105,3 +105,15 @@ Never log prompts, persona text, user / assistant messages, knowledge text, func
 - **Who can act:** answering needs `calls.answer` and being in the ring list, placing calls `calls.trigger` (+ `flows.read` / `agents.read` for the AI program), transfers `calls.listen`; impersonators never call, answer or change settings; every action is checked again on the server holding the call.
 - **Logs:** ids, statuses, counts and codes only — no phones, names, DTMF digits or transcripts; `npm run dev:calls-wa` runs are grepped for SDP markers and phones before each checkpoint.
 - **Money:** call charges only through the engine (`wa-call-hold/extend/settle-<callId>` keys, once per call even when Meta's terminate, our late timer and redeliveries race); a dead process's holds are released by the stale-hold reaper.
+
+## 14. Security, privacy and compliance (Phase 16)
+
+- **Threat model and data:** `docs/security/THREAT_MODEL.md`, `DATA_MAP.md` (a test keeps it complete), `COMPLIANCE.md`, `RATE_LIMITS.md`, `PENTEST_CHECKLIST.md`.
+- **Encryption keys:** secret box v2 stores a key id, v1 still reads. Every sealed field is in `shared/crypto/sealed-registry.ts`, and a test fails if one is missing. `npm run keys:reseal` moves values to the current key (ADR 0047, `docs/ops/secret-rotation.md`).
+- **Sensitive fields:** one read path, `modules/privacy/sensitive.ts`. Lists and API keys get the mask. The contact page shows the value with `contacts.export`. Calls and templates use the real value at run time, so it can appear in what is spoken, transcripts and sent messages.
+- **Erasure:** erase and purge share `modules/privacy/erase-map.ts`, and every query has `accountId`. Money rows stay, without personal data. A suppression stores a keyed hash of the phone, never the phone (ADR 0048).
+- **Account deletion:** owner only, password again, 7 days to cancel, never while impersonating. The purge only takes accounts whose deletion is scheduled and due, never the platform account.
+- **Superadmin two-step sign-in:** TOTP (RFC 6238), replay refused, recovery codes hashed and single use. With `MFA_ENFORCED_FOR_ADMINS`, big actions need a fresh code. Sign-in itself isn't blocked, so nobody gets locked out.
+- **API keys:** refused on all privacy and MFA routes. Limits per account in `accounts.apiLimits`, picked up within 30 s.
+- **Webhooks:** signed paths skip the global limit, because they all come from a few provider addresses. The signature and body size protect them.
+- **Logs:** never phones, names, texts, TOTP secrets, recovery codes or sensitive values.
