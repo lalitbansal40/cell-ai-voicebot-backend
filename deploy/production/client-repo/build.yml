@@ -1,0 +1,23 @@
+# Copied into the client repo by scripts/sync-client-repo.sh. Our repos run the tests; this only
+# proves that what was released builds. No secrets.
+name: Build
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        folder: [cell-ai-voicebot-phase13/backend, cell-ai-voicebot-phase13/frontend]
+    defaults:
+      run:
+        working-directory: ${{ matrix.folder }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build

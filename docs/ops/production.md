@@ -47,3 +47,18 @@ A stopped API ends live calls with the technical line, which is why the release 
 | `rollback.sh` to a named release  | Pass, 4 s                                                       |
 
 **Not rehearsed:** TLS, real nginx site file, host networking and UDP media, because Docker Desktop has no host networking. They wait for a staging server.
+
+## Making a release in the client repo
+
+From the Mac, with both our repos on the code to release:
+
+```bash
+scripts/sync-client-repo.sh <backend-ref> <frontend-ref> --dry-run
+scripts/sync-client-repo.sh <backend-ref> <frontend-ref>
+```
+
+It stops with exit 2 if the client repo has new commits, or if its folders differ from the last release; bring those edits into our repos first. It stops with exit 3 if the new code holds anything that looks like a secret, or an `.env` file. It never forces a push. It also keeps `.github/workflows/build.yml` in that repo, which only proves each push builds.
+
+If the repo becomes private, give the server a read-only deploy key and set `RELEASE_REPO_URL` in `env/ops.env` to the SSH address.
+
+**Tagged so far:** `release-20261102-96cc375` on client commit `fb496c3` (Phase 16; not deployed).
