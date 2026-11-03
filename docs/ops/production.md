@@ -87,3 +87,15 @@ If the repo becomes private, give the server a read-only deploy key and set `REL
 Each alert key is mailed at most once an hour, through a one-off container, so mail works when the API is down. **Alerts tested:** none yet (needs a server).
 
 **Admin → System** (`/admin/system`, superadmins) shows the commit, build time, MongoDB, Redis, queues, last backup, drill and release, certificate days and superadmins without 2FA. Set `TLS_CERT_PATH` to the certificate file to get the certificate line.
+
+## Security settings (T17.11)
+
+- **Headers:** our nginx file sends HSTS once, plus `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` and the CSP; set `HSTS_BY_PROXY=true` so the API doesn't send HSTS too.
+- **CSP:** starts report-only (`render-nginx.sh <host> --csp report`), with `report-uri /api/v1/csp-report`. Look for `csp: blocked` warnings in the API logs while using the Meta sign-up popup, Razorpay checkout, a web call and audio playback. After 7 days without such lines, render with `--csp enforce`, `nginx -t`, reload. Undo: render with `--csp report` again.
+- **Two-step sign-in:** when Admin → System shows 0 superadmins without it, set `MFA_ENFORCED_FOR_ADMINS=true` and release.
+- **Env values to check by name:** `API_DOCS_ENABLED`, `MOCK_APIS_ENABLED`, `BILLING_SIMULATOR_ENABLED` unset or false; `PAYMENT_PROVIDER=razorpay`; `TRUST_PROXY` set; `SUPPRESSION_HMAC_KEY` present. `release.sh` checks the secrets are present, never their values.
+- **Razorpay:** if top-ups fail with `PROVIDER_ERROR`, the API log line `razorpay: request rejected` has Razorpay's status, code and description. Usual causes: a test key id with a live secret, a key pair that doesn't match, or the account not activated for live payments.
+- **Host:** see [host-hardening.md](host-hardening.md).
+- **Secret rotation:** [secret-rotation.md](secret-rotation.md), staging first, `ENCRYPTION_KEY` last.
+
+**Not done yet (needs access or owner action):** headers and CSP on the live nginx, the 7-day CSP check, secret rotation, 2FA set-up by each superadmin, the Razorpay fix and a ₹1 live top-up, SPF / DKIM / DMARC check, host hardening.

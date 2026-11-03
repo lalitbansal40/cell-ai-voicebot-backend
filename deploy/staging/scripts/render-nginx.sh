@@ -7,7 +7,7 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-templates="${here}/../nginx"
+templates="${CAV_NGINX_DIR:-${here}/../nginx}"
 
 host="${1:-}"
 shift || true

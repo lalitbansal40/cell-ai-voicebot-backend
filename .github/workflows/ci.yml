@@ -155,7 +155,9 @@ jobs:
             docker compose -f deploy/production/compose.yaml config -q
 
       - name: nginx -t
-        run: deploy/staging/scripts/check-nginx.sh
+        run: |
+          deploy/staging/scripts/check-nginx.sh
+          CAV_NGINX_DIR="$PWD/deploy/production/nginx" deploy/staging/scripts/check-nginx.sh
 
       - name: shellcheck
         run: docker run --rm -v "$PWD/deploy:/mnt" koalaman/shellcheck-alpine:v0.10.0 sh -c 'shellcheck /mnt/staging/scripts/*.sh /mnt/production/scripts/*.sh /mnt/production/rehearsal/*.sh'
