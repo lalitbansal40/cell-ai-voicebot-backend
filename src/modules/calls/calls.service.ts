@@ -130,6 +130,8 @@ export const toCallView = (c: CallDoc, names: Names) => {
       : null,
     status: c.status,
     endReason: c.endReason,
+    callerId: c.callerId ?? null,
+    sip: c.sip ?? null,
     source: {
       kind: c.source.kind,
       flowId,

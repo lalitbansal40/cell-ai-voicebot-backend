@@ -2621,6 +2621,36 @@
               null
             ]
           },
+          "callerId": { "type": ["string", "null"] },
+          "sip": {
+            "type": ["object", "null"],
+            "properties": {
+              "codec": { "type": "string", "enum": ["ulaw", "alaw"] },
+              "sipQ850": { "type": ["number", "null"] },
+              "dialStatus": { "type": ["string", "null"] },
+              "amd": { "type": ["string", "null"] },
+              "amdCause": { "type": ["string", "null"] },
+              "amdMs": { "type": ["number", "null"] },
+              "packetsIn": { "type": "number" },
+              "packetsOut": { "type": "number" },
+              "lossPct": { "type": "number" },
+              "jitterMs": { "type": "number" },
+              "firstAudioMs": { "type": ["number", "null"] }
+            },
+            "required": [
+              "codec",
+              "sipQ850",
+              "dialStatus",
+              "amd",
+              "amdCause",
+              "amdMs",
+              "packetsIn",
+              "packetsOut",
+              "lossPct",
+              "jitterMs",
+              "firstAudioMs"
+            ]
+          },
           "source": {
             "type": "object",
             "properties": {
@@ -2782,6 +2812,8 @@
           "campaign",
           "status",
           "endReason",
+          "callerId",
+          "sip",
           "source",
           "contact",
           "startedBy",
@@ -4047,6 +4079,14 @@
           "warnings",
           "createdAt"
         ]
+      },
+      "PhoneLine": {
+        "type": "object",
+        "properties": {
+          "line": { "type": "string", "enum": ["sip", "dryrun"] },
+          "numbers": { "type": "array", "items": { "$ref": "#/components/schemas/PhoneNumber" } }
+        },
+        "required": ["line", "numbers"]
       },
       "DndEntry": {
         "type": "object",
@@ -20310,6 +20350,36 @@
           },
           "404": {
             "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/phone-line": {
+      "get": {
+        "tags": ["Phone numbers"],
+        "summary": "This account's phone line (sip / dryrun) and active numbers (account.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PhoneLine" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

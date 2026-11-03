@@ -18,6 +18,7 @@ import {
   UpdatePhoneNumberBody,
 } from './phone-numbers.schema';
 import {
+  accountPhoneLine,
   accountPhoneNumbers,
   assignPhoneNumber,
   createPhoneNumber,
@@ -77,6 +78,10 @@ export const createAdminPhoneNumbersRouter = (): Router => {
 /** `/api/v1/phone-numbers` — the account's own numbers, read-only. */
 export const createPhoneNumbersRouter = (): Router => {
   const router = Router();
+  router.get('/phone-line', authenticate(), requirePermission('account.read'), async (req, res) => {
+    requireAuth(req);
+    ok(res, await accountPhoneLine(tenantFilter(req).accountId));
+  });
   router.get(
     '/phone-numbers',
     authenticate(),

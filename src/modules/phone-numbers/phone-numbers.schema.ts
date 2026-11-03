@@ -109,6 +109,19 @@ registry.registerPath({
   request: idPath,
   responses: { 200: one, 403: errors[403], 404: errors[404] },
 });
+export const PhoneLineSchema = registry.register(
+  'PhoneLine',
+  z.object({ line: z.enum(['sip', 'dryrun']), numbers: z.array(PhoneNumberSchema) }),
+);
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/phone-line',
+  tags,
+  summary: "This account's phone line (sip / dryrun) and active numbers (account.read)",
+  security: bearer,
+  responses: { 200: ok(PhoneLineSchema), 403: errors[403] },
+});
 registry.registerPath({
   method: 'get',
   path: '/api/v1/phone-numbers',

@@ -2,12 +2,14 @@ import type { Request } from 'express';
 import { Types } from 'mongoose';
 import type { z } from 'zod';
 
+import { getEnv } from '../../config/env';
 import { SIP_LIMITS } from '../../config/limits';
 import { isDuplicateKeyError } from '../../db/errors';
-import { AccountModel } from '../../db/models/account.model';
+import { AccountModel, type AccountVoiceLine } from '../../db/models/account.model';
 import { PhoneNumberModel, type PhoneNumberDoc } from '../../db/models/phone-number.model';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
 import { auditRequest } from '../audit/audit.service';
+import { effectiveLine } from '../calls/line';
 
 import type {
   CreatePhoneNumberBody,
@@ -143,6 +145,17 @@ export const accountPhoneNumbers = async (accountId: Types.ObjectId) => {
     .sort({ createdAt: 1 })
     .lean<PhoneNumberDoc[]>();
   return docs.map((d) => view(d));
+};
+
+/** Settings → Phone line and the campaign form: which line the account is on, and its numbers. */
+export const accountPhoneLine = async (accountId: Types.ObjectId) => {
+  const account = await AccountModel.findById(accountId)
+    .select({ voiceLine: 1 })
+    .lean<{ voiceLine?: AccountVoiceLine }>();
+  return {
+    line: effectiveLine(account, getEnv()),
+    numbers: await accountPhoneNumbers(accountId),
+  };
 };
 
 /**

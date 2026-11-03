@@ -72,6 +72,11 @@ describe('phone numbers (T18.7)', () => {
       .query({ accountId: a.account._id.toString() })
       .set(header(superadmin));
     expect(list.body.data.map((x: { id: string }) => x.id)).toEqual([n.id]);
+    const line = await request(app).get('/api/v1/phone-line').set(header(owner));
+    expect(line.body.data).toMatchObject({
+      line: 'dryrun',
+      numbers: [{ number: '+911600200001' }],
+    });
     const own = await request(app).get('/api/v1/phone-numbers').set(header(owner));
     expect(own.body.data.map((x: { number: string }) => x.number)).toEqual(['+911600200001']);
     expect(

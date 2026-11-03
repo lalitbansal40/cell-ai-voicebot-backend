@@ -188,6 +188,24 @@ export const CallSchema = registry.register(
     campaign: z.object({ id: z.string(), name: z.string(), attempt: z.number() }).nullable(),
     status: z.enum(CALL_STATUSES),
     endReason: z.enum(CALL_END_REASONS).nullable(),
+    /** Phase 18: the number the customer saw (SIP calls). */
+    callerId: z.string().nullable(),
+    /** Phase 18: line facts of a SIP call (codec, Q.850 cause, answering machine check, RTP quality). */
+    sip: z
+      .object({
+        codec: z.enum(['ulaw', 'alaw']),
+        sipQ850: z.number().nullable(),
+        dialStatus: z.string().nullable(),
+        amd: z.string().nullable(),
+        amdCause: z.string().nullable(),
+        amdMs: z.number().nullable(),
+        packetsIn: z.number(),
+        packetsOut: z.number(),
+        lossPct: z.number(),
+        jitterMs: z.number(),
+        firstAudioMs: z.number().nullable(),
+      })
+      .nullable(),
     source: z.object({
       kind: z.enum(['flow', 'agent']).nullable(),
       flowId: z.string().nullable(),
