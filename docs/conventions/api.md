@@ -393,3 +393,8 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 - `GET /account/compliance`, `GET /account/compliance/export` (`account.read`).
 - `/auth/mfa/status|setup|confirm|verify|disable` (the signed-in superadmin).
 - `PATCH /admin/accounts/:id/api-limits` (superadmin).
+
+## Phase 17 routes
+
+- `GET /admin/system` (superadmin): build, MongoDB, Redis, queue counts, last backup / drill / release, certificate days, superadmins without 2FA. Cached 10 s, no secrets.
+- `POST /csp-report` (public, 60 / min per IP, 16 KB): browsers' CSP violation reports. Logs the directive and the blocked origin only; answers 204.

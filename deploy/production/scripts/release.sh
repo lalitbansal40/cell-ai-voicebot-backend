@@ -67,6 +67,9 @@ git -C "${repo}" archive "${tag}" "${subdir}/frontend" | tar -x -C "${src}/front
 printf '%s\n' "${frontend_sha}" > "${src}/frontend.sha"
 
 "${here}/deploy.sh" "${backend_sha}"
+APP_SHA="${backend_sha}" dc run --rm --no-deps -T api node dist/ops/ops-record.js release \
+  --tag "${tag}" --backend "${backend_sha}" --frontend "${frontend_sha}" >/dev/null \
+  || echo 'Release is live, but it could not be recorded in the app' >&2
 mkdir -p "${CAV_ROOT}/logs"
 printf '%s tag=%s backend=%s frontend=%s seconds=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   "${tag}" "${backend_sha}" "${frontend_sha}" "$((SECONDS - begin))" >> "${CAV_ROOT}/logs/releases.log"

@@ -365,3 +365,41 @@ registry.registerPath({
   request: { params: AccountIdParams, ...json(ApiLimitsBody) },
   responses: { 200: ok(ApiLimitsBody), 403: errors[403], 404: errors[404], 422: errors[422] },
 });
+
+const Counts = z.object({
+  waiting: z.number().int(),
+  active: z.number().int(),
+  delayed: z.number().int(),
+  failed: z.number().int(),
+});
+
+export const SystemStatusSchema = registry.register(
+  'SystemStatus',
+  z.object({
+    commit: z.string(),
+    builtAt: z.string(),
+    env: z.string(),
+    uptimeSec: z.number().int(),
+    mongo: z.object({ ok: z.boolean(), primary: z.boolean(), version: z.string().nullable() }),
+    redis: z.object({ ok: z.boolean(), usedMemoryMb: z.number().nullable() }),
+    queues: z
+      .record(z.string(), Counts)
+      .openapi({ description: '-1 when a queue could not be read' }),
+    lastBackup: z.object({ at: z.string(), ok: z.boolean(), bytes: z.number() }).nullable(),
+    lastRestoreDrill: z.object({ at: z.string(), rtoMinutes: z.number() }).nullable(),
+    lastRelease: z
+      .object({ at: z.string(), tag: z.string(), backend: z.string(), frontend: z.string() })
+      .nullable(),
+    certificate: z.object({ daysLeft: z.number().int() }).nullable(),
+    superadminsWithoutMfa: z.number().int(),
+  }),
+);
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/system',
+  tags,
+  summary: 'Production health for superadmins: build, database, Redis, queues, backups (Phase 17)',
+  security: bearer,
+  responses: { 200: ok(SystemStatusSchema), 401: errors[401], 403: errors[403] },
+});

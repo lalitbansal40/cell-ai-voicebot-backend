@@ -1,10 +1,12 @@
 import { Router } from 'express';
 
-import type { Env } from '../../config/env';
+import { getEnv, type Env } from '../../config/env';
 import type { AiProvider } from '../../core/ai/types';
+import { getAppRedis } from '../../core/queues/redis';
 import type { StorageProvider } from '../../core/storage';
 import { ProviderError } from '../../shared/errors/app-error';
 import { created, noContent, ok } from '../../shared/http/envelope';
+import { getLogger } from '../../shared/logger';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
 import { requirePlatformAdmin } from '../../shared/middlewares/require-permission';
@@ -45,6 +47,7 @@ import {
   stopImpersonation,
   suspendAccount,
 } from './admin.service';
+import { createSystemStatus } from './system.service';
 
 /** `/api/v1/admin` — platform superadmin only. */
 export const createAdminRouter = ({
@@ -72,6 +75,18 @@ export const createAdminRouter = ({
 
   router.use(requirePlatformAdmin());
   const fresh = requireFreshMfa(env.MFA_ENFORCED_FOR_ADMINS);
+
+  // Phase 17: Admin → System (created on first use: it opens read-only queue handles)
+  let system: ReturnType<typeof createSystemStatus> | undefined;
+  router.get('/system', async (_req, res) => {
+    const current = getEnv();
+    system ??= createSystemStatus({
+      env: current,
+      build: { commit: current.GIT_SHA ?? 'unknown', builtAt: current.BUILT_AT ?? 'unknown' },
+      redis: getAppRedis(current.REDIS_URL, getLogger()),
+    });
+    ok(res, await system.read());
+  });
   const createAccountLimit = createRateLimiter({ windowMs: 60 * 60 * 1000, limit: 60 });
   router.get(
     '/accounts',

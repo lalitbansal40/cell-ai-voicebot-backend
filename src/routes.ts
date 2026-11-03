@@ -74,6 +74,7 @@ import { createReportsRouter } from './modules/reports/reports.routes';
 import { createRetentionRouter } from './modules/retention/retention.routes';
 import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSheetImportsRouter } from './modules/sheet-imports/sheet-imports.routes';
+import { createCspReportRouter } from './modules/system/csp-report';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
 import { unavailableTemplateJobs, type TemplateJobs } from './modules/templates/jobs';
@@ -273,6 +274,7 @@ export const createApiRouter = ({
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL, env.API_DOCS_ENABLED));
   router.get('/openapi.public.json', createPublicOpenApiHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
+  router.use('/csp-report', createCspReportRouter());
   router.use('/rbac', createRbacRouter());
   router.use('/contacts', createOptOutRouter());
   router.use(

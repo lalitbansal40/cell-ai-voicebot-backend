@@ -33,11 +33,26 @@ for id in $(dc ps -aq); do
   if [[ -f "${prior}" ]] && (( restarts > $(cat "${prior}") )); then issues+=(container-restarts); fi
   printf '%s\n' "${restarts}" > "${prior}"
 done
+# App-side checks (Phase 17): MongoDB primary, queue backlog, failed jobs, last recorded backup.
+prev="${CAV_ROOT}/logs/alerts/failed-total"
+check_args=()
+if [[ -f "${prev}" ]]; then check_args=(--failed-before "$(cat "${prev}")"); fi
+# shellcheck disable=SC2016 # expanded by sh inside the container
+if out="$(dc run --rm --no-deps -T api sh -c 'test ! -f dist/ops/health-check.js || exec node dist/ops/health-check.js "$@"' sh "${check_args[@]}" 2>/dev/null)"; then
+  while IFS= read -r line; do
+    case "${line}" in
+      'failed-total '*) printf '%s\n' "${line#failed-total }" > "${prev}" ;;
+      '') ;;
+      *) issues+=("${line}") ;;
+    esac
+  done <<<"${out}"
+else issues+=(app-check); fi
 if [[ "${1:-}" == --test ]]; then issues+=(test-alert); fi
 if [[ "${1:-}" == --backup-failed ]]; then issues+=(backup-failed); fi
 email="${CAV_ALERT_EMAIL:-$(env_value "${CAV_ROOT}/env/ops.env" ALERT_EMAIL)}"
 [[ -n "${email}" ]] || fail 'set ALERT_EMAIL in env/ops.env'
 now="$(date +%s)"
+if (( ${#issues[@]} > 0 )); then mapfile -t issues < <(printf '%s\n' "${issues[@]}" | sort -u); fi
 for issue in "${issues[@]}"; do
   sent="${CAV_ROOT}/logs/alerts/${issue}"
   if [[ -f "${sent}" ]] && (( now - $(cat "${sent}") < 3600 )); then continue; fi

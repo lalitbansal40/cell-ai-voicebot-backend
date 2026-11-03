@@ -287,9 +287,24 @@ describe('staging scripts', () => {
           .join('\n'),
       );
       writeFileSync(path.join(root, 'env/ops.env'), `RELEASE_REPO_URL=${origin}\n`);
+      // the release record runs in a container: docker answers here, and writes down what it ran
+      const bin = path.join(root, 'bin');
+      mkdirSync(bin);
+      writeFileSync(
+        path.join(bin, 'docker'),
+        `#!/usr/bin/env bash\necho "docker $*" >> ${order}\n`,
+        {
+          mode: 0o755,
+        },
+      );
       const run = (arg = tag) =>
         execFileSync('bash', [release, arg], {
-          env: { ...process.env, CAV_ROOT: root, CAV_PROJECT: 'cav-prod-rehearsal' },
+          env: {
+            ...process.env,
+            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            CAV_ROOT: root,
+            CAV_PROJECT: 'cav-prod-rehearsal',
+          },
           encoding: 'utf8',
           stdio: 'pipe',
         });
@@ -300,10 +315,9 @@ describe('staging scripts', () => {
     it('backs up first, unpacks the tag, deploys the backend sha and records it', () => {
       const s = server(MESSAGE);
       const output = s.run();
-      expect(readFileSync(s.order, 'utf8').trim().split('\n')).toEqual([
-        'backup.sh ',
-        `deploy.sh ${B}`,
-      ]);
+      const order = readFileSync(s.order, 'utf8').trim().split('\n');
+      expect(order.slice(0, 2)).toEqual(['backup.sh ', `deploy.sh ${B}`]);
+      expect(order[2]).toContain(`ops-record.js release --tag release-20261102-${B.slice(0, 7)}`);
       expect(readFileSync(path.join(s.root, `src/${B}/backend/marker`), 'utf8')).toBe('be');
       expect(readFileSync(path.join(s.root, `src/${B}/frontend/marker`), 'utf8')).toBe('fe');
       expect(readFileSync(path.join(s.root, `src/${B}/frontend.sha`), 'utf8').trim()).toBe(C);

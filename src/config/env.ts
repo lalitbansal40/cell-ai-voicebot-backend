@@ -52,6 +52,8 @@ const RawEnvSchema = z.object({
   TRUST_PROXY: optionalString,
   API_DOCS_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
   /** nginx sends Strict-Transport-Security, so the API must not (one owner, no double header). */
+  /** Phase 17: the site certificate, read only for its expiry date on Admin → System. */
+  TLS_CERT_PATH: optionalString,
   HSTS_BY_PROXY: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
   /** Big superadmin actions need a fresh two-step code. Turn on after setup. */
   MFA_ENFORCED_FOR_ADMINS: z
