@@ -160,6 +160,8 @@ export interface Waiting {
   finishKey?: '#' | 'none';
   seconds?: number;
   transferPhoneLast4?: string;
+  /** Full number (phone lines dial it); Phase 18. */
+  transferPhone?: string;
 }
 
 export interface AdvanceResult {

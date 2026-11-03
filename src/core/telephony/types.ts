@@ -9,13 +9,21 @@ export type HangupCause =
   | 'media_error'
   | 'server_shutdown'
   | 'limit'
-  // phone legs before the answer (dry run now, SIP in Phase 13)
+  // phone legs before the answer (dry run and SIP)
   | 'busy'
   | 'no_answer'
   | 'rejected'
-  | 'invalid_number';
+  | 'invalid_number'
+  // answering machine detected (Phase 18)
+  | 'machine';
 
 export type TransferResult = 'connected' | 'failed' | 'no_answer';
+
+/** Who a call is handed to: the full number (phone legs dial it) and its last 4 (shown). */
+export interface TransferTarget {
+  phone: string;
+  last4: string;
+}
 
 /** Messages a web tester shows (transcript, events) — no-op on phone legs. */
 export type LegNotice = { type: string } & Record<string, unknown>;
@@ -38,7 +46,7 @@ export interface CallLeg {
   /** Stops playback now (barge-in); returns ms played of the current clip. */
   clearAudio(): number;
   readonly playing: boolean;
-  transfer(phoneLast4: string, timeoutSec: number): Promise<TransferResult>;
+  transfer(target: TransferTarget, timeoutSec: number): Promise<TransferResult>;
   notify(notice: LegNotice): void;
   hangup(cause: HangupCause, notice?: LegNotice): Promise<void>;
 }

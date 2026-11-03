@@ -486,7 +486,7 @@ class LiveAiSession {
     const phone = agent.builtInTools.transferToHuman.phone ?? '';
     const last4 = phone.replace(/\D/g, '').slice(-4);
     io.event('transfer', { phoneLast4: last4 });
-    const result = await io.leg.transfer(last4, CALL_LIMITS.transferAnswerSec);
+    const result = await io.leg.transfer({ phone, last4 }, CALL_LIMITS.transferAnswerSec);
     if (result !== 'connected') return false;
     this.callEnd = 'transferred';
     return true;

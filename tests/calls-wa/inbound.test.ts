@@ -74,7 +74,7 @@ const program = (): CallScript => {
         currentIo = io;
         finish = () => resolve('transferred');
         if (transfer)
-          void io.leg.transfer('', 30).then((r) => {
+          void io.leg.transfer({ phone: '', last4: '' }, 30).then((r) => {
             transferResult = r;
             if (r === 'connected') finish();
           });

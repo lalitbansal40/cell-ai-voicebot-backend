@@ -232,7 +232,7 @@ describe('Phase 12 catalogue', () => {
     expect(CALL_MODES).toEqual(['ai', 'human']);
     expect(WA_CALL_DIRECTIONS).toEqual(['BUSINESS_INITIATED', 'USER_INITIATED']);
     expect(WA_CALL_BILLING_STATUSES).toEqual(['free', 'held', 'settled', 'released']);
-    expect(CALL_END_REASONS.slice(-7)).toEqual([
+    expect(CALL_END_REASONS.slice(-8, -1)).toEqual([
       'rejected_by_customer',
       'not_answered',
       'meta_failed',
@@ -241,6 +241,7 @@ describe('Phase 12 catalogue', () => {
       'no_agent_available',
       'outside_call_hours',
     ]);
+    expect(CALL_END_REASONS.at(-1)).toBe('machine'); // Phase 18
     expect(LEDGER_TYPES).toContain('whatsapp_call_charge');
     expect(LEDGER_REF_TYPES).toContain('call');
     expect(LEDGER_USAGE_KINDS).toContain('whatsapp_call');

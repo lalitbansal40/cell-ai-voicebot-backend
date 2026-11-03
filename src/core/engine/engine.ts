@@ -325,6 +325,7 @@ class Run implements NodeRuntime {
           nodeId: nodeId ?? this.state.nodeId ?? '',
           timeoutSec: FLOW_LIMITS.transferTimeoutSecDefault,
           transferPhoneLast4: phone.slice(-4),
+          transferPhone: phone,
         },
       };
     }

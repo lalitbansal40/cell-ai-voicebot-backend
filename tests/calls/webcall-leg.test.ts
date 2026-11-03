@@ -79,14 +79,14 @@ describe('WebCallLeg', () => {
     const clock = new FakeClock();
     const c = channel();
     const leg = new WebCallLeg(c.ch, clock);
-    const answered = leg.transfer('0000', 60);
+    const answered = leg.transfer({ phone: '', last4: '0000' }, 60);
     expect(c.json.at(-1)).toEqual({ type: 'call.transfer', phoneLast4: '0000' });
     leg.receiveControl({ type: 'call.transfer_result', result: 'connected' });
     expect(await answered).toBe('connected');
-    const timeout = leg.transfer('0000', 60);
+    const timeout = leg.transfer({ phone: '', last4: '0000' }, 60);
     clock.advance(60_000);
     expect(await timeout).toBe('no_answer');
-    const pending = leg.transfer('0000', 60);
+    const pending = leg.transfer({ phone: '', last4: '0000' }, 60);
     await leg.hangup('server_shutdown', { type: 'call.ended', reason: 'server_shutdown' });
     expect(await pending).toBe('failed');
     expect(c.json.at(-1)).toEqual({ type: 'call.ended', reason: 'server_shutdown' });
@@ -96,7 +96,7 @@ describe('WebCallLeg', () => {
     expect(c.closed).toHaveLength(1);
     expect(c.json.at(-1)).toEqual({ type: 'call.ended', reason: 'server_shutdown' });
     const other = new WebCallLeg(channel().ch, clock);
-    const t = other.transfer('1', 60);
+    const t = other.transfer({ phone: '', last4: '1' }, 60);
     other.socketClosed('media_error');
     expect(await t).toBe('failed');
     const c2 = channel();

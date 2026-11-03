@@ -298,7 +298,10 @@ export class FlowHost implements CallScript {
       case 'transfer':
         io.event('transfer', { phoneLast4: waiting.transferPhoneLast4 ?? '' });
         return io.leg
-          .transfer(waiting.transferPhoneLast4 ?? '', CALL_LIMITS.transferAnswerSec)
+          .transfer(
+            { phone: waiting.transferPhone ?? '', last4: waiting.transferPhoneLast4 ?? '' },
+            CALL_LIMITS.transferAnswerSec,
+          )
           .then((result) => (this.stopped ? null : { kind: 'transfer_result', result }));
       case 'ai':
         return this.runAiStep(waiting);

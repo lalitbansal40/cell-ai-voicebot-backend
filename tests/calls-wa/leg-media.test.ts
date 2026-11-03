@@ -156,7 +156,7 @@ describe('WhatsAppCallLeg — media on loopback', () => {
     expect(statuses).toEqual(['ringing', 'answered']);
     expect(a.peer.pc.connectionState).toBe('closed');
     expect((await a.leg.play(new Int16Array(480))).completed).toBe(false);
-    expect(await a.leg.transfer('1234', 10)).toBe('failed');
+    expect(await a.leg.transfer({ phone: '', last4: '1234' }, 10)).toBe('failed');
 
     const b = await rig();
     const ended: [string, string | undefined][] = [];
@@ -207,7 +207,7 @@ describe('WhatsAppCallLeg — media on loopback', () => {
           Promise.resolve(last4 === '1234' && sec === 30 ? 'connected' : 'failed'),
       },
     });
-    expect(await leg.transfer('1234', 30)).toBe('connected');
+    expect(await leg.transfer({ phone: '', last4: '1234' }, 30)).toBe('connected');
     leg.notify({ type: 'ignored' });
     leg.onText();
     await leg.hangup('normal');

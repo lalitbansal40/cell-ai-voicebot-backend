@@ -47,6 +47,8 @@ export const CALL_END_REASONS = [
   'calling_restricted',
   'no_agent_available',
   'outside_call_hours',
+  // SIP phone calls (Phase 18)
+  'machine',
 ] as const;
 export type CallEndReason = (typeof CALL_END_REASONS)[number];
 

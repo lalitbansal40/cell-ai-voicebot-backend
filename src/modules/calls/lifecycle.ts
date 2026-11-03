@@ -25,6 +25,8 @@ const BROKEN: readonly CallEndReason[] = ['engine_error', 'media_error', 'server
 export const finalStatus = (reason: CallEndReason, answered: boolean): CallStatus => {
   if (!answered) {
     if (reason === 'busy' || reason === 'no_answer') return reason;
+    // an answering machine took the call: for retries it counts as not answered
+    if (reason === 'machine') return 'no_answer';
     return reason === 'canceled' || reason === 'customer_hangup' || reason === 'campaign_canceled'
       ? 'canceled'
       : 'failed';
@@ -43,6 +45,7 @@ const BY_CAUSE: Record<HangupCause, CallEndReason> = {
   no_answer: 'no_answer',
   rejected: 'busy',
   invalid_number: 'invalid_number',
+  machine: 'machine',
 };
 
 export const endReasonFor = (cause: HangupCause | undefined): CallEndReason =>

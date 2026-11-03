@@ -4,7 +4,14 @@ import { Pacer } from '../voice/audio/pacer';
 import { toBytes } from '../voice/audio/pcm';
 import type { Clock } from '../voice/clock';
 
-import type { CallLeg, HangupCause, LegNotice, LegStatus, TransferResult } from './types';
+import type {
+  CallLeg,
+  HangupCause,
+  LegNotice,
+  LegStatus,
+  TransferResult,
+  TransferTarget,
+} from './types';
 
 /** What the media socket gives a web call leg (`/ws/media`). */
 export interface MediaChannel {
@@ -34,6 +41,7 @@ const CAUSE_CLOSE: Record<HangupCause, number> = {
   no_answer: 1000,
   rejected: 1000,
   invalid_number: 1000,
+  machine: 1000,
 };
 
 /** Browser call leg: 24 kHz PCM16 frames over the media socket, paced in real time. */
@@ -151,7 +159,7 @@ export class WebCallLeg implements CallLeg {
     return played;
   }
 
-  transfer(phoneLast4: string, timeoutSec: number): Promise<TransferResult> {
+  transfer(target: TransferTarget, timeoutSec: number): Promise<TransferResult> {
     return new Promise((resolve) => {
       const timer = this.clock.setTimeout(() => done('no_answer'), timeoutSec * 1000);
       const done = (result: TransferResult) => {
@@ -160,7 +168,7 @@ export class WebCallLeg implements CallLeg {
         resolve(result);
       };
       this.pendingTransfer = done;
-      this.notify({ type: 'call.transfer', phoneLast4 });
+      this.notify({ type: 'call.transfer', phoneLast4: target.last4 });
     });
   }
 

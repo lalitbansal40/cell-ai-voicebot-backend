@@ -16,6 +16,7 @@ export const transferNode: NodeHandler<'transfer_to_agent'> = {
         nodeId: node.id,
         timeoutSec: node.config.timeoutSec,
         transferPhoneLast4: phone.slice(-4),
+        transferPhone: phone,
       },
     });
   },

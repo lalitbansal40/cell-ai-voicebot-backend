@@ -2,7 +2,14 @@ import { CALL_LIMITS, WHATSAPP_CALL_LIMITS } from '../../../config/limits';
 import { Framer } from '../../voice/audio/framer';
 import { Pacer, type PlaybackResult } from '../../voice/audio/pacer';
 import { systemClock, type Clock } from '../../voice/clock';
-import type { CallLeg, HangupCause, LegNotice, LegStatus, TransferResult } from '../types';
+import type {
+  CallLeg,
+  HangupCause,
+  LegNotice,
+  LegStatus,
+  TransferResult,
+  TransferTarget,
+} from '../types';
 
 import { createOpusCodec, OPUS_FRAME_SAMPLES, type OpusCodec } from './codec';
 import { DtmfReceiver, dtmfPackets, DTMF_DIGITS } from './dtmf';
@@ -218,9 +225,9 @@ export class WhatsAppCallLeg implements CallLeg {
     }
   }
 
-  transfer(phoneLast4: string, timeoutSec: number): Promise<TransferResult> {
+  transfer(target: TransferTarget, timeoutSec: number): Promise<TransferResult> {
     if (this.ended) return Promise.resolve('failed');
-    return this.signaling.transfer?.(phoneLast4, timeoutSec) ?? Promise.resolve('failed');
+    return this.signaling.transfer?.(target.last4, timeoutSec) ?? Promise.resolve('failed');
   }
 
   /** WhatsApp shows nothing in the call for notices. */
