@@ -60,7 +60,7 @@ export const createAdminPhoneNumbersRouter = (): Router => {
     ...handle(
       { params: PhoneNumberIdParams, body: AssignPhoneNumberBody },
       async ({ params, body, req, res }) => {
-        ok(res, await assignPhoneNumber(req, params.id, body.accountId));
+        ok(res, await assignPhoneNumber(req, params.id, body));
       },
     ),
   );

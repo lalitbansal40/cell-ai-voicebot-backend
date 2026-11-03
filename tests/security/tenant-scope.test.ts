@@ -46,6 +46,8 @@ const NOT_TENANT_SCOPED: Record<string, string> = {
   'meta-deletion-request.model.ts': 'Meta user-level data deletion request, not an account record',
   'platform-settings.model.ts': 'platform-wide settings (superadmin), no account',
   'whatsapp-rate-card.model.ts': "Meta's WhatsApp rates, platform-wide history",
+  'phone-number.model.ts':
+    'platform pool of trunk caller IDs; accountId null = not given out (superadmin)',
 };
 
 describe('tenant scoping (models)', () => {

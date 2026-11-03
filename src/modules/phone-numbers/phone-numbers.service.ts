@@ -103,7 +103,9 @@ export const updatePhoneNumber = async (
   return view(doc, await namesOf([doc]));
 };
 
-export const assignPhoneNumber = async (req: Request, id: string, accountId: string) => {
+/** `to.accountId` is the superadmin's choice of target account (not the caller's tenant). */
+export const assignPhoneNumber = async (req: Request, id: string, to: { accountId: string }) => {
+  const { accountId } = to;
   const before = await find(id);
   if (before.status !== 'active') {
     throw new ConflictError('CONFLICT_INVALID_STATE', 'A disabled number cannot be given out.');

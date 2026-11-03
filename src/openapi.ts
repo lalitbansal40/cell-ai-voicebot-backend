@@ -26,6 +26,7 @@ import './modules/contacts/contacts.schema';
 import './modules/custom-fields/custom-fields.schema';
 import './modules/privacy/privacy.schema';
 import './modules/compliance/compliance.schema';
+import './modules/phone-numbers/phone-numbers.schema';
 import './modules/auth/mfa.routes';
 import './modules/dnd/dnd.schema';
 import './modules/flow-audio/flow-audio.schema';
