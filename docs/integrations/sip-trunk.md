@@ -54,3 +54,5 @@ Each check on 10 calls to the owner's phones on two networks. Numbers are shown 
 | 8   | Recording and transcript                      | Present, audible    | —      |
 | 9   | Charge vs trunk CDR                           | Pulse rule; match   | —      |
 | 10  | AMD on, phone with voicemail                  | Machine detected    | —      |
+
+**Status 3 Nov 2026: not run.** No trunk details (Gate S) and no server (Gate P). Everything above was exercised in the Mac lab with SIPp as the trunk (`npm run test:sip`, 11 checks) — real carriers, handsets, DTMF over RFC 4733 from a phone, caller-ID display and the CDR comparison wait for the trunk.

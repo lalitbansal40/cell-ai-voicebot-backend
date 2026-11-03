@@ -99,3 +99,14 @@ Each alert key is mailed at most once an hour, through a one-off container, so m
 - **Secret rotation:** [secret-rotation.md](secret-rotation.md), staging first, `ENCRYPTION_KEY` last.
 
 **Not done yet (needs access or owner action):** headers and CSP on the live nginx, the 7-day CSP check, secret rotation, 2FA set-up by each superadmin, the Razorpay fix and a ₹1 live top-up, SPF / DKIM / DMARC check, host hardening.
+
+## Phone calls (SIP, Phase 18)
+
+**Not live yet:** no trunk details (Gate S) and no server access (Gate P) on 3 Nov 2026. When both exist:
+
+1. Server audit confirms 5060, 20000–20999 and 8088 are free; the client's admin opens SIP / RTP to the trunk IPs only ([host-hardening.md](host-hardening.md)).
+2. `env/asterisk.env` from `deploy/asterisk/asterisk.env.example`; `backend.env`: `TELEPHONY_PROVIDER=sip`, `ARI_PASSWORD` (same value), `SIP_CALLER_ID`, `SIP_MAX_CHANNELS` / `SIP_MAX_CPS` from the trunk; the RTP range at least 4 × channels ([capacity.md](capacity.md)).
+3. `COMPOSE_PROFILES=sip release.sh <tag>`. Every account stays on the test line.
+4. Admin → Phone numbers: add the 1600 numbers, give one to the owner's test account; switch that account to the phone line; run the [sip-trunk.md](../integrations/sip-trunk.md) §2 checklist with at most 5 calls to the owner's phones.
+5. Rollback drill: the account back to the test line (under a minute); then `docker stop cav-prod-asterisk` and see new calls answer `LINE_BUSY` without errors.
+6. Pilot accounts only after that (Phase 21).

@@ -1122,3 +1122,11 @@ Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, r
 ## Phase 17
 
 - **`platformSettings` key `opsStatus`:** `{ lastBackup: { at, ok, bytes }, lastRestoreDrill: { at, rtoMinutes }, lastRelease: { at, tag, backend, frontend }, storageMigration: { lastKey, copied, bytes } }`. Written only by the ops commands; no personal data. No migration: it is a new row in an existing collection.
+
+## Phase 18 — SIP line
+
+- `accounts.voiceLine` (`dryrun` | `sip`, default `dryrun`) and `accounts.sipSettings` (`pulseSec`, `spendMinutesPerHour`, `null` = default); migration `0019-sip-lines`.
+- `phoneNumbers` (platform pool of caller IDs): `number` (E.164, unique), `kind` (`1600` / `landline` / `mobile` / `other`), `accountId` (null = in the pool), `purpose` (`outbound`; `inbound` from Phase 19), `label`, `dltPrincipalEntityId`, `status`; indexes `{number}` unique, `{accountId, status}`.
+- `calls`: `callerId`, `callerNumberId`, `sip` (`codec`, `sipQ850`, `dialStatus`, `amd`, `amdCause`, `amdMs`, `packetsIn`, `packetsOut`, `lossPct`, `jitterMs`, `firstAudioMs`), `trunkCostPaise`; end reason `machine`; a declined phone call ends `rejected_by_customer`.
+- `campaigns.phoneLine`: `callerNumberId`, `amd` (`off` / `hangup` / `leave_message`), `voicemailText`; campaign contact skip reasons `rejected`, `number_not_allowed`.
+- Redis: `sip:channels` (channel leases), `sip:cps:<second>`, `sip:spend:<accountId>:<hour>` (+ `:notice`), `health:bell:<issue>:<hour>`.
