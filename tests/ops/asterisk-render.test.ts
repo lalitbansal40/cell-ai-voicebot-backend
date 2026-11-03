@@ -101,6 +101,6 @@ describe('asterisk config render (ADR 0050)', () => {
     const dialplan = r.files['extensions.conf']!;
     expect(dialplan).toMatch(/\[cav-in\][\s\S]*Hangup\(21\)/);
     expect(dialplan).toContain('AMD(2500,1500,800,5000,100,50,3,256)');
-    expect(dialplan).toContain('Stasis(cav,amd,${AMDSTATUS},${AMDCAUSE})');
+    expect(dialplan).toContain('Stasis(${CAV_APP},amd,${AMDSTATUS},${AMDCAUSE})');
   });
 });

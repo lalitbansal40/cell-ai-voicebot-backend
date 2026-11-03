@@ -68,6 +68,8 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `mfa.recovery_used`                  | user (platform)   | user                | —                                                                                                                             |
 | `ops.release_recorded`               | system            | —                   | `tag`, `backend`, `frontend` (shas)                                                                                           |
 | `ops.restore_drill_recorded`         | system            | —                   | `rtoMinutes`                                                                                                                  |
+| `account.voice_line_changed`         | user (platform)   | account             | `from`, `to` (`dryrun` / `sip`)                                                                                               |
+| `account.sip_settings_changed`       | user (platform)   | account             | `pulseSec`, `spendMinutesPerHour` (`null` = default)                                                                          |
 | `admin.impersonation_started`        | user (platform)   | account             | `ownerId`, `expiresAt`                                                                                                        |
 | `admin.impersonation_stopped`        | user (platform)   | account             | —                                                                                                                             |
 | `contacts.import_started`            | user              | import_job          | `kind`, `rows`                                                                                                                |

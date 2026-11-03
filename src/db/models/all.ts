@@ -53,6 +53,7 @@ import './role.model';
 import './segment.model';
 import './sheet-import.model';
 import './stats-daily.model';
+import './phone-number.model';
 import './suppression.model';
 import './topup-order.model';
 import './transcript-turn.model';

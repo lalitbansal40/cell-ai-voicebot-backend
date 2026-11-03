@@ -40,6 +40,7 @@ import { startWhatsAppWorker } from './core/queues/workers/whatsapp.worker';
 import { createRealtime, setRealtime } from './core/realtime';
 import { createStorage } from './core/storage';
 import { createMediaServer } from './core/telephony/media-server';
+import { createSipLine } from './core/telephony/sip';
 import { AiVoiceController } from './core/voice/ai-session';
 import { createVoiceProviders } from './core/voice/providers';
 import { TtsCache } from './core/voice/tts-cache';
@@ -203,10 +204,16 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       http: { policy: outgoingPolicy(env) },
     }),
   });
+  // Phase 18: the SIP line (ARI + RTP) of this process, only when the install has a trunk
+  const sipLine =
+    env.TELEPHONY_PROVIDER === 'sip'
+      ? createSipLine(env, { logger, role: env.WORKERS_ENABLED ? 'worker' : 'api' })
+      : undefined;
   const callManager = new CallManager({
     logger,
     registry: callRegistry,
     dryRun,
+    ...(sipLine ? { sip: sipLine.provider } : {}),
     tts: callTts,
     storage,
     recordingDir: env.CALL_RECORDING_TMP_DIR,
@@ -425,6 +432,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     },
     5,
   );
+  if (sipLine) lifecycle.onShutdown('sip-line', () => sipLine.close(), 6);
   lifecycle.onShutdown(
     'ws',
     async () => {

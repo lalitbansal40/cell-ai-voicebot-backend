@@ -27,7 +27,9 @@ import {
   SetOwnerPasswordBody,
   ListAccountsQuery,
   RetentionCapBody,
+  SipSettingsBody,
   SuspendBody,
+  VoiceLineBody,
 } from './admin.schema';
 import {
   accountDetail,
@@ -38,6 +40,8 @@ import {
   enableAccount,
   impersonate,
   listAccounts,
+  setAccountSipSettings,
+  setAccountVoiceLine,
   pauseAllCampaigns,
   resumeAdminPaused,
   setAccountApiLimits,
@@ -102,6 +106,24 @@ export const createAdminRouter = ({
     ...handle({ body: CreateAccountBody }, async ({ body, req, res }) => {
       created(res, await createAccount(req, body));
     }),
+  );
+  router.patch(
+    '/accounts/:id/voice-line',
+    ...handle(
+      { params: AccountIdParams, body: VoiceLineBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await setAccountVoiceLine(req, params.id, body.voiceLine));
+      },
+    ),
+  );
+  router.patch(
+    '/accounts/:id/sip-settings',
+    ...handle(
+      { params: AccountIdParams, body: SipSettingsBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await setAccountSipSettings(req, params.id, body));
+      },
+    ),
   );
   router.patch(
     '/accounts/:id/api-limits',

@@ -1227,7 +1227,9 @@
               "mfa.disabled",
               "mfa.recovery_used",
               "ops.release_recorded",
-              "ops.restore_drill_recorded"
+              "ops.restore_drill_recorded",
+              "account.voice_line_changed",
+              "account.sip_settings_changed"
             ]
           },
           "actor": {
@@ -1350,6 +1352,20 @@
             },
             "required": ["readsPerMinute", "writesPerMinute"]
           },
+          "voiceLine": { "type": "string", "enum": ["dryrun", "sip"] },
+          "sipSettings": {
+            "type": "object",
+            "properties": {
+              "pulseSec": { "type": ["integer", "null"], "minimum": 1, "maximum": 60 },
+              "spendMinutesPerHour": {
+                "type": ["integer", "null"],
+                "minimum": 1,
+                "maximum": 100000
+              }
+            },
+            "required": ["pulseSec", "spendMinutesPerHour"],
+            "additionalProperties": false
+          },
           "usersByStatus": {
             "type": "object",
             "properties": {
@@ -1439,6 +1455,8 @@
           "owner",
           "usersCount",
           "apiLimits",
+          "voiceLine",
+          "sipSettings",
           "usersByStatus",
           "limits",
           "retention",
@@ -2595,6 +2613,7 @@
               "calling_restricted",
               "no_agent_available",
               "outside_call_hours",
+              "machine",
               null
             ]
           },
@@ -12456,6 +12475,156 @@
           },
           "409": {
             "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/voice-line": {
+      "patch": {
+        "tags": ["Superadmin"],
+        "summary": "Move this account to the phone line (sip) or back to the test line (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "voiceLine": { "type": "string", "enum": ["dryrun", "sip"] } },
+                "required": ["voiceLine"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "voiceLine": { "type": "string", "enum": ["dryrun", "sip"] }
+                      },
+                      "required": ["voiceLine"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/sip-settings": {
+      "patch": {
+        "tags": ["Superadmin"],
+        "summary": "Set this account's SIP billing pulse and spend guard; null = default (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pulseSec": { "type": ["integer", "null"], "minimum": 1, "maximum": 60 },
+                  "spendMinutesPerHour": {
+                    "type": ["integer", "null"],
+                    "minimum": 1,
+                    "maximum": 100000
+                  }
+                },
+                "required": ["pulseSec", "spendMinutesPerHour"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pulseSec": { "type": ["integer", "null"], "minimum": 1, "maximum": 60 },
+                        "spendMinutesPerHour": {
+                          "type": ["integer", "null"],
+                          "minimum": 1,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": ["pulseSec", "spendMinutesPerHour"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

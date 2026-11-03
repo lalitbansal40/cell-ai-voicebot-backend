@@ -186,9 +186,28 @@ export interface AccountDoc {
   deletion?: AccountDeletion | null;
   /** Requests per minute for this account's API keys; `null` = the default. */
   apiLimits?: { readsPerMinute: number; writesPerMinute: number } | null;
+  /** Phone line for campaigns / single calls (Phase 18): `sip` only when a superadmin switches it. */
+  voiceLine: AccountVoiceLine;
+  /** Superadmin overrides of the SIP env defaults; `null` = the env value. */
+  sipSettings: AccountSipSettings;
   createdAt: Date;
   updatedAt: Date;
 }
+
+export const ACCOUNT_VOICE_LINES = ['dryrun', 'sip'] as const;
+export type AccountVoiceLine = (typeof ACCOUNT_VOICE_LINES)[number];
+
+export interface AccountSipSettings {
+  /** Billing pulse in seconds (`SIP_BILLING_PULSE_SEC`). */
+  pulseSec: number | null;
+  /** New SIP minutes per hour before campaigns pause (`SIP_SPEND_MINUTES_PER_HOUR`). */
+  spendMinutesPerHour: number | null;
+}
+
+export const DEFAULT_SIP_SETTINGS: AccountSipSettings = {
+  pulseSec: null,
+  spendMinutesPerHour: null,
+};
 
 export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
   callingWindow: { start: '09:00', end: '19:00', days: [1, 2, 3, 4, 5, 6] },
@@ -300,6 +319,11 @@ const schema = new Schema<AccountDoc>({
   suspendedAt: { type: Date, default: null },
   deletion: { type: Schema.Types.Mixed, default: null },
   apiLimits: { type: Schema.Types.Mixed, default: null },
+  voiceLine: { type: String, enum: ACCOUNT_VOICE_LINES, default: 'dryrun' },
+  sipSettings: {
+    type: Schema.Types.Mixed,
+    default: () => ({ ...DEFAULT_SIP_SETTINGS }),
+  },
   suspendReason: { type: String, default: null, maxlength: 200 },
   ownerId: { type: Schema.Types.ObjectId, default: null },
   isPlatform: { type: Boolean, default: false },

@@ -4,7 +4,13 @@ import type { z } from 'zod';
 
 import { createWallet } from '../../core/billing/wallets';
 import { notifyAccount, notifyUser } from '../../core/realtime/notify';
-import { AccountModel, type AccountDoc } from '../../db/models/account.model';
+import {
+  AccountModel,
+  DEFAULT_SIP_SETTINGS,
+  type AccountDoc,
+  type AccountSipSettings,
+  type AccountVoiceLine,
+} from '../../db/models/account.model';
 import { AuditLogModel, type AuditLogDoc } from '../../db/models/audit-log.model';
 import {
   ACTIVE_CAMPAIGN_STATUSES,
@@ -270,6 +276,8 @@ export const accountDetail = async (id: string) => {
   return {
     account: toPublicAccount(account),
     apiLimits: account.apiLimits ?? null,
+    voiceLine: account.voiceLine ?? 'dryrun',
+    sipSettings: { ...DEFAULT_SIP_SETTINGS, ...account.sipSettings },
     owner: owner ? toPublicUser(owner) : null,
     usersCount: usersByStatus.invited + usersByStatus.active + usersByStatus.disabled,
     usersByStatus,
@@ -508,6 +516,32 @@ export const adminRunDeletion = async (req: Request, id: string, deps: PurgeDeps
   }
   await auditBothSides(req, account, 'account.purged', { byAdmin: true });
   return purgeAccount(account._id, deps);
+};
+
+/** Phase 18: the line its campaigns and single calls use (takes effect for new calls). */
+export const setAccountVoiceLine = async (
+  req: Request,
+  id: string,
+  voiceLine: AccountVoiceLine,
+) => {
+  const account = await findCustomerAccount(id);
+  const from = account.voiceLine ?? 'dryrun';
+  await AccountModel.updateOne({ _id: account._id }, { $set: { voiceLine } });
+  if (from !== voiceLine) {
+    await auditBothSides(req, account, 'account.voice_line_changed', { from, to: voiceLine });
+  }
+  return { voiceLine };
+};
+
+export const setAccountSipSettings = async (
+  req: Request,
+  id: string,
+  sipSettings: AccountSipSettings,
+) => {
+  const account = await findCustomerAccount(id);
+  await AccountModel.updateOne({ _id: account._id }, { $set: { sipSettings } });
+  await auditBothSides(req, account, 'account.sip_settings_changed', { ...sipSettings });
+  return sipSettings;
 };
 
 export const setAccountApiLimits = async (

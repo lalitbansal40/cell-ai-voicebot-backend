@@ -16,6 +16,7 @@ import {
   type AccountLimits,
   type CallCaps,
   type CallingWindow,
+  type AccountVoiceLine,
 } from '../../db/models/account.model';
 import { AiAgentModel } from '../../db/models/ai-agent.model';
 import { CampaignContactModel, CLAIMABLE_STATUSES } from '../../db/models/campaign-contact.model';
@@ -49,6 +50,7 @@ import type { Logger } from '../../shared/logger';
 import { escapeRegex } from '../../shared/utils/regex';
 import { accountVariables } from '../ai-agents/variables';
 import { auditRequest } from '../audit/audit.service';
+import { effectiveLine } from '../calls/line';
 
 import { audienceQuery, previewAudience, toAudience, usedFields } from './audience';
 import { loadNames, toCampaignListItem, toCampaignView, toContactRow } from './campaign-json';
@@ -114,13 +116,16 @@ export interface AccountFacts {
   limits: AccountLimits;
   caps: CallCaps;
   status: 'active' | 'suspended';
+  /** Phase 18: the line this account's calls use (`effectiveLine`). */
+  line: 'sip' | 'dryrun';
 }
 
 export const accountFacts = async (accountId: Types.ObjectId): Promise<AccountFacts> => {
   const account = await AccountModel.findById(accountId)
-    .select({ timezone: 1, settings: 1, limits: 1, status: 1 })
+    .select({ timezone: 1, settings: 1, limits: 1, status: 1, voiceLine: 1 })
     .lean<{
       timezone?: string;
+      voiceLine?: AccountVoiceLine;
       status?: 'active' | 'suspended';
       settings?: { callingWindow?: CallingWindow; callCaps?: Partial<CallCaps> };
       limits?: Partial<AccountLimits>;
@@ -131,6 +136,7 @@ export const accountFacts = async (accountId: Types.ObjectId): Promise<AccountFa
     limits: { ...DEFAULT_ACCOUNT_LIMITS, ...account?.limits },
     caps: { ...DEFAULT_ACCOUNT_SETTINGS.callCaps, ...account?.settings?.callCaps },
     status: account?.status ?? 'active',
+    line: effectiveLine(account, getEnv()),
   };
 };
 
@@ -220,10 +226,10 @@ const liveRefused = () =>
     [
       {
         path: 'mode',
-        message: 'Phone calls need a phone line (SIP) — available with phone numbers',
+        message: 'This account is on the test line; a superadmin can switch it to the phone line',
       },
     ],
-    'Live campaigns need a phone line.',
+    'Live campaigns need the phone line.',
   );
 
 // ── settings ─────────────────────────────────────────────────────────────────
@@ -354,7 +360,7 @@ export const validateSettings = async (
   account: AccountFacts,
   now: Date,
 ): Promise<void> => {
-  if (s.mode === 'live') throw liveRefused();
+  if (s.mode === 'live' && account.line !== 'sip') throw liveRefused();
   const details: ErrorDetail[] = [];
   if (!intersect(s.window, account.window)) {
     details.push({
@@ -941,8 +947,8 @@ export const startCampaign = async (req: Request, id: string) => {
       `A ${campaign.status} campaign can't be started.`,
     );
   }
-  if (campaign.mode === 'live') throw liveRefused();
   const account = await accountFacts(accountId);
+  if (campaign.mode === 'live' && account.line !== 'sip') throw liveRefused();
   if (account.status === 'suspended') {
     throw notRunnable([{ path: 'account', message: 'The account is suspended' }]);
   }

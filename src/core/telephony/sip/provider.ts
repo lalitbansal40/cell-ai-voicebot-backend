@@ -15,6 +15,8 @@ export interface SipLineConfig {
   advertiseHost: string;
   asteriskRtpHost: string;
   defaultCallerId: string;
+  /** ARI app of this process; the AMD dialplan hands the call back to it. */
+  app?: string;
 }
 
 export interface SipCallRequest extends StartCallRequest {
@@ -86,6 +88,7 @@ export class SipTelephonyProvider implements TelephonyProvider {
       asteriskRtpHost: this.config.asteriskRtpHost,
       amd: request.amd !== undefined && request.amd !== 'off',
       hangupOnMachine: request.amd === 'hangup',
+      app: this.config.app ?? 'cav',
     };
     const leg = new SipCallLeg(this.ari, rtp, this.clock, options);
     this.legs.set(request.callId, leg);

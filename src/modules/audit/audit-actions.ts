@@ -174,6 +174,9 @@ export const AUDIT_ACTIONS = [
   'mfa.recovery_used',
   'ops.release_recorded',
   'ops.restore_drill_recorded',
+  // Phase 18: SIP line
+  'account.voice_line_changed',
+  'account.sip_settings_changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

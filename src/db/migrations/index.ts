@@ -18,6 +18,7 @@ import { analyticsMigration } from './0015-analytics';
 import { insightsMigration } from './0016-insights';
 import { integrationsMigration } from './0017-integrations';
 import { securityPrivacyMigration } from './0018-security-privacy';
+import { sipLinesMigration } from './0019-sip-lines';
 
 /** Ordered migration registry. Add new files here (no fs globbing — keeps builds simple). */
 export const MIGRATIONS: Migration[] = [
@@ -39,4 +40,5 @@ export const MIGRATIONS: Migration[] = [
   insightsMigration,
   integrationsMigration,
   securityPrivacyMigration,
+  sipLinesMigration,
 ];

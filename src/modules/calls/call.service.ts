@@ -7,6 +7,8 @@ import type { StorageProvider } from '../../core/storage';
 import { DryRunProvider, type DryRunSettings } from '../../core/telephony/dryrun';
 import type { AttachResult, MediaAttachInput } from '../../core/telephony/media-server';
 import { MEDIA_CLOSE } from '../../core/telephony/media-server';
+import type { SipLegMetrics } from '../../core/telephony/sip/leg';
+import { SipNoMediaPortError, type SipCallRequest } from '../../core/telephony/sip/provider';
 import type { CallLeg } from '../../core/telephony/types';
 import { systemClock, type Clock } from '../../core/voice/clock';
 import { ScaledClock } from '../../core/voice/scaled-clock';
@@ -58,13 +60,27 @@ export interface CallManagerDeps {
   slots?: DialSlots;
   /** Dry-run calls: programs on the fake voice + fake AI, TTS without the storage cache. */
   dryRun?: { scriptFor: ScriptFactory; tts: Pick<TtsCache, 'get'> };
+  /** The SIP line of this process (Phase 18); absent where no ARI connection is held. */
+  sip?: SipLinePort;
+}
+
+/** What the call manager needs from the SIP line (`SipTelephonyProvider`). */
+export interface SipLinePort {
+  readonly connected: boolean;
+  startCall(
+    request: SipCallRequest,
+  ): Promise<CallLeg & { dial(): Promise<void>; readonly metrics: SipLegMetrics }>;
 }
 
 /** A phone call placed by a campaign or "Call now" (PHASE_8_PLAN §1c). */
 export interface StartOutboundCallInput {
   accountId: string;
-  /** Phase 8 has the dry-run line only; `sip` arrives in Phase 13. */
+  /** `sip` only for accounts on the phone line (Phase 18, `line.ts`). */
   provider: 'dryrun' | 'sip';
+  /** SIP: the number the customer sees (E.164); `null` = the env default. */
+  callerId?: string | null;
+  /** SIP: answering machine detection of the campaign. */
+  amd?: 'off' | 'hangup' | 'leave_message';
   /** E.164, server-only. */
   to: string;
   contactId: string;
@@ -282,9 +298,10 @@ export class CallManager {
    * line only (simulated customer on virtual time, priced but never charged).
    */
   async startOutboundCall(input: StartOutboundCallInput): Promise<OutboundCall> {
+    if (input.provider === 'sip') return this.startSipCall(input);
     const dry = this.deps.dryRun;
-    if (input.provider !== 'dryrun' || !input.dryRun || !dry) {
-      throw new AppError('CAMPAIGN_NOT_RUNNABLE', 'Phone calls need a SIP line (Phase 13).');
+    if (!input.dryRun || !dry) {
+      throw new AppError('CAMPAIGN_NOT_RUNNABLE', 'A dry-run call needs its settings.');
     }
     const id = new Types.ObjectId();
     const callId = id.toString();
@@ -399,6 +416,146 @@ export class CallManager {
     await session.start();
     if (this.endRequested.delete(callId)) await session.end('campaign_canceled');
     else leg.ring();
+    return { callId, ended };
+  }
+
+  /**
+   * A real phone call over the SIP trunk (Phase 18, ADR 0050): slot → call doc → wallet
+   * hold (carrier minutes) → program → leg (RTP port) → session → dial. A refused hold or
+   * a full media pool leaves no call behind.
+   */
+  private async startSipCall(input: StartOutboundCallInput): Promise<OutboundCall> {
+    const sip = this.deps.sip;
+    if (!sip?.connected) {
+      throw new AppError('CAMPAIGN_NOT_RUNNABLE', 'The phone line is not available right now.');
+    }
+    const id = new Types.ObjectId();
+    const callId = id.toString();
+    const limits = await this.accountLimits(input.accountId);
+    const slot = await this.slots.acquire({
+      accountId: input.accountId,
+      campaignId: input.campaign?.campaignId ?? null,
+      member: callId,
+      limits: {
+        account: limits.maxConcurrentCalls,
+        group: input.groupLimit ?? CALL_LIMITS.concurrentPerAccount,
+        process: CALL_LIMITS.concurrentPerProcess,
+      },
+    });
+    if (!slot.ok) {
+      throw new AppError(slot.scope === 'process' ? 'CALL_CAPACITY' : 'CALL_LIMIT_REACHED');
+    }
+    this.keepLease(callId, slot.lease);
+    let call: CallDoc;
+    try {
+      const created = await CallModel.create({
+        _id: id,
+        accountId: input.accountId,
+        direction: 'outbound',
+        provider: 'sip',
+        from: input.callerId ?? 'sip',
+        to: input.to,
+        isTest: false,
+        source: input.source,
+        contactId: input.contactId,
+        campaignId: input.campaign?.campaignId ?? null,
+        campaignContactId: input.campaign?.campaignContactId ?? null,
+        attempt: input.campaign?.attempt ?? null,
+        startedBy: input.initiatedBy,
+        externalRef: input.externalRef ?? null,
+        variables: await withoutSensitive(input.accountId, input.variables),
+        manualVariables: input.manualVariables ?? null,
+        callerId: input.callerId ?? null,
+        timestamps: { queuedAt: new Date(this.clock.now()) },
+      });
+      call = created.toObject({ transform: false });
+    } catch (err) {
+      await this.releaseLease(callId);
+      if (isDuplicateKeyError(err)) {
+        throw new AppError('CONFLICT_INVALID_STATE', 'This attempt was already dialed.');
+      }
+      throw err;
+    }
+    const billing = new CallBilling(input.accountId, callId, true);
+    const dropCall = async () => {
+      await CallModel.deleteOne({ _id: id });
+      await this.releaseLease(callId);
+    };
+    try {
+      await billing.hold();
+    } catch (err) {
+      await dropCall();
+      throw err;
+    }
+    await CallModel.updateOne({ _id: id }, { $set: { holdId: billing.holdId } });
+    call = { ...call, holdId: billing.holdId ? new Types.ObjectId(billing.holdId) : null };
+    let leg: Awaited<ReturnType<SipLinePort['startCall']>>;
+    try {
+      leg = await sip.startCall({
+        callId,
+        to: input.to,
+        callerId: input.callerId ?? null,
+        amd: input.amd ?? 'off',
+      });
+    } catch (err) {
+      await billing.release('no_media_port');
+      await dropCall();
+      throw err instanceof SipNoMediaPortError ? new AppError('CALL_CAPACITY') : err;
+    }
+    const campaignId = input.campaign?.campaignId;
+    if (campaignId) this.campaignCalls.set(callId, campaignId);
+    notifyAccount(input.accountId, 'call.created', {
+      callId,
+      isTest: false,
+      ...(campaignId ? { campaignId } : {}),
+    });
+    const account = await AccountModel.findById(input.accountId).select({ settings: 1 }).lean();
+    const settings = { ...DEFAULT_ACCOUNT_SETTINGS, ...account?.settings };
+    const choice: ScriptChoice = await this.deps.scriptFor(call).catch((err: unknown) => {
+      this.deps.logger.error({ err, callId }, 'call: sip program failed');
+      return { script: failingScript(err), voice: 'coral', language: 'hinglish' };
+    });
+    await this.deps.registry.register(
+      callId,
+      input.accountId,
+      this.clock.now(),
+      CALL_LIMITS.registryTtlSec,
+    );
+    let resolveEnded: (summary: CallEndedSummary) => void = () => undefined;
+    const ended = new Promise<CallEndedSummary>((resolve) => {
+      resolveEnded = resolve;
+    });
+    const session = new CallSession({
+      call,
+      leg,
+      clock: this.clock,
+      logger: this.deps.logger,
+      tts: this.deps.tts,
+      storage: this.deps.storage,
+      registry: this.deps.registry,
+      billing,
+      script: choice.script,
+      recordingDir: this.deps.recordingDir,
+      recording: { enabled: settings.recordingEnabled, notice: settings.recordingNotice },
+      voice: choice.voice,
+      language: choice.language,
+      ...(choice.maxDurationSec !== undefined ? { maxDurationSec: choice.maxDurationSec } : {}),
+      onEnded: (summary) => {
+        this.untrack(callId);
+        this.campaignCalls.delete(callId);
+        this.endRequested.delete(callId);
+        void this.releaseLease(callId);
+        void CallModel.updateOne({ _id: id }, { $set: { sip: leg.metrics } }).catch(
+          (err: unknown) => this.deps.logger.warn({ err, callId }, 'call: sip metrics not saved'),
+        );
+        this.emitEnded(summary);
+        resolveEnded(summary);
+      },
+    });
+    this.track(callId, session);
+    await session.start();
+    if (this.endRequested.delete(callId)) await session.end('campaign_canceled');
+    else await leg.dial();
     return { callId, ended };
   }
 

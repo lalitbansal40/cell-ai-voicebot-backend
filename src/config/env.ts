@@ -23,6 +23,9 @@ const LOCAL_REDIS_URL = 'redis://127.0.0.1:6380';
 const DEV_MAIL_FROM = 'NotifyNow <no-reply@localhost>';
 
 const optionalString = z.string().optional();
+const NAME_ID = /^[A-Za-z0-9_-]{1,32}$/;
+const E164 = /^\+[1-9]\d{7,14}$/;
+const HOST = /^[A-Za-z0-9.:-]{1,253}$/;
 
 /** Meta Graph API host (tests may point `META_GRAPH_BASE_URL` at a local stub; production may not). */
 export const META_GRAPH_DEFAULT_URL = 'https://graph.facebook.com';
@@ -129,8 +132,8 @@ const RawEnvSchema = z.object({
   /** Folder for recordings being written during a call (default `<os tmp>/cav-rec`). */
   CALL_RECORDING_TMP_DIR: optionalString,
 
-  /** Phone line for campaigns / single calls (Phase 8: `dryrun` only; `sip` arrives in Phase 13). */
-  TELEPHONY_PROVIDER: z.enum(['dryrun']).default('dryrun'),
+  /** Phone line for campaigns / single calls: `dryrun` (simulated) or `sip` (Phase 18, per account). */
+  TELEPHONY_PROVIDER: z.enum(['dryrun', 'sip']).default('dryrun'),
   /** Fastest dry-run speed (virtual time ×N); default 50, production 20 (≤ 20). */
   DRY_RUN_MAX_SPEED: z.coerce.number().int().min(1).max(100).optional(),
   /** `false` stops the campaign dispatchers and worker (maintenance). Default true. */
@@ -230,12 +233,30 @@ const RawEnvSchema = z.object({
     .optional(),
 
   NOTIFYNOW_API_KEY: optionalString,
-  SIP_HOST: optionalString,
-  SIP_PORT: z.coerce.number().int().min(1).max(65535).default(5060),
-  SIP_TRANSPORT: z.enum(['udp', 'tcp', 'tls']).default('udp'),
-  SIP_USERNAME: optionalString,
-  SIP_PASSWORD: optionalString,
-  SIP_CALLER_ID: optionalString,
+  // SIP line (Phase 18, ADR 0050): Node talks to Asterisk over ARI; trunk login lives in asterisk.env
+  ARI_URL: z.string().url({ message: 'must be a URL' }).default('http://127.0.0.1:8088'),
+  ARI_USER: z.string().regex(NAME_ID, { message: 'must be a short name' }).default('cav'),
+  ARI_PASSWORD: optionalString,
+  ARI_APP: z.string().regex(NAME_ID, { message: 'must be a short name' }).default('cav'),
+  SIP_TRUNK_ENDPOINT: z
+    .string()
+    .regex(NAME_ID, { message: 'must be a short name' })
+    .default('trunk'),
+  SIP_CALLER_ID: z.string().regex(E164, { message: 'must be an E.164 number' }).optional(),
+  SIP_CODEC: z.enum(['ulaw', 'alaw']).default('ulaw'),
+  SIP_MAX_CHANNELS: z.coerce.number().int().min(1).max(500).default(30),
+  SIP_MAX_CPS: z.coerce.number().int().min(1).max(50).default(2),
+  SIP_RING_TIMEOUT_SEC: z.coerce.number().int().min(10).max(120).default(40),
+  SIP_MEDIA_TIMEOUT_SEC: z.coerce.number().int().min(3).max(60).default(10),
+  SIP_APP_RTP_PORTS: z
+    .string()
+    .regex(/^\d{4,5}-\d{4,5}$/, { message: 'must be a port range like 21000-21999' })
+    .default('21000-21999'),
+  SIP_APP_RTP_ADVERTISE: z.string().regex(HOST, { message: 'must be a host' }).default('127.0.0.1'),
+  SIP_ASTERISK_RTP_HOST: z.string().regex(HOST, { message: 'must be a host' }).default('127.0.0.1'),
+  SIP_BILLING_PULSE_SEC: z.coerce.number().int().min(1).max(60).default(60),
+  SIP_TRUNK_COST_PAISE_PER_MIN: z.coerce.number().int().min(0).max(10_000).optional(),
+  SIP_SPEND_MINUTES_PER_HOUR: z.coerce.number().int().min(1).max(100_000).default(600),
 
   CLIENT_SSH_KEY_PATH: optionalString,
 });
@@ -460,6 +481,29 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       'ENCRYPTION_KEY',
       'required in production, base64 of exactly 32 bytes',
       key !== undefined && BASE64.test(key) && Buffer.from(key, 'base64').length === 32,
+    );
+  }
+
+  if (raw.TELEPHONY_PROVIDER === 'sip') {
+    check(
+      'ARI_PASSWORD',
+      'required when TELEPHONY_PROVIDER=sip, at least 24 characters',
+      (raw.ARI_PASSWORD ?? '').length >= 24,
+    );
+    if (production) {
+      check(
+        'SIP_CALLER_ID',
+        'required in production when TELEPHONY_PROVIDER=sip',
+        Boolean(raw.SIP_CALLER_ID),
+      );
+    }
+  }
+  {
+    const [lo, hi] = raw.SIP_APP_RTP_PORTS.split('-').map(Number) as [number, number];
+    check(
+      'SIP_APP_RTP_PORTS',
+      'must be within 1024-65535, low to high',
+      lo >= 1024 && hi <= 65535 && lo < hi,
     );
   }
 

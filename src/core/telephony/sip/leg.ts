@@ -39,6 +39,8 @@ export interface SipLegOptions {
   amd: boolean;
   /** False when the campaign leaves a message on a machine (the bot speaks). */
   hangupOnMachine: boolean;
+  /** ARI app of the dialing process (the AMD dialplan returns the call to it). */
+  app: string;
 }
 
 export interface SipLegMetrics {
@@ -185,7 +187,7 @@ export class SipCallLeg implements CallLeg {
         timeoutSec: this.options.ringTimeoutSec,
         appArgs: this.options.callId,
         ...(this.options.amd ? { dialplan: { context: 'cav-amd', extension: 's' } } : {}),
-        variables: { CAV_CALL_ID: this.options.callId },
+        variables: { CAV_CALL_ID: this.options.callId, CAV_APP: this.options.app },
       });
     } catch {
       this.finish('media_error');

@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import request from 'supertest';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { resetEnvForTests } from '../../src/config/env';
 import { createFakeProvider } from '../../src/core/ai';
 import { AccountModel } from '../../src/db/models/account.model';
 import { AiAgentModel } from '../../src/db/models/ai-agent.model';
@@ -255,6 +256,24 @@ describe('create / read / list', () => {
     await expect(newCampaign({ mode: 'live' })).rejects.toMatchObject({
       code: 'CAMPAIGN_NOT_RUNNABLE',
     });
+    // Phase 18: live needs the trunk on this install and the account on the phone line
+    process.env.TELEPHONY_PROVIDER = 'sip';
+    process.env.ARI_PASSWORD = 'p'.repeat(24);
+    resetEnvForTests();
+    try {
+      await expect(newCampaign({ mode: 'live' })).rejects.toMatchObject({
+        code: 'CAMPAIGN_NOT_RUNNABLE',
+      });
+      await AccountModel.updateOne({ _id: t.account._id }, { voiceLine: 'sip' });
+      const live = await newCampaign({ mode: 'live' });
+      expect(live.mode).toBe('live');
+      await CampaignModel.deleteOne({ _id: live.id });
+    } finally {
+      delete process.env.TELEPHONY_PROVIDER;
+      delete process.env.ARI_PASSWORD;
+      resetEnvForTests();
+      await AccountModel.updateOne({ _id: t.account._id }, { voiceLine: 'dryrun' });
+    }
     await newCampaign({ name: 'Same Name' });
     await expect(newCampaign({ name: 'same name' })).rejects.toMatchObject({
       code: 'CONFLICT_DUPLICATE',

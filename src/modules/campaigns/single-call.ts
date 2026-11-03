@@ -125,7 +125,7 @@ export const startSingleCall = async (
     accountId: accountId.toString(),
     contactId: contact._id.toString(),
     phone: contact.phoneE164,
-    mode: 'dry_run',
+    mode: account.line === 'sip' ? 'live' : 'dry_run',
     now,
     timezone: account.timezone,
     minGapMinutes: account.caps.minGapMinutes,
@@ -150,9 +150,8 @@ export const startSingleCall = async (
   }
 
   const dryRun = defaultDryRun();
-  const out = await deps.manager.startOutboundCall({
+  const common = {
     accountId: accountId.toString(),
-    provider: 'dryrun',
     to: contact.phoneE164,
     contactId: contact._id.toString(),
     source,
@@ -160,21 +159,28 @@ export const startSingleCall = async (
     initiatedBy: auth.userId ?? auth.keyOwnerId ?? null,
     externalRef: body.externalRef ?? null,
     manualVariables: overrides,
-    dryRun: {
-      seed: new Types.ObjectId().toString(),
-      // a manual call is made to hear the flow with this contact: the simulated
-      // line always answers (the customer scenarios still vary)
-      mix: { answered: 10_000, no_answer: 0, busy: 0, failed: 0, invalid_number: 0 },
-      scenarios: dryRun.scenarios,
-      templateKey,
-      // real time: the contact page follows the call live
-      speed: 1,
-    },
-  });
+  };
+  const out =
+    account.line === 'sip'
+      ? await deps.manager.startOutboundCall({ ...common, provider: 'sip' })
+      : await deps.manager.startOutboundCall({
+          ...common,
+          provider: 'dryrun',
+          dryRun: {
+            seed: new Types.ObjectId().toString(),
+            // a manual call is made to hear the flow with this contact: the simulated
+            // line always answers (the customer scenarios still vary)
+            mix: { answered: 10_000, no_answer: 0, busy: 0, failed: 0, invalid_number: 0 },
+            scenarios: dryRun.scenarios,
+            templateKey,
+            // real time: the contact page follows the call live
+            speed: 1,
+          },
+        });
   await auditRequest(req, 'call.triggered', {
     target: { type: 'call', id: out.callId },
     meta: {
-      provider: 'dryrun',
+      provider: account.line,
       source: source.kind,
       contactId: contact._id.toString(),
       ...(source.flowId

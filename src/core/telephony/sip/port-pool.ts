@@ -6,6 +6,8 @@ export class PortPool {
   constructor(
     readonly min: number,
     readonly max: number,
+    /** First port tried; two processes on one range start apart (bind retries cover clashes). */
+    start = min,
   ) {
     if (
       !Number.isInteger(min) ||
@@ -16,7 +18,7 @@ export class PortPool {
     ) {
       throw new RangeError('port range must be within 1024-65535');
     }
-    this.cursor = min;
+    this.cursor = Math.min(Math.max(start, min), max);
   }
 
   get size(): number {

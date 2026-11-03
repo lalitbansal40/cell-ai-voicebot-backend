@@ -70,10 +70,10 @@ describe('loadEnv — development defaults', () => {
 
 describe('loadEnv — parsing', () => {
   it('coerces numbers', () => {
-    const env = loadEnv({ PORT: '6000', SMTP_PORT: '465', SIP_PORT: '5080' });
+    const env = loadEnv({ PORT: '6000', SMTP_PORT: '465', SIP_MAX_CHANNELS: '12' });
     expect(env.PORT).toBe(6000);
     expect(env.SMTP_PORT).toBe(465);
-    expect(env.SIP_PORT).toBe(5080);
+    expect(env.SIP_MAX_CHANNELS).toBe(12);
   });
 
   it('parses CORS lists (trim, trailing slash, empties)', () => {
@@ -465,7 +465,7 @@ describe('loadEnv — campaigns', () => {
     expect(env.CAMPAIGNS_ENABLED).toBe(true);
   });
 
-  it('parses explicit values; sip is not available yet; speed 1–100', () => {
+  it('parses explicit values; speed 1–100', () => {
     expect(
       loadEnv({ DRY_RUN_MAX_SPEED: '5', CAMPAIGNS_ENABLED: 'false', TELEPHONY_PROVIDER: 'dryrun' }),
     ).toMatchObject({
@@ -473,10 +473,53 @@ describe('loadEnv — campaigns', () => {
       CAMPAIGNS_ENABLED: false,
       TELEPHONY_PROVIDER: 'dryrun',
     });
-    expect(issuesOf({ TELEPHONY_PROVIDER: 'sip' }).issues[0]?.variable).toBe('TELEPHONY_PROVIDER');
+    expect(issuesOf({ TELEPHONY_PROVIDER: 'ws' }).issues[0]?.variable).toBe('TELEPHONY_PROVIDER');
     expect(issuesOf({ DRY_RUN_MAX_SPEED: '0' }).issues[0]?.variable).toBe('DRY_RUN_MAX_SPEED');
     expect(issuesOf({ DRY_RUN_MAX_SPEED: '101' }).issues[0]?.variable).toBe('DRY_RUN_MAX_SPEED');
     expect(issuesOf({ CAMPAIGNS_ENABLED: 'yes' }).issues[0]?.variable).toBe('CAMPAIGNS_ENABLED');
+  });
+
+  it('sip line (Phase 18): defaults, ARI password and caller id checks', () => {
+    const pw = 'a'.repeat(24);
+    expect(loadEnv({ TELEPHONY_PROVIDER: 'sip', ARI_PASSWORD: pw })).toMatchObject({
+      TELEPHONY_PROVIDER: 'sip',
+      ARI_URL: 'http://127.0.0.1:8088',
+      ARI_USER: 'cav',
+      ARI_APP: 'cav',
+      SIP_TRUNK_ENDPOINT: 'trunk',
+      SIP_CODEC: 'ulaw',
+      SIP_MAX_CHANNELS: 30,
+      SIP_MAX_CPS: 2,
+      SIP_RING_TIMEOUT_SEC: 40,
+      SIP_MEDIA_TIMEOUT_SEC: 10,
+      SIP_APP_RTP_PORTS: '21000-21999',
+      SIP_BILLING_PULSE_SEC: 60,
+      SIP_SPEND_MINUTES_PER_HOUR: 600,
+    });
+    expect(issuesOf({ TELEPHONY_PROVIDER: 'sip' }).issues[0]?.variable).toBe('ARI_PASSWORD');
+    expect(issuesOf({ TELEPHONY_PROVIDER: 'sip', ARI_PASSWORD: 'short' }).issues[0]?.variable).toBe(
+      'ARI_PASSWORD',
+    );
+    expect(
+      issuesOf({ ...validProduction, TELEPHONY_PROVIDER: 'sip', ARI_PASSWORD: pw }).issues.map(
+        (i) => i.variable,
+      ),
+    ).toEqual(['SIP_CALLER_ID']);
+    expect(
+      loadEnv({
+        ...validProduction,
+        TELEPHONY_PROVIDER: 'sip',
+        ARI_PASSWORD: pw,
+        SIP_CALLER_ID: '+911600000000',
+      }).SIP_CALLER_ID,
+    ).toBe('+911600000000');
+    expect(issuesOf({ SIP_CALLER_ID: '1600' }).issues[0]?.variable).toBe('SIP_CALLER_ID');
+    expect(issuesOf({ SIP_APP_RTP_PORTS: '21999-21000' }).issues[0]?.variable).toBe(
+      'SIP_APP_RTP_PORTS',
+    );
+    expect(issuesOf({ SIP_APP_RTP_PORTS: '80-90' }).issues[0]?.variable).toBe('SIP_APP_RTP_PORTS');
+    expect(issuesOf({ SIP_MAX_CHANNELS: '0' }).issues[0]?.variable).toBe('SIP_MAX_CHANNELS');
+    expect(issuesOf({ SIP_CODEC: 'opus' }).issues[0]?.variable).toBe('SIP_CODEC');
   });
 
   it('production: max speed defaults to 20 and may not exceed it', () => {

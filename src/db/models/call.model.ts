@@ -187,6 +187,21 @@ export interface CallInsightsState {
   at: Date;
 }
 
+/** `calls.sip` (Phase 18): what the SIP line reported at the end of the call. */
+export interface CallSipFacts {
+  codec: 'ulaw' | 'alaw';
+  sipQ850: number | null;
+  dialStatus: string | null;
+  amd: string | null;
+  amdCause: string | null;
+  amdMs: number | null;
+  packetsIn: number;
+  packetsOut: number;
+  lossPct: number;
+  jitterMs: number;
+  firstAudioMs: number | null;
+}
+
 export interface CallDoc {
   _id: Types.ObjectId;
   accountId: Types.ObjectId;
@@ -240,6 +255,13 @@ export interface CallDoc {
   cost: CallCost;
   /** `false` for dry-run calls: `cost` is what the call would have cost, no ledger rows. */
   charged: boolean;
+  /** SIP (Phase 18): the number the customer saw and the account number it came from. */
+  callerId?: string | null;
+  callerNumberId?: Types.ObjectId | null;
+  /** SIP (Phase 18): line facts of the call (codec, Q.850, AMD, RTP quality). */
+  sip?: CallSipFacts | null;
+  /** SIP (Phase 18): what the trunk cost us, for the margin report (never shown to accounts). */
+  trunkCostPaise?: number | null;
   recording: CallRecording | null;
   flowRunId: Types.ObjectId | null;
   /** Next CallEvent / TranscriptTurn sequence numbers. */
@@ -389,6 +411,10 @@ const schema = new Schema<CallDoc>(
     ledgerEntryId: { type: Schema.Types.ObjectId, default: null },
     cost: { type: Schema.Types.Mixed, default: emptyCallCost },
     charged: { type: Boolean, default: true },
+    callerId: { type: String, default: null, maxlength: 16 },
+    callerNumberId: { type: Schema.Types.ObjectId, default: null },
+    sip: { type: Schema.Types.Mixed, default: null },
+    trunkCostPaise: { type: Number, default: null },
     recording: { type: Schema.Types.Mixed, default: null },
     flowRunId: { type: Schema.Types.ObjectId, default: null },
     seq: {
