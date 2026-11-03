@@ -493,7 +493,6 @@ describe('loadEnv — campaigns', () => {
       SIP_RING_TIMEOUT_SEC: 40,
       SIP_MEDIA_TIMEOUT_SEC: 10,
       SIP_APP_RTP_PORTS: '21000-21999',
-      SIP_BILLING_PULSE_SEC: 60,
       SIP_SPEND_MINUTES_PER_HOUR: 600,
     });
     expect(issuesOf({ TELEPHONY_PROVIDER: 'sip' }).issues[0]?.variable).toBe('ARI_PASSWORD');

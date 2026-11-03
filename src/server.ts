@@ -214,6 +214,9 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     registry: callRegistry,
     dryRun,
     ...(sipLine ? { sip: sipLine.provider } : {}),
+    ...(env.SIP_TRUNK_COST_PAISE_PER_MIN !== undefined
+      ? { sipTrunkCostPaisePerMin: env.SIP_TRUNK_COST_PAISE_PER_MIN }
+      : {}),
     tts: callTts,
     storage,
     recordingDir: env.CALL_RECORDING_TMP_DIR,

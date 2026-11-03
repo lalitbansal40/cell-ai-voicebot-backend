@@ -10,6 +10,8 @@ export interface CallUsage {
   ttsChars?: number;
   /** `false` for browser test calls (no carrier minutes) — default `true`. */
   telephony?: boolean;
+  /** SIP line (Phase 18): the account's pulse instead of the rate card's. */
+  pulseSeconds?: number;
 }
 
 export interface ChargeBreakdown {
@@ -55,10 +57,9 @@ export const callCharge = (card: RateCardValues, usage: CallUsage): Charge => {
   const aiSeconds = count(usage.aiSeconds, MAX_SECONDS, 'aiSeconds');
   const ttsChars = count(usage.ttsChars, MAX_CHARS, 'ttsChars');
   const billed = usage.answered || card.billUnansweredAttempts;
+  const pulseSeconds = usage.pulseSeconds ?? card.pulseSeconds;
   const billableSeconds =
-    billed && usage.telephony !== false
-      ? ceilDiv(durationSec, card.pulseSeconds) * card.pulseSeconds
-      : 0;
+    billed && usage.telephony !== false ? ceilDiv(durationSec, pulseSeconds) * pulseSeconds : 0;
   const telephonyMicros = perSecond(billableSeconds, card.callPerMinuteMicros);
   const aiMicros = perSecond(aiSeconds, card.aiPerMinuteMicros);
   const ttsMicros = ceilDiv(ttsChars * card.ttsPer1kCharsMicros, 1000);
@@ -74,7 +75,7 @@ export const callCharge = (card: RateCardValues, usage: CallUsage): Charge => {
       answered: usage.answered,
       durationSec,
       billableSeconds,
-      pulseSeconds: card.pulseSeconds,
+      pulseSeconds,
       aiSeconds,
       ttsChars,
     },

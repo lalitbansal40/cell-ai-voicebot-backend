@@ -40,6 +40,8 @@ export class CallBilling implements CallBillingPort {
     private readonly callId: string,
     /** False for web test calls (no carrier minutes). */
     private readonly telephony: boolean,
+    /** SIP: the account's pulse override (`sipSettings.pulseSec`); else the rate card's. */
+    private readonly pulseSeconds: number | null = null,
   ) {}
 
   /** Throws `WALLET_INSUFFICIENT_BALANCE` / `WALLET_BUDGET_EXCEEDED` when the wallet can't hold it. */
@@ -85,7 +87,11 @@ export class CallBilling implements CallBillingPort {
     const result = await settleCall({
       accountId: this.accountId,
       holdId: this.holdId,
-      usage: { ...usage, telephony: this.telephony },
+      usage: {
+        ...usage,
+        telephony: this.telephony,
+        ...(this.pulseSeconds ? { pulseSeconds: this.pulseSeconds } : {}),
+      },
     });
     const charge = result.entries.find((e) => e.type === 'call_charge');
     const b = charge?.breakdown;

@@ -198,7 +198,7 @@ export const ACCOUNT_VOICE_LINES = ['dryrun', 'sip'] as const;
 export type AccountVoiceLine = (typeof ACCOUNT_VOICE_LINES)[number];
 
 export interface AccountSipSettings {
-  /** Billing pulse in seconds (`SIP_BILLING_PULSE_SEC`). */
+  /** Billing pulse in seconds for SIP calls; `null` = the rate card's pulse. */
   pulseSec: number | null;
   /** New SIP minutes per hour before campaigns pause (`SIP_SPEND_MINUTES_PER_HOUR`). */
   spendMinutesPerHour: number | null;

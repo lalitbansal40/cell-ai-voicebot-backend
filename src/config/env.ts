@@ -254,7 +254,6 @@ const RawEnvSchema = z.object({
     .default('21000-21999'),
   SIP_APP_RTP_ADVERTISE: z.string().regex(HOST, { message: 'must be a host' }).default('127.0.0.1'),
   SIP_ASTERISK_RTP_HOST: z.string().regex(HOST, { message: 'must be a host' }).default('127.0.0.1'),
-  SIP_BILLING_PULSE_SEC: z.coerce.number().int().min(1).max(60).default(60),
   SIP_TRUNK_COST_PAISE_PER_MIN: z.coerce.number().int().min(0).max(10_000).optional(),
   SIP_SPEND_MINUTES_PER_HOUR: z.coerce.number().int().min(1).max(100_000).default(600),
 

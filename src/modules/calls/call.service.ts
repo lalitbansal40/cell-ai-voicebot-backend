@@ -66,6 +66,8 @@ export interface CallManagerDeps {
   dryRun?: { scriptFor: ScriptFactory; tts: Pick<TtsCache, 'get'> };
   /** The SIP line of this process (Phase 18); absent where no ARI connection is held. */
   sip?: SipLinePort;
+  /** `SIP_TRUNK_COST_PAISE_PER_MIN`: what the carrier charges us (margin report). */
+  sipTrunkCostPaisePerMin?: number;
 }
 
 /** What the call manager needs from the SIP line (`SipTelephonyProvider`). */
@@ -111,6 +113,12 @@ export interface OutboundCall {
 
 /** May return a promise: `shutdown()` waits for it (e.g. campaign results written before Mongo closes). */
 export type CallEndedListener = (summary: CallEndedSummary) => void | Promise<unknown>;
+
+/** Carrier cost of an answered SIP call, by started minute; `null` when the rate is unknown. */
+export const trunkCostPaise = (
+  durationSec: number,
+  perMinute: number | undefined,
+): number | null => (perMinute === undefined ? null : Math.ceil(durationSec / 60) * perMinute);
 
 /** Calls of this process: creation, socket attach, live sessions, shutdown. */
 export class CallManager {
@@ -485,7 +493,15 @@ export class CallManager {
       }
       throw err;
     }
-    const billing = new CallBilling(input.accountId, callId, true);
+    const sipAccount = await AccountModel.findById(input.accountId)
+      .select({ sipSettings: 1 })
+      .lean<{ sipSettings?: { pulseSec?: number | null } }>();
+    const billing = new CallBilling(
+      input.accountId,
+      callId,
+      true,
+      sipAccount?.sipSettings?.pulseSec ?? null,
+    );
     const dropCall = async () => {
       await CallModel.deleteOne({ _id: id });
       await this.releaseLease(callId);
@@ -555,8 +571,19 @@ export class CallManager {
         this.campaignCalls.delete(callId);
         this.endRequested.delete(callId);
         void this.releaseLease(callId);
-        void CallModel.updateOne({ _id: id }, { $set: { sip: leg.metrics } }).catch(
-          (err: unknown) => this.deps.logger.warn({ err, callId }, 'call: sip metrics not saved'),
+        void CallModel.updateOne(
+          { _id: id },
+          {
+            $set: {
+              sip: leg.metrics,
+              trunkCostPaise: trunkCostPaise(
+                summary.durationSec,
+                this.deps.sipTrunkCostPaisePerMin,
+              ),
+            },
+          },
+        ).catch((err: unknown) =>
+          this.deps.logger.warn({ err, callId }, 'call: sip metrics not saved'),
         );
         this.emitEnded(summary);
         resolveEnded(summary);
