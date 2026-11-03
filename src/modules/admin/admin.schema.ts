@@ -422,6 +422,18 @@ export const SystemStatusSchema = registry.register(
       .nullable(),
     certificate: z.object({ daysLeft: z.number().int() }).nullable(),
     superadminsWithoutMfa: z.number().int(),
+    sip: z
+      .object({
+        ariConnected: z.boolean(),
+        trunkOnline: z.boolean().nullable(),
+        liveChannels: z.number().int(),
+        maxChannels: z.number().int(),
+        maxCps: z.number().int(),
+        causes24h: z.record(z.string(), z.number()),
+        avgLossPct: z.number().nullable(),
+        avgJitterMs: z.number().nullable(),
+      })
+      .nullable(),
   }),
 );
 

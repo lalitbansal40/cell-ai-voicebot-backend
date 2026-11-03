@@ -1538,7 +1538,30 @@
             "properties": { "daysLeft": { "type": "integer" } },
             "required": ["daysLeft"]
           },
-          "superadminsWithoutMfa": { "type": "integer" }
+          "superadminsWithoutMfa": { "type": "integer" },
+          "sip": {
+            "type": ["object", "null"],
+            "properties": {
+              "ariConnected": { "type": "boolean" },
+              "trunkOnline": { "type": ["boolean", "null"] },
+              "liveChannels": { "type": "integer" },
+              "maxChannels": { "type": "integer" },
+              "maxCps": { "type": "integer" },
+              "causes24h": { "type": "object", "additionalProperties": { "type": "number" } },
+              "avgLossPct": { "type": ["number", "null"] },
+              "avgJitterMs": { "type": ["number", "null"] }
+            },
+            "required": [
+              "ariConnected",
+              "trunkOnline",
+              "liveChannels",
+              "maxChannels",
+              "maxCps",
+              "causes24h",
+              "avgLossPct",
+              "avgJitterMs"
+            ]
+          }
         },
         "required": [
           "commit",
@@ -1552,7 +1575,8 @@
           "lastRestoreDrill",
           "lastRelease",
           "certificate",
-          "superadminsWithoutMfa"
+          "superadminsWithoutMfa",
+          "sip"
         ]
       },
       "AgentFunction": {
@@ -6614,7 +6638,9 @@
               "webhook.endpoint_disabled",
               "contacts.erase_completed",
               "account.export_ready",
-              "account.delete_scheduled"
+              "account.delete_scheduled",
+              "sip.spend_guard_paused",
+              "sip.trunk_down"
             ]
           },
           "title": { "type": "string" },
