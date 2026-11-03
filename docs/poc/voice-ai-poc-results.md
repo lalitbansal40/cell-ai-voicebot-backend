@@ -128,3 +128,9 @@ _Pending._
 7. `npm run report -- --run <runId> --usd-inr <today's rate, e.g. 96.83>`
 8. Listen and fill sections 4–7; optionally talk to it yourself with `npm run serve`.
 9. Update [ADR 0021](../adr/0021-voice-ai-provider.md) and the [cost model](../cost/cost-model.md) with the measured numbers.
+
+## Phase 18 — 8 kHz phone audio (T18.11)
+
+- Recordings of SIP calls are 8 kHz stereo WAV (customer / bot), the same file format and retention as before; the length matches the call (±1 s, `tests/sip/outbound-sip.test.ts`). Erase removes them like other recordings.
+- Speech recognition at 8 kHz goes to OpenAI as `audio/pcmu` (G.711 μ-law) without resampling.
+- **Not measured yet:** word accuracy of Hindi / Hinglish at 8 kHz vs 24 kHz. No OpenAI key on this machine on 3 Nov 2026. Run 10 synthetic phrases through both rates once a key is available, and on the first real trunk calls (T18.18).

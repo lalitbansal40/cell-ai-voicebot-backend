@@ -174,6 +174,43 @@ describe('phone calls on the SIP line (T18.6)', () => {
     expect(withSip?.sip).toMatchObject({ codec: 'ulaw', sipQ850: 16 });
   });
 
+  it('records the phone call at 8 kHz, as long as the call (T18.11)', async () => {
+    const rec = await createTestAccount({ name: 'Rec Co' });
+    await fund(rec.account._id);
+    await AccountModel.updateOne(
+      { _id: rec.account._id },
+      { $set: { 'settings.recordingEnabled': true, 'settings.recordingNotice': 'Recorded.' } },
+    );
+    const out = await manager.startOutboundCall(input({ accountId: rec.account._id.toString() }));
+    ari.send({
+      type: 'StasisStart',
+      channel: { id: chan(out.callId), state: 'Up' },
+      args: [out.callId],
+    });
+    await waitFor(
+      () =>
+        ari.calls.some((c) => c.method === 'DELETE' && c.path === `/channels/${chan(out.callId)}`),
+      20_000,
+    );
+    ari.send({
+      type: 'ChannelDestroyed',
+      channel: { id: chan(out.callId) },
+      cause: 16,
+      cause_txt: '',
+    });
+    await out.ended;
+    const call = await doc(out.callId);
+    expect(call.recording).toMatchObject({ format: 'wav' });
+    expect(Math.abs((call.recording?.durationSec ?? 0) - call.durationSec)).toBeLessThanOrEqual(1);
+    const chunks: Buffer[] = [];
+    for await (const chunk of await storage.get(call.recording!.fileKey))
+      chunks.push(chunk as Buffer);
+    // WAV header: 8 kHz, 2 channels (customer / bot)
+    const head = Buffer.concat(chunks).subarray(0, 44);
+    expect(head.readUInt32LE(24)).toBe(8000);
+    expect(head.readUInt16LE(22)).toBe(2);
+  });
+
   it('a busy number releases the hold and charges nothing', async () => {
     const out = await manager.startOutboundCall(input({ to: '+919000000002' }));
     ari.send({
