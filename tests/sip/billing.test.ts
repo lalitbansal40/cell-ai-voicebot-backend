@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { callCharge } from '../../src/core/billing/pricing';
 import { parseCdr, reconcileCdr } from '../../src/core/telephony/sip/cdr';
-import { DEFAULT_RATE_CARD } from '../../src/db/models/rate-card.model';
+import { DEFAULT_RATE_CARD, type RateCardValues } from '../../src/db/models/rate-card.model';
 import { trunkCostPaise } from '../../src/modules/calls/call.service';
 
-const card = {
+const card: RateCardValues = {
   ...DEFAULT_RATE_CARD,
   pulseSeconds: 60,
   callPerMinuteMicros: 600_000,
