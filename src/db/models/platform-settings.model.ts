@@ -7,6 +7,8 @@ export const PLATFORM_SETTING_KEYS = [
   'whatsappBilling',
   'whatsappCalling',
   'callingWindowCeiling',
+  // Phase 17: last backup, restore drill and release, written by the ops commands
+  'opsStatus',
 ] as const;
 export type PlatformSettingKey = (typeof PLATFORM_SETTING_KEYS)[number];
 
@@ -60,6 +62,8 @@ export interface PlatformSettingsValues {
   callingWindowCeiling: CallingWindowCeiling;
   whatsappBilling: WhatsAppBillingSettings;
   whatsappCalling: WhatsAppCallingSettings;
+  /** Phase 17: written by the ops commands (`modules/ops/ops-status.ts`), never by a form. */
+  opsStatus: Record<string, unknown>;
 }
 
 export interface PlatformSettingsDoc<K extends PlatformSettingKey = PlatformSettingKey> {
@@ -75,7 +79,7 @@ type Range = readonly [min: number, max: number];
 
 /** Allowed whole-number range of every field, per key. */
 const VALUE_RANGES: {
-  [K in Exclude<PlatformSettingKey, 'callingWindowCeiling'>]: Record<
+  [K in Exclude<PlatformSettingKey, 'callingWindowCeiling' | 'opsStatus'>]: Record<
     keyof PlatformSettingsValues[K],
     Range
   >;
@@ -95,6 +99,11 @@ const VALUE_RANGES: {
 
 /** Problems of a settings value for its key (empty = valid). */
 export const platformSettingProblems = (key: unknown, value: unknown): string[] => {
+  if (key === 'opsStatus') {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? []
+      : ['A status is required'];
+  }
   if (key === 'callingWindowCeiling') {
     const w = value as Partial<CallingWindowCeiling> | null;
     return typeof w?.start === 'string' && typeof w.end === 'string'

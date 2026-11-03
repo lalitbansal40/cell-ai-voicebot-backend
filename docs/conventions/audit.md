@@ -66,6 +66,8 @@ Who did what in an account — an immutable, append-only log (`auditLogs`, [data
 | `mfa.enabled`                        | user (platform)   | user                | —                                                                                                                             |
 | `mfa.disabled`                       | user (platform)   | user                | —                                                                                                                             |
 | `mfa.recovery_used`                  | user (platform)   | user                | —                                                                                                                             |
+| `ops.release_recorded`               | system            | —                   | `tag`, `backend`, `frontend` (shas)                                                                                           |
+| `ops.restore_drill_recorded`         | system            | —                   | `rtoMinutes`                                                                                                                  |
 | `admin.impersonation_started`        | user (platform)   | account             | `ownerId`, `expiresAt`                                                                                                        |
 | `admin.impersonation_stopped`        | user (platform)   | account             | —                                                                                                                             |
 | `contacts.import_started`            | user              | import_job          | `kind`, `rows`                                                                                                                |

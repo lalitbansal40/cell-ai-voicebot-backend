@@ -1225,7 +1225,9 @@
               "account.api_limits_changed",
               "mfa.enabled",
               "mfa.disabled",
-              "mfa.recovery_used"
+              "mfa.recovery_used",
+              "ops.release_recorded",
+              "ops.restore_drill_recorded"
             ]
           },
           "actor": {
@@ -1445,6 +1447,90 @@
           "whatsappBilling",
           "whatsappChannels",
           "recentAudit"
+        ]
+      },
+      "SystemStatus": {
+        "type": "object",
+        "properties": {
+          "commit": { "type": "string" },
+          "builtAt": { "type": "string" },
+          "env": { "type": "string" },
+          "uptimeSec": { "type": "integer" },
+          "mongo": {
+            "type": "object",
+            "properties": {
+              "ok": { "type": "boolean" },
+              "primary": { "type": "boolean" },
+              "version": { "type": ["string", "null"] }
+            },
+            "required": ["ok", "primary", "version"]
+          },
+          "redis": {
+            "type": "object",
+            "properties": {
+              "ok": { "type": "boolean" },
+              "usedMemoryMb": { "type": ["number", "null"] }
+            },
+            "required": ["ok", "usedMemoryMb"]
+          },
+          "queues": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "waiting": { "type": "integer" },
+                "active": { "type": "integer" },
+                "delayed": { "type": "integer" },
+                "failed": { "type": "integer" }
+              },
+              "required": ["waiting", "active", "delayed", "failed"]
+            },
+            "description": "-1 when a queue could not be read"
+          },
+          "lastBackup": {
+            "type": ["object", "null"],
+            "properties": {
+              "at": { "type": "string" },
+              "ok": { "type": "boolean" },
+              "bytes": { "type": "number" }
+            },
+            "required": ["at", "ok", "bytes"]
+          },
+          "lastRestoreDrill": {
+            "type": ["object", "null"],
+            "properties": { "at": { "type": "string" }, "rtoMinutes": { "type": "number" } },
+            "required": ["at", "rtoMinutes"]
+          },
+          "lastRelease": {
+            "type": ["object", "null"],
+            "properties": {
+              "at": { "type": "string" },
+              "tag": { "type": "string" },
+              "backend": { "type": "string" },
+              "frontend": { "type": "string" }
+            },
+            "required": ["at", "tag", "backend", "frontend"]
+          },
+          "certificate": {
+            "type": ["object", "null"],
+            "properties": { "daysLeft": { "type": "integer" } },
+            "required": ["daysLeft"]
+          },
+          "superadminsWithoutMfa": { "type": "integer" }
+        },
+        "required": [
+          "commit",
+          "builtAt",
+          "env",
+          "uptimeSec",
+          "mongo",
+          "redis",
+          "queues",
+          "lastBackup",
+          "lastRestoreDrill",
+          "lastRelease",
+          "certificate",
+          "superadminsWithoutMfa"
         ]
       },
       "AgentFunction": {
@@ -12455,6 +12541,42 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/system": {
+      "get": {
+        "tags": ["Superadmin"],
+        "summary": "Production health for superadmins: build, database, Redis, queues, backups (Phase 17)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/SystemStatus" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

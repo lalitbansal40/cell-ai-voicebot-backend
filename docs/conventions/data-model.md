@@ -1118,3 +1118,7 @@ Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, r
 - **`users.mfa`:** sealed TOTP secret, hashed recovery codes, `enabledAt`.
 
 **Partial indexes:** an index that is partial on `{ field: { $type: 'string' } }` is only used when the query repeats the `$type`. Use `stringEq()` from `src/db/partial-match.ts`, or the query scans.
+
+## Phase 17
+
+- **`platformSettings` key `opsStatus`:** `{ lastBackup: { at, ok, bytes }, lastRestoreDrill: { at, rtoMinutes }, lastRelease: { at, tag, backend, frontend }, storageMigration: { lastKey, copied, bytes } }`. Written only by the ops commands; no personal data. No migration: it is a new row in an existing collection.

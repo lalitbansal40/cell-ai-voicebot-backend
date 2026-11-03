@@ -62,3 +62,28 @@ It stops with exit 2 if the client repo has new commits, or if its folders diffe
 If the repo becomes private, give the server a read-only deploy key and set `RELEASE_REPO_URL` in `env/ops.env` to the SSH address.
 
 **Tagged so far:** `release-20261102-96cc375` on client commit `fb496c3` (Phase 16; not deployed).
+
+## Backups and files
+
+- **Database:** `deploy/scripts/backup.sh` every night at 02:00 IST (`cav-backup.timer`) and before each release. Encrypted with `age` to the owner's key, sent to `BACKUP_TARGET` in S3, 7 daily and 4 weekly kept. It records the result for Admin → System (`ops-record backup`). The server's S3 user should have put / get / list only, so it can't delete backups.
+- **Restore drill:** on the owner's Mac with `deploy/scripts/restore.sh <timestamp>` and the private key (`CAV_BACKUP_IDENTITY`), into the throw-away `cell-ai-voicebot-restore-check` project. Then record it: `node dist/ops/ops-record.js restore-drill --rto-minutes <n>`.
+- **Files to S3:** with `STORAGE_DRIVER=local` and `S3_BUCKET` / `S3_REGION` set, run `npm run storage:migrate-to-s3 -- --dry-run`, then without `--dry-run`. Each file is read back and compared by size and SHA-256; it stops at the first mismatch and resumes there. When it says all files are verified, set `STORAGE_DRIVER=s3` and release. Keys stay the same.
+
+**Not done yet:** no backup has run on production and no drill has been timed, because there is no server access.
+
+## Watching
+
+| Check                | Where                         | Alert when                                                                       |
+| -------------------- | ----------------------------- | -------------------------------------------------------------------------------- |
+| Health and home page | UptimeRobot, every minute     | 2 failures in a row                                                              |
+| Readiness            | `healthwatch.sh`, every 5 min | `/ready` not ok                                                                  |
+| Disk, memory         | `healthwatch.sh`              | disk > 80 %, memory available < 10 %                                             |
+| Certificate          | `healthwatch.sh`              | under 14 days                                                                    |
+| Backup age           | `healthwatch.sh` + app check  | last good backup older than 26 h                                                 |
+| Container restarts   | `healthwatch.sh`              | a new restart since the last run                                                 |
+| MongoDB primary      | app check (`health-check.js`) | no primary                                                                       |
+| Queues               | app check                     | `whatsapp` or `webhooks` waiting > 1,000; 50 more failed jobs since the last run |
+
+Each alert key is mailed at most once an hour, through a one-off container, so mail works when the API is down. **Alerts tested:** none yet (needs a server).
+
+**Admin → System** (`/admin/system`, superadmins) shows the commit, build time, MongoDB, Redis, queues, last backup, drill and release, certificate days and superadmins without 2FA. Set `TLS_CERT_PATH` to the certificate file to get the certificate line.

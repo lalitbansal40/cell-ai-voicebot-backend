@@ -172,6 +172,8 @@ export const AUDIT_ACTIONS = [
   'mfa.enabled',
   'mfa.disabled',
   'mfa.recovery_used',
+  'ops.release_recorded',
+  'ops.restore_drill_recorded',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

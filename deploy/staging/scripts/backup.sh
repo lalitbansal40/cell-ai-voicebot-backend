@@ -21,7 +21,8 @@ finish() {
   rm -r "${work}"
   rmdir "${CAV_ROOT}/.backup-lock"
   if (( code != 0 )); then
-    echo 'Backup failed; inspect staging status and backup credentials' >&2
+    echo 'Backup failed; inspect status and backup credentials' >&2
+    dc run --rm --no-deps -T api sh -c 'test ! -f dist/ops/ops-record.js || exec node dist/ops/ops-record.js backup --failed --bytes 0' >/dev/null 2>&1 || true
     "${here}/healthwatch.sh" --backup-failed >/dev/null 2>&1 || true
   fi
   exit "${code}"
@@ -56,4 +57,7 @@ python3 "${here}/retention.py" "${target}"
 date -u +%Y-%m-%dT%H:%M:%SZ > "${CAV_ROOT}/backups/last-success.next"
 mv "${CAV_ROOT}/backups/last-success.next" "${CAV_ROOT}/backups/last-success"
 bytes="$(wc -c < "${work}/mongo.archive.gz")"
+# Admin → System and healthwatch read this; a failure here doesn't undo the backup
+# shellcheck disable=SC2016 # expanded by sh inside the container
+dc run --rm --no-deps -T api sh -c 'test ! -f dist/ops/ops-record.js || exec node dist/ops/ops-record.js backup --ok --bytes "$1"' sh "${bytes// /}" >/dev/null 2>&1 || echo 'Backup done, but it could not be recorded in the app' >&2
 echo "Backup complete (${stamp}, mongo ${bytes// /} bytes, $((SECONDS - begin)) seconds)"

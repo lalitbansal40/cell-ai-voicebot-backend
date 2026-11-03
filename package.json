@@ -44,6 +44,7 @@
     "gen:rate-limits": "tsx scripts/gen-rate-limits.ts",
     "smoke": "tsx scripts/smoke.ts",
     "keys:reseal": "tsx --env-file-if-exists=.env scripts/keys-reseal.ts",
+    "storage:migrate-to-s3": "tsx --env-file-if-exists=.env scripts/storage-migrate.ts",
     "check:headers": "tsx scripts/check-live-headers.ts",
     "samples:contacts": "tsx scripts/make-contact-samples.ts",
     "fixtures:knowledge": "tsx scripts/make-knowledge-fixtures.ts",
