@@ -17,12 +17,14 @@ Plan: [PHASE_18_PLAN.md](PHASE_18_PLAN.md) · Branch: `feature/phase-18-sip` · 
 | [x] | T18.11 | Recording + transcripts at 8 kHz                        | BE   | S    | B2    |
 | [x] | T18.12 | Disposition saved on mid-turn hangup                    | BE   | S    | B2    |
 | [x] | T18.13 | Reliability: reconnect, sweeps, restarts, media timeout | BE   | M    | B2    |
-| [ ] | T18.14 | Security + toll-fraud guard                             | both | S    | B3    |
-| [ ] | T18.15 | Monitoring: System page, healthwatch, call metrics      | both | S    | B3    |
-| [ ] | T18.16 | Frontend: line, caller ID, causes, AMD, admin numbers   | FE   | M    | B3    |
-| [ ] | T18.17 | SIP test suite (`test:sip`) + CI job                    | both | M    | B1→B3 |
+| [x] | T18.14 | Security + toll-fraud guard                             | both | S    | B3    |
+| [x] | T18.15 | Monitoring: System page, healthwatch, call metrics      | both | S    | B3    |
+| [x] | T18.16 | Frontend: line, caller ID, causes, AMD, admin numbers   | FE   | M    | B3    |
+| [x] | T18.17 | SIP test suite (`test:sip`) + CI job                    | both | M    | B1→B3 |
 | [ ] | T18.18 | Real trunk test calls (Gate S)                          | ops  | S    | B3    |
-| [ ] | T18.19 | Load: SIPp up to trunk limit                            | BE   | S    | B3    |
+| [x] | T18.19 | Load: SIPp up to trunk limit                            | BE   | S    | B3    |
 | [ ] | T18.20 | Rollout on production (Gate P + S)                      | ops  | S    | B3    |
-| [ ] | T18.21 | WhatsApp over SIP: research note                        | docs | S    | B3    |
-| [ ] | T18.22 | Gap audit, docs, sign-off                               | both | S    | B3    |
+| [x] | T18.21 | WhatsApp over SIP: research note                        | docs | S    | B3    |
+| [x] | T18.22 | Gap audit, docs, sign-off                               | both | S    | B3    |
+
+Open (Gate S / P, see [sign-off](PHASE_18_SIGNOFF.md) §5): T18.18 real trunk calls, T18.20 production rollout — checklists and steps are written.

@@ -11,6 +11,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 18 — SIP telephony** — 2026-11-03
+  - Asterisk 22 kit (compose profile `sip`), ARI client, RTP / G.711 bridge, SIP call leg with causes, AMD and transfer; `npm run sip:lab` / `test:sip` / `perf:sip`.
+  - Accounts move to the phone line one by one (superadmin); phone numbers and caller IDs; real SIP calls hold, bill (pulse, trunk cost) and record like other calls.
+  - Trunk channels and calls per second shared by every process; toll-fraud number and spend guards; System SIP card and healthwatch rules.
+  - A hangup during an AI turn keeps the disposition it decided.
+
 - **Phase 17 — production kit** — 2026-11-03
   - `deploy/production` kit and `release.sh` (one-command release with backup, call wait and rollback), build identity in `/health`.
   - `sync-client-repo.sh` release tags for the client repo; `storage:migrate-to-s3`; backup and release results recorded.
