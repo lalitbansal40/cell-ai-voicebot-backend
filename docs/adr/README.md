@@ -25,7 +25,7 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0019 | [Testing stack](0019-testing-stack.md)                                                                                                                          | accepted |
 | 0020 | [Telephony abstraction](0020-telephony-abstraction.md)                                                                                                          | accepted |
 | 0021 | [Voice AI provider](0021-voice-ai-provider.md)                                                                                                                  | proposed |
-| 0022 | [SIP media server](0022-sip-media-server.md)                                                                                                                    | deferred |
+| 0022 | [SIP media server: Asterisk 22 LTS with ARI + ExternalMedia](0022-sip-media-server.md)                                                                          | accepted |
 | 0023 | [File storage](0023-file-storage.md)                                                                                                                            | accepted |
 | 0024 | [API versioning & style](0024-api-versioning-and-style.md)                                                                                                      | accepted |
 | 0025 | [Deployment style](0025-deployment-style.md)                                                                                                                    | deferred |
@@ -53,3 +53,4 @@ Template: [0000-template.md](0000-template.md). Status values: `proposed`, `acce
 | 0047 | [Encryption layers and key rotation: v2 format with a key id, sealed-field registry, resumable re-seal](0047-encryption-key-rotation.md)                        | accepted |
 | 0048 | [Erasure and suppression: one erase map, hashed suppressions, money rows kept without personal data](0048-erasure-suppression.md)                               | accepted |
 | 0049 | [Production on the client's shared server: isolated user, folder and project, release tags, calls drained, encrypted backups](0049-production-shared-server.md) | accepted |
+| 0050 | [SIP on the shared server: Asterisk container, trunk-only SIP, separate RTP ranges, worker owns ARI, shared channel limits](0050-sip-shared-server.md)          | accepted |

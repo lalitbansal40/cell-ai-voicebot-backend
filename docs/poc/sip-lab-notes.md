@@ -51,7 +51,7 @@ Caller audio before the bridge existed (~0.8 s while the beep played) is not for
 ## 5. Phase 13 checklist (real SIP trunk)
 
 - [ ] Trunk auth: registration (`type=registration`) **or** IP-based `identify` for the client's SBC IPs.
-- [ ] NAT on EC2: `external_media_address` + `external_signaling_address` = public IP 13.232.191.62; `local_net` = VPC CIDR.
+- [ ] NAT on EC2: `external_media_address` + `external_signaling_address` = the production host's public IP from the server audit (ADR 0049, ADR 0050); `local_net` = the host's private range. Never the client's other EC2.
 - [ ] Codecs: `allow=ulaw,alaw` (match trunk; G.711 lets audio go to OpenAI `audio/pcmu` without resampling).
 - [ ] RTP port range (e.g. 10000–20000) + AWS security group: SIP 5060/5061 and RTP **only from trunk IPs**.
 - [ ] DTMF: `dtmf_mode=rfc4733` (fallback `auto`); test with real handsets.
