@@ -200,19 +200,27 @@ const ended = async (c: Live, maxMs = 120_000) => {
   return callOf(c.callId);
 };
 /**
- * Says `text` and waits, in real time with the fake clock stopped, until the call has written it
- * down. Moving the clock first let the silence prompts fire before a loaded machine had handled
- * the words (flaky under the full suite).
+ * Says `text`, moves the clock until the call has written it down (the bot may still be finishing
+ * its line), then waits in real time with the clock stopped until the bot answers. Moving the clock
+ * while the AI was still thinking let the silence prompts fire first on a loaded machine.
  */
 const say = async (c: Live, text: string) => {
   c.leg.receiveControl({ type: 'call.say_text', text });
-  const deadline = Date.now() + 10_000;
+  const said = async () => {
+    const all = await lines(c.callId);
+    const at = all.findIndex((l) => !l.startsWith('bot:') && l.endsWith(`:${text}`));
+    return { at, all };
+  };
+  if (!(await pumpUntil(c.clock, c.leg, async () => (await said()).at !== -1))) {
+    throw new Error(`"${text}" was never written down`);
+  }
+  const deadline = Date.now() + 5_000;
   while (Date.now() < deadline) {
-    if ((await lines(c.callId)).some((l) => !l.startsWith('bot:') && l.endsWith(`:${text}`)))
-      return;
+    const { at, all } = await said();
+    if (all.slice(at + 1).some((l) => l.startsWith('bot:'))) return;
+    if ((await callOf(c.callId)).status !== 'in_progress') return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  throw new Error(`"${text}" was never written down`);
 };
 
 describe('agent-only calls — live AI on the fake voice pipeline', () => {
