@@ -25,6 +25,9 @@ export const REDACT_PATHS = [
   '*.apiKey',
   '*.secret',
   '*.authorization',
+  // Phase 18: SIP line secrets, should an env object ever be logged
+  '*.ARI_PASSWORD',
+  '*.SIP_PASSWORD',
 ];
 
 export type { Logger };

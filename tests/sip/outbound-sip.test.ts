@@ -8,6 +8,7 @@ import { Types } from 'mongoose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AriClient } from '../../src/core/telephony/sip/ari-client';
+import { SipSpendGuard } from '../../src/core/telephony/sip/guard';
 import { PortPool } from '../../src/core/telephony/sip/port-pool';
 import { SipTelephonyProvider } from '../../src/core/telephony/sip/provider';
 import { systemClock } from '../../src/core/voice/clock';
@@ -16,6 +17,7 @@ import { TtsCache } from '../../src/core/voice/tts-cache';
 import { AccountModel } from '../../src/db/models/account.model';
 import { CallModel, type CallDoc } from '../../src/db/models/call.model';
 import { LedgerEntryModel } from '../../src/db/models/ledger-entry.model';
+import { NotificationModel } from '../../src/db/models/notification.model';
 import { CallManager, type StartOutboundCallInput } from '../../src/modules/calls/call.service';
 import { CallRegistry } from '../../src/modules/calls/registry';
 import { createLogger } from '../../src/shared/logger';
@@ -226,6 +228,41 @@ describe('phone calls on the SIP line (T18.6)', () => {
       ['call_charge', 'released', 'not_answered'],
     ]);
     expect((await doc(out.callId)).endReason).toBe('busy');
+  });
+
+  it('never dials a number outside the allowed patterns (T18.14)', async () => {
+    await expect(manager.startOutboundCall(input({ to: '+911800123456' }))).rejects.toMatchObject({
+      code: 'NUMBER_NOT_ALLOWED',
+    });
+    expect(
+      ari.callsTo('POST', '/channels/cav-').some((c) => c.query.endpoint?.includes('1800')),
+    ).toBe(false);
+  });
+
+  it('stops dialing an account over its SIP minutes this hour, with one notice (T18.14)', async () => {
+    const guard = new SipSpendGuard(redis, prefix);
+    const capped = new CallManager({
+      logger: createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }),
+      registry: new CallRegistry(redis, prefix),
+      tts: new TtsCache({ tts: new FakeTts(), storage }),
+      storage: undefined,
+      recordingDir,
+      scriptFor: () => Promise.reject(new Error('unused')),
+      sip: { connected: true, startCall: () => Promise.reject(new Error('not reached')) },
+      sipSpend: { guard, defaultMinutesPerHour: 5 },
+    });
+    await guard.add(t.account._id.toString(), 300);
+    for (let i = 0; i < 2; i += 1) {
+      await expect(capped.startOutboundCall(input())).rejects.toMatchObject({ code: 'LINE_BUSY' });
+    }
+    expect(
+      await NotificationModel.countDocuments({
+        accountId: t.account._id,
+        type: 'sip.spend_guard_paused',
+      }),
+    ).toBeLessThanOrEqual(1);
+    // the hour's notice was used by the first refusal
+    expect(await guard.firstNotice(t.account._id.toString())).toBe(false);
   });
 
   it('refuses when the wallet cannot hold the call and leaves no call behind', async () => {

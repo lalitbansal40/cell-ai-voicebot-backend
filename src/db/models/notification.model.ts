@@ -42,6 +42,9 @@ export const NOTIFICATION_TYPES = [
   'contacts.erase_completed',
   'account.export_ready',
   'account.delete_scheduled',
+  // Phase 18: SIP line
+  'sip.spend_guard_paused',
+  'sip.trunk_down',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

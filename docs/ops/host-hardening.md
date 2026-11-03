@@ -28,6 +28,15 @@ sudo ufw status numbered
 
 Add rules the client's other app needs before `enable`. Undo: `sudo ufw disable`. If the server is behind a cloud security group, set the same rules there.
 
+**Phone calls (Phase 18, ADR 0050).** SIP and its audio are opened **only to the trunk's addresses** (from the trunk details; repeat per address). Never open 5060 to everyone: SIP scanners find it within minutes and try toll fraud.
+
+```bash
+sudo ufw allow from <trunk-ip> to any port 5060 proto udp
+sudo ufw allow from <trunk-ip> to any port 5060 proto tcp
+sudo ufw allow from <trunk-media-ip> to any port 20000:20999 proto udp
+# ARI (8088) and our RTP (21000-21999) stay on 127.0.0.1: no rule needed
+```
+
 ## Security updates and fail2ban
 
 ```bash

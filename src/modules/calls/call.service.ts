@@ -7,6 +7,7 @@ import type { StorageProvider } from '../../core/storage';
 import { DryRunProvider, type DryRunSettings } from '../../core/telephony/dryrun';
 import type { AttachResult, MediaAttachInput } from '../../core/telephony/media-server';
 import { MEDIA_CLOSE } from '../../core/telephony/media-server';
+import { isDialable, type SipSpendGuard } from '../../core/telephony/sip/guard';
 import type { SipLegMetrics } from '../../core/telephony/sip/leg';
 import {
   SipLineBusyError,
@@ -28,6 +29,7 @@ import { CallModel, type CallDoc, type CallSource } from '../../db/models/call.m
 import { AppError } from '../../shared/errors/app-error';
 import type { Logger } from '../../shared/logger';
 import { DialSlots, type SlotLease } from '../campaigns/slots';
+import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { withoutSensitive } from '../privacy/sensitive';
 import type { CallControlBus } from '../whatsapp-calling/bus';
 
@@ -68,6 +70,8 @@ export interface CallManagerDeps {
   sip?: SipLinePort;
   /** `SIP_TRUNK_COST_PAISE_PER_MIN`: what the carrier charges us (margin report). */
   sipTrunkCostPaisePerMin?: number;
+  /** SIP minutes per account per hour (T18.14); absent = no guard (tests of other parts). */
+  sipSpend?: { guard: SipSpendGuard; defaultMinutesPerHour: number };
 }
 
 /** What the call manager needs from the SIP line (`SipTelephonyProvider`). */
@@ -481,6 +485,8 @@ export class CallManager {
     }
     // Asterisk away for a moment: like a full trunk, campaigns wait without using a retry
     if (!sip.connected) throw new AppError('LINE_BUSY', 'The phone line is reconnecting.');
+    if (!isDialable(input.to)) throw new AppError('NUMBER_NOT_ALLOWED');
+    await this.checkSpend(input.accountId);
     const id = new Types.ObjectId();
     const callId = id.toString();
     const limits = await this.accountLimits(input.accountId);
@@ -610,6 +616,11 @@ export class CallManager {
         this.campaignCalls.delete(callId);
         this.endRequested.delete(callId);
         void this.releaseLease(callId);
+        if (summary.durationSec > 0) {
+          void this.deps.sipSpend?.guard
+            .add(input.accountId, summary.durationSec)
+            .catch(() => undefined);
+        }
         void CallModel.updateOne(
           { _id: id },
           {
@@ -633,6 +644,34 @@ export class CallManager {
     if (this.endRequested.delete(callId)) await session.end('campaign_canceled');
     else await leg.dial();
     return { callId, ended };
+  }
+
+  /**
+   * Toll-fraud guard (T18.14): over the account's SIP minutes this hour → no new dials
+   * (campaigns wait, like a full trunk) and one bell per hour to the account's admins.
+   */
+  private async checkSpend(accountId: string): Promise<void> {
+    const spend = this.deps.sipSpend;
+    if (!spend) return;
+    const account = await AccountModel.findById(accountId)
+      .select({ sipSettings: 1 })
+      .lean<{ sipSettings?: { spendMinutesPerHour?: number | null } }>();
+    const limit = account?.sipSettings?.spendMinutesPerHour ?? spend.defaultMinutesPerHour;
+    const used = await spend.guard.used(accountId);
+    if (used < limit) return;
+    if (await spend.guard.firstNotice(accountId)) {
+      const oid = new Types.ObjectId(accountId);
+      const recipients = await usersWithPermission(oid, 'campaigns.run');
+      await notify({
+        accountId: oid,
+        userIds: recipients.map((r) => r.userId),
+        type: 'sip.spend_guard_paused',
+        title: 'Phone calls paused for this hour',
+        body: `This account used ${String(used)} phone minutes this hour (limit ${String(limit)}). Calls start again next hour; ask support to raise the limit if this is expected.`,
+        link: '/campaigns',
+      }).catch((err: unknown) => this.deps.logger.warn({ err }, 'call: spend notice failed'));
+    }
+    throw new AppError('LINE_BUSY', 'The phone minutes limit for this hour is reached.');
   }
 
   /** Phase 12: who takes the agent's socket of a WhatsApp call. */

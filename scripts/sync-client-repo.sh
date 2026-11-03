@@ -73,7 +73,7 @@ git -C "${client}" add -A "${sub}" .github/workflows/build.yml
 
 undo() { git -C "${client}" reset --quiet --hard HEAD; git -C "${client}" clean -fdq "${sub}" .github; }
 secret_lines="$(git -C "${client}" diff --cached -U0 | grep -E '^\+' \
-  | grep -cE 'AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9_-]{32,}|mongodb(\+srv)?://[^<" ]+:[^<" ]+@|BEGIN [A-Z ]*PRIVATE KEY|rzp[_]live_' || true)"
+  | grep -cE 'AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9_-]{32,}|mongodb(\+srv)?://[^<" ]+:[^<" ]+@|BEGIN [A-Z ]*PRIVATE KEY|rzp[_]live_|(ARI|SIP)[_]PASSWORD=[^[:space:]]{8,}' || true)"
 env_files="$(git -C "${client}" diff --cached --name-only | grep -E '(^|/)\.env($|\.)' | grep -vc 'example' || true)"
 if (( secret_lines > 0 || env_files > 0 )); then
   undo

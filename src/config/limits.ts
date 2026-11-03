@@ -242,6 +242,11 @@ export const FLOW_LIMITS = {
 export const SIP_LIMITS = {
   /** 1600-series numbers for BFSI service calls: a hint on the phone numbers page. */
   series1600: /^\+911600\d{6}$/,
+  /** Numbers the phone line may dial (toll-fraud guard, T18.14). */
+  mobile: /^\+91[6-9]\d{9}$/,
+  landline: /^\+91[1-9]\d{9}$/,
+  /** Toll-free, premium, short and service codes behind +91 — never dialed. */
+  blockedPrefixes: ['+911600', '+911800', '+911860', '+911900', '+91140'],
 } as const;
 
 export const CALL_LIMITS = {

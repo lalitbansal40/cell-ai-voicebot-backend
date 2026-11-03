@@ -419,8 +419,13 @@ export class CampaignDispatcher {
       }
       return 'dialed';
     } catch (err) {
-      await this.settleContact(campaign, cc, cc.status, {});
       const code = err instanceof AppError ? err.code : null;
+      if (code === 'NUMBER_NOT_ALLOWED') {
+        // the phone line never dials it (toll-fraud guard): skipped for good
+        await this.settleContact(campaign, cc, 'skipped', { skipReason: 'number_not_allowed' });
+        return 'handled';
+      }
+      await this.settleContact(campaign, cc, cc.status, {});
       if (code === 'WALLET_INSUFFICIENT_BALANCE') {
         await pauseCampaignDoc(campaign, 'wallet_empty', null).catch(() => undefined);
       } else if (
