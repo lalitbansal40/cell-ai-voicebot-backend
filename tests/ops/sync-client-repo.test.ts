@@ -143,7 +143,7 @@ describe('sync-client-repo.sh', () => {
 
   it.each([
     ['a key', 'x.txt', 'token = sk-' + 'a'.repeat(40)],
-    ['a database login', 'x.txt', 'mongodb+srv://user:pass@cluster.example.net/db'],
+    ['a database login', 'x.txt', ['mongodb+srv://user', 'pass@cluster.example.net/db'].join(':')],
     ['an env file', '.env', 'A=b'],
   ])('stops on %s and leaves the clone clean', (_name, file, text) => {
     const w = world();
