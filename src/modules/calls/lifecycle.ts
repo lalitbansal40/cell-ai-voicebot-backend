@@ -43,7 +43,8 @@ const BY_CAUSE: Record<HangupCause, CallEndReason> = {
   limit: 'limit',
   busy: 'busy',
   no_answer: 'no_answer',
-  rejected: 'busy',
+  // a person declined the call (SIP 603): not retried (Phase 18)
+  rejected: 'rejected_by_customer',
   invalid_number: 'invalid_number',
   machine: 'machine',
 };

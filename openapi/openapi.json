@@ -3422,6 +3422,8 @@
               "missing_values",
               "cap_reached",
               "campaign_ended",
+              "rejected",
+              "number_not_allowed",
               null
             ]
           },
@@ -17435,7 +17437,9 @@
                 "in_active_campaign",
                 "missing_values",
                 "cap_reached",
-                "campaign_ended"
+                "campaign_ended",
+                "rejected",
+                "number_not_allowed"
               ]
             },
             "required": false,

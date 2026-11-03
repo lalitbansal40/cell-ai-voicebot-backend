@@ -210,6 +210,12 @@ describe('classifyResult (PHASE_8_PLAN §1i)', () => {
     ).toBe('failed');
   });
 
+  it('a declined call on the phone line is not retried (Phase 18)', () => {
+    expect(
+      run({ status: 'failed', endReason: 'rejected_by_customer', answered: false }),
+    ).toMatchObject({ status: 'failed', skipReason: 'rejected' });
+  });
+
   it('invalid numbers fail with a skip reason; canceled calls cancel; not-counted ends come back', () => {
     expect(run({ status: 'failed', endReason: 'invalid_number', answered: false })).toMatchObject({
       status: 'failed',

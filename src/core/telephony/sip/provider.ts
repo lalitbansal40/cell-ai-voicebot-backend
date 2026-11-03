@@ -2,6 +2,7 @@ import type { Clock } from '../../voice/clock';
 import type { StartCallRequest, TelephonyProvider } from '../types';
 
 import type { AriClient, AriEvent } from './ari-client';
+import type { SipCapacity } from './capacity';
 import { SipCallLeg, type SipLegOptions } from './leg';
 import type { PortPool } from './port-pool';
 import { RtpSession, type G711 } from './rtp-session';
@@ -32,6 +33,14 @@ export class SipNoMediaPortError extends Error {
   }
 }
 
+/** Every trunk channel is in use, or no calls-per-second slot came in time. */
+export class SipLineBusyError extends Error {
+  constructor() {
+    super('sip: line busy');
+    this.name = 'SipLineBusyError';
+  }
+}
+
 /** `cav-<callId>`, `cav-<callId>-em`, `cav-<callId>-xfer` → `<callId>`. */
 export const callIdOfChannel = (channelId: string): string | null => {
   const m = /^cav-([^-]+)(?:-(?:em|xfer))?$/.exec(channelId);
@@ -46,14 +55,40 @@ export const callIdOfChannel = (channelId: string): string | null => {
 export class SipTelephonyProvider implements TelephonyProvider {
   readonly name = 'sip' as const;
   private readonly legs = new Map<string, SipCallLeg>();
+  /** Channel leases of this process (call ids and `<callId>:xfer`). */
+  private readonly leases = new Set<string>();
+  private refreshTimer: unknown = null;
 
   constructor(
     private readonly ari: AriClient,
     private readonly pool: PortPool,
     private readonly clock: Clock,
     private readonly config: SipLineConfig,
+    /** Trunk limits shared in Redis (T18.8); absent in unit tests of the line itself. */
+    private readonly capacity?: SipCapacity,
   ) {
     ari.on('event', (event) => this.route(event));
+  }
+
+  private async lease(id: string): Promise<boolean> {
+    if (!this.capacity) return true;
+    if (!(await this.capacity.acquire(id))) return false;
+    this.leases.add(id);
+    if (this.refreshTimer === null) {
+      this.refreshTimer = this.clock.setInterval(() => {
+        void this.capacity?.refresh([...this.leases]).catch(() => undefined);
+      }, this.capacity.refreshEveryMs);
+    }
+    return true;
+  }
+
+  private unlease(id: string): void {
+    if (!this.leases.delete(id)) return;
+    void this.capacity?.release(id).catch(() => undefined);
+    if (this.leases.size === 0 && this.refreshTimer !== null) {
+      this.clock.clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
   }
 
   get connected(): boolean {
@@ -70,12 +105,20 @@ export class SipTelephonyProvider implements TelephonyProvider {
   }
 
   async startCall(request: SipCallRequest): Promise<SipCallLeg> {
+    if (!(await this.lease(request.callId))) throw new SipLineBusyError();
+    if (this.capacity && !(await this.capacity.dialToken())) {
+      this.unlease(request.callId);
+      throw new SipLineBusyError();
+    }
     const rtp = await RtpSession.open(this.pool, request.callId, {
       format: this.config.format,
       bindHost: this.config.rtpBindHost,
       now: () => this.clock.now(),
     });
-    if (!rtp) throw new SipNoMediaPortError();
+    if (!rtp) {
+      this.unlease(request.callId);
+      throw new SipNoMediaPortError();
+    }
     const options: SipLegOptions = {
       callId: request.callId,
       to: request.to,
@@ -89,10 +132,18 @@ export class SipTelephonyProvider implements TelephonyProvider {
       amd: request.amd !== undefined && request.amd !== 'off',
       hangupOnMachine: request.amd === 'hangup',
       app: this.config.app ?? 'cav',
+      channels: {
+        acquire: (id) => this.lease(id),
+        release: (id) => this.unlease(id),
+      },
     };
     const leg = new SipCallLeg(this.ari, rtp, this.clock, options);
     this.legs.set(request.callId, leg);
-    leg.onEnded(() => this.legs.delete(request.callId));
+    leg.onEnded(() => {
+      this.legs.delete(request.callId);
+      this.unlease(request.callId);
+      this.unlease(`${request.callId}:xfer`);
+    });
     return leg;
   }
 

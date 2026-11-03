@@ -41,6 +41,8 @@ export interface SipLegOptions {
   hangupOnMachine: boolean;
   /** ARI app of the dialing process (the AMD dialplan returns the call to it). */
   app: string;
+  /** Trunk channel for the transfer leg (T18.8); absent = no limit. */
+  channels?: { acquire(id: string): Promise<boolean>; release(id: string): void };
 }
 
 export interface SipLegMetrics {
@@ -305,7 +307,13 @@ export class SipCallLeg implements CallLeg {
       return Promise.resolve('failed');
     }
     if (!/^\+[1-9]\d{7,14}$/.test(target.phone)) return Promise.resolve('failed');
-    return new Promise((resolve) => {
+    return this.startTransfer(target, timeoutSec);
+  }
+
+  private async startTransfer(target: TransferTarget, timeoutSec: number): Promise<TransferResult> {
+    const leaseId = `${this.options.callId}:xfer`;
+    if (this.options.channels && !(await this.options.channels.acquire(leaseId))) return 'failed';
+    const result = await new Promise<TransferResult>((resolve) => {
       const timer = this.clock.setTimeout(() => {
         void this.ari.hangup(this.ids.transfer).catch(() => undefined);
         this.transferDone('no_answer');
@@ -321,6 +329,8 @@ export class SipCallLeg implements CallLeg {
         })
         .catch(() => this.transferDone('failed'));
     });
+    if (result !== 'connected') this.options.channels?.release(leaseId);
+    return result;
   }
 
   private transferDone(result: TransferResult): void {

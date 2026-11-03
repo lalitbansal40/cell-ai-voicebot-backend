@@ -8,7 +8,11 @@ import { DryRunProvider, type DryRunSettings } from '../../core/telephony/dryrun
 import type { AttachResult, MediaAttachInput } from '../../core/telephony/media-server';
 import { MEDIA_CLOSE } from '../../core/telephony/media-server';
 import type { SipLegMetrics } from '../../core/telephony/sip/leg';
-import { SipNoMediaPortError, type SipCallRequest } from '../../core/telephony/sip/provider';
+import {
+  SipLineBusyError,
+  SipNoMediaPortError,
+  type SipCallRequest,
+} from '../../core/telephony/sip/provider';
 import type { CallLeg } from '../../core/telephony/types';
 import { systemClock, type Clock } from '../../core/voice/clock';
 import { ScaledClock } from '../../core/voice/scaled-clock';
@@ -500,6 +504,7 @@ export class CallManager {
     } catch (err) {
       await billing.release('no_media_port');
       await dropCall();
+      if (err instanceof SipLineBusyError) throw new AppError('LINE_BUSY');
       throw err instanceof SipNoMediaPortError ? new AppError('CALL_CAPACITY') : err;
     }
     const campaignId = input.campaign?.campaignId;

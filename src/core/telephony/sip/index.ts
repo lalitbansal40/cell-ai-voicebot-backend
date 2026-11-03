@@ -1,8 +1,11 @@
+import type { Redis } from 'ioredis';
+
 import type { Env } from '../../../config/env';
 import type { Logger } from '../../../shared/logger';
 import { systemClock, type Clock } from '../../voice/clock';
 
 import { AriClient } from './ari-client';
+import { SipCapacity } from './capacity';
 import { parsePortRange, PortPool } from './port-pool';
 import { SipTelephonyProvider } from './provider';
 
@@ -22,6 +25,8 @@ export type SipEnv = Pick<
   | 'SIP_APP_RTP_PORTS'
   | 'SIP_APP_RTP_ADVERTISE'
   | 'SIP_ASTERISK_RTP_HOST'
+  | 'SIP_MAX_CHANNELS'
+  | 'SIP_MAX_CPS'
 >;
 
 export interface SipLine {
@@ -38,7 +43,7 @@ export interface SipLine {
  */
 export const createSipLine = (
   env: SipEnv,
-  options: { logger: Logger; role: 'api' | 'worker'; clock?: Clock },
+  options: { logger: Logger; role: 'api' | 'worker'; redis: Redis; clock?: Clock },
 ): SipLine => {
   const app = `${env.ARI_APP}-${options.role}`;
   const ari = new AriClient({
@@ -63,6 +68,11 @@ export const createSipLine = (
       defaultCallerId: env.SIP_CALLER_ID ?? '',
       app,
     },
+    new SipCapacity({
+      redis: options.redis,
+      maxChannels: env.SIP_MAX_CHANNELS,
+      maxCps: env.SIP_MAX_CPS,
+    }),
   );
   ari.on('state', (up) => {
     if (up) options.logger.info({ app }, 'sip: ari connected');

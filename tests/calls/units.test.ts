@@ -86,7 +86,7 @@ describe('call lifecycle rules', () => {
     expect(finalStatus('campaign_canceled', true)).toBe('completed');
     expect(endReasonFor('busy')).toBe('busy');
     expect(endReasonFor('no_answer')).toBe('no_answer');
-    expect(endReasonFor('rejected')).toBe('busy');
+    expect(endReasonFor('rejected')).toBe('rejected_by_customer'); // Phase 18: not retried
     expect(endReasonFor('invalid_number')).toBe('invalid_number');
   });
 });

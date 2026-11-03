@@ -152,6 +152,8 @@ export const classifyResult = (input: {
     );
   }
   if (lastResult === 'invalid_number') return done('failed', { skipReason: 'invalid_phone' });
+  // the person declined the call on the phone line: no retry (Phase 18)
+  if (call.endReason === 'rejected_by_customer') return done('failed', { skipReason: 'rejected' });
   if (lastResult !== 'answered') return retry(lastResult, done('failed'));
 
   const d = call.disposition;

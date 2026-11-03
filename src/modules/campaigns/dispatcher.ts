@@ -419,7 +419,11 @@ export class CampaignDispatcher {
       const code = err instanceof AppError ? err.code : null;
       if (code === 'WALLET_INSUFFICIENT_BALANCE') {
         await pauseCampaignDoc(campaign, 'wallet_empty', null).catch(() => undefined);
-      } else if (code !== 'CALL_LIMIT_REACHED' && code !== 'CALL_CAPACITY') {
+      } else if (
+        code !== 'CALL_LIMIT_REACHED' &&
+        code !== 'CALL_CAPACITY' &&
+        code !== 'LINE_BUSY'
+      ) {
         this.deps.logger.error(
           { err, campaignId: campaign._id.toString() },
           'campaign: dial failed',

@@ -84,6 +84,9 @@ export const SKIP_REASONS = [
   'missing_values',
   'cap_reached',
   'campaign_ended',
+  // Phase 18: SIP line
+  'rejected',
+  'number_not_allowed',
 ] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
 
