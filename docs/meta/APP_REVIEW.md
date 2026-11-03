@@ -98,3 +98,10 @@ Terms https://<app-host>/terms, data deletion https://<app-host>/data-deletion.
 | Date | Permission | Meta's reason | Fix | Resubmitted |
 | ---- | ---------- | ------------- | --- | ----------- |
 | —    | —          | —             | —   | —           |
+
+## Status (Phase 17, 2 Nov 2026)
+
+- Submitted on 30 Oct 2026. **No result recorded yet**; the owner checks the Meta dashboard and the Alert Inbox.
+- While it is open: don't disconnect the review number, don't change the review login's password.
+- After approval: app Live; Advanced Access for `whatsapp_business_management` and `whatsapp_business_messaging`; Tech Provider steps; connect the client's real number through Embedded Signup; check webhook fields `messages`, `message_template_status_update`, `calls`; account billing stays "Customer pays Meta" (we are a Tech Provider, not a BSP).
+- Real-phone checks then (Android and iPhone): a message each way, a template, media, a call permission request, a WhatsApp call (this also proves UDP 40000–40999 is open), an opt-out word.
