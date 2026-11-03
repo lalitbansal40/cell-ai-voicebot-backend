@@ -11,6 +11,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 17 — production kit** — 2026-11-03
+  - `deploy/production` kit and `release.sh` (one-command release with backup, call wait and rollback), build identity in `/health`.
+  - `sync-client-repo.sh` release tags for the client repo; `storage:migrate-to-s3`; backup and release results recorded.
+  - `GET /admin/system`, healthwatch checks, `POST /csp-report`, Redis wallet lock across API and worker.
+
 - **Phase 16 · Batch 3 (T16.7–T16.11) — compliance, hardening, load checks** — 2026-11-02
   - Compliance page and CSV, opt-out words, consent warnings, calling-hours ceiling.
   - Superadmin two-step sign-in, per-account API key limits, a rate limit inventory, audit kept for 2 years.
