@@ -78,7 +78,7 @@ const watch = (leg: SipCallLeg) => {
 const answer = async (leg: SipCallLeg, args: string[] = [CALL]) => {
   ari.send({ type: 'ChannelStateChange', channel: { id: ID, state: 'Ringing' } });
   ari.send({ type: 'StasisStart', channel: { id: ID, state: 'Up' }, args });
-  await waitFor(() => !leg.ended && ari.callsTo('POST', '/bridges/').length >= 2);
+  await waitFor(() => leg.ended || watchAnswered(leg));
 };
 
 const destroyed = (cause: number, id = ID) =>
