@@ -317,6 +317,8 @@ export interface FakeMetaClient extends MetaClient {
     expiresAt?: Date | null,
   ): Promise<void>;
   /** Adds (or clears with null) a calling restriction on the number (simulator). */
+  /** Test knob: settings writes answer success but change nothing (read-back tests). */
+  ignoreCallingSettingsWrites(on: boolean): void;
   setCallingRestriction(
     phoneNumberId: string,
     restriction: { type: string; reason?: string | null; expiresAt?: Date | null } | null,
@@ -842,6 +844,7 @@ export const createFakeMetaClient = ({
       calling.setPermission(phoneNumberId, waId, status, expiresAt),
     setCallingRestriction: (phoneNumberId, restriction) =>
       calling.setRestriction(phoneNumberId, restriction),
+    ignoreCallingSettingsWrites: (on) => calling.ignoreSettingsWrites(on),
     fakeCalls: (phoneNumberId) => calling.calls(phoneNumberId),
     stopCalls: () => calling.stopCalls(),
     calls,

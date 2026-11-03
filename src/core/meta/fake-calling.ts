@@ -171,6 +171,8 @@ export interface FakeCalling {
     expiresAt?: Date | null,
   ): Promise<void>;
   /** Simulator: adds / clears a calling restriction on the number. */
+  /** Test knob (Phase 18B): Meta answers `success` to settings writes but keeps the old values. */
+  ignoreSettingsWrites(on: boolean): void;
   setRestriction(
     phoneNumberId: string,
     restriction: { type: string; reason?: string | null; expiresAt?: Date | null } | null,
@@ -203,6 +205,7 @@ const callKindOf = (payload: MetaMessagePayload): 'permission_request' | 'voice_
 };
 
 export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
+  let ignoreWrites = false;
   const { redis, key, track, fail } = deps;
   const users = new Map<string, FakeWaUser>();
   /** Last permission request per number × customer (the reply's `context.id`). */
@@ -644,6 +647,7 @@ export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
     async updateCallingSettings(token, phoneNumberId, calling: MetaCallingSettingsUpdate) {
       track('updateCallingSettings', phoneNumberId);
       const phone = await deps.phoneOf(token, phoneNumberId);
+      if (ignoreWrites) return;
       if (phone.onBizApp && calling.status === 'ENABLED') {
         throw fail(400, 138013, 'Calling is not available for this number');
       }
@@ -904,6 +908,10 @@ export const createFakeCalling = (deps: FakeCallingDeps): FakeCalling => {
             Date.now() + WHATSAPP_CALL_LIMITS.temporaryPermissionDays * DAY_MS)
           : null;
       await savePermission(phoneNumberId, waId, p);
+    },
+
+    ignoreSettingsWrites(on) {
+      ignoreWrites = on;
     },
 
     async setRestriction(phoneNumberId, restriction) {

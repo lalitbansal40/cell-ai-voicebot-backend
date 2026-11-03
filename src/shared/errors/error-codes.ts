@@ -272,6 +272,11 @@ export const ERROR_CODES = {
     message: "That caller number isn't one of this account's active numbers.",
   },
   PHONE_NUMBER_EXISTS: { status: 409, message: 'This number is already on the platform.' },
+  // Phase 18B: WhatsApp calling go-live
+  CALLING_SETTINGS_NOT_APPLIED: {
+    status: 502,
+    message: 'WhatsApp did not apply the change. Refresh and check the number before trying again.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

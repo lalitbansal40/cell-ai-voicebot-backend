@@ -100,6 +100,28 @@ const ourStatus = (meta: string | null, unavailable: boolean, fallback: WaCallin
 const mergeRestrictions = (meta: MetaCallingSettings): WaCallingRestriction[] =>
   meta.restrictions.map((r) => ({ type: r.type, reason: r.reason, expiresAt: r.expiresAt }));
 
+const NOT_APPLIED = 'WhatsApp did not apply the last change';
+
+/** Fields of the write that WhatsApp's read-back doesn't show (T18B.1); empty = applied. */
+export const readBackMismatch = (
+  sent: MetaCallingSettingsUpdate,
+  now: Pick<WaCalling, 'status' | 'callIconVisibility' | 'callHours'>,
+  unavailable: boolean,
+): string[] => {
+  const off: string[] = [];
+  if (sent.status && !unavailable) {
+    const want = sent.status === 'ENABLED' ? 'enabled' : 'disabled';
+    if (now.status !== want) off.push('status');
+  }
+  if (sent.callIconVisibility && sent.callIconVisibility !== now.callIconVisibility) {
+    off.push('callIconVisibility');
+  }
+  if (sent.callHours && (sent.callHours.status === 'ENABLED') !== now.callHours.enabled) {
+    off.push('callHours');
+  }
+  return off;
+};
+
 export const createCallingSettings = (deps: CallingDeps) => {
   const { ctx } = deps;
 
@@ -288,7 +310,24 @@ export const createCallingSettings = (deps: CallingDeps) => {
         : null;
     }
     if (forMeta) set['calling.lastError'] = null;
-    const updated = await save(channel._id, set);
+    let updated = await save(channel._id, set);
+    if (forMeta) {
+      // WhatsApp may answer success and not apply it: store what it reports and compare
+      updated = await syncCalling(updated, { throwOnError: true });
+      const notApplied = readBackMismatch(forMeta, callingOf(updated), unavailableReason !== null);
+      if (notApplied.length) {
+        await save(channel._id, { 'calling.lastError': NOT_APPLIED });
+        getLogger().warn(
+          { channelId: channel._id.toString(), fields: notApplied },
+          'whatsapp calling: settings not applied by WhatsApp',
+        );
+        throw new AppError(
+          'CALLING_SETTINGS_NOT_APPLIED',
+          undefined,
+          notApplied.map((path) => ({ path, message: 'Not applied by WhatsApp' })),
+        );
+      }
+    }
     const fields = Object.keys(patch).flatMap((k) =>
       k === 'inbound' ? Object.keys(patch.inbound ?? {}).map((f) => `inbound.${f}`) : [k],
     );

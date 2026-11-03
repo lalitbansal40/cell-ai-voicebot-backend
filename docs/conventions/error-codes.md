@@ -113,6 +113,7 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `NUMBER_NOT_ALLOWED`                        | 422  | The number is not an Indian mobile or landline the phone line may call (toll-fraud guard)                                                                                                                             | 18    |
 | `CALLER_NUMBER_INVALID`                     | 422  | The chosen caller number isn't one of the account's active numbers                                                                                                                                                    | 18    |
 | `PHONE_NUMBER_EXISTS`                       | 409  | The number is already on the platform                                                                                                                                                                                 | 18    |
+| `CALLING_SETTINGS_NOT_APPLIED`              | 502  | WhatsApp answered success to a calling settings change but its read-back shows the old value                                                                                                                          | 18B   |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 
