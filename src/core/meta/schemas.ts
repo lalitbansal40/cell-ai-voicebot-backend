@@ -33,6 +33,16 @@ export const oauthTokenSchema = z.looseObject({
   expires_in: z.number().nullish(),
 });
 
+export const appSubscriptionsSchema = z.looseObject({
+  data: z.array(
+    z.looseObject({
+      object: z.string(),
+      active: z.boolean().optional(),
+      fields: z.array(z.looseObject({ name: z.string() })).optional(),
+    }),
+  ),
+});
+
 export const debugTokenSchema = z.looseObject({
   data: z.looseObject({
     app_id: id.nullish(),

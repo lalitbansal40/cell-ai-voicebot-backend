@@ -155,6 +155,8 @@ export interface WaCalling {
   restrictions: WaCallingRestriction[];
   syncedAt: Date | null;
   lastError: string | null;
+  /** Last `calls` webhook for this number (Phase 18B readiness: the path works end to end). */
+  lastCallsWebhookAt?: Date | null;
 }
 
 export const DEFAULT_PERMISSION_REQUEST_BODY =
@@ -415,6 +417,7 @@ const callingSchema = new Schema<WaCalling>(
     },
     syncedAt: { type: Date, default: null },
     lastError: { type: String, default: null, maxlength: 300 },
+    lastCallsWebhookAt: { type: Date, default: null },
   },
   { _id: false },
 );

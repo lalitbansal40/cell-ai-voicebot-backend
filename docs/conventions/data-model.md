@@ -1130,3 +1130,8 @@ Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, r
 - `calls`: `callerId`, `callerNumberId`, `sip` (`codec`, `sipQ850`, `dialStatus`, `amd`, `amdCause`, `amdMs`, `packetsIn`, `packetsOut`, `lossPct`, `jitterMs`, `firstAudioMs`), `trunkCostPaise`; end reason `machine`; a declined phone call ends `rejected_by_customer`.
 - `campaigns.phoneLine`: `callerNumberId`, `amd` (`off` / `hangup` / `leave_message`), `voicemailText`; campaign contact skip reasons `rejected`, `number_not_allowed`.
 - Redis: `sip:channels` (channel leases), `sip:cps:<second>`, `sip:spend:<accountId>:<hour>` (+ `:notice`), `health:bell:<issue>:<hour>`.
+
+## Phase 18B — WhatsApp calling go-live
+
+- `whatsappChannels.calling.lastCallsWebhookAt` (Date | null): set on every `calls` webhook for the number (readiness). No migration: absent = null.
+- Redis: `wa:readiness:calls-webhook` (1 h), `wa:readiness:scope:<channelId>` (1 h).

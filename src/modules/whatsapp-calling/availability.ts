@@ -15,7 +15,7 @@ import type {
 export const BIC_EXCLUDED_CALLING_CODES = ['1', '20', '84', '234'] as const;
 
 /** Messaging limit tiers below the 2,000 Meta requires for calling. */
-const LOW_TIERS = new Set(['TIER_50', 'TIER_250', 'TIER_1K']);
+export const LOW_TIERS = new Set(['TIER_50', 'TIER_250', 'TIER_1K']);
 
 export const callingUnavailableReason = (
   channel: Pick<WhatsAppChannelDoc, 'mode' | 'isOnBizApp' | 'platformType' | 'messagingLimitTier'>,

@@ -97,6 +97,13 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
       ok(res, await runtime.settings.getCalling(actor(req).accountId, params.id));
     }),
   );
+  router.get(
+    '/whatsapp/channels/:id/calling/readiness',
+    requirePermission('whatsapp.read'),
+    ...handle({ params: CallingParams }, async ({ req, res, params }) => {
+      ok(res, await runtime.settings.readiness(actor(req).accountId, params.id));
+    }),
+  );
   router.patch(
     '/whatsapp/channels/:id/calling',
     ...manage,

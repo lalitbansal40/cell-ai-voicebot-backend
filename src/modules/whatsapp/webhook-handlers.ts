@@ -370,6 +370,11 @@ const calls = async (
   value: unknown,
   event?: HandlerEvent,
 ): Promise<HandlerResult> => {
+  // readiness (Phase 18B): this number's calls reach us, even before they are handled
+  await WhatsAppChannelModel.updateOne(
+    { _id: channel._id },
+    { $set: { 'calling.lastCallsWebhookAt': new Date() } },
+  ).catch(() => undefined);
   if (!h.calling?.calls) return 'deferred';
   await h.calling.calls(channel, value, event);
   return 'processed';

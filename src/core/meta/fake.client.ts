@@ -317,6 +317,8 @@ export interface FakeMetaClient extends MetaClient {
     expiresAt?: Date | null,
   ): Promise<void>;
   /** Adds (or clears with null) a calling restriction on the number (simulator). */
+  /** Test knob (Phase 18B): the app's webhook fields `getAppSubscriptions` reports. */
+  setAppSubscriptionFields(fields: string[]): void;
   /** Test knob: settings writes answer success but change nothing (read-back tests). */
   ignoreCallingSettingsWrites(on: boolean): void;
   setCallingRestriction(
@@ -813,6 +815,13 @@ export const createFakeMetaClient = ({
     };
   };
 
+  // the app's webhook fields (dev / tests subscribe to everything the app handles)
+  let appFields = [
+    'messages',
+    'calls',
+    'account_settings_update',
+    'message_template_status_update',
+  ];
   const calling = createFakeCalling({
     redis,
     key,
@@ -888,6 +897,17 @@ export const createFakeMetaClient = ({
       );
       const token = `fake_tok_${h}_${randomBytes(8).toString('hex')}`;
       return toAccessToken(oauthTokenSchema.parse({ access_token: token, token_type: 'bearer' }));
+    },
+
+    getAppSubscriptions() {
+      track('getAppSubscriptions', null);
+      return Promise.resolve([
+        { object: 'whatsapp_business_account', active: true, fields: [...appFields] },
+      ]);
+    },
+
+    setAppSubscriptionFields(fields) {
+      appFields = [...fields];
     },
 
     async debugToken(token) {

@@ -40,6 +40,7 @@ import { withCallErrors } from './errors';
 import { callingView, type CallingView } from './json';
 import { CALLING_NOTIFICATIONS } from './notification-types';
 import { programProblems } from './program';
+import { blockingProblem, createCallingReadiness } from './readiness';
 
 /**
  * WhatsApp calling settings of a number (PHASE_12_PROMPT T12.5): ours (routing, ring
@@ -124,6 +125,11 @@ export const readBackMismatch = (
 
 export const createCallingSettings = (deps: CallingDeps) => {
   const { ctx } = deps;
+  const readinessCheck = createCallingReadiness({ ctx, token: deps.token });
+
+  /** The readiness checklist of a number (T18B.2). */
+  const readiness = async (accountId: Types.ObjectId, channelId: string) =>
+    readinessCheck.read(await load(accountId, channelId));
 
   const getCalling = async (accountId: Types.ObjectId, channelId: string): Promise<CallingView> =>
     callingView(await load(accountId, channelId), nowOf(ctx));
@@ -278,6 +284,14 @@ export const createCallingSettings = (deps: CallingDeps) => {
       ]);
     }
     await validate(channel, patch, now);
+    if (patch.status === 'enabled' && calling.status !== 'enabled') {
+      const blocking = blockingProblem((await readinessCheck.read(channel)).items);
+      if (blocking) {
+        throw new ValidationError([
+          { path: `readiness.${blocking.key}`, message: blocking.fix ?? blocking.detail },
+        ]);
+      }
+    }
     const forMeta = metaUpdate(calling, patch);
     if (forMeta) {
       const { token } = await deps.token(channel._id);
@@ -459,6 +473,7 @@ export const createCallingSettings = (deps: CallingDeps) => {
 
   return {
     getCalling,
+    readiness,
     updateCalling,
     syncCalling,
     syncNow,

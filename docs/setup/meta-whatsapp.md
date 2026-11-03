@@ -130,6 +130,10 @@ With the real app and a test number, from two phones (Android + iPhone):
 - **Media network:** media nodes need public UDP `WA_MEDIA_PORT_MIN–WA_MEDIA_PORT_MAX` (default 40000–40999) open inbound / outbound, `WA_MEDIA_PUBLIC_IP` set when the node is behind NAT, and `WA_STUN_URLS` reachable; `WA_MEDIA_MAX_CALLS` caps calls per process.
 - **Prices:** import Meta's INR calling rate card (**Admin → WhatsApp billing → Calling rates**, CSV `Market, Currency, Per minute`); until then the placeholder card (IN ₹0.3885 / min, OTHER ₹1 / min) applies.
 
+### Readiness (Phase 18B)
+
+**Number → Calling** shows a checklist from `GET /whatsapp/channels/:id/calling/readiness`: Cloud API number, messaging limit (Meta needs **2,000 a day**), business verification, the app subscribed to the **`calls`** webhook field (read with the app token, cached 1 h), `whatsapp_business_messaging` on the number, calling status at WhatsApp, restrictions, the last call event we received, call audio on this server (`WA_MEDIA_ENABLED`, `WA_MEDIA_PUBLIC_IP` in production, the port range) and Meta's calling prices. Each failing item shows its fix. Calling can't be switched on while the Cloud API, messaging limit, `calls` webhook or call audio item fails; "unknown" never blocks. After a switch, WhatsApp is read back: a change it didn't apply shows "WhatsApp did not apply the change".
+
 ### Real-device checklist
 
 1. Request call permission to a real phone inside the 24 h window → the customer taps Allow → the contact panel shows "Can call · 7 days"; outside the window the approved template goes out.

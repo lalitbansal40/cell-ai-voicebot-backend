@@ -28,6 +28,12 @@ export interface MetaAccessToken {
   tokenType: string | null;
 }
 
+export interface MetaAppSubscription {
+  object: string;
+  active: boolean;
+  fields: string[];
+}
+
 export interface MetaDebugToken {
   isValid: boolean;
   type: string | null;
@@ -345,6 +351,8 @@ export interface MetaClient {
   getPhoneNumber(token: string, phoneNumberId: string): Promise<MetaPhone>;
   subscribeApp(token: string, wabaId: string): Promise<void>;
   unsubscribeApp(token: string, wabaId: string): Promise<void>;
+  /** The app's webhook subscriptions (app token) — Phase 18B readiness (`calls` field). */
+  getAppSubscriptions(): Promise<MetaAppSubscription[]>;
   /** Id of the user / System User a token belongs to (cached per token). */
   getTokenOwner(token: string): Promise<string>;
   assignSystemUser(token: string, wabaId: string, userId: string): Promise<void>;

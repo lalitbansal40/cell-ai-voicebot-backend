@@ -42,6 +42,7 @@ import {
   allocationSchema,
   businessesSchema,
   creditLineAttachSchema,
+  appSubscriptionsSchema,
   debugTokenSchema,
   meSchema,
   oauthTokenSchema,
@@ -328,6 +329,22 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
         schema: debugTokenSchema,
       });
       return toDebugToken(raw);
+    },
+
+    async getAppSubscriptions() {
+      const raw = await call({
+        op: 'app.subscriptions',
+        method: 'GET',
+        path: `${appId}/subscriptions`,
+        query: { access_token: `${appId}|${appSecret}` },
+        token: null,
+        schema: appSubscriptionsSchema,
+      });
+      return raw.data.map((s) => ({
+        object: s.object,
+        active: s.active !== false,
+        fields: (s.fields ?? []).map((f) => f.name),
+      }));
     },
 
     async listOwnedWabas(token) {

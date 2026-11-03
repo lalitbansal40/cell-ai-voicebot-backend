@@ -15,6 +15,7 @@ import {
   CallTransferBody,
 } from './calling-api.schema';
 import { CallAvailabilityBody, CallingSettingsPatch } from './calling.schema';
+import { READINESS_KEYS } from './readiness';
 
 const tags = ['WhatsApp calling'];
 const publicTags = [...tags, PUBLIC_API_TAG];
@@ -46,6 +47,29 @@ registry.registerPath({
   summary: 'Update calling settings and sync with Meta (whatsapp.calling.manage)',
   request: { params: CallingParams, body: body(CallingSettingsPatch) },
   responses: { 200: ok(CallingSettingsSchema), ...failures },
+});
+export const CallingReadinessSchema = registry.register(
+  'WhatsAppCallingReadiness',
+  z.object({
+    ready: z.boolean().openapi({ description: 'No blocking item is false' }),
+    items: z.array(
+      z.object({
+        key: z.enum(READINESS_KEYS),
+        ok: z.boolean().nullable().openapi({ description: 'null = could not tell' }),
+        detail: z.string(),
+        fix: z.string().nullable(),
+      }),
+    ),
+  }),
+);
+registry.registerPath({
+  method: 'get',
+  path: `${settingsPath}/readiness`,
+  tags,
+  security: bearer,
+  summary: 'What calling on this number needs and what to fix (whatsapp.read)',
+  request: { params: CallingParams },
+  responses: { 200: ok(CallingReadinessSchema), ...failures },
 });
 registry.registerPath({
   method: 'post',
