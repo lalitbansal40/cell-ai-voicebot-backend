@@ -4,12 +4,12 @@ Plan: [PHASE_18_PLAN.md](PHASE_18_PLAN.md) · Branch: `feature/phase-18-sip` · 
 
 | ✓   | #      | Task                                                    | Repo | Size | Batch |
 | --- | ------ | ------------------------------------------------------- | ---- | ---- | ----- |
-| [ ] | T18.1  | Inputs, trunk questionnaire, ADR 0022 accept + ADR 0050 | docs | S    | B1    |
-| [ ] | T18.2  | Asterisk kit (image, config templates, compose, lab)    | ops  | M    | B1    |
-| [ ] | T18.3  | ARI client (REST + events, reconnect)                   | BE   | M    | B1    |
-| [ ] | T18.4  | RTP media bridge (G.711 ↔ PCM16, jitter, port pool)     | BE   | M    | B1    |
-| [ ] | T18.5  | `SipCallLeg` + `SipTelephonyProvider`, cause mapping    | BE   | M    | B1    |
-| [ ] | T18.6  | Config, line selection, boot checks                     | BE   | S    | B1    |
+| [x] | T18.1  | Inputs, trunk questionnaire, ADR 0022 accept + ADR 0050 | docs | S    | B1    |
+| [x] | T18.2  | Asterisk kit (image, config templates, compose, lab)    | ops  | M    | B1    |
+| [x] | T18.3  | ARI client (REST + events, reconnect)                   | BE   | M    | B1    |
+| [x] | T18.4  | RTP media bridge (G.711 ↔ PCM16, jitter, port pool)     | BE   | M    | B1    |
+| [x] | T18.5  | `SipCallLeg` + `SipTelephonyProvider`, cause mapping    | BE   | M    | B1    |
+| [x] | T18.6  | Config, line selection, boot checks                     | BE   | S    | B1    |
 | [ ] | T18.7  | Phone numbers + caller ID per account                   | both | M    | B2    |
 | [ ] | T18.8  | Dialer on SIP: trunk concurrency, CPS, retries by cause | BE   | M    | B2    |
 | [ ] | T18.9  | Answering machine detection                             | BE   | M    | B2    |
