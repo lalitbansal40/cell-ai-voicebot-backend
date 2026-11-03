@@ -360,7 +360,11 @@ export class CampaignDispatcher {
         accountId: campaign.accountId.toString(),
         provider: live ? 'sip' : 'dryrun',
         ...(live
-          ? { callerId: caller?.number ?? null, amd: campaign.phoneLine?.amd ?? 'off' }
+          ? {
+              callerId: caller?.number ?? null,
+              amd: campaign.phoneLine?.amd ?? 'off',
+              voicemailText: campaign.phoneLine?.voicemailText ?? null,
+            }
           : {}),
         to: cc.phoneE164,
         contactId: cc.contactId.toString(),

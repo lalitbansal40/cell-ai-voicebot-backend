@@ -35,7 +35,7 @@ import { CallBilling } from './billing';
 import { issueMediaTicket } from './media-tickets';
 import type { CallRegistry } from './registry';
 import type { ScriptChoice, ScriptFactory } from './scripts';
-import { CallSession, type CallEndedSummary } from './session';
+import { CallSession, type CallEndedSummary, type CallScript } from './session';
 import { VirtualCallBilling, type VirtualGate } from './virtual-billing';
 
 export interface CreateWebCallInput {
@@ -87,6 +87,8 @@ export interface StartOutboundCallInput {
   callerId?: string | null;
   /** SIP: answering machine detection of the campaign. */
   amd?: 'off' | 'hangup' | 'leave_message';
+  /** SIP, `amd: leave_message`: what the bot says once to a machine. */
+  voicemailText?: string | null;
   /** E.164, server-only. */
   to: string;
   contactId: string;
@@ -113,6 +115,39 @@ export interface OutboundCall {
 
 /** May return a promise: `shutdown()` waits for it (e.g. campaign results written before Mongo closes). */
 export type CallEndedListener = (summary: CallEndedSummary) => void | Promise<unknown>;
+
+/**
+ * `leave_message` (T18.9): when Asterisk found an answering machine, the bot says the
+ * campaign's message once and ends the call (`machine`); a person gets the program.
+ */
+export const voicemailOr = (
+  program: CallScript,
+  leg: { readonly metrics: SipLegMetrics },
+  text: string,
+): CallScript => {
+  let machine = false;
+  return {
+    run: async (io) => {
+      if (leg.metrics.amd !== 'MACHINE') return program.run(io);
+      machine = true;
+      io.event('status', { voicemail: true });
+      await io.say(text);
+      return 'machine';
+    },
+    stop: (reason) => (machine ? Promise.resolve() : program.stop(reason)),
+    result: () =>
+      machine
+        ? {
+            outcome: {},
+            disposition: 'voicemail',
+            variables: {},
+            flowRunId: null,
+            aiSeconds: 0,
+            languageDetected: null,
+          }
+        : program.result(),
+  };
+};
 
 /** Carrier cost of an answered SIP call, by started minute; `null` when the rate is unknown. */
 export const trunkCostPaise = (
@@ -537,10 +572,14 @@ export class CallManager {
     });
     const account = await AccountModel.findById(input.accountId).select({ settings: 1 }).lean();
     const settings = { ...DEFAULT_ACCOUNT_SETTINGS, ...account?.settings };
-    const choice: ScriptChoice = await this.deps.scriptFor(call).catch((err: unknown) => {
+    const program: ScriptChoice = await this.deps.scriptFor(call).catch((err: unknown) => {
       this.deps.logger.error({ err, callId }, 'call: sip program failed');
       return { script: failingScript(err), voice: 'coral', language: 'hinglish' };
     });
+    const choice: ScriptChoice =
+      input.amd === 'leave_message' && input.voicemailText
+        ? { ...program, script: voicemailOr(program.script, leg, input.voicemailText) }
+        : program;
     await this.deps.registry.register(
       callId,
       input.accountId,

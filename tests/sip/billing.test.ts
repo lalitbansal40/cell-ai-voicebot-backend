@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { callCharge } from '../../src/core/billing/pricing';
 import { parseCdr, reconcileCdr } from '../../src/core/telephony/sip/cdr';
+import type { SipLegMetrics } from '../../src/core/telephony/sip/leg';
 import { DEFAULT_RATE_CARD, type RateCardValues } from '../../src/db/models/rate-card.model';
-import { trunkCostPaise } from '../../src/modules/calls/call.service';
+import { trunkCostPaise, voicemailOr } from '../../src/modules/calls/call.service';
+import type { CallIO } from '../../src/modules/calls/session';
+import { scriptOf } from '../helpers/calls';
 
 const card: RateCardValues = {
   ...DEFAULT_RATE_CARD,
@@ -71,5 +74,49 @@ describe('SIP billing (T18.10)', () => {
       },
     ]);
     expect(() => parseCdr('to,amount\n+91,1')).toThrow(/date column/);
+  });
+});
+
+describe('answering machine message (T18.9)', () => {
+  const io = () => {
+    const said: string[] = [];
+    const events: string[] = [];
+    return {
+      said,
+      events,
+      io: {
+        say: (text: string) => {
+          said.push(text);
+          return Promise.resolve({ completed: true, playedMs: 100 });
+        },
+        event: (type: string) => events.push(type),
+      } as unknown as CallIO,
+    };
+  };
+
+  it('a machine hears the message once and the call ends as machine / voicemail', async () => {
+    const program = scriptOf(() => Promise.resolve('hangup_node'), { disposition: 'paid' });
+    const script = voicemailOr(
+      program,
+      { metrics: { amd: 'MACHINE' } as SipLegMetrics },
+      'Please call back',
+    );
+    const f = io();
+    expect(await script.run(f.io)).toBe('machine');
+    expect(f.said).toEqual(['Please call back']);
+    expect(script.result().disposition).toBe('voicemail');
+    await script.stop('machine');
+    expect(program.stopped).toEqual([]);
+  });
+
+  it('a person gets the program', async () => {
+    const program = scriptOf(() => Promise.resolve('hangup_node'), { disposition: 'paid' });
+    const script = voicemailOr(program, { metrics: { amd: 'HUMAN' } as SipLegMetrics }, 'x');
+    const f = io();
+    expect(await script.run(f.io)).toBe('hangup_node');
+    expect(f.said).toEqual([]);
+    expect(script.result().disposition).toBe('paid');
+    await script.stop('customer_hangup');
+    expect(program.stopped).toEqual(['customer_hangup']);
   });
 });
