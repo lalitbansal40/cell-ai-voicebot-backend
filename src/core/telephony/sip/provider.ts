@@ -68,6 +68,66 @@ export class SipTelephonyProvider implements TelephonyProvider {
     private readonly capacity?: SipCapacity,
   ) {
     ari.on('event', (event) => this.route(event));
+    let wasUp = ari.connected;
+    ari.on('state', (up) => {
+      if (up && wasUp) void this.reconcile();
+      if (up) void this.hangUpOrphans();
+      if (up) wasUp = true;
+    });
+  }
+
+  private isLive: ((callId: string) => Promise<boolean>) | null = null;
+
+  /**
+   * How to tell a channel of a call that no process runs any more (the call registry).
+   * Set once the call manager exists; orphans are checked on every ARI connect.
+   */
+  setLiveCheck(fn: (callId: string) => Promise<boolean>): void {
+    this.isLive = fn;
+    if (this.ari.connected) void this.hangUpOrphans();
+  }
+
+  /** Channels of calls whose process died (customer would hear silence): hung up. */
+  async hangUpOrphans(): Promise<number> {
+    const check = this.isLive;
+    if (!check) return 0;
+    let channels: { id: string }[];
+    try {
+      channels = await this.ari.listChannels();
+    } catch {
+      return 0;
+    }
+    let ended = 0;
+    for (const { id } of channels) {
+      const callId = callIdOfChannel(id);
+      if (!callId || this.legs.has(callId)) continue;
+      if (await check(callId).catch(() => true)) continue;
+      ended += 1;
+      await this.ari.hangup(id).catch(() => undefined);
+    }
+    return ended;
+  }
+
+  /**
+   * After the event socket came back (Asterisk restart, network blip, T18.13): a leg
+   * whose channel is gone missed its ChannelDestroyed — it ends as `media_error`.
+   */
+  async reconcile(): Promise<number> {
+    if (this.legs.size === 0) return 0;
+    let alive: Set<string>;
+    try {
+      alive = new Set((await this.ari.listChannels()).map((c) => c.id));
+    } catch {
+      return 0; // the media timeout ends them if Asterisk stays away
+    }
+    let ended = 0;
+    for (const leg of [...this.legs.values()]) {
+      if (!alive.has(leg.ids.main)) {
+        ended += 1;
+        leg.lost();
+      }
+    }
+    return ended;
   }
 
   private async lease(id: string): Promise<boolean> {

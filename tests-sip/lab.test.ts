@@ -35,7 +35,13 @@ let line: SipTelephonyProvider;
 let n = 0;
 
 beforeAll(async () => {
-  ari = new AriClient({ url: 'http://127.0.0.1:18088', user: 'cav', password, app: 'cav-lab' });
+  ari = new AriClient({
+    url: 'http://127.0.0.1:18088',
+    user: 'cav',
+    password,
+    app: 'cav-lab',
+    reconnectMaxMs: 1000,
+  });
   ari.connect();
   const end = Date.now() + 10_000;
   while (!ari.connected) {
@@ -143,6 +149,23 @@ describe('SIP lab: real Asterisk and SIPp (T18.17)', () => {
     expect(result).toBe('connected');
     await c.leg.hangup('normal');
     await within(c.ended, 5000);
+  });
+
+  it('an Asterisk restart mid-call ends the call and the line works again (T18.13)', async () => {
+    const c = await call('1');
+    await within(c.answered, 8000);
+    execFileSync('docker', ['restart', '-t', '0', 'cav-sip-lab-asterisk']);
+    // Asterisk clears its channels on the way down (Q.850 16); if it can't, the reconnect does
+    expect(['customer_hangup', 'media_error']).toContain(await within(c.ended, 30_000));
+    const end = Date.now() + 30_000;
+    while (!ari.connected && Date.now() < end) await new Promise((r) => setTimeout(r, 200));
+    // the line works again once the trunk endpoint is loaded (a few seconds after ARI)
+    let cause: HangupCause | undefined;
+    for (let i = 0; i < 10 && cause !== 'busy'; i += 1) {
+      cause = await within((await call('2')).ended, 10_000);
+      if (cause !== 'busy') await new Promise((r) => setTimeout(r, 1000));
+    }
+    expect(cause).toBe('busy');
   });
 
   it('frees every port and leg after the calls', () => {

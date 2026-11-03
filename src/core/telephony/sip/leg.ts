@@ -374,6 +374,11 @@ export class SipCallLeg implements CallLeg {
     }
   }
 
+  /** Asterisk no longer has the channel (restart): end without asking it anything. */
+  lost(): void {
+    this.finish(this.askedCause ?? 'media_error');
+  }
+
   /** Notices are for web calls; a phone shows nothing. */
   notify(notice: LegNotice): void {
     void notice;

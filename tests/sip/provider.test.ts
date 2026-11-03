@@ -459,6 +459,62 @@ describe('SIP line over the fake ARI (T18.5)', () => {
     expect(tiny.connected).toBe(true);
   });
 
+  it('after ARI comes back, a leg whose channel is gone ends media_error (T18.13)', async () => {
+    const gone = await provider.startCall({ callId: CALL, to: '+919000000001' });
+    const kept = await provider.startCall({ callId: 'k1', to: '+919000000001' });
+    const sGone = watch(gone);
+    await gone.dial();
+    await answer(gone);
+    await kept.dial();
+    ari.on((c) =>
+      c.path === '/channels' && c.method === 'GET'
+        ? { status: 200, body: [{ id: 'cav-k1' }] }
+        : undefined,
+    );
+    ari.dropSockets();
+    await waitFor(() => !client.connected);
+    await waitFor(() => client.connected, 5000);
+    await waitFor(() => gone.ended);
+    expect(sGone.at(-1)).toEqual(['ended', 'media_error']);
+    expect(kept.ended).toBe(false);
+    await kept.hangup('normal');
+    expect(await provider.reconcile()).toBe(0);
+  });
+
+  it('a failed channel list after a reconnect ends nothing', async () => {
+    const leg = await provider.startCall({ callId: CALL, to: '+919000000001' });
+    await leg.dial();
+    ari.on((c) => (c.path === '/channels' && c.method === 'GET' ? { status: 500 } : undefined));
+    expect(await provider.reconcile()).toBe(0);
+    expect(leg.ended).toBe(false);
+    await leg.hangup('normal');
+  });
+
+  it('hangs up channels of calls no process runs any more (T18.13)', async () => {
+    expect(await provider.hangUpOrphans()).toBe(0); // no check set yet
+    const mine = await provider.startCall({ callId: CALL, to: '+919000000001' });
+    ari.on((c) =>
+      c.path === '/channels' && c.method === 'GET'
+        ? {
+            status: 200,
+            body: [
+              { id: 'cav-dead1' },
+              { id: 'cav-dead1-em' },
+              { id: 'cav-alive1' },
+              { id: 'PJSIP/trunk-1' },
+              { id: ID },
+            ],
+          }
+        : undefined,
+    );
+    provider.setLiveCheck((id) => Promise.resolve(id === 'alive1'));
+    await waitFor(() => ari.callsTo('DELETE', '/channels/cav-dead1').length === 2);
+    expect(ari.callsTo('DELETE', '/channels/cav-alive1')).toHaveLength(0);
+    expect(ari.callsTo('DELETE', `/channels/${ID}`)).toHaveLength(0);
+    ari.on((c) => (c.path === '/channels' && c.method === 'GET' ? { status: 500 } : undefined));
+    await mine.hangup('normal');
+  });
+
   it('endAll hangs up every live leg', async () => {
     const leg = await provider.startCall({ callId: CALL, to: '+919000000001' });
     await leg.dial();

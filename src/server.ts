@@ -432,7 +432,10 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     },
     5,
   );
-  if (sipLine) lifecycle.onShutdown('sip-line', () => sipLine.close(), 6);
+  if (sipLine) {
+    sipLine.provider.setLiveCheck((callId) => callRegistry.isLive(callId));
+    lifecycle.onShutdown('sip-line', () => sipLine.close(), 6);
+  }
   lifecycle.onShutdown(
     'ws',
     async () => {

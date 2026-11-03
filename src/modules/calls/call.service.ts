@@ -430,9 +430,14 @@ export class CallManager {
    */
   private async startSipCall(input: StartOutboundCallInput): Promise<OutboundCall> {
     const sip = this.deps.sip;
-    if (!sip?.connected) {
-      throw new AppError('CAMPAIGN_NOT_RUNNABLE', 'The phone line is not available right now.');
+    if (!sip) {
+      throw new AppError(
+        'CAMPAIGN_NOT_RUNNABLE',
+        'The phone line is not available on this server.',
+      );
     }
+    // Asterisk away for a moment: like a full trunk, campaigns wait without using a retry
+    if (!sip.connected) throw new AppError('LINE_BUSY', 'The phone line is reconnecting.');
     const id = new Types.ObjectId();
     const callId = id.toString();
     const limits = await this.accountLimits(input.accountId);

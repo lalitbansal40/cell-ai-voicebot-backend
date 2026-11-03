@@ -214,5 +214,17 @@ describe('phone calls on the SIP line (T18.6)', () => {
     await expect(
       offline.startOutboundCall({ ...input(), provider: 'dryrun' }),
     ).rejects.toMatchObject({ code: 'CAMPAIGN_NOT_RUNNABLE' });
+    const reconnecting = new CallManager({
+      logger: createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }),
+      registry: new CallRegistry(redis, prefix),
+      tts: new TtsCache({ tts: new FakeTts(), storage }),
+      storage: undefined,
+      recordingDir,
+      scriptFor: () => Promise.reject(new Error('unused')),
+      sip: { connected: false, startCall: () => Promise.reject(new Error('unused')) },
+    });
+    await expect(reconnecting.startOutboundCall(input())).rejects.toMatchObject({
+      code: 'LINE_BUSY',
+    });
   });
 });

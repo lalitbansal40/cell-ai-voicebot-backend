@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests-sip/**/*.test.ts'],
-    testTimeout: 30_000,
+    testTimeout: 60_000,
     fileParallelism: false,
   },
 });
