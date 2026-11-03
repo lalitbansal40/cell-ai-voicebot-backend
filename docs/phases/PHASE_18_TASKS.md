@@ -10,13 +10,13 @@ Plan: [PHASE_18_PLAN.md](PHASE_18_PLAN.md) · Branch: `feature/phase-18-sip` · 
 | [x] | T18.4  | RTP media bridge (G.711 ↔ PCM16, jitter, port pool)     | BE   | M    | B1    |
 | [x] | T18.5  | `SipCallLeg` + `SipTelephonyProvider`, cause mapping    | BE   | M    | B1    |
 | [x] | T18.6  | Config, line selection, boot checks                     | BE   | S    | B1    |
-| [ ] | T18.7  | Phone numbers + caller ID per account                   | both | M    | B2    |
-| [ ] | T18.8  | Dialer on SIP: trunk concurrency, CPS, retries by cause | BE   | M    | B2    |
-| [ ] | T18.9  | Answering machine detection                             | BE   | M    | B2    |
-| [ ] | T18.10 | Billing: pulse, trunk cost, reconcile                   | BE   | S    | B2    |
-| [ ] | T18.11 | Recording + transcripts at 8 kHz                        | BE   | S    | B2    |
-| [ ] | T18.12 | Disposition saved on mid-turn hangup                    | BE   | S    | B2    |
-| [ ] | T18.13 | Reliability: reconnect, sweeps, restarts, media timeout | BE   | M    | B2    |
+| [x] | T18.7  | Phone numbers + caller ID per account                   | both | M    | B2    |
+| [x] | T18.8  | Dialer on SIP: trunk concurrency, CPS, retries by cause | BE   | M    | B2    |
+| [x] | T18.9  | Answering machine detection                             | BE   | M    | B2    |
+| [x] | T18.10 | Billing: pulse, trunk cost, reconcile                   | BE   | S    | B2    |
+| [x] | T18.11 | Recording + transcripts at 8 kHz                        | BE   | S    | B2    |
+| [x] | T18.12 | Disposition saved on mid-turn hangup                    | BE   | S    | B2    |
+| [x] | T18.13 | Reliability: reconnect, sweeps, restarts, media timeout | BE   | M    | B2    |
 | [ ] | T18.14 | Security + toll-fraud guard                             | both | S    | B3    |
 | [ ] | T18.15 | Monitoring: System page, healthwatch, call metrics      | both | S    | B3    |
 | [ ] | T18.16 | Frontend: line, caller ID, causes, AMD, admin numbers   | FE   | M    | B3    |
