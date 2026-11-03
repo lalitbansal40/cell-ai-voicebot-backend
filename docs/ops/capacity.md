@@ -57,3 +57,21 @@ the soak. The single 500 fell in the MongoDB stall.
 **API messages, 50 / s on one account, API and worker as two processes** (`PERF_SPLIT=1`, as production runs them): before the wallet lock p95 7.7 s and 31 s in two runs; with the Redis wallet lock (`5cd4eb4`) **p95 951 ms**, p50 152 ms, 3,000 / 3,000, no 500, money exact. **Still above the 500 ms target**, so this stays open for the staging server (T17.9). One process with the workers inside it is much slower (p95 16 s): run them apart in production.
 
 **Where the time goes:** a wallet hold alone takes 3.3 ms (p50), so the wallet is not the limit. Under load MongoDB in Docker Desktop used up to 2 CPUs, and every operation waited, even a plain unique insert of the idempotency key (up to 4.7 s). The laptop's database is the limit; the real server decides.
+
+## Phase 18 — SIP line (T18.19)
+
+`npm run perf:sip -- --calls 30 --seconds 60` on the Mac lab (Asterisk 22.11 in Docker Desktop, SIPp as the trunk echoing every packet, the bot streaming audio for the whole call — the worst case for RTP), 3 Nov 2026:
+
+| Metric                   | Result                                                            |
+| ------------------------ | ----------------------------------------------------------------- |
+| Calls answered / dropped | 30 / 0                                                            |
+| RTP per call (60 s)      | 3,050 packets out, 3,050 in                                       |
+| Loss / jitter            | 0 % (max 0 %) / 1.2 ms average                                    |
+| Our process CPU          | 10.5 % of one core (G.711 encode / decode, pacing, jitter buffer) |
+| Event loop lag p99       | 12 ms                                                             |
+| Asterisk                 | 0.3 % CPU, 88 MB (no transcoding: G.711 both sides)               |
+| Leaked ports / legs      | 0 / 0                                                             |
+
+- `SIP_PCMU_PASSTHROUGH` is not needed: G.711 in TypeScript costs about 0.35 % of a core per call.
+- **Found:** with too few RTP ports Asterisk 22.11 cannot allocate one for an ExternalMedia channel and then **crashes (segfault)**. Asterisk uses even ports only and each call needs two (trunk leg and ExternalMedia), plus two more during a transfer. Keep the RTP range at least **4 × `SIP_MAX_CHANNELS`** ports (production 20000–20999 = 1,000 ports, enough for 250 channels). Compose restarts the container.
+- Staging / production-sized numbers: open (no staging server, Phase 17).

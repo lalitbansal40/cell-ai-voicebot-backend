@@ -20,7 +20,7 @@ Phone calls go out over the client's SIP trunk. Asterisk ([ADR 0022](0022-sip-me
 | 8088            | ARI (REST + events)                | `127.0.0.1`                          |
 | 21000–21999/udp | Our RTP ↔ Asterisk (ExternalMedia) | `127.0.0.1`                          |
 
-These don't overlap WhatsApp's 40000–40999. The server audit confirms they are free; fallback ranges are 22000–22999 / 23000–23999.
+These don't overlap WhatsApp's 40000–40999. The Asterisk RTP range must hold at least 4 × `SIP_MAX_CHANNELS` ports (even ports only, two per call, two more per transfer): Asterisk 22 crashes when it cannot get one (T18.19). The server audit confirms they are free; fallback ranges are 22000–22999 / 23000–23999.
 
 **Trunk auth.** Both modes are in the template: registration (username + password) or IP `identify` on the trunk's addresses. No anonymous endpoint, no guest calls, unknown sources get no dialplan. Inbound context answers nothing until Phase 19.
 

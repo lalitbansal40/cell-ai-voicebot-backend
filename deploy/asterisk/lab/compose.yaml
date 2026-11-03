@@ -16,7 +16,7 @@ services:
       SIP_TRUNK_IPS: 172.29.1.31
       SIP_CODECS: ulaw,alaw
       SIP_RTP_START: '20000'
-      SIP_RTP_END: '20099'
+      SIP_RTP_END: '20299'
       # Docker Desktop rewrites the source of UDP from the Mac, so strict RTP would drop our audio.
       SIP_STRICT_RTP: 'no'
       # SIPp only answers INVITEs, so OPTIONS pings are off in the lab.
@@ -27,7 +27,7 @@ services:
         ipv4_address: 172.29.1.10
     ports:
       - '127.0.0.1:18088:8088'
-      - '127.0.0.1:20000-20099:20000-20099/udp'
+      - '127.0.0.1:20000-20299:20000-20299/udp'
 
   sipp-uas:
     build: ./sipp
