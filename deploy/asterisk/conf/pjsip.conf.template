@@ -33,6 +33,8 @@ rtp_symmetric=yes
 force_rport=yes
 rewrite_contact=yes
 send_pai=yes
+; no re-INVITE / UPDATE just to tell the trunk a new connected-line name
+send_connected_line=no
 trust_id_outbound=yes
 aors=trunk
 outbound_auth=${SIP_OUTBOUND_AUTH}

@@ -23,6 +23,6 @@
 
     "noEmit": true
   },
-  "include": ["src", "tests", "scripts", "*.config.ts", "*.config.mts"],
+  "include": ["src", "tests", "tests-sip", "scripts", "*.config.ts", "*.config.mts"],
   "exclude": ["node_modules", "dist", "poc"]
 }

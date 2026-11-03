@@ -1,0 +1,50 @@
+# Phase 18: the SIP lab (Asterisk + SIPp) against the real SIP line code. Runs only when
+# SIP code, the Asterisk kit or the lab tests change, so other changes don't pay for it.
+name: sip-lab
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/telephony/sip/**'
+      - 'deploy/asterisk/**'
+      - 'tests-sip/**'
+      - 'vitest.sip.config.mts'
+      - '.github/workflows/sip-lab.yml'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'src/core/telephony/sip/**'
+      - 'deploy/asterisk/**'
+      - 'tests-sip/**'
+      - 'vitest.sip.config.mts'
+      - '.github/workflows/sip-lab.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sip-lab:
+    name: sip-lab
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Start the lab
+        run: npm run sip:lab
+      - name: Lab suite
+        # on Linux the containers reach the runner on the lab bridge's gateway
+        env:
+          SIP_LAB_ADVERTISE: 172.29.1.1
+          SIP_LAB_BIND: 172.29.1.1
+        run: npm run test:sip
+      - name: Asterisk log (warnings and errors)
+        if: failure()
+        run: docker logs cav-sip-lab-asterisk 2>&1 | grep -E 'WARNING|ERROR' | tail -50
+      - name: Stop the lab
+        if: always()
+        run: npm run sip:lab:down
