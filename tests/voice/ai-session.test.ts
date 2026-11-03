@@ -310,6 +310,71 @@ describe('AiVoiceController — Realtime sessions', () => {
     expect(s.socket.closedWith).toBe(1000);
   });
 
+  it('a hangup while the reply plays keeps the promise its tool call made (T18.12)', async () => {
+    const s = start();
+    await s.until(() => said(s).some((e) => e.type === 'session.update'));
+    customer(s, 'kal tak de dunga');
+    const tomorrow = addDays(ymdInZone(new Date(), 'Asia/Kolkata'), 1);
+    // the model speaks a long line and saves the promise in the same response
+    s.receive([
+      {
+        type: 'response.output_audio.delta',
+        response_id: 'r',
+        item_id: 'b',
+        delta: deltaOf(48_000),
+      },
+      {
+        type: 'response.function_call_arguments.done',
+        response_id: 'r',
+        item_id: 'f',
+        call_id: 'call_p',
+        name: 'save_promise_to_pay',
+        arguments: JSON.stringify({ date: tomorrow }),
+      },
+      { type: 'response.done', response: { id: 'r', status: 'completed', usage: {} } },
+    ]);
+    // the customer hangs up before the line finished playing (tools run after it)
+    s.stop();
+    await s.until(() => s.result() !== null);
+    expect(s.result()?.outcome).toMatchObject({ promiseToPay: { date: tomorrow } });
+    expect(s.events.some((e) => e.type === 'ai_function_result')).toBe(true);
+  });
+
+  it('a tool still running after the grace time does not hold the hangup (T18.12)', async () => {
+    let release: () => void = () => undefined;
+    stub.next((_q, res) => {
+      // answers only after the test is done with it
+      release = () => res.writeHead(200, { 'content-type': 'application/json' }).end('{}');
+    });
+    const s = start();
+    await s.until(() => said(s).some((e) => e.type === 'session.update'));
+    customer(s, 'status kya hai');
+    s.receive([
+      {
+        type: 'response.output_audio.delta',
+        response_id: 'r',
+        item_id: 'b',
+        delta: deltaOf(48_000),
+      },
+      {
+        type: 'response.function_call_arguments.done',
+        response_id: 'r',
+        item_id: 'f',
+        call_id: 'call_s',
+        name: 'check_payment_status',
+        arguments: '{}',
+      },
+      { type: 'response.done', response: { id: 'r', status: 'completed', usage: {} } },
+    ]);
+    s.stop();
+    await s.until(() => s.result() !== null);
+    release();
+    expect(s.events).toContainEqual({
+      type: 'error',
+      data: { code: 'turn_timeout', where: 'ai_session' },
+    });
+  });
+
   it('barge-in: customer speech cuts the playing reply and truncates it at the ms heard', async () => {
     const s = start();
     await s.until(() => said(s).some((e) => e.type === 'session.update'));

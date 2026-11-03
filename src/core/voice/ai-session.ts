@@ -114,6 +114,8 @@ class LiveAiSession {
   private silenceTimer: unknown = null;
   private durationTimer: unknown = null;
   private pendingTools: VoiceToolCall[] = [];
+  /** Agent turns still running (a hangup waits for them, T18.12). */
+  private readonly inflight = new Set<Promise<unknown>>();
   private language: string | null = null;
   private readonly startedAt: number;
   private finished = false;
@@ -303,27 +305,31 @@ class LiveAiSession {
     const seq = this.turnSeq;
     const compiled = this.compiled as CompiledAgent;
     try {
-      const result = await runAgentTurn({
-        accountId: agent.accountId,
-        agent,
-        session: { _id: this.req.sessionId, turns: this.history, variables: this.req.values },
-        userText: text,
-        clientTurnId: `${io.callId}:t${String(seq)}`,
-        provider: this.deps.ai,
-        now: this.now(),
-        timezone: this.req.timezone,
-        company: this.req.company,
-        contact: this.req.contact,
-        secretKey: this.deps.secretKey,
-        http: this.deps.http,
-        embeddingModel: this.deps.embeddingModel,
-        budgetCheck: this.deps.billing !== 'none',
-        source: 'call',
-        channel: 'voice',
-        billing: 'none',
-        builtInMode: 'live',
-        ...(this.req.goal ? { extraInstructions: this.req.goal } : {}),
-      });
+      const result = await this.track(
+        runAgentTurn({
+          accountId: agent.accountId,
+          agent,
+          session: { _id: this.req.sessionId, turns: this.history, variables: this.req.values },
+          userText: text,
+          clientTurnId: `${io.callId}:t${String(seq)}`,
+          provider: this.deps.ai,
+          now: this.now(),
+          timezone: this.req.timezone,
+          company: this.req.company,
+          contact: this.req.contact,
+          secretKey: this.deps.secretKey,
+          http: this.deps.http,
+          embeddingModel: this.deps.embeddingModel,
+          budgetCheck: this.deps.billing !== 'none',
+          source: 'call',
+          channel: 'voice',
+          billing: 'none',
+          builtInMode: 'live',
+          ...(this.req.goal ? { extraInstructions: this.req.goal } : {}),
+        }),
+      );
+      // kept now: a hangup may end the session before the turn is delivered
+      Object.assign(this.outcome, result.outcome);
       await this.chargeEmbedding(result.embeddingTokens ?? 0, `emb:t${String(seq)}`);
       this.history.push(
         { role: 'user', text, clientTurnId: `${io.callId}:t${String(seq)}` },
@@ -554,11 +560,41 @@ class LiveAiSession {
     if (session) await session.close().catch(() => undefined);
   }
 
+  private track<T>(work: Promise<T>): Promise<T> {
+    this.inflight.add(work);
+    void work.finally(() => this.inflight.delete(work)).catch(() => undefined);
+    return work;
+  }
+
+  /**
+   * The call ended while a turn or its tool calls were running (T18.12): wait up to
+   * `turnGraceMs` so the disposition, promise or callback that turn decided is kept.
+   */
+  private async settleInFlight(): Promise<void> {
+    const calls = this.pendingTools.splice(0);
+    if (this.inflight.size === 0 && calls.length === 0) return;
+    const { io } = this.req;
+    const work = Promise.all([...this.inflight, ...(calls.length ? [this.runTools(calls)] : [])]);
+    let timer: unknown = null;
+    const timedOut = await Promise.race([
+      work.then(
+        () => false,
+        () => false,
+      ),
+      new Promise<boolean>((resolve) => {
+        timer = io.clock.setTimeout(() => resolve(true), CALL_LIMITS.turnGraceMs);
+      }),
+    ]);
+    if (timer !== null) io.clock.clearTimeout(timer);
+    if (timedOut) io.event('error', { code: 'turn_timeout', where: 'ai_session' });
+  }
+
   private async finish(reason: EndReason): Promise<void> {
     if (this.finished) return;
     this.finished = true;
     const { io } = this.req;
     this.clearSilence();
+    await this.settleInFlight();
     if (this.durationTimer !== null) io.clock.clearTimeout(this.durationTimer);
     const stream = this.stream;
     this.stream = null;

@@ -250,6 +250,8 @@ export const CALL_LIMITS = {
   recordingSampleRate: 8_000,
   concurrentPerAccount: 3,
   concurrentPerProcess: 20,
+  /** A hangup waits this long for a running AI turn's decisions (Phase 18, T18.12). */
+  turnGraceMs: 3000,
   webCallsPerMinutePerUser: 10,
   readyTimeoutSec: 15,
   dropGraceSec: 5,
