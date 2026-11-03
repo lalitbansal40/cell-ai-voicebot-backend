@@ -1,0 +1,6 @@
+; ARI only. Production binds 127.0.0.1 (ADR 0050).
+[general]
+enabled=yes
+bindaddr=${ARI_BIND}
+bindport=${ARI_PORT}
+tlsenable=no

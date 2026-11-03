@@ -1,0 +1,5 @@
+; Calls are accepted only from the trunk's addresses (SIP_TRUNK_IPS).
+[trunk-identify]
+type=identify
+endpoint=trunk
+match=${SIP_TRUNK_IPS}

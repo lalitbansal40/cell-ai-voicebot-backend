@@ -28,6 +28,8 @@
     "infra:reset": "docker compose down -v",
     "infra:logs": "docker compose logs -f --tail=100",
     "infra:ps": "docker compose ps",
+    "sip:lab": "bash deploy/asterisk/lab/up.sh",
+    "sip:lab:down": "bash deploy/asterisk/lab/down.sh",
     "gen:openapi": "tsx scripts/generate-openapi.ts",
     "openapi:check": "npm run gen:openapi && git diff --exit-code -- openapi/openapi.json",
     "server:audit": "bash scripts/run-server-audit.sh",

@@ -1,0 +1,64 @@
+# Local SIP lab (Phase 18): Asterisk (our image) + SIPp playing the trunk. Mac only, loopback only.
+# Start with `npm run sip:lab`, stop with `npm run sip:lab:down`.
+name: cav-sip-lab
+
+services:
+  asterisk:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: cav-asterisk:lab
+    container_name: cav-sip-lab-asterisk
+    env_file: [.env.lab]
+    environment:
+      SIP_HOST: 172.29.1.31
+      SIP_AUTH: ip
+      SIP_TRUNK_IPS: 172.29.1.31
+      SIP_CODECS: ulaw,alaw
+      SIP_RTP_START: '20000'
+      SIP_RTP_END: '20099'
+      # Docker Desktop rewrites the source of UDP from the Mac, so strict RTP would drop our audio.
+      SIP_STRICT_RTP: 'no'
+      # SIPp only answers INVITEs, so OPTIONS pings are off in the lab.
+      SIP_QUALIFY_SEC: '0'
+      ARI_BIND: 0.0.0.0
+    networks:
+      lab:
+        ipv4_address: 172.29.1.10
+    ports:
+      - '127.0.0.1:18088:8088'
+      - '127.0.0.1:20000-20099:20000-20099/udp'
+
+  sipp-uas:
+    build: ./sipp
+    image: cav-sip-lab-sipp:local
+    container_name: cav-sip-lab-sipp-uas
+    depends_on: [asterisk]
+    networks:
+      lab:
+        ipv4_address: 172.29.1.31
+    volumes:
+      - ./scenarios:/sipp/scenarios:ro
+      - ./audio:/sipp/audio:ro
+    command:
+      - '-sf'
+      - '/sipp/scenarios/uas.xml'
+      - '-i'
+      - '172.29.1.31'
+      - '-mi'
+      - '172.29.1.31'
+      - '-p'
+      - '5060'
+      - '-mp'
+      - '6000'
+      - '-rtp_echo'
+      - '-l'
+      - '200'
+      - '-nostdin'
+      - '-trace_err'
+
+networks:
+  lab:
+    ipam:
+      config:
+        - subnet: 172.29.1.0/24

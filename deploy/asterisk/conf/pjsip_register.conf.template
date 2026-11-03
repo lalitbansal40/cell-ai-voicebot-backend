@@ -1,0 +1,16 @@
+; Only when SIP_AUTH=register. The password comes from the env file, never from git.
+[trunk-auth]
+type=auth
+auth_type=userpass
+username=${SIP_USERNAME}
+password=${SIP_PASSWORD}
+
+[trunk-reg]
+type=registration
+transport=transport-${SIP_TRANSPORT}
+outbound_auth=trunk-auth
+server_uri=sip:${SIP_HOST}:${SIP_PORT}
+client_uri=sip:${SIP_USERNAME}@${SIP_HOST}:${SIP_PORT}
+retry_interval=30
+forbidden_retry_interval=300
+expiration=300

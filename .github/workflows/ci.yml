@@ -148,11 +148,12 @@ jobs:
 
       - name: Compose file
         run: |
-          mkdir -p "$RUNNER_TEMP/cav/env" && touch "$RUNNER_TEMP/cav/env/backend.env"
+          mkdir -p "$RUNNER_TEMP/cav/env"
+          touch "$RUNNER_TEMP/cav/env/backend.env" "$RUNNER_TEMP/cav/env/asterisk.env"
           CAV_ROOT="$RUNNER_TEMP/cav" APP_SHA=ci MONGO_PASSWORD=x REDIS_PASSWORD=x \
-            docker compose -f deploy/staging/compose.yaml config -q
+            docker compose -f deploy/staging/compose.yaml --profile sip config -q
           CAV_ROOT="$RUNNER_TEMP/cav" APP_SHA=ci MONGO_PASSWORD=x REDIS_PASSWORD=x \
-            docker compose -f deploy/production/compose.yaml config -q
+            docker compose -f deploy/production/compose.yaml --profile sip config -q
 
       - name: nginx -t
         run: |
@@ -160,4 +161,4 @@ jobs:
           CAV_NGINX_DIR="$PWD/deploy/production/nginx" deploy/staging/scripts/check-nginx.sh
 
       - name: shellcheck
-        run: docker run --rm -v "$PWD/deploy:/mnt" koalaman/shellcheck-alpine:v0.10.0 sh -c 'shellcheck /mnt/staging/scripts/*.sh /mnt/production/scripts/*.sh /mnt/production/rehearsal/*.sh'
+        run: docker run --rm -v "$PWD/deploy:/mnt" koalaman/shellcheck-alpine:v0.10.0 sh -c 'shellcheck /mnt/staging/scripts/*.sh /mnt/production/scripts/*.sh /mnt/production/rehearsal/*.sh /mnt/asterisk/*.sh /mnt/asterisk/lab/*.sh'

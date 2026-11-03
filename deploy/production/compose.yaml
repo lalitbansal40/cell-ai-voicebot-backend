@@ -155,3 +155,26 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+
+  # Phone calls over the client's SIP trunk (ADR 0050). Only with `--profile sip`; host network
+  # because RTP needs the real addresses. SIP / RTP are opened to the trunk IPs by the host firewall.
+  asterisk:
+    build: ../asterisk
+    image: cav-asterisk:22
+    container_name: cav-prod-asterisk
+    profiles: [sip]
+    network_mode: host
+    env_file: ${CAV_ROOT:-/srv/cell-ai-voicebot}/env/asterisk.env
+    environment:
+      ARI_BIND: 127.0.0.1
+      SIP_RTP_START: '20000'
+      SIP_RTP_END: '20999'
+    restart: unless-stopped
+    stop_grace_period: 30s
+    cpus: 1
+    mem_limit: 512m
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: '5'
