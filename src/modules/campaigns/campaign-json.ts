@@ -109,6 +109,11 @@ export const toCampaignView = (
   followUps: c.followUps,
   pacing: c.pacing,
   autoResume: c.autoResume,
+  phoneLine: {
+    callerNumberId: c.phoneLine?.callerNumberId?.toString() ?? null,
+    amd: c.phoneLine?.amd ?? 'off',
+    voicemailText: c.phoneLine?.voicemailText ?? null,
+  },
   dryRun: c.dryRun,
   estimate: c.estimate ? { ...c.estimate, at: c.estimate.at.toISOString() } : null,
   snapshot: { done: c.snapshot.done, counts: c.snapshot.counts },

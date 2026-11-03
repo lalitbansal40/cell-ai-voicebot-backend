@@ -22,6 +22,7 @@ import type { StartCallBody } from '../calls/calls.schema';
 import { findCall, viewOne } from '../calls/calls.service';
 import { findFlow, type FlowsDeps } from '../flows/flows.service';
 import { resolveStartValues, resolveVersion } from '../flows/run-values';
+import { resolveCallerId } from '../phone-numbers/phone-numbers.service';
 
 import { accountFacts } from './campaigns.service';
 import { decideDial, loadContactFacts, type DialDecision } from './dial-guard';
@@ -162,7 +163,11 @@ export const startSingleCall = async (
   };
   const out =
     account.line === 'sip'
-      ? await deps.manager.startOutboundCall({ ...common, provider: 'sip' })
+      ? await deps.manager.startOutboundCall({
+          ...common,
+          provider: 'sip',
+          callerId: (await resolveCallerId(accountId, null))?.number ?? null,
+        })
       : await deps.manager.startOutboundCall({
           ...common,
           provider: 'dryrun',

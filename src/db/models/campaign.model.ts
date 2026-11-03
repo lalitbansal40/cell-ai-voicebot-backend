@@ -182,6 +182,23 @@ export interface CampaignHistoryEntry {
   by: Types.ObjectId | null;
 }
 
+export const CAMPAIGN_AMD_MODES = ['off', 'hangup', 'leave_message'] as const;
+export type CampaignAmdMode = (typeof CAMPAIGN_AMD_MODES)[number];
+
+export interface CampaignPhoneLine {
+  /** One of the account's numbers; `null` = the account's first number (else the line default). */
+  callerNumberId: Types.ObjectId | null;
+  amd: CampaignAmdMode;
+  /** Spoken once to an answering machine when `amd` is `leave_message`. */
+  voicemailText: string | null;
+}
+
+export const defaultPhoneLine = (): CampaignPhoneLine => ({
+  callerNumberId: null,
+  amd: 'off',
+  voicemailText: null,
+});
+
 export interface CampaignDoc {
   _id: Types.ObjectId;
   accountId: Types.ObjectId;
@@ -202,6 +219,8 @@ export interface CampaignDoc {
   followUps: CampaignFollowUps;
   pacing: CampaignPacing;
   autoResume: boolean;
+  /** Phase 18: caller number and answering machine handling on the SIP line. */
+  phoneLine?: CampaignPhoneLine;
   dryRun: CampaignDryRun | null;
   status: CampaignStatus;
   pauseReason: PauseReason | null;
@@ -319,6 +338,7 @@ const schema = new Schema<CampaignDoc>(
       priority: { type: String, enum: CAMPAIGN_PRIORITIES, default: 'normal' },
     },
     autoResume: { type: Boolean, default: true },
+    phoneLine: { type: Schema.Types.Mixed, default: () => defaultPhoneLine() },
     dryRun: { type: Schema.Types.Mixed, default: null },
     status: { type: String, enum: CAMPAIGN_STATUSES, default: 'draft' },
     pauseReason: { type: String, enum: [...PAUSE_REASONS, null], default: null },

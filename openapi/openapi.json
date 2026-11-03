@@ -1229,7 +1229,11 @@
               "ops.release_recorded",
               "ops.restore_drill_recorded",
               "account.voice_line_changed",
-              "account.sip_settings_changed"
+              "account.sip_settings_changed",
+              "phone_number.created",
+              "phone_number.updated",
+              "phone_number.assigned",
+              "phone_number.released"
             ]
           },
           "actor": {
@@ -3231,6 +3235,15 @@
                 "required": ["concurrency", "dialsPerMinute", "priority"]
               },
               "autoResume": { "type": "boolean" },
+              "phoneLine": {
+                "type": "object",
+                "properties": {
+                  "callerNumberId": { "type": ["string", "null"] },
+                  "amd": { "type": "string", "enum": ["off", "hangup", "leave_message"] },
+                  "voicemailText": { "type": ["string", "null"] }
+                },
+                "required": ["callerNumberId", "amd", "voicemailText"]
+              },
               "dryRun": {
                 "type": ["object", "null"],
                 "properties": {
@@ -3339,6 +3352,7 @@
               "followUps",
               "pacing",
               "autoResume",
+              "phoneLine",
               "dryRun",
               "estimate",
               "snapshot",
@@ -16120,6 +16134,22 @@
                     },
                     "additionalProperties": false
                   },
+                  "phoneLine": {
+                    "type": "object",
+                    "properties": {
+                      "callerNumberId": {
+                        "type": ["string", "null"],
+                        "pattern": "^[a-f0-9]{24}$/i"
+                      },
+                      "amd": { "type": "string", "enum": ["off", "hangup", "leave_message"] },
+                      "voicemailText": {
+                        "type": ["string", "null"],
+                        "minLength": 1,
+                        "maxLength": 500
+                      }
+                    },
+                    "additionalProperties": false
+                  },
                   "schedule": {
                     "type": "object",
                     "properties": {
@@ -16544,6 +16574,22 @@
                         "type": "array",
                         "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,39}$" },
                         "maxItems": 50
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "phoneLine": {
+                    "type": "object",
+                    "properties": {
+                      "callerNumberId": {
+                        "type": ["string", "null"],
+                        "pattern": "^[a-f0-9]{24}$/i"
+                      },
+                      "amd": { "type": "string", "enum": ["off", "hangup", "leave_message"] },
+                      "voicemailText": {
+                        "type": ["string", "null"],
+                        "minLength": 1,
+                        "maxLength": 500
                       }
                     },
                     "additionalProperties": false

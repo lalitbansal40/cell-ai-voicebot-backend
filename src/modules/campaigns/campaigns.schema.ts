@@ -6,6 +6,7 @@ import {
   WAIT_REASONS,
 } from '../../db/models/campaign-contact.model';
 import {
+  CAMPAIGN_AMD_MODES,
   CAMPAIGN_MODES,
   CAMPAIGN_PRIORITIES,
   CAMPAIGN_STATUSES,
@@ -116,8 +117,15 @@ const DryRunInput = z.strictObject({
   speed: int(1, 100).optional(),
 });
 
+const PhoneLineInput = z.strictObject({
+  callerNumberId: ObjectIdSchema.nullable().optional(),
+  amd: z.enum(CAMPAIGN_AMD_MODES).optional(),
+  voicemailText: z.string().trim().min(1).max(500).nullable().optional(),
+});
+
 const settings = {
   audience: AudienceInput.optional(),
+  phoneLine: PhoneLineInput.optional(),
   schedule: ScheduleInput.optional(),
   window: CallingWindowInput.optional(),
   retry: RetryInput.optional(),
@@ -271,6 +279,11 @@ export const CampaignSchema = registry.register(
       priority: z.enum(CAMPAIGN_PRIORITIES),
     }),
     autoResume: z.boolean(),
+    phoneLine: z.object({
+      callerNumberId: z.string().nullable(),
+      amd: z.enum(CAMPAIGN_AMD_MODES),
+      voicemailText: z.string().nullable(),
+    }),
     dryRun: z
       .object({
         mix: z.record(z.string(), z.number()),

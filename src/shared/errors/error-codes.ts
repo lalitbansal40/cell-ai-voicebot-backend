@@ -257,6 +257,21 @@ export const ERROR_CODES = {
     status: 422,
     message: "A field marked sensitive can't be searched or filtered.",
   },
+  // Phase 18: SIP line
+  LINE_BUSY: {
+    status: 409,
+    message: 'Every phone line is busy right now. Try again in a minute.',
+  },
+  NUMBER_NOT_ALLOWED: {
+    status: 422,
+    message:
+      'This number cannot be called from the phone line (only Indian mobiles and landlines).',
+  },
+  CALLER_NUMBER_INVALID: {
+    status: 422,
+    message: "That caller number isn't one of this account's active numbers.",
+  },
+  PHONE_NUMBER_EXISTS: { status: 409, message: 'This number is already on the platform.' },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

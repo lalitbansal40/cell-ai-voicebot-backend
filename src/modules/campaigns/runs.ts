@@ -56,6 +56,7 @@ const createRunDoc = async (parent: CampaignDoc, at: Date): Promise<CampaignDoc>
     followUps: parent.followUps,
     pacing: parent.pacing,
     autoResume: parent.autoResume,
+    phoneLine: parent.phoneLine,
     dryRun: parent.dryRun,
     status: 'draft',
     stats: emptyCampaignStats(),

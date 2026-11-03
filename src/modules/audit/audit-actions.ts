@@ -177,6 +177,10 @@ export const AUDIT_ACTIONS = [
   // Phase 18: SIP line
   'account.voice_line_changed',
   'account.sip_settings_changed',
+  'phone_number.created',
+  'phone_number.updated',
+  'phone_number.assigned',
+  'phone_number.released',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

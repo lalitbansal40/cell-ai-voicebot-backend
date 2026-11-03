@@ -109,6 +109,10 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `REAUTH_FAILED`                             | 422  | The password typed again for a big action was wrong                                                                                                                                                                   | 16    |
 | `MFA_REQUIRED`                              | 403  | A big superadmin action needs a fresh two-step code                                                                                                                                                                   | 16    |
 | `MFA_INVALID`                               | 422  | The two-step or recovery code was wrong or already used                                                                                                                                                               | 16    |
+| `LINE_BUSY`                                 | 409  | Every trunk channel is in use (single call); campaigns wait instead                                                                                                                                                   | 18    |
+| `NUMBER_NOT_ALLOWED`                        | 422  | The number is not an Indian mobile or landline the phone line may call (toll-fraud guard)                                                                                                                             | 18    |
+| `CALLER_NUMBER_INVALID`                     | 422  | The chosen caller number isn't one of the account's active numbers                                                                                                                                                    | 18    |
+| `PHONE_NUMBER_EXISTS`                       | 409  | The number is already on the platform                                                                                                                                                                                 | 18    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

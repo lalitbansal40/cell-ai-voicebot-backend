@@ -56,6 +56,10 @@ import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes';
 import { createMockApisRouter } from './modules/mock-apis/mock.routes';
 import { createNotificationsRouter } from './modules/notifications/notifications.routes';
 import { createWebhooksRouter } from './modules/payments/webhooks.routes';
+import {
+  createAdminPhoneNumbersRouter,
+  createPhoneNumbersRouter,
+} from './modules/phone-numbers/phone-numbers.routes';
 import { createAfterCallRouter, createOutcomeRulesRouter } from './modules/post-call/rules.routes';
 import {
   createAccountPrivacyRouter,
@@ -243,6 +247,8 @@ export const createApiRouter = ({
   router.use('/auth/mfa', createMfaRouter());
   router.use('/account', createComplianceRouter());
   router.use('/admin', createAdminComplianceRouter());
+  router.use('/admin', createAdminPhoneNumbersRouter());
+  router.use('/', createPhoneNumbersRouter());
   router.use('/account', createRetentionRouter());
   router.use('/account', createAccountRouter());
   router.use('/inbox', createChatSummaryRouter({ jobs: ai.jobs ?? unavailableAiJobs }));

@@ -29,6 +29,8 @@ import {
   type CampaignDoc,
   type CampaignStatus,
   type PauseReason,
+  defaultPhoneLine,
+  type CampaignPhoneLine,
 } from '../../db/models/campaign.model';
 import { ContactListModel } from '../../db/models/contact-list.model';
 import { ContactModel } from '../../db/models/contact.model';
@@ -51,6 +53,7 @@ import { escapeRegex } from '../../shared/utils/regex';
 import { accountVariables } from '../ai-agents/variables';
 import { auditRequest } from '../audit/audit.service';
 import { effectiveLine } from '../calls/line';
+import { resolveCallerId } from '../phone-numbers/phone-numbers.service';
 
 import { audienceQuery, previewAudience, toAudience, usedFields } from './audience';
 import { loadNames, toCampaignListItem, toCampaignView, toContactRow } from './campaign-json';
@@ -250,6 +253,7 @@ type CampaignSettings = Pick<
   | 'followUps'
   | 'pacing'
   | 'autoResume'
+  | 'phoneLine'
   | 'dryRun'
 >;
 
@@ -292,8 +296,26 @@ export const defaultSettings = (
     priority: CAMPAIGN_LIMITS.defaults.priority,
   },
   autoResume: true,
+  phoneLine: defaultPhoneLine(),
   dryRun: base.mode === 'dry_run' ? defaultDryRun() : null,
 });
+
+const mergePhoneLine = (
+  current: CampaignPhoneLine,
+  input: SettingsInput['phoneLine'],
+): CampaignPhoneLine => {
+  if (!input) return current;
+  return {
+    callerNumberId:
+      input.callerNumberId === undefined
+        ? current.callerNumberId
+        : input.callerNumberId === null
+          ? null
+          : new Types.ObjectId(input.callerNumberId),
+    amd: input.amd ?? current.amd,
+    voicemailText: input.voicemailText === undefined ? current.voicemailText : input.voicemailText,
+  };
+};
 
 const date = (v: string | null | undefined, fallback: Date | null): Date | null =>
   v === undefined ? fallback : v === null ? null : new Date(v);
@@ -339,6 +361,7 @@ export const mergeSettings = (
     },
     pacing: { ...current.pacing, ...input.pacing },
     autoResume: input.autoResume ?? current.autoResume,
+    phoneLine: mergePhoneLine(current.phoneLine ?? defaultPhoneLine(), input.phoneLine),
     dryRun:
       mode !== 'dry_run'
         ? null
@@ -370,6 +393,21 @@ export const validateSettings = async (
   }
   if (new Set(s.retry.retryOn).size !== s.retry.retryOn.length) {
     details.push({ path: 'retry.retryOn', message: 'Each result once' });
+  }
+  const line = s.phoneLine ?? defaultPhoneLine();
+  if (line.amd === 'leave_message' && !line.voicemailText) {
+    details.push({
+      path: 'phoneLine.voicemailText',
+      message: 'Write the message for answering machines',
+    });
+  }
+  if (line.callerNumberId) {
+    await resolveCallerId(accountId, line.callerNumberId).catch(() =>
+      details.push({
+        path: 'phoneLine.callerNumberId',
+        message: "Not one of this account's active numbers",
+      }),
+    );
   }
   if (s.pacing.concurrency > account.limits.maxConcurrentCalls) {
     details.push({
@@ -684,6 +722,7 @@ export const duplicateCampaign = async (req: Request, id: string) => {
       followUps: source.followUps,
       pacing: source.pacing,
       autoResume: source.autoResume,
+      phoneLine: source.phoneLine ?? defaultPhoneLine(),
       dryRun: source.dryRun,
       status: 'draft',
       stats: emptyCampaignStats(),
