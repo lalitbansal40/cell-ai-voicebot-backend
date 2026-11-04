@@ -10771,6 +10771,41 @@
         }
       }
     },
+    "/api/v1/wallet/provider": {
+      "get": {
+        "tags": ["Wallet"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Phase 19: the reseller that adds this account's credit, and whether it may top up itself",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": ["object", "null"],
+                          "properties": { "name": { "type": "string" } },
+                          "required": ["name"]
+                        },
+                        "topupAllowed": { "type": "boolean" }
+                      },
+                      "required": ["provider", "topupAllowed"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/rate-cards/default": {
       "get": {
         "tags": ["Superadmin billing"],

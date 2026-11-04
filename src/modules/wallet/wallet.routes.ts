@@ -11,6 +11,7 @@ import { handle } from '../../shared/middlewares/validate';
 
 import { exportLedger, getLedgerEntry, listLedger } from './ledger.service';
 import { createTopupsRouter, type TopupRouterDeps } from './topups.routes';
+import { walletProvider } from './topups.service';
 import { getUsage } from './usage.service';
 import {
   EstimateBody,
@@ -34,6 +35,10 @@ export const createWalletRouter = (deps: TopupRouterDeps): Router => {
       ok(res, await getWallet(req));
     }),
   );
+  // Phase 19: a reseller's customer — who adds credit, and may it top up itself
+  router.get('/provider', requirePermission('wallet.read'), async (req, res) => {
+    ok(res, await walletProvider(tenantFilter(req).accountId));
+  });
   router.patch(
     '/settings',
     requirePermission('wallet.topup'),

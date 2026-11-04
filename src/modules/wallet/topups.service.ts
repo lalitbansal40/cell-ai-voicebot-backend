@@ -66,6 +66,21 @@ export const assertTopupAllowed = async (accountId: Types.ObjectId): Promise<voi
   if (!parent?.reseller?.customersCanTopUp) throw new AppError('TOPUP_NOT_ALLOWED');
 };
 
+/** `GET /wallet/provider` — `provider` null for direct accounts (they always top up). */
+export const walletProvider = async (accountId: Types.ObjectId) => {
+  const account = await AccountModel.findById(accountId)
+    .select({ parentAccountId: 1 })
+    .lean<{ parentAccountId?: Types.ObjectId | null }>();
+  if (!account?.parentAccountId) return { provider: null, topupAllowed: true };
+  const parent = await AccountModel.findById(account.parentAccountId)
+    .select({ name: 1, reseller: 1 })
+    .lean<{ name: string; reseller?: { customersCanTopUp?: boolean } | null }>();
+  return {
+    provider: parent ? { name: parent.name } : null,
+    topupAllowed: Boolean(parent?.reseller?.customersCanTopUp),
+  };
+};
+
 export const createTopup = async (
   req: Request,
   body: z.infer<typeof CreateTopupBody>,

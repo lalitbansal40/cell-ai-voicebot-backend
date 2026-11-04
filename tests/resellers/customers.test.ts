@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { Types } from 'mongoose';
 import request from 'supertest';
 import { beforeAll, describe, expect, it } from 'vitest';
 
@@ -11,7 +12,7 @@ import { NotificationModel } from '../../src/db/models/notification.model';
 import { UserModel } from '../../src/db/models/user.model';
 import { WalletModel } from '../../src/db/models/wallet.model';
 import { assertTopupAllowed } from '../../src/modules/wallet/topups.service';
-import { createTestAccount, type TestAccount, type TestUser } from '../helpers/auth';
+import { createTestAccount, tokenFor, type TestAccount, type TestUser } from '../helpers/auth';
 import { useTestDb } from '../helpers/db';
 import { requireRedis } from '../helpers/redis';
 import { buildTestApp } from '../helpers/test-app';
@@ -151,17 +152,13 @@ describe('reseller panel (T19.5)', () => {
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('RESELLER_NOT_APPROVED');
     const id = (await newCustomer()).body.data.id as string;
-    await expect(
-      assertTopupAllowed(new (await import('mongoose')).Types.ObjectId(id)),
-    ).rejects.toMatchObject({
+    await expect(assertTopupAllowed(new Types.ObjectId(id))).rejects.toMatchObject({
       code: 'TOPUP_NOT_ALLOWED',
     });
     expect((await api(rOwner).patch('/settings', { customersCanTopUp: true })).body.data).toEqual({
       customersCanTopUp: true,
     });
-    await expect(
-      assertTopupAllowed(new (await import('mongoose')).Types.ObjectId(id)),
-    ).resolves.toBeUndefined();
+    await expect(assertTopupAllowed(new Types.ObjectId(id))).resolves.toBeUndefined();
     await api(rOwner).patch('/settings', { customersCanTopUp: false });
   });
 });
@@ -279,5 +276,26 @@ describe('reseller dashboard (T19.7)', () => {
       creditGivenThisMonthMicros: 200 * INR,
     });
     expect(s.body.data.lowBalanceCustomers.map((c: { id: string }) => c.id)).toContain(second);
+  });
+});
+
+describe('wallet provider (T19.8)', () => {
+  it("a reseller's customer sees its provider and whether it may top up", async () => {
+    const id = (await newCustomer()).body.data.id as string;
+    const acc = await AccountModel.findById(id).lean();
+    const owner = await UserModel.findById(acc?.ownerId).lean();
+    if (!owner) throw new Error('no owner');
+    const token = await tokenFor(owner);
+    const res = await request(app)
+      .get('/api/v1/wallet/provider')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.body.data).toEqual({
+      provider: { name: reseller.account.name },
+      topupAllowed: false,
+    });
+    const direct = await request(app)
+      .get('/api/v1/wallet/provider')
+      .set('Authorization', `Bearer ${other.token}`);
+    expect(direct.body.data).toEqual({ provider: null, topupAllowed: true });
   });
 });

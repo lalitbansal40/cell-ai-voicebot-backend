@@ -342,3 +342,20 @@ registry.registerPath({
   request: { query: UsageQuery },
   responses: { 200: ok(UsageSeriesSchema), 403: errors[403], 422: errors[422] },
 });
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/wallet/provider',
+  tags: ['Wallet'],
+  security: bearer,
+  summary:
+    "Phase 19: the reseller that adds this account's credit, and whether it may top up itself",
+  responses: {
+    200: ok(
+      z.object({
+        provider: z.object({ name: z.string() }).nullable(),
+        topupAllowed: z.boolean(),
+      }),
+    ),
+  },
+});
