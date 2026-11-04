@@ -5,7 +5,11 @@ import { Types } from 'mongoose';
 import { WHATSAPP_CALL_LIMITS } from '../../config/limits';
 import type { MetaCallPermission } from '../../core/meta';
 import { notifyAccount } from '../../core/realtime/notify';
-import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
+import {
+  ContactModel,
+  type ContactCallPermission,
+  type ContactDoc,
+} from '../../db/models/contact.model';
 import { ConversationModel, type ConversationDoc } from '../../db/models/conversation.model';
 import { MessageModel } from '../../db/models/message.model';
 import {
@@ -47,6 +51,44 @@ import type { CallingDeps } from './settings.service';
 export interface PermissionDeps extends CallingDeps {
   inbox: InboxContext;
 }
+
+/**
+ * Phase 18B: one word per contact over all its numbers' permissions (list column,
+ * filter `whatsappCallPermission`): allowed wins, then asked, then declined.
+ */
+export const permissionSummary = (
+  rows: Pick<WhatsAppCallPermissionDoc, 'status' | 'expiresAt'>[],
+  now: Date,
+): ContactCallPermission => {
+  const allowed = rows.some(
+    (r) =>
+      r.status === 'permanent' ||
+      (r.status === 'temporary' && (!r.expiresAt || r.expiresAt.getTime() > now.getTime())),
+  );
+  if (allowed) return 'allowed';
+  if (rows.some((r) => r.status === 'requested')) return 'asked';
+  if (rows.some((r) => ['declined', 'revoked', 'expired', 'temporary'].includes(r.status))) {
+    return 'declined';
+  }
+  return 'none';
+};
+
+/** Writes the contact's summary from its permission rows. */
+export const summarizePermission = async (
+  accountId: Types.ObjectId,
+  contactId: Types.ObjectId,
+  now = new Date(),
+): Promise<ContactCallPermission> => {
+  const rows = await WhatsAppCallPermissionModel.find({ accountId, contactId })
+    .select({ status: 1, expiresAt: 1 })
+    .lean<Pick<WhatsAppCallPermissionDoc, 'status' | 'expiresAt'>[]>();
+  const summary = permissionSummary(rows, now);
+  await ContactModel.updateOne(
+    { _id: contactId, accountId },
+    { $set: { waCallPermission: summary } },
+  );
+  return summary;
+};
 
 /** What the chat / contact panel shows (reason codes match the dial guard). */
 export interface PermissionPanel {
@@ -154,6 +196,12 @@ export const createCallPermissions = (deps: PermissionDeps) => {
     }).lean<WhatsAppCallPermissionDoc>();
 
   const emitUpdated = (row: WhatsAppCallPermissionDoc) => {
+    void summarizePermission(row.accountId, row.contactId).catch((err: unknown) =>
+      getLogger().warn(
+        { err, contactId: row.contactId.toString() },
+        'call permission: summary failed',
+      ),
+    );
     notifyAccount(row.accountId.toString(), 'whatsapp.call_permission.updated', {
       contactId: row.contactId.toString(),
       channelId: row.channelId.toString(),

@@ -2950,7 +2950,7 @@
             "minLength": 1,
             "maxLength": 40,
             "example": "days_past_due",
-            "description": "A custom field key, or `lastDisposition` (eq / neq / exists / not_exists) / `lastCalledAt` (before / after / within_last_days / not_exists = never called)"
+            "description": "A custom field key, or `lastDisposition` (eq / neq / exists / not_exists) / `lastCalledAt` (before / after / within_last_days / not_exists = never called) / `whatsappCallPermission` (eq / neq: allowed, asked, declined, none)"
           },
           "op": {
             "type": "string",
@@ -3929,6 +3929,10 @@
           "lastCalledAt": { "type": ["string", "null"] },
           "callCount": { "type": "number" },
           "lastDisposition": { "type": ["string", "null"] },
+          "waCallPermission": {
+            "type": "string",
+            "enum": ["allowed", "asked", "declined", "none"]
+          },
           "whatsapp": {
             "type": ["object", "null"],
             "properties": {
@@ -3967,6 +3971,7 @@
           "lastCalledAt",
           "callCount",
           "lastDisposition",
+          "waCallPermission",
           "whatsapp",
           "createdAt",
           "updatedAt"

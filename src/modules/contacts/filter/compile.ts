@@ -3,6 +3,7 @@ import type { CountryCode } from 'libphonenumber-js';
 import { Types } from 'mongoose';
 
 import { DISPOSITIONS } from '../../../db/models/ai-agent.model';
+import { CONTACT_CALL_PERMISSIONS } from '../../../db/models/contact.model';
 import type { FieldType } from '../../../db/models/custom-field.model';
 import type { ErrorDetail } from '../../../shared/errors/app-error';
 import { AppError, ValidationError } from '../../../shared/errors/app-error';
@@ -119,6 +120,25 @@ const compileCallCondition = (
   }
   if (cond.op === 'not_exists') return { clause: { [key]: null } };
   if (cond.op === 'exists') return { clause: { [key]: { $ne: null } } };
+  if (key === 'whatsappCallPermission') {
+    const value = String(cond.value ?? '');
+    if (!(CONTACT_CALL_PERMISSIONS as readonly string[]).includes(value)) {
+      return {
+        problem: {
+          field: 'value',
+          message: `Must be one of ${CONTACT_CALL_PERMISSIONS.join(', ')}`,
+        },
+      };
+    }
+    // rows from before Phase 18B have no field: they count as `none`
+    const match = value === 'none' ? { $in: ['none', null] } : value;
+    return {
+      clause: {
+        waCallPermission:
+          cond.op === 'eq' ? match : value === 'none' ? { $nin: ['none', null] } : { $ne: value },
+      },
+    };
+  }
   if (key === 'lastDisposition') {
     const value = String(cond.value ?? '');
     if (!(DISPOSITIONS as readonly string[]).includes(value)) {

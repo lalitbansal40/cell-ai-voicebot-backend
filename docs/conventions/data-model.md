@@ -1135,3 +1135,4 @@ Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, r
 
 - `whatsappChannels.calling.lastCallsWebhookAt` (Date | null): set on every `calls` webhook for the number (readiness). No migration: absent = null.
 - Redis: `wa:readiness:calls-webhook` (1 h), `wa:readiness:scope:<channelId>` (1 h).
+- `contacts.waCallPermission` (`allowed` | `asked` | `declined` | `none`, default `none`): best WhatsApp call permission over the account's numbers, rewritten on every permission change (request, reply, revoke, expiry sweep). Filter / segment key `whatsappCallPermission` (eq / neq); `none` also matches contacts saved before the field.

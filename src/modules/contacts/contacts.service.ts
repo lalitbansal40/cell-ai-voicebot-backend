@@ -10,6 +10,7 @@ import {
   type ContactDoc,
   type ContactSourceType,
   type VariableValue,
+  type ContactCallPermission,
 } from '../../db/models/contact.model';
 import { DndEntryModel } from '../../db/models/dnd-entry.model';
 import { SegmentModel } from '../../db/models/segment.model';
@@ -64,6 +65,7 @@ export interface PublicContact {
   callCount: number;
   /** Disposition of the last answered campaign call with an outcome (Phase 8). */
   lastDisposition: string | null;
+  waCallPermission: ContactCallPermission;
   /** WhatsApp profile (Phase 10 inbox). */
   whatsapp: { profileName: string | null; lastInboundAt: string | null; blocked: boolean } | null;
   createdAt: string;
@@ -95,6 +97,7 @@ export const toPublicContact = (c: ContactDoc): PublicContact => ({
   lastCalledAt: iso(c.lastCalledAt),
   callCount: c.callCount,
   lastDisposition: c.lastDisposition ?? null,
+  waCallPermission: c.waCallPermission ?? 'none',
   whatsapp: c.whatsapp?.waId
     ? {
         profileName: c.whatsapp.profileName,

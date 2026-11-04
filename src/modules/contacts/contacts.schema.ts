@@ -1,5 +1,5 @@
 import { PUBLIC_API_LIMITS } from '../../config/limits';
-import { CONTACT_SOURCE_TYPES } from '../../db/models/contact.model';
+import { CONTACT_CALL_PERMISSIONS, CONTACT_SOURCE_TYPES } from '../../db/models/contact.model';
 import { registry } from '../../shared/openapi/registry';
 import {
   bearer,
@@ -153,6 +153,8 @@ export const ContactSchema = registry.register(
     lastCalledAt: z.string().nullable(),
     callCount: z.number(),
     lastDisposition: z.string().nullable(),
+    /** Phase 18B: best WhatsApp call permission over the account's numbers. */
+    waCallPermission: z.enum(CONTACT_CALL_PERMISSIONS),
     whatsapp: z
       .object({
         profileName: z.string().nullable(),

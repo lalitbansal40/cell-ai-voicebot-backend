@@ -49,6 +49,10 @@ export const EMPTY_CONTACT_WHATSAPP: ContactWhatsApp = {
 /** Stored variable value: text / date (`YYYY-MM-DD`) / phone as string, number / currency (micros) as number. */
 export type VariableValue = string | number;
 
+/** Summary of a contact's WhatsApp call permissions (Phase 18B). */
+export const CONTACT_CALL_PERMISSIONS = ['allowed', 'asked', 'declined', 'none'] as const;
+export type ContactCallPermission = (typeof CONTACT_CALL_PERMISSIONS)[number];
+
 export interface ContactDoc {
   _id: Types.ObjectId;
   accountId: Types.ObjectId;
@@ -72,6 +76,8 @@ export interface ContactDoc {
   callCount: number;
   /** Disposition of the last answered campaign / single call (Phase 8). */
   lastDisposition?: string | null;
+  /** Phase 18B: best WhatsApp call permission over the account's numbers (list column, filter). */
+  waCallPermission?: ContactCallPermission;
   whatsapp?: ContactWhatsApp | null;
   deletedAt: Date | null;
   createdAt: Date;
@@ -109,6 +115,7 @@ const schema = new Schema<ContactDoc>({
   lastCalledAt: { type: Date, default: null },
   callCount: { type: Number, default: 0 },
   lastDisposition: { type: String, default: null },
+  waCallPermission: { type: String, enum: CONTACT_CALL_PERMISSIONS, default: 'none' },
   whatsapp: {
     type: new Schema<ContactWhatsApp>(
       {

@@ -48,6 +48,8 @@ export type FilterOperator = (typeof FILTER_OPERATORS)[number];
 export const CALL_FILTER_OPERATORS = {
   lastDisposition: ['eq', 'neq', 'exists', 'not_exists'],
   lastCalledAt: ['before', 'after', 'within_last_days', 'not_exists'],
+  /** Phase 18B: allowed / asked / declined / none (contacts.waCallPermission). */
+  whatsappCallPermission: ['eq', 'neq'],
 } as const satisfies Record<string, readonly FilterOperator[]>;
 export type CallFilterKey = keyof typeof CALL_FILTER_OPERATORS;
 
@@ -59,7 +61,7 @@ export const FilterConditionSchema = registry.register(
     key: z.string().min(1).max(40).openapi({
       example: 'days_past_due',
       description:
-        'A custom field key, or `lastDisposition` (eq / neq / exists / not_exists) / `lastCalledAt` (before / after / within_last_days / not_exists = never called)',
+        'A custom field key, or `lastDisposition` (eq / neq / exists / not_exists) / `lastCalledAt` (before / after / within_last_days / not_exists = never called) / `whatsappCallPermission` (eq / neq: allowed, asked, declined, none)',
     }),
     op: z.enum(FILTER_OPERATORS),
     value: ConditionValue.optional().openapi({
