@@ -1,8 +1,7 @@
 import type { Request } from 'express';
-import type { Types } from 'mongoose';
+import { Types } from 'mongoose';
 import type { z } from 'zod';
 
-import { createWallet } from '../../core/billing/wallets';
 import { notifyAccount, notifyUser } from '../../core/realtime/notify';
 import {
   AccountModel,
@@ -17,13 +16,19 @@ import {
   CampaignModel,
   type CampaignDoc,
 } from '../../db/models/campaign.model';
+import {
+  PlatformSettingsModel,
+  platformSettingProblems,
+  type SignupSettings,
+} from '../../db/models/platform-settings.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
 import { WalletModel } from '../../db/models/wallet.model';
-import { withTransaction } from '../../db/transaction';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { toObjectId } from '../../shared/auth/tenant';
 import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
-import { uniqueSlug } from '../account/slug';
+import { getLogger } from '../../shared/logger';
+import { createAccountWithOwner } from '../account/create';
+import { findReseller, getSignupSettings, kindOf } from '../account/kinds';
 import type { AuditAction } from '../audit/audit-actions';
 import { recordAudit } from '../audit/audit.service';
 import { startLoginAs, type LoginAsMode } from '../auth/login-as';
@@ -32,9 +37,9 @@ import { revokeAllForUser } from '../auth/refresh.service';
 import { toPublicAccount, toPublicUser, type AuthSession } from '../auth/session';
 import { resumeCampaignDoc } from '../campaigns/campaigns.service';
 import { pauseAccountCampaigns } from '../campaigns/jobs';
+import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { cancelDeletion } from '../privacy/account-delete.service';
 import { purgeAccount, type PurgeDeps } from '../privacy/account-purge.job';
-import { syncSystemRoles } from '../rbac/roles.service';
 import {
   assertRetentionCap,
   retentionViewOf,
@@ -84,60 +89,33 @@ const auditBothSides = async (
  * but the owner knows the password — it is set from the e-mailed invitation.
  */
 export const createAccount = async (req: Request, body: z.infer<typeof CreateAccountBody>) => {
-  const email = body.ownerEmail.trim().toLowerCase();
-  const duplicate = () =>
-    new ConflictError('CONFLICT_DUPLICATE', 'This e-mail already belongs to a user.');
-  if (await UserModel.exists({ email })) throw duplicate();
-  const issues = validatePasswordPolicy(
-    body.ownerPassword,
-    { email, name: body.ownerName },
-    'body.ownerPassword',
-  );
-  if (issues.length) throw new ValidationError(issues);
-  const passwordHash = await hashPassword(body.ownerPassword);
-  const now = new Date();
-  let made: { account: AccountDoc; owner: UserDoc };
-  try {
-    made = await withTransaction(async (session) => {
-      const [account] = await AccountModel.create(
-        [
-          {
-            name: body.businessName,
-            slug: await uniqueSlug(body.businessName, session),
-            ...(body.timezone ? { timezone: body.timezone } : {}),
-          },
-        ],
-        { session },
-      );
-      if (!account) throw new Error('account not created');
-      const roles = await syncSystemRoles(account._id, session);
-      await createWallet(account._id, session);
-      const [owner] = await UserModel.create(
-        [
-          {
-            accountId: account._id,
-            roleId: roles.owner,
-            name: body.ownerName,
-            email,
-            phone: body.ownerPhone ?? null,
-            passwordHash,
-            passwordChangedAt: now,
-            status: 'active',
-            emailVerifiedAt: now,
-          },
-        ],
-        { session },
-      );
-      if (!owner) throw new Error('user not created');
-      account.ownerId = owner._id;
-      await account.save({ session });
-      return { account: account.toObject({ transform: false }), owner };
-    });
-  } catch (err) {
-    if ((err as { code?: number }).code === 11000) throw duplicate();
-    throw err;
+  const kind = body.kind ?? 'business';
+  let parent: AccountDoc | null = null;
+  if (body.parentAccountId) {
+    if (kind !== 'business') {
+      throw new ValidationError([
+        { path: 'body.parentAccountId', message: 'Only a business can belong to a reseller' },
+      ]);
+    }
+    parent = await findReseller(body.parentAccountId);
+    if (!parent) {
+      throw new ValidationError([{ path: 'body.parentAccountId', message: 'Not a reseller' }]);
+    }
   }
-  await auditBothSides(req, made.account, 'account.created');
+  const made = await createAccountWithOwner({
+    businessName: body.businessName,
+    ownerName: body.ownerName,
+    ownerEmail: body.ownerEmail,
+    ownerPassword: body.ownerPassword,
+    ownerPhone: body.ownerPhone,
+    timezone: body.timezone,
+    kind,
+    parentAccountId: parent?._id ?? null,
+  });
+  await auditBothSides(req, made.account, 'account.created', {
+    kind,
+    ...(parent ? { parentAccountId: parent._id.toString() } : {}),
+  });
   return toPublicAccount(made.account);
 };
 
@@ -188,6 +166,10 @@ export const setOwnerPassword = async (
 export const listAccounts = async (query: z.infer<typeof ListAccountsQuery>) => {
   const filter: Record<string, unknown> = { isPlatform: { $ne: true } };
   if (query.status) filter.status = query.status;
+  // Phase 19: kind (old rows without `kind` are businesses) and one reseller's customers
+  if (query.kind === 'reseller') filter.kind = 'reseller';
+  if (query.kind === 'business') filter.kind = { $in: ['business', null] };
+  if (query.parentAccountId) filter.parentAccountId = new Types.ObjectId(query.parentAccountId);
   if (query.search) {
     const re = new RegExp(escapeRegex(query.search), 'i');
     const owners = await UserModel.find({ email: re }).select({ _id: 1 }).limit(200).lean();
@@ -202,6 +184,19 @@ export const listAccounts = async (query: z.infer<typeof ListAccountsQuery>) => 
     AccountModel.countDocuments(filter),
   ]);
   const ids = accounts.map((a) => a._id);
+  const parentIds = accounts.flatMap((a) => (a.parentAccountId ? [a.parentAccountId] : []));
+  const resellerIds = accounts.filter((a) => kindOf(a) === 'reseller').map((a) => a._id);
+  const [parents, customerCounts] = await Promise.all([
+    AccountModel.find({ _id: { $in: parentIds } })
+      .select({ name: 1 })
+      .lean<{ _id: Types.ObjectId; name: string }[]>(),
+    AccountModel.aggregate<{ _id: Types.ObjectId; n: number }>([
+      { $match: { parentAccountId: { $in: resellerIds } } },
+      { $group: { _id: '$parentAccountId', n: { $sum: 1 } } },
+    ]),
+  ]);
+  const parentName = new Map(parents.map((p) => [p._id.toString(), p.name]));
+  const customersOf = new Map(customerCounts.map((c) => [c._id.toString(), c.n]));
   const [owners, counts] = await Promise.all([
     UserModel.find({
       _id: { $in: accounts.flatMap((a) => (a.ownerId ? [a.ownerId] : [])) },
@@ -223,6 +218,15 @@ export const listAccounts = async (query: z.infer<typeof ListAccountsQuery>) => 
       status: a.status,
       ownerEmail: a.ownerId ? (ownerEmail.get(a.ownerId.toString()) ?? null) : null,
       usersCount: userCount.get(a._id.toString()) ?? 0,
+      kind: kindOf(a),
+      parent: a.parentAccountId
+        ? {
+            id: a.parentAccountId.toString(),
+            name: parentName.get(a.parentAccountId.toString()) ?? '',
+          }
+        : null,
+      customersCount: kindOf(a) === 'reseller' ? (customersOf.get(a._id.toString()) ?? 0) : null,
+      resellerStatus: kindOf(a) === 'reseller' ? (a.reseller?.status ?? 'active') : null,
       createdAt: a.createdAt.toISOString(),
     })),
     meta: {
@@ -530,4 +534,111 @@ export const setAccountApiLimits = async (
   await AccountModel.updateOne({ _id: account._id }, { $set: { apiLimits } });
   await auditBothSides(req, account, 'account.api_limits_changed', apiLimits ?? { reset: true });
   return { apiLimits };
+};
+
+/** Phase 19: move a business under a reseller, to another one, or back to direct (`null`). */
+export const setAccountReseller = async (
+  req: Request,
+  id: string,
+  parentAccountId: string | null,
+) => {
+  const account = await findCustomerAccount(id);
+  if (kindOf(account) !== 'business') {
+    throw new ConflictError('CONFLICT_INVALID_STATE', 'Only a business can belong to a reseller.');
+  }
+  let parent: AccountDoc | null = null;
+  if (parentAccountId) {
+    parent = await findReseller(parentAccountId);
+    if (!parent)
+      throw new ValidationError([{ path: 'body.parentAccountId', message: 'Not a reseller' }]);
+  }
+  const from = account.parentAccountId ? account.parentAccountId.toString() : null;
+  const updated = await AccountModel.findByIdAndUpdate(
+    account._id,
+    { $set: { parentAccountId: parent?._id ?? null } },
+    { returnDocument: 'after' },
+  ).lean<AccountDoc>();
+  if (!updated) throw new NotFoundError();
+  await auditBothSides(req, updated, 'account.reseller_changed', {
+    from,
+    to: parent ? parent._id.toString() : null,
+  });
+  return toPublicAccount(updated);
+};
+
+/** Phase 19: a reseller that signed up while approval was on may now add customers. */
+export const approveReseller = async (req: Request, id: string) => {
+  const account = await findCustomerAccount(id);
+  if (kindOf(account) !== 'reseller') {
+    throw new ConflictError('CONFLICT_INVALID_STATE', 'This account is not a reseller.');
+  }
+  if (account.reseller?.status === 'active') {
+    throw new ConflictError('CONFLICT_INVALID_STATE', 'The reseller is already approved.');
+  }
+  const auth = requireAuth(req);
+  const updated = await AccountModel.findByIdAndUpdate(
+    account._id,
+    {
+      $set: {
+        'reseller.status': 'active',
+        'reseller.approvedAt': new Date(),
+        'reseller.approvedBy': auth.userId ? new Types.ObjectId(auth.userId) : null,
+      },
+    },
+    { returnDocument: 'after' },
+  ).lean<AccountDoc>();
+  if (!updated) throw new NotFoundError();
+  await auditBothSides(req, updated, 'reseller.approved');
+  try {
+    const users = await usersWithPermission(updated._id, 'reseller.manage');
+    if (users.length) {
+      await notify({
+        accountId: updated._id,
+        userIds: users.map((u) => u.userId),
+        type: 'reseller.approved',
+        title: 'Your reseller account is approved',
+        body: 'You can now add customers and give them credit.',
+        link: '/reseller/customers',
+      });
+    }
+  } catch (err) {
+    getLogger().error({ err }, 'admin: reseller approved bell failed');
+  }
+  return toPublicAccount(updated);
+};
+
+/** Phase 19: suspends every active customer of a reseller (each one audited as usual). */
+export const suspendResellerCustomers = async (req: Request, id: string, reason: string) => {
+  const account = await findCustomerAccount(id);
+  if (kindOf(account) !== 'reseller') {
+    throw new ConflictError('CONFLICT_INVALID_STATE', 'This account is not a reseller.');
+  }
+  const customers = await AccountModel.find({ parentAccountId: account._id, status: 'active' })
+    .select({ _id: 1 })
+    .lean<{ _id: Types.ObjectId }[]>();
+  for (const c of customers) await suspendAccount(req, c._id.toString(), reason);
+  return { suspended: customers.length };
+};
+
+export const readSignupSettings = () => getSignupSettings();
+
+export const writeSignupSettings = async (req: Request, value: SignupSettings) => {
+  const problems = platformSettingProblems('signup', value);
+  if (problems.length)
+    throw new ValidationError(problems.map((message) => ({ path: 'body', message })));
+  const auth = requireAuth(req);
+  await PlatformSettingsModel.updateOne(
+    { key: 'signup' },
+    { $set: { value, updatedBy: auth.userId ? new Types.ObjectId(auth.userId) : null } },
+    { upsert: true },
+  );
+  await recordAudit({
+    accountId: auth.accountId,
+    actor: { type: 'user', id: auth.userId ?? null, platform: true },
+    action: 'platform.signup_settings_updated',
+    target: { type: 'platform_setting', id: 'signup' },
+    meta: { open: value.open, resellerSignup: value.resellerSignup },
+    ip: req.ip ?? null,
+  });
+  return getSignupSettings();
 };

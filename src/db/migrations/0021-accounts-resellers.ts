@@ -1,3 +1,4 @@
+import { syncAllSystemRoles } from '../../modules/rbac/roles.service';
 import type { Migration } from '../migrate';
 import { AccountModel } from '../models/account.model';
 import { DEFAULT_SIGNUP_SETTINGS } from '../models/platform-settings.model';
@@ -12,6 +13,8 @@ export const accountsResellersMigration: Migration = {
   name: '0021-accounts-resellers',
   up: async (db) => {
     await AccountModel.createIndexes();
+    // 4 new permissions in the system roles (reseller.*, whatsapp_campaigns.*)
+    await syncAllSystemRoles();
     const accounts = db.collection('accounts');
     await accounts.updateMany(
       { kind: { $exists: false }, isPlatform: true },

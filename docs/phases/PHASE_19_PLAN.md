@@ -176,7 +176,7 @@ Customers (active / suspended), credit given this month, customers' spend 30 d b
 
 ### T19.14 — Roles, limits, catalogue (both) · B3
 
-Permissions `whatsapp_campaigns.read` / `.write` (owner, admin, manager write; agent, viewer read); limiter creates 30 / h; error codes, audit (`whatsapp_campaign.created` / `started` / `paused` / `stopped` / `completed`), notifications (`whatsapp_campaign.completed` / `paused`), OpenAPI, counts locked in the run prompt.
+Permissions `whatsapp.campaigns.read` / `.write` (owner, admin, manager write; agent, viewer read); limiter creates 30 / h; error codes, audit (`whatsapp_campaign.created` / `started` / `paused` / `stopped` / `completed`), notifications (`whatsapp_campaign.completed` / `paused`), OpenAPI, counts locked in the run prompt.
 
 ### T19.15 — WhatsApp call campaigns (both) · B4
 

@@ -24,6 +24,15 @@ export const ListAccountsQuery = z.strictObject({
   ...PaginationQuerySchema.shape,
   status: z.enum(['active', 'suspended']).optional(),
   search: z.string().trim().min(1).max(100).optional(),
+  /** Phase 19 */
+  kind: z.enum(['business', 'reseller']).optional(),
+  parentAccountId: ObjectIdSchema.optional(),
+});
+/** Phase 19: move a business to a reseller, or back to direct (`null`). */
+export const SetResellerBody = z.strictObject({ parentAccountId: ObjectIdSchema.nullable() });
+export const SignupSettingsBody = z.strictObject({
+  open: z.boolean(),
+  resellerSignup: z.enum(['open', 'approval', 'closed']),
 });
 
 export const AccountIdParams = z.strictObject({ id: ObjectIdSchema });
@@ -40,6 +49,9 @@ export const CreateAccountBody = z.strictObject({
   ownerPassword: z.string().min(1).max(200),
   ownerPhone: PhoneE164Schema.optional(),
   timezone: TimezoneSchema.optional(),
+  /** Phase 19: a reseller, or a business (optionally under a reseller). */
+  kind: z.enum(['business', 'reseller']).optional(),
+  parentAccountId: ObjectIdSchema.optional(),
 });
 /** A superadmin sets the owner's password; the owner's sessions end. */
 export const SetOwnerPasswordBody = z.strictObject({ password: z.string().min(1).max(200) });
@@ -91,6 +103,10 @@ export const AdminAccountRowSchema = registry.register(
     status: z.enum(['active', 'suspended']),
     ownerEmail: z.string().nullable(),
     usersCount: z.number().int(),
+    kind: z.enum(['platform', 'reseller', 'business']),
+    parent: z.object({ id: z.string(), name: z.string() }).nullable(),
+    customersCount: z.number().int().nullable().openapi({ description: 'Resellers only' }),
+    resellerStatus: z.enum(['active', 'pending_approval']).nullable(),
     createdAt: z.string(),
   }),
 );
@@ -460,4 +476,61 @@ registry.registerPath({
   summary: 'Production health for superadmins: build, database, Redis, queues, backups (Phase 17)',
   security: bearer,
   responses: { 200: ok(SystemStatusSchema), 401: errors[401], 403: errors[403] },
+});
+
+// Phase 19: resellers and signup settings
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/admin/accounts/{id}/reseller',
+  tags,
+  summary: 'Move a business under a reseller, or back to direct (superadmin)',
+  security: bearer,
+  request: { params: AccountIdParams, ...json(SetResellerBody) },
+  responses: {
+    200: ok(PublicAccountSchema),
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
+    422: errors[422],
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/approve-reseller',
+  tags,
+  summary: 'Approve a reseller waiting for approval (superadmin)',
+  security: bearer,
+  request: { params: AccountIdParams },
+  responses: { 200: ok(PublicAccountSchema), 403: errors[403], 404: errors[404], 409: errors[409] },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/suspend-customers',
+  tags,
+  summary: 'Suspend every active customer of a reseller (superadmin)',
+  security: bearer,
+  request: { params: AccountIdParams, ...json(SuspendBody) },
+  responses: {
+    200: ok(z.object({ suspended: z.number().int() })),
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
+  },
+});
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/settings/signup',
+  tags,
+  summary: 'Signup settings (superadmin)',
+  security: bearer,
+  responses: { 200: ok(SignupSettingsBody), 403: errors[403] },
+});
+registry.registerPath({
+  method: 'put',
+  path: '/api/v1/admin/settings/signup',
+  tags,
+  summary: 'Open / close signup and reseller signup (superadmin)',
+  security: bearer,
+  request: json(SignupSettingsBody),
+  responses: { 200: ok(SignupSettingsBody), 403: errors[403], 422: errors[422] },
 });

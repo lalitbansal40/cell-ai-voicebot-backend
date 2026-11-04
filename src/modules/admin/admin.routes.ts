@@ -29,6 +29,8 @@ import {
   ListAccountsQuery,
   RetentionCapBody,
   SipSettingsBody,
+  SetResellerBody,
+  SignupSettingsBody,
   SuspendBody,
   VoiceLineBody,
 } from './admin.schema';
@@ -51,6 +53,11 @@ import {
   setRetentionCap,
   stopImpersonation,
   suspendAccount,
+  approveReseller,
+  readSignupSettings,
+  setAccountReseller,
+  suspendResellerCustomers,
+  writeSignupSettings,
 } from './admin.service';
 import { createSystemStatus } from './system.service';
 
@@ -176,6 +183,40 @@ export const createAdminRouter = ({
         ok(res, await suspendAccount(req, params.id, body.reason));
       },
     ),
+  );
+  // Phase 19: resellers and signup
+  router.patch(
+    '/accounts/:id/reseller',
+    ...handle(
+      { params: AccountIdParams, body: SetResellerBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await setAccountReseller(req, params.id, body.parentAccountId));
+      },
+    ),
+  );
+  router.post(
+    '/accounts/:id/approve-reseller',
+    ...handle({ params: AccountIdParams }, async ({ params, req, res }) => {
+      ok(res, await approveReseller(req, params.id));
+    }),
+  );
+  router.post(
+    '/accounts/:id/suspend-customers',
+    ...handle(
+      { params: AccountIdParams, body: SuspendBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await suspendResellerCustomers(req, params.id, body.reason));
+      },
+    ),
+  );
+  router.get('/settings/signup', async (_req, res) => {
+    ok(res, await readSignupSettings());
+  });
+  router.put(
+    '/settings/signup',
+    ...handle({ body: SignupSettingsBody }, async ({ body, req, res }) => {
+      ok(res, await writeSignupSettings(req, body));
+    }),
   );
   router.post(
     '/accounts/:id/enable',

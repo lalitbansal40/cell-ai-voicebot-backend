@@ -1384,9 +1384,32 @@
           "status": { "type": "string", "enum": ["active", "suspended"] },
           "ownerEmail": { "type": ["string", "null"] },
           "usersCount": { "type": "integer" },
+          "kind": { "type": "string", "enum": ["platform", "reseller", "business"] },
+          "parent": {
+            "type": ["object", "null"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id", "name"]
+          },
+          "customersCount": { "type": ["integer", "null"], "description": "Resellers only" },
+          "resellerStatus": {
+            "type": ["string", "null"],
+            "enum": ["active", "pending_approval", null]
+          },
           "createdAt": { "type": "string" }
         },
-        "required": ["id", "name", "slug", "status", "ownerEmail", "usersCount", "createdAt"]
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "status",
+          "ownerEmail",
+          "usersCount",
+          "kind",
+          "parent",
+          "customersCount",
+          "resellerStatus",
+          "createdAt"
+        ]
       },
       "AdminAccountDetail": {
         "type": "object",
@@ -11918,6 +11941,18 @@
             "required": false,
             "name": "search",
             "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["business", "reseller"] },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "parentAccountId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -11984,7 +12019,9 @@
                   },
                   "ownerPassword": { "type": "string", "minLength": 1, "maxLength": 200 },
                   "ownerPhone": { "type": "string" },
-                  "timezone": { "type": "string", "example": "Asia/Kolkata" }
+                  "timezone": { "type": "string", "example": "Asia/Kolkata" },
+                  "kind": { "type": "string", "enum": ["business", "reseller"] },
+                  "parentAccountId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
                 },
                 "required": ["businessName", "ownerName", "ownerEmail", "ownerPassword"],
                 "additionalProperties": false
@@ -12998,6 +13035,293 @@
           },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/reseller": {
+      "patch": {
+        "tags": ["Superadmin"],
+        "summary": "Move a business under a reseller, or back to direct (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "parentAccountId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" }
+                },
+                "required": ["parentAccountId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PublicAccount" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/approve-reseller": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "Approve a reseller waiting for approval (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PublicAccount" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/suspend-customers": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "Suspend every active customer of a reseller (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "reason": { "type": "string", "minLength": 3, "maxLength": 200 } },
+                "required": ["reason"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "suspended": { "type": "integer" } },
+                      "required": ["suspended"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/settings/signup": {
+      "get": {
+        "tags": ["Superadmin"],
+        "summary": "Signup settings (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "open": { "type": "boolean" },
+                        "resellerSignup": {
+                          "type": "string",
+                          "enum": ["open", "approval", "closed"]
+                        }
+                      },
+                      "required": ["open", "resellerSignup"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Superadmin"],
+        "summary": "Open / close signup and reseller signup (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "open": { "type": "boolean" },
+                  "resellerSignup": { "type": "string", "enum": ["open", "approval", "closed"] }
+                },
+                "required": ["open", "resellerSignup"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "open": { "type": "boolean" },
+                        "resellerSignup": {
+                          "type": "string",
+                          "enum": ["open", "approval", "closed"]
+                        }
+                      },
+                      "required": ["open", "resellerSignup"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

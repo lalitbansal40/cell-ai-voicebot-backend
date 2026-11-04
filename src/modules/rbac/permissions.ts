@@ -67,6 +67,17 @@ export const PERMISSION_INFO = {
   'reports.export': { group: 'Reports', description: 'Export reports' },
   'integrations.manage': { group: 'Integrations', description: 'Manage webhooks and integrations' },
   'telephony.manage': { group: 'Integrations', description: 'Manage telephony (SIP) settings' },
+  // Phase 19 (reseller permissions only mean something on reseller accounts)
+  'reseller.read': { group: 'Reseller', description: 'View customers, credit and the statement' },
+  'reseller.manage': {
+    group: 'Reseller',
+    description: 'Add customers, give or take back credit, log in as them, suspend them',
+  },
+  'whatsapp.campaigns.read': { group: 'WhatsApp', description: 'View WhatsApp campaigns' },
+  'whatsapp.campaigns.write': {
+    group: 'WhatsApp',
+    description: 'Create, start, pause and stop WhatsApp campaigns',
+  },
 } as const;
 
 export type Permission = keyof typeof PERMISSION_INFO;
