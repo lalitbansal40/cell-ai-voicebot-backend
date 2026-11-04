@@ -51,6 +51,7 @@ import './modules/segments/segments.schema';
 import './modules/sheet-imports/sheet-imports.schema';
 import './modules/system/system.schema';
 import './modules/team/team.schema';
+import './modules/resellers/resellers.schema';
 import './modules/templates/templates.openapi';
 import './modules/wallet/topups.schema';
 import './modules/wallet/wallet.schema';

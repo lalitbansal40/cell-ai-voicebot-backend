@@ -15,6 +15,9 @@ export const LEDGER_TYPES = [
   'recording_charge',
   'whatsapp_charge',
   'whatsapp_call_charge',
+  // Phase 19: credit moved between a reseller and one of its customers (always a pair)
+  'credit_transfer_out',
+  'credit_transfer_in',
 ] as const;
 export type LedgerType = (typeof LEDGER_TYPES)[number];
 
@@ -33,6 +36,8 @@ export const LEDGER_REF_TYPES = [
   'usage',
   'seed',
   'whatsapp_message',
+  // Phase 19: both rows of a credit transfer share `ref.id` = the transfer id
+  'credit_transfer',
 ] as const;
 export type LedgerRefType = (typeof LEDGER_REF_TYPES)[number];
 

@@ -51,3 +51,7 @@ Every request also passes the global limit of 1,200 a minute per IP. API keys ha
 - `POST /api/v1/knowledge-bases/{id}/sources/files`
 - `POST /api/v1/knowledge-bases/{id}/sources/url`
 - `POST /api/v1/ws/tickets`
+- `POST /api/v1/reseller/customers`
+- `POST /api/v1/reseller/customers/{id}/login-as`
+- `POST /api/v1/reseller/customers/{id}/credit`
+- `POST /api/v1/reseller/customers/{id}/credit/reclaim`

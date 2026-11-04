@@ -607,7 +607,9 @@
               "subscription",
               "recording_charge",
               "whatsapp_charge",
-              "whatsapp_call_charge"
+              "whatsapp_call_charge",
+              "credit_transfer_out",
+              "credit_transfer_in"
             ]
           },
           "direction": { "type": "string", "enum": ["credit", "debit"] },
@@ -669,7 +671,8 @@
                   "simulator",
                   "usage",
                   "seed",
-                  "whatsapp_message"
+                  "whatsapp_message",
+                  "credit_transfer"
                 ]
               },
               "id": { "type": "string" }
@@ -943,7 +946,9 @@
                         "subscription",
                         "recording_charge",
                         "whatsapp_charge",
-                        "whatsapp_call_charge"
+                        "whatsapp_call_charge",
+                        "credit_transfer_out",
+                        "credit_transfer_in"
                       ]
                     },
                     "amountMicros": { "type": "number" }
@@ -7324,6 +7329,151 @@
         },
         "required": ["email", "name", "accountName", "inviterName", "roleName"]
       },
+      "ResellerCustomer": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["active", "suspended", "deleted"] },
+          "owner": {
+            "type": ["object", "null"],
+            "properties": { "name": { "type": "string" }, "email": { "type": "string" } },
+            "required": ["name", "email"]
+          },
+          "wallet": {
+            "type": "object",
+            "properties": {
+              "balanceMicros": { "type": "integer" },
+              "availableMicros": { "type": "integer" }
+            },
+            "required": ["balanceMicros", "availableMicros"]
+          },
+          "spend30dMicros": { "type": "integer" },
+          "lastActiveAt": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "owner",
+          "wallet",
+          "spend30dMicros",
+          "lastActiveAt",
+          "createdAt"
+        ]
+      },
+      "ResellerCustomerDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ResellerCustomer" },
+          {
+            "type": "object",
+            "properties": {
+              "timezone": { "type": "string" },
+              "transfers": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "direction": { "type": "string", "enum": ["given", "taken_back"] },
+                    "amountMicros": { "type": "integer" },
+                    "note": { "type": ["string", "null"] },
+                    "at": { "type": "string" }
+                  },
+                  "required": ["id", "direction", "amountMicros", "note", "at"]
+                }
+              }
+            },
+            "required": ["timezone", "transfers"]
+          }
+        ]
+      },
+      "ResellerCreditResult": {
+        "type": "object",
+        "properties": {
+          "transferId": { "type": "string" },
+          "amountMicros": { "type": "integer" },
+          "resellerBalanceMicros": { "type": "integer" },
+          "customerBalanceMicros": { "type": "integer" },
+          "replay": { "type": "boolean" }
+        },
+        "required": [
+          "transferId",
+          "amountMicros",
+          "resellerBalanceMicros",
+          "customerBalanceMicros",
+          "replay"
+        ]
+      },
+      "ResellerStatementRow": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "at": { "type": "string" },
+          "direction": { "type": "string", "enum": ["given", "taken_back"] },
+          "amountMicros": { "type": "integer" },
+          "balanceAfterMicros": { "type": ["integer", "null"] },
+          "customer": {
+            "type": ["object", "null"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+            "required": ["id", "name"]
+          },
+          "note": { "type": ["string", "null"] }
+        },
+        "required": [
+          "id",
+          "at",
+          "direction",
+          "amountMicros",
+          "balanceAfterMicros",
+          "customer",
+          "note"
+        ]
+      },
+      "ResellerSummary": {
+        "type": "object",
+        "properties": {
+          "customers": {
+            "type": "object",
+            "properties": {
+              "active": { "type": "number" },
+              "suspended": { "type": "number" },
+              "total": { "type": "number" }
+            },
+            "required": ["active", "suspended", "total"]
+          },
+          "creditGivenThisMonthMicros": { "type": "integer" },
+          "customersSpend30d": {
+            "type": "object",
+            "properties": {
+              "calls": { "type": "integer" },
+              "whatsapp": { "type": "integer" },
+              "ai": { "type": "integer" },
+              "totalMicros": { "type": "integer" }
+            },
+            "required": ["calls", "whatsapp", "ai", "totalMicros"]
+          },
+          "lowBalanceCustomers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "availableMicros": { "type": "integer" }
+              },
+              "required": ["id", "name", "availableMicros"]
+            }
+          }
+        },
+        "required": [
+          "customers",
+          "creditGivenThisMonthMicros",
+          "customersSpend30d",
+          "lowBalanceCustomers"
+        ]
+      },
       "WebhookEndpoint": {
         "type": "object",
         "properties": {
@@ -10432,7 +10582,8 @@
                 "simulator",
                 "usage",
                 "seed",
-                "whatsapp_message"
+                "whatsapp_message",
+                "credit_transfer"
               ]
             },
             "required": false,
@@ -11179,7 +11330,8 @@
                 "simulator",
                 "usage",
                 "seed",
-                "whatsapp_message"
+                "whatsapp_message",
+                "credit_transfer"
               ]
             },
             "required": false,
@@ -30555,6 +30707,710 @@
           },
           "429": {
             "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reseller/summary": {
+      "get": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Dashboard numbers (reseller.read; cached 5 min)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ResellerSummary" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reseller/customers": {
+      "get": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Customers with wallet, spend (30 d) and last sign-in (reseller.read)",
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["active", "suspended"] },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ResellerCustomer" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Add a customer with its owner and password; optional starting credit (reseller.manage; 50 / day; Idempotency-Key)",
+        "parameters": [
+          {
+            "schema": { "type": "string" },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "businessName": { "type": "string", "minLength": 2, "maxLength": 80 },
+                  "ownerName": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "ownerEmail": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "example": "asha@example.com"
+                  },
+                  "ownerPhone": { "type": "string" },
+                  "ownerPassword": { "type": "string", "minLength": 1, "maxLength": 200 },
+                  "timezone": { "type": "string", "example": "Asia/Kolkata" },
+                  "startingCreditMicros": {
+                    "type": "integer",
+                    "minimum": 1000000,
+                    "maximum": 10000000000000
+                  }
+                },
+                "required": ["businessName", "ownerName", "ownerEmail", "ownerPassword"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ResellerCustomer" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reseller/customers/{id}": {
+      "get": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "One customer + last 20 transfers (reseller.read)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ResellerCustomerDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Rename, suspend or enable a customer (reseller.manage)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+                  "status": { "type": "string", "enum": ["active", "suspended"] }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ResellerCustomerDetail" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reseller/customers/{id}/owner-password": {
+      "post": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Set the customer owner's password; their sessions end (reseller.manage)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": { "type": "string", "minLength": 1, "maxLength": 200 }
+                },
+                "required": ["password"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "No content" },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reseller/customers/{id}/login-as": {
+      "post": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Log in as the customer owner to act (1 h; sensitive actions refused; reseller.manage)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AuthSession" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reseller/customers/{id}/credit": {
+      "post": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Give credit from the reseller's wallet (reseller.manage; Idempotency-Key; 60 / h)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string" },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amountMicros": {
+                    "type": "integer",
+                    "minimum": 1000000,
+                    "maximum": 10000000000000
+                  },
+                  "note": { "type": "string", "maxLength": 200 }
+                },
+                "required": ["amountMicros"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ResellerCreditResult" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reseller/customers/{id}/credit/reclaim": {
+      "post": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Take back unused credit (reseller.manage; Idempotency-Key; 60 / h)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string" },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amountMicros": {
+                    "type": "integer",
+                    "minimum": 1000000,
+                    "maximum": 10000000000000
+                  },
+                  "note": { "type": "string", "maxLength": 200 }
+                },
+                "required": ["amountMicros"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/ResellerCreditResult" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reseller/statement": {
+      "get": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Credit given / taken back (reseller.read; `format=csv` downloads)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "format": "date-time" },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "format": "date-time" },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "enum": ["json", "csv"], "default": "json" },
+            "required": false,
+            "name": "format",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ResellerStatementRow" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reseller/settings": {
+      "get": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Reseller settings (reseller.read)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "customersCanTopUp": { "type": "boolean" } },
+                      "required": ["customersCanTopUp"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Reseller"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "May customers top up by themselves (reseller.manage)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "customersCanTopUp": { "type": "boolean" } },
+                "required": ["customersCanTopUp"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "customersCanTopUp": { "type": "boolean" } },
+                      "required": ["customersCanTopUp"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

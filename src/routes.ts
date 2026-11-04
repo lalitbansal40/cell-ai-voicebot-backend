@@ -75,6 +75,7 @@ import {
 } from './modules/report-subscriptions/report-subscriptions.routes';
 import type { ReportCacheStore } from './modules/reports/cache';
 import { createReportsRouter } from './modules/reports/reports.routes';
+import { createResellerRouter } from './modules/resellers/resellers.routes';
 import { createRetentionRouter } from './modules/retention/retention.routes';
 import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSheetImportsRouter } from './modules/sheet-imports/sheet-imports.routes';
@@ -434,6 +435,8 @@ export const createApiRouter = ({
   router.use('/reports', createReportsRouter({ cache: reports.cache ?? null }));
   router.use('/report-subscriptions', createReportSubscriptionsRouter());
   router.use('/webhook-endpoints', createWebhookEndpointsRouter(webhookRuntime(env, webhooks)));
+  // Phase 19: reseller panel
+  router.use('/reseller', createResellerRouter());
   router.use('/webhook-deliveries', createWebhookDeliveriesRouter());
   router.use('/report-unsubscribe', createReportUnsubscribeRouter());
   router.use(

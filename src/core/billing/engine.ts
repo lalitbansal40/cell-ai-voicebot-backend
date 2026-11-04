@@ -1268,3 +1268,121 @@ export const adjust = async (input: AdjustInput): Promise<EngineResult> => {
     return finish(out);
   });
 };
+
+// ───────────────────────────── transfers ─────────────────────────────
+
+export interface TransferInput {
+  fromAccountId: Types.ObjectId | string;
+  toAccountId: Types.ObjectId | string;
+  amountMicros: number;
+  /** One id for both rows (`ref.id`); a retry with the same id replays. */
+  transferId: string;
+  note?: string | null;
+  createdBy?: Types.ObjectId | string | null;
+}
+
+export interface TransferResult {
+  out: LedgerEntryDoc;
+  in: LedgerEntryDoc;
+  from: WalletDoc;
+  to: WalletDoc;
+  replay: boolean;
+}
+
+/**
+ * Phase 19: moves credit from one wallet to another (reseller → customer, or back) in ONE
+ * transaction: a `credit_transfer_out` row on the payer and a `credit_transfer_in` row on the
+ * receiver, both `ref: { type: 'credit_transfer', id: transferId }`. Both wallets are locked
+ * in ascending id order (no deadlock between two opposite transfers). The payer can only
+ * spend its available balance (no credit limit).
+ */
+export const transferCredit = async (input: TransferInput): Promise<TransferResult> => {
+  const from = oid(input.fromAccountId);
+  const to = oid(input.toAccountId);
+  if (from.equals(to)) throw new RangeError('Transfer needs two wallets');
+  const amount = assertMicros(input.amountMicros);
+  if (amount <= 0) throw new RangeError('Transfer must be positive');
+  await getOrCreateWallet(from);
+  await getOrCreateWallet(to);
+  const keyOut = `transfer:${input.transferId}:out`;
+  const keyIn = `transfer:${input.transferId}:in`;
+  const ref = { type: 'credit_transfer' as const, id: input.transferId.slice(0, 100) };
+  const [first, second] = from.toString() < to.toString() ? [from, to] : [to, from];
+  const replayed = async (): Promise<TransferResult | null> => {
+    const [o, i] = await Promise.all([findByKey(from, keyOut), findByKey(to, keyIn)]);
+    if (!o || !i) return null;
+    const [wf, wt] = await Promise.all([
+      WalletModel.findOne({ accountId: from }).lean<WalletDoc>(),
+      WalletModel.findOne({ accountId: to }).lean<WalletDoc>(),
+    ]);
+    if (!wf || !wt) throw new Error('wallet missing');
+    return { out: o, in: i, from: wf, to: wt, replay: true };
+  };
+  const before = await replayed();
+  if (before) return before;
+  try {
+    const result = await inWalletOrder(first, () =>
+      inWalletOrder(second, () =>
+        withWalletLock(first.toString(), () =>
+          withWalletLock(second.toString(), () =>
+            withTransaction(async (session) => {
+              const existing = await findByKey(from, keyOut, session);
+              if (existing) return null;
+              const [monthFrom, monthTo] = await Promise.all([
+                accountMonth(from, session),
+                accountMonth(to, session),
+              ]);
+              const rule = { useCreditLimit: false, month: monthFrom };
+              const wFrom = await updateWallet(
+                from,
+                session,
+                moneyPipeline(monthFrom, { balance: -amount }),
+                canSpend(amount, rule),
+              );
+              if (!wFrom) return insufficient(from, amount, session, rule);
+              const wTo = await updateWallet(
+                to,
+                session,
+                moneyPipeline(monthTo, { balance: amount }),
+              );
+              if (!wTo) throw new NotFoundError('Wallet not found');
+              const common = {
+                status: 'captured' as const,
+                amountMicros: amount,
+                ref,
+                note: input.note ?? null,
+                createdBy: input.createdBy ? oid(input.createdBy) : null,
+              };
+              const rowOut = await insertRow(session, {
+                ...common,
+                accountId: from,
+                type: 'credit_transfer_out',
+                direction: 'debit',
+                balanceAfterMicros: wFrom.balanceMicros,
+                idempotencyKey: keyOut,
+              });
+              const rowIn = await insertRow(session, {
+                ...common,
+                accountId: to,
+                type: 'credit_transfer_in',
+                direction: 'credit',
+                balanceAfterMicros: wTo.balanceMicros,
+                idempotencyKey: keyIn,
+              });
+              return { out: rowOut, in: rowIn, from: wFrom, to: wTo, replay: false };
+            }),
+          ),
+        ),
+      ),
+    );
+    if (!result) return (await replayed()) as TransferResult;
+    await publishWalletChange(change(from, result.from, -amount, 0));
+    await publishWalletChange(change(to, result.to, amount, 0));
+    return result;
+  } catch (err) {
+    if (!isDuplicateKeyError(err)) throw err;
+    const again = await replayed();
+    if (!again) throw err;
+    return again;
+  }
+};

@@ -35,8 +35,8 @@ const rearm = (accountId: Types.ObjectId, field: AlertField) =>
 
 const sendAlert = async (accountId: Types.ObjectId, change: WalletChange, exhausted: boolean) => {
   const account = await AccountModel.findById(accountId)
-    .select({ name: 1, timezone: 1 })
-    .lean<{ name: string; timezone?: string }>();
+    .select({ name: 1, timezone: 1, parentAccountId: 1 })
+    .lean<{ name: string; timezone?: string; parentAccountId?: Types.ObjectId | null }>();
   const accountName = account?.name ?? 'Your account';
   const available = formatInr(Math.max(availableMicros(change.after), 0));
   const threshold = formatInr(change.after.lowBalanceThresholdMicros);
@@ -50,6 +50,17 @@ const sendAlert = async (accountId: Types.ObjectId, change: WalletChange, exhaus
       : `${available} available — below your alert level of ${threshold}.`,
     link: '/wallet',
   });
+  // Phase 19: the customer's reseller adds credit, so it hears about it too
+  if (account?.parentAccountId) {
+    await notify({
+      accountId: account.parentAccountId,
+      permission: 'reseller.manage',
+      type: 'wallet.customer_low_balance',
+      title: exhausted ? 'A customer ran out of credit' : 'A customer is low on credit',
+      body: `${accountName}: ${available} available.`,
+      link: `/reseller/customers/${accountId.toString()}`,
+    });
+  }
   const recipients = await usersWithPermission(accountId, 'wallet.topup');
   const day = ymdInZone(new Date(), account?.timezone ?? 'Asia/Kolkata');
   const walletUrl = `${getEnv().FRONTEND_URL.replace(/\/+$/, '')}/wallet`;
