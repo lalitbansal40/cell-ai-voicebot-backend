@@ -70,13 +70,13 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
     // tests that lift the auth limit lift this one too
     ...(deps.rateLimit?.limit !== undefined ? { limit: deps.rateLimit.limit } : {}),
   });
-  router.get('/signup-options', async (_req, res) => {
+  router.get('/signup-options', limiter, async (_req, res) => {
     res.set('Cache-Control', 'public, max-age=60');
     ok(res, await getSignupSettings());
   });
   router.post('/signup', limiter, signupLimiter, ...handle({ body: SignupBody }, signupHandler));
-  router.post('/verify-email', goneHandler);
-  router.post('/verify-email/resend', goneHandler);
+  router.post('/verify-email', limiter, goneHandler);
+  router.post('/verify-email/resend', limiter, goneHandler);
   router.post('/login', limiter, ...handle({ body: LoginBody }, loginHandler));
   router.post('/refresh', limiter, originCheck(deps.env), refreshHandler);
   router.post('/logout', originCheck(deps.env), logoutHandler);

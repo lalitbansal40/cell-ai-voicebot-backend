@@ -7,6 +7,7 @@ Every request also passes the global limit of 1,200 a minute per IP. API keys ha
 ## Routes with no sign-in
 
 - `POST /api/v1/auth/signup`: own limiter
+- `GET /api/v1/auth/signup-options`: own limiter
 - `POST /api/v1/auth/verify-email`: own limiter
 - `POST /api/v1/auth/login`: own limiter
 - `POST /api/v1/auth/refresh`: own limiter
