@@ -33139,7 +33139,8 @@
                 "properties": {
                   "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-                  "body": { "type": "string", "minLength": 1, "maxLength": 1024 }
+                  "body": { "type": "string", "minLength": 1, "maxLength": 1024 },
+                  "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
                 },
                 "required": ["channelId", "contactId"]
               }

@@ -290,7 +290,11 @@ describe('call permissions', () => {
       { channelId: state.channel._id.toString(), submit: true },
     );
     await WhatsAppTemplateModel.updateOne({ _id: created.id }, { $set: { status: 'APPROVED' } });
-    const res = await permissions.request(actor, input);
+    // Phase 18B: a chosen template must be one of this number's approved permission templates
+    await expect(
+      permissions.request(actor, { ...input, templateId: new Types.ObjectId().toString() }),
+    ).rejects.toMatchObject({ code: 'WHATSAPP_CALL_PERMISSION_TEMPLATE_MISSING' });
+    const res = await permissions.request(actor, { ...input, templateId: created.id });
     expect(res.kind).toBe('template');
     const m = await MessageModel.findById(res.messageId).lean<MessageDoc>();
     expect(m?.type).toBe('template');

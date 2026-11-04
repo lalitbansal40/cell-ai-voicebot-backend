@@ -14,6 +14,8 @@ export const PermissionRequestBody = z.object({
   channelId: ObjectIdSchema,
   contactId: ObjectIdSchema,
   body: z.string().trim().min(1).max(1024).optional(),
+  /** Phase 18B: outside the 24 h window, this approved permission template (else the first). */
+  templateId: ObjectIdSchema.optional(),
 });
 /** Phase 18B: ask many contacts at once with an approved permission template. */
 export const BulkPermissionBody = z.strictObject({
