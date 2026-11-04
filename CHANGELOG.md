@@ -11,6 +11,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 18B — WhatsApp calling go-live** — 2026-11-04
+  - Calling on / off is read back from WhatsApp; a change it didn't apply answers `CALLING_SETTINGS_NOT_APPLIED`.
+  - `GET /whatsapp/channels/:id/calling/readiness`: 10 checks (Cloud API, messaging limit, verification, `calls` webhook, app permission, Meta status, restrictions, last call event, call audio, prices); blocking items stop the switch.
+  - `contacts.waCallPermission` + filter `whatsappCallPermission`; bulk permission requests (`POST /whatsapp/call-permissions/bulk`, job `call-permission-bulk`, migration `0020-call-permission-runs`); single requests can pick the template.
+  - System status `whatsappCalls`; healthwatch rules `wa-media-no-public-ip`, `wa-call-setup-failing`.
+
 - **Phase 18 — SIP telephony** — 2026-11-03
   - Asterisk 22 kit (compose profile `sip`), ARI client, RTP / G.711 bridge, SIP call leg with causes, AMD and transfer; `npm run sip:lab` / `test:sip` / `perf:sip`.
   - Accounts move to the phone line one by one (superadmin); phone numbers and caller IDs; real SIP calls hold, bill (pulse, trunk cost) and record like other calls.
