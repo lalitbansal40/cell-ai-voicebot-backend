@@ -1562,6 +1562,32 @@
               "avgLossPct",
               "avgJitterMs"
             ]
+          },
+          "whatsappCalls": {
+            "type": ["object", "null"],
+            "properties": {
+              "mediaEnabled": { "type": "boolean" },
+              "publicIpSet": { "type": "boolean" },
+              "portRange": { "type": "string" },
+              "liveCalls": { "type": "integer" },
+              "lastSetupMs": { "type": ["number", "null"] },
+              "lastError": {
+                "type": ["object", "null"],
+                "properties": { "reason": { "type": "string" }, "at": { "type": "string" } },
+                "required": ["reason", "at"]
+              },
+              "failedSetups15m": { "type": "integer" }
+            },
+            "required": [
+              "mediaEnabled",
+              "publicIpSet",
+              "portRange",
+              "liveCalls",
+              "lastSetupMs",
+              "lastError",
+              "failedSetups15m"
+            ],
+            "description": "Phase 18B: WhatsApp call audio; null when WhatsApp is off"
           }
         },
         "required": [
@@ -1577,7 +1603,8 @@
           "lastRelease",
           "certificate",
           "superadminsWithoutMfa",
-          "sip"
+          "sip",
+          "whatsappCalls"
         ]
       },
       "AgentFunction": {

@@ -434,6 +434,18 @@ export const SystemStatusSchema = registry.register(
         avgJitterMs: z.number().nullable(),
       })
       .nullable(),
+    whatsappCalls: z
+      .object({
+        mediaEnabled: z.boolean(),
+        publicIpSet: z.boolean(),
+        portRange: z.string(),
+        liveCalls: z.number().int(),
+        lastSetupMs: z.number().nullable(),
+        lastError: z.object({ reason: z.string(), at: z.string() }).nullable(),
+        failedSetups15m: z.number().int(),
+      })
+      .nullable()
+      .openapi({ description: 'Phase 18B: WhatsApp call audio; null when WhatsApp is off' }),
   }),
 );
 

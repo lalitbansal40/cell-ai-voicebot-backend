@@ -8,6 +8,10 @@ export interface HealthFacts {
   now: Date;
   /** Phase 18: the SIP line (absent / null = no trunk on this install). */
   sip?: { ariConnected: boolean; trunkOnline: boolean | null; avgLossPct: number | null } | null;
+  /** Phase 18B: WhatsApp call audio (absent / null = WhatsApp off). */
+  whatsappCalls?: { mediaEnabled: boolean; publicIpSet: boolean; failedSetups15m: number } | null;
+  /** `production` turns on the public IP rule. */
+  env?: string;
 }
 
 export const HEALTH_LIMITS = {
@@ -19,6 +23,8 @@ export const HEALTH_LIMITS = {
   backupMaxAgeMs: 26 * 3_600_000,
   /** Average RTP loss of the last 24 h of SIP calls above this → alert. */
   sipLossPct: 5,
+  /** Failed WhatsApp call setups in 15 minutes at or above this → alert. */
+  waCallSetupFailures: 3,
 } as const;
 
 export const failedTotal = (queues: HealthFacts['queues']): number =>
@@ -48,6 +54,14 @@ export const healthIssues = (f: HealthFacts): string[] => {
     else if (f.sip.trunkOnline === false) issues.push('sip-trunk-offline');
     if (f.sip.avgLossPct !== null && f.sip.avgLossPct > HEALTH_LIMITS.sipLossPct) {
       issues.push('sip-audio-loss');
+    }
+  }
+  if (f.whatsappCalls) {
+    if (f.env === 'production' && f.whatsappCalls.mediaEnabled && !f.whatsappCalls.publicIpSet) {
+      issues.push('wa-media-no-public-ip');
+    }
+    if (f.whatsappCalls.failedSetups15m >= HEALTH_LIMITS.waCallSetupFailures) {
+      issues.push('wa-call-setup-failing');
     }
   }
   return issues;

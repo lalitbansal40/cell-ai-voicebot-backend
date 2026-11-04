@@ -27,6 +27,10 @@ const SIP_TEXT: Record<string, string> = {
   'sip-ari-down': 'The app cannot reach Asterisk: phone calls are not being placed.',
   'sip-trunk-offline': 'The SIP trunk is offline: phone calls fail at the carrier.',
   'sip-audio-loss': 'Phone calls lost more than 5% of their audio over the last day.',
+  // Phase 18B: WhatsApp call audio
+  'wa-media-no-public-ip':
+    'WhatsApp call audio is on but WA_MEDIA_PUBLIC_IP is not set: customers will hear nothing.',
+  'wa-call-setup-failing': '3 or more WhatsApp calls failed to connect in the last 15 minutes.',
 };
 
 /** Phase 18: a SIP problem also rings the superadmins' bell, once an hour per problem. */
@@ -45,7 +49,7 @@ export const bellSuperadmins = async (issues: string[], redis: Redis): Promise<n
       accountId: platform,
       userIds: admins.map((a) => a._id),
       type: 'sip.trunk_down',
-      title: 'Phone line problem',
+      title: issue.startsWith('wa-') ? 'WhatsApp calling problem' : 'Phone line problem',
       body: SIP_TEXT[issue] ?? issue,
       link: '/admin/system',
     });
@@ -73,10 +77,12 @@ export const main: OpMain = async (args) => {
       lastBackupAt: status.lastBackup?.ok ? status.lastBackup.at : null,
       now: new Date(),
       sip: status.sip,
+      whatsappCalls: status.whatsappCalls,
+      env: status.env,
     });
     for (const issue of issues) say(issue);
     await bellSuperadmins(
-      issues.filter((i) => i.startsWith('sip-')),
+      issues.filter((i) => i.startsWith('sip-') || i.startsWith('wa-')),
       getAppRedis(env.REDIS_URL, logger),
     );
   } finally {
