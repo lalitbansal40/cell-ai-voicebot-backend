@@ -23,6 +23,8 @@ import './custom-field.model';
 import './dnd-entry.model';
 import './erase-job.model';
 import './call-permission-run.model';
+import './whatsapp-campaign.model';
+import './whatsapp-campaign-recipient.model';
 import './export-job.model';
 import './flow-audio.model';
 import './flow-node-stats.model';
