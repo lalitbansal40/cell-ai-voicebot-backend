@@ -154,6 +154,16 @@
           },
           "ownerId": { "type": ["string", "null"] },
           "isPlatform": { "type": "boolean" },
+          "kind": { "type": "string", "enum": ["platform", "reseller", "business"] },
+          "parentAccountId": { "type": ["string", "null"] },
+          "reseller": {
+            "type": ["object", "null"],
+            "properties": {
+              "status": { "type": "string", "enum": ["active", "pending_approval"] },
+              "customersCanTopUp": { "type": "boolean" }
+            },
+            "required": ["status", "customersCanTopUp"]
+          },
           "timezone": { "type": "string" },
           "country": { "type": "string" },
           "defaultLanguage": { "type": "string", "enum": ["hi", "en", "hinglish"] },
@@ -205,6 +215,9 @@
           "deletion",
           "ownerId",
           "isPlatform",
+          "kind",
+          "parentAccountId",
+          "reseller",
           "timezone",
           "country",
           "defaultLanguage",

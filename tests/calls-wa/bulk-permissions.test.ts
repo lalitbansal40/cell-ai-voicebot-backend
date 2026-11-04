@@ -303,10 +303,9 @@ describe('0020-call-permission-runs', () => {
     return found;
   };
 
-  it('is the last one, right after 0019', () => {
+  it('is right after 0019', () => {
     const names = MIGRATIONS.map((m) => m.name);
     expect(names.indexOf('0020-call-permission-runs')).toBe(names.indexOf('0019-sip-lines') + 1);
-    expect(names.at(-1)).toBe('0020-call-permission-runs');
   });
 
   it('backfills waCallPermission from permission rows, else none (idempotent, additive)', async () => {

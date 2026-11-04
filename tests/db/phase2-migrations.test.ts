@@ -56,6 +56,7 @@ describe('phase 2 migrations', () => {
     });
     await expect(MIGRATIONS[1]?.down(db())).rejects.toThrow('Platform account still has users');
     await UserModel.deleteOne({ _id: admin._id });
+    await migrateDown(db(), MIGRATIONS, logger); // 0021 (Phase 19, account kinds)
     await migrateDown(db(), MIGRATIONS, logger); // 0020 (Phase 18B, call permission runs)
     await migrateDown(db(), MIGRATIONS, logger); // 0019 (Phase 18, voice line + phone numbers)
     await migrateDown(db(), MIGRATIONS, logger); // 0018 (Phase 16, indexes + defaults)

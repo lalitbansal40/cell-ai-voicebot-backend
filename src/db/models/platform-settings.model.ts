@@ -9,6 +9,8 @@ export const PLATFORM_SETTING_KEYS = [
   'callingWindowCeiling',
   // Phase 17: last backup, restore drill and release, written by the ops commands
   'opsStatus',
+  // Phase 19: who may sign up on their own
+  'signup',
 ] as const;
 export type PlatformSettingKey = (typeof PLATFORM_SETTING_KEYS)[number];
 
@@ -58,7 +60,17 @@ export const DEFAULT_CALLING_WINDOW_CEILING: CallingWindowCeiling = {
   end: '19:00',
 };
 
+/** Phase 19: open signup (no e-mail) and whether resellers may sign up on their own. */
+export const RESELLER_SIGNUP_MODES = ['open', 'approval', 'closed'] as const;
+export type ResellerSignupMode = (typeof RESELLER_SIGNUP_MODES)[number];
+export interface SignupSettings {
+  open: boolean;
+  resellerSignup: ResellerSignupMode;
+}
+export const DEFAULT_SIGNUP_SETTINGS: SignupSettings = { open: true, resellerSignup: 'open' };
+
 export interface PlatformSettingsValues {
+  signup: SignupSettings;
   callingWindowCeiling: CallingWindowCeiling;
   whatsappBilling: WhatsAppBillingSettings;
   whatsappCalling: WhatsAppCallingSettings;
@@ -79,7 +91,7 @@ type Range = readonly [min: number, max: number];
 
 /** Allowed whole-number range of every field, per key. */
 const VALUE_RANGES: {
-  [K in Exclude<PlatformSettingKey, 'callingWindowCeiling' | 'opsStatus'>]: Record<
+  [K in Exclude<PlatformSettingKey, 'callingWindowCeiling' | 'opsStatus' | 'signup'>]: Record<
     keyof PlatformSettingsValues[K],
     Range
   >;
@@ -103,6 +115,19 @@ export const platformSettingProblems = (key: unknown, value: unknown): string[] 
     return value && typeof value === 'object' && !Array.isArray(value)
       ? []
       : ['A status is required'];
+  }
+  if (key === 'signup') {
+    const s = value as Partial<SignupSettings> | null;
+    const problems: string[] = [];
+    if (typeof s?.open !== 'boolean') problems.push('open must be true or false');
+    if (!RESELLER_SIGNUP_MODES.includes(s?.resellerSignup as ResellerSignupMode)) {
+      problems.push('resellerSignup must be open, approval or closed');
+    }
+    for (const field of Object.keys(s ?? {})) {
+      if (field !== 'open' && field !== 'resellerSignup')
+        problems.push(`${field} is not a setting`);
+    }
+    return problems;
   }
   if (key === 'callingWindowCeiling') {
     const w = value as Partial<CallingWindowCeiling> | null;

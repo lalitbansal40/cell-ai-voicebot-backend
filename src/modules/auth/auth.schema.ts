@@ -110,6 +110,14 @@ export const PublicAccountSchema = registry.register(
       .nullable(),
     ownerId: z.string().nullable(),
     isPlatform: z.boolean(),
+    kind: z.enum(['platform', 'reseller', 'business']),
+    parentAccountId: z.string().nullable(),
+    reseller: z
+      .object({
+        status: z.enum(['active', 'pending_approval']),
+        customersCanTopUp: z.boolean(),
+      })
+      .nullable(),
     timezone: z.string(),
     country: z.string(),
     defaultLanguage: z.enum(['hi', 'en', 'hinglish']),

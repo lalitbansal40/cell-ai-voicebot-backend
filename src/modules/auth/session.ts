@@ -10,6 +10,7 @@ import {
 import { RoleModel, type RoleDoc } from '../../db/models/role.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
 import { UnauthenticatedError } from '../../shared/errors/app-error';
+import { kindOf } from '../account/kinds';
 import { PLATFORM_PERMISSIONS } from '../rbac/permissions';
 
 import { REFRESH_COOKIE, REFRESH_COOKIE_PATH } from './auth.constants';
@@ -40,6 +41,11 @@ export interface PublicAccount {
   suspendReason: string | null;
   ownerId: string | null;
   isPlatform: boolean;
+  /** Phase 19: platform / reseller / business; `parentAccountId` = the business's reseller. */
+  kind: AccountDoc['kind'];
+  parentAccountId: string | null;
+  /** Only on reseller accounts. */
+  reseller: { status: 'active' | 'pending_approval'; customersCanTopUp: boolean } | null;
   timezone: string;
   country: string;
   defaultLanguage: AccountDoc['defaultLanguage'];
@@ -93,6 +99,15 @@ export const toPublicAccount = (a: AccountDoc): PublicAccount => ({
     : null,
   ownerId: a.ownerId ? a.ownerId.toString() : null,
   isPlatform: a.isPlatform,
+  kind: kindOf(a),
+  parentAccountId: a.parentAccountId ? a.parentAccountId.toString() : null,
+  reseller:
+    kindOf(a) === 'reseller'
+      ? {
+          status: a.reseller?.status ?? 'active',
+          customersCanTopUp: a.reseller?.customersCanTopUp ?? false,
+        }
+      : null,
   timezone: a.timezone,
   country: a.country,
   defaultLanguage: a.defaultLanguage,

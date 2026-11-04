@@ -157,8 +157,38 @@ export const BILLING_PROFILE_SCHEMA = new Schema<BillingProfile>(BILLING_PROFILE
   _id: false,
 });
 
+/** Phase 19: platform (superadmins) · reseller (has customers) · business (uses the product). */
+export const ACCOUNT_KINDS = ['platform', 'reseller', 'business'] as const;
+export type AccountKind = (typeof ACCOUNT_KINDS)[number];
+export const RESELLER_STATUSES = ['active', 'pending_approval'] as const;
+export type ResellerStatus = (typeof RESELLER_STATUSES)[number];
+
+/** Only on `kind: 'reseller'` accounts. */
+export interface ResellerInfo {
+  status: ResellerStatus;
+  /** Customers may top up by Razorpay themselves (default: no — the reseller adds credit). */
+  customersCanTopUp: boolean;
+  approvedAt: Date | null;
+  approvedBy: Types.ObjectId | null;
+  /** White-label, later phase. */
+  brand: null;
+}
+
+export const defaultResellerInfo = (status: ResellerStatus = 'active'): ResellerInfo => ({
+  status,
+  customersCanTopUp: false,
+  approvedAt: null,
+  approvedBy: null,
+  brand: null,
+});
+
 export interface AccountDoc {
   _id: Types.ObjectId;
+  /** Phase 19 (absent on rows the migration hasn't reached = business). */
+  kind: AccountKind;
+  /** The reseller this business belongs to (one level only); null = direct. */
+  parentAccountId: Types.ObjectId | null;
+  reseller: ResellerInfo | null;
   name: string;
   slug: string;
   status: AccountStatus;
@@ -309,6 +339,21 @@ export const DEFAULT_ACCOUNT_WHATSAPP: AccountWhatsApp = { metaPayer: 'platform'
 
 const schema = new Schema<AccountDoc>({
   name: { type: String, required: true, trim: true, maxlength: 80 },
+  kind: { type: String, enum: ACCOUNT_KINDS, default: 'business', required: true },
+  parentAccountId: { type: Schema.Types.ObjectId, default: null },
+  reseller: {
+    type: new Schema<ResellerInfo>(
+      {
+        status: { type: String, enum: RESELLER_STATUSES, required: true },
+        customersCanTopUp: { type: Boolean, default: false },
+        approvedAt: { type: Date, default: null },
+        approvedBy: { type: Schema.Types.ObjectId, default: null },
+        brand: { type: Schema.Types.Mixed, default: null },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
   slug: { type: String, required: true, lowercase: true, trim: true, maxlength: 60 },
   status: {
     type: String,
@@ -503,9 +548,15 @@ const schema = new Schema<AccountDoc>({
     default: null,
   },
 });
+// the platform account is always kind `platform`
+schema.pre('validate', function () {
+  if (this.isPlatform) this.kind = 'platform';
+});
 schema.plugin(basePlugin);
 schema.index({ slug: 1 }, { unique: true });
 schema.index({ status: 1 });
+schema.index({ kind: 1 });
+schema.index({ parentAccountId: 1, createdAt: -1 });
 
 /** The tenant (data-model.md §2.1). Not tenant-scoped itself. */
 export const AccountModel: Model<AccountDoc> =
