@@ -74,6 +74,7 @@ export const queueCallingJobs = (queue: {
     await queue.add(CALLING_JOBS.permissionBulk, { runId } satisfies PermissionBulkJobData, {
       ...CALLING_JOB_OPTIONS,
       jobId: permissionBulkJobId(runId),
+      priority: 10,
     });
   },
 });

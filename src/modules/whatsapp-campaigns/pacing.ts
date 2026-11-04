@@ -11,10 +11,15 @@ export const TIER_LIMITS: Record<WaLimitTier, number> = {
   TIER_UNLIMITED: Number.POSITIVE_INFINITY,
 };
 
-/** Default throughput (Meta's standard 80 messages / second); env `WA_CAMPAIGN_MPS`. */
-export const campaignMps = (): number => {
-  const v = Number(process.env.WA_CAMPAIGN_MPS ?? 80);
-  return Number.isFinite(v) && v > 0 ? Math.min(v, 1_000) : 80;
+/** Owner caps; an optional deployment ceiling may only lower them. */
+export const campaignMps = (
+  channel?: { mode?: string; isOnBizApp?: boolean },
+  ceiling?: number,
+): number => {
+  const cap = channel?.mode === 'cloud_api' && channel.isOnBizApp === false ? 75 : 18;
+  return ceiling !== undefined && Number.isFinite(ceiling) && ceiling > 0
+    ? Math.min(cap, Math.max(1, Math.floor(ceiling)))
+    : cap;
 };
 
 /**

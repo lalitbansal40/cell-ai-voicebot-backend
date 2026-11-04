@@ -138,6 +138,9 @@ const RawEnvSchema = z.object({
   DRY_RUN_MAX_SPEED: z.coerce.number().int().min(1).max(100).optional(),
   /** `false` stops the campaign dispatchers and worker (maintenance). Default true. */
   CAMPAIGNS_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+  /** Optional lower deployment ceiling; channel caps remain Business App 18 / Cloud API 75. */
+  WA_CAMPAIGN_MPS: z.coerce.number().int().min(1).max(1000).optional(),
+  WA_CAMPAIGN_MAX_RECIPIENTS: z.coerce.number().int().min(1).max(100_000).default(100_000),
 
   /** WhatsApp channels (Phase 9). Default: on outside production; in production on when META_APP_ID is set. */
   WHATSAPP_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),

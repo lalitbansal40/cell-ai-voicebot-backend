@@ -20,6 +20,7 @@ export const queueWaCampaignJobs = (queue: {
     await queue.add(WA_CAMPAIGN_JOBS.dispatch, { campaignId } satisfies WaCampaignDispatchData, {
       // a new job id per call: a resume after the last job finished must run again
       jobId: `${waCampaignJobId(campaignId)}-${String(Date.now())}`,
+      priority: 10,
       attempts: 3,
       backoff: { type: 'exponential', delay: 5_000 },
       removeOnComplete: true,

@@ -2,6 +2,17 @@
 
 **Status:** Locked (2026-11-04) — defaults D1–D12 in use · **Branches:** `feature/phase-19-reseller-campaigns` (both repos) · **Size:** L (≈ 6–8 working days) · **Roadmap:** BUILD_PLAN_V2 Phase 20 (bulk campaigns) moves up and is joined by signup + resellers; Inbound phone calls (old Phase 19) becomes Phase 20.
 
+**Owner amendment — 5 Nov 2026:** Remaining work and added scope are specified in
+[PHASE_19_CONTINUATION_PROMPT.md](../prompts/PHASE_19_CONTINUATION_PROMPT.md), which
+supersedes conflicting historical requirements here. Three campaign types: **SIP / Normal
+call**, **WhatsApp message**, **WhatsApp call**. Bulk messaging caps per sender: **18 msg/sec**
+for Business App/coexistence; **75 msg/sec** for confirmed regular WhatsApp Cloud API,
+subject to lower limits. WhatsApp incoming and outgoing AI use active agents or published
+flows. Templates/approval/send and call actions must respect the selected connected
+number and its capabilities. The continuation includes unfinished T19.13/T19.15/T19.16,
+frontend role checks, recurrence/media/estimate gaps, testing and sign-off. No completion
+claim is made by adding these requirements; see the continuation tracker.
+
 ---
 
 ## 0. Goal
@@ -226,6 +237,7 @@ Permissions `whatsapp.campaigns.read` / `.write` (owner, admin, manager write; a
 
 ## Changelog
 
+- 2026-11-05: Owner expanded remaining Phase 19 scope. Added continuation prompt and P19R-T1–T8 tracker for three campaign types, shared 18/75 per-sender pacing, WhatsApp incoming/outgoing AI, number-scoped templates/approval and shared call-method choices. Preserve existing uncommitted frontend work; final verification remains pending.
 - 2026-11-04: Draft — checked signup, impersonation, accounts, wallet, campaigns, templates; gaps G1–G7; decisions D1–D12 with defaults; 16 tasks in 4 batches; test rule (targeted per task, full suites twice, targeted Playwright).
 - 2026-11-04: Run prompt written ([PHASE_19_PROMPT.md](../prompts/PHASE_19_PROMPT.md)) — defaults D1–D12 locked; literals: errors +7 → 115, audit +20 → 194, notifications +6 → 45, permissions +4 → 49, ledger +2 → 12, WS +1 → 41, migrations 0021 / 0022.
 - 2026-11-04: Locked. Defaults D1–D12 in use. Owner: a bulk campaign sends **any** approved template, incl. the consent (call permission) template, charged from the wallet — consent variants go through the permission request path (prompt §1).

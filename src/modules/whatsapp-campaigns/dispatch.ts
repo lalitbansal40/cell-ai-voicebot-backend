@@ -30,7 +30,7 @@ import { notify, usersWithPermission } from '../notifications/notifications.serv
 import type { CallPermissionsService } from '../whatsapp-calling/permissions.service';
 
 import { variablesFor, type VariantInfo } from './audience';
-import { allowedNow, batchGapMs } from './pacing';
+import { allowedNow } from './pacing';
 import { emitProgress, trackCampaignMessage } from './tracking';
 
 export const DISPATCH_BATCH = 100;
@@ -342,6 +342,7 @@ export const dispatchCampaign = async (
               channelId: campaign.channelId.toString(),
               contactId: contact._id.toString(),
               forceTemplate: true,
+              bulk: true,
               templateId: v.templateId.toString(),
               ...(Object.keys(values).length ? { variables: values } : {}),
               clientId,
@@ -361,12 +362,18 @@ export const dispatchCampaign = async (
               contactId: contact._id,
               source: 'outbound',
             }));
-          const out = await sendMessage(deps.ix, actor, conversation._id.toString(), {
-            type: 'template',
-            templateId: v.templateId.toString(),
-            ...(Object.keys(values).length ? { variables: values } : {}),
-            clientId,
-          });
+          const out = await sendMessage(
+            deps.ix,
+            actor,
+            conversation._id.toString(),
+            {
+              type: 'template',
+              templateId: v.templateId.toString(),
+              ...(Object.keys(values).length ? { variables: values } : {}),
+              clientId,
+            },
+            { bulk: true, origin: 'system', externalRef: `wac:${campaign._id.toString()}` },
+          );
           messageId = out.message._id;
         }
         await WhatsAppCampaignRecipientModel.updateOne(
@@ -421,7 +428,8 @@ export const dispatchCampaign = async (
       }
     }
     await emitProgress(campaign._id);
-    await sleep(batchGapMs(claimed.length));
+    // Yield between batches. Actual provider attempts are paced in the shared send processor.
+    await sleep(0);
   }
 };
 

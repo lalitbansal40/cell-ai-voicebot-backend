@@ -39,7 +39,7 @@ export interface HistoryImportJobData {
 
 /** Enqueues inbox jobs (same id twice → one job). */
 export interface InboxJobs {
-  enqueueSend(messageId: string, delayMs?: number): Promise<void>;
+  enqueueSend(messageId: string, delayMs?: number, bulk?: boolean): Promise<void>;
   enqueueMediaDownload(messageId: string): Promise<void>;
   enqueueReadReceipt(messageId: string): Promise<void>;
   enqueueBackfill(): Promise<void>;
@@ -54,10 +54,11 @@ const exponential = (attempts: number, delay: number): JobsOptions => ({
 });
 
 export const queueInboxJobs = (queue: Queue): InboxJobs => ({
-  async enqueueSend(messageId, delayMs = 0) {
+  async enqueueSend(messageId, delayMs = 0, bulk = false) {
     await queue.add(INBOX_JOBS.messageSend, { messageId } satisfies MessageJobData, {
       ...exponential(INBOX_LIMITS.sendAttempts, INBOX_LIMITS.sendRetryBaseMs),
       jobId: sendJobId(messageId),
+      priority: bulk ? 10 : 1,
       ...(delayMs > 0 ? { delay: delayMs } : {}),
     });
   },

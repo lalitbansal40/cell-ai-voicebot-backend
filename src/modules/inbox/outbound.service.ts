@@ -567,6 +567,7 @@ export const sendMessage = async (
   /** Phase 15: public API (`origin: 'api'`) and after-call sends (`'system'`) carry an externalRef. */
   options: {
     origin?: Extract<MessageOrigin, 'agent' | 'api' | 'system'>;
+    bulk?: boolean;
     externalRef?: string | null;
   } = {},
 ): Promise<{ message: MessageDoc; created: boolean; warnings?: string[] }> => {
@@ -695,7 +696,7 @@ export const sendMessage = async (
     if (reopened) emitConversation(reopened);
   }
   await announce(conversation, message, { replyTo: reply.target, userId: actor.userId });
-  await ix.jobs.enqueueSend(message._id.toString());
+  await ix.jobs.enqueueSend(message._id.toString(), 0, options.bulk ?? false);
   return { message, created: true, warnings: built.warnings ?? [] };
 };
 

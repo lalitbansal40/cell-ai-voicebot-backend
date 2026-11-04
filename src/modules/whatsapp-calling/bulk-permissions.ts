@@ -334,6 +334,7 @@ export const createBulkPermissions = (deps: {
             channelId: run.channelId.toString(),
             contactId: key,
             forceTemplate: true,
+            bulk: true,
             templateId: run.templateId.toString(),
             ...(Object.keys(run.variables ?? {}).length ? { variables: run.variables } : {}),
             clientId: bulkClientId(run._id.toString(), key),

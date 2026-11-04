@@ -392,6 +392,7 @@ export const createCallPermissions = (deps: PermissionDeps) => {
       variables?: Record<string, string>;
       /** Bulk: a stable id per contact and run, so a retried job never sends twice. */
       clientId?: string;
+      bulk?: boolean;
     },
   ) => {
     const now = nowOf(ctx);
@@ -471,12 +472,18 @@ export const createCallPermissions = (deps: PermissionDeps) => {
       kind = 'template';
       const template = await permissionTemplate(channel, input.templateId);
       if (!template) throw new AppError('WHATSAPP_CALL_PERMISSION_TEMPLATE_MISSING');
-      const sent = await sendMessage(deps.inbox, actor, conversation._id.toString(), {
-        type: 'template',
-        templateId: template._id.toString(),
-        ...(input.variables ? { variables: input.variables } : {}),
-        clientId: input.clientId ?? randomUUID(),
-      });
+      const sent = await sendMessage(
+        deps.inbox,
+        actor,
+        conversation._id.toString(),
+        {
+          type: 'template',
+          templateId: template._id.toString(),
+          ...(input.variables ? { variables: input.variables } : {}),
+          clientId: input.clientId ?? randomUUID(),
+        },
+        { bulk: input.bulk ?? false },
+      );
       messageId = sent.message._id;
     }
     await forgetMeta(channel._id, waId);

@@ -27,6 +27,7 @@ import { templatePayloadFor } from '../templates/send.service';
 import { historyPush, recordTemplateUsage } from '../templates/template.service';
 import { SYSTEM_ACTOR } from '../whatsapp/channel-status';
 import { openSecret } from '../whatsapp/context';
+import { acquireMessageSlot } from '../whatsapp/message-pacer';
 import { trackCampaignMessage } from '../whatsapp-campaigns/tracking';
 
 import { applyChannelEffect } from './channel-effects';
@@ -388,6 +389,19 @@ export const processSend = async (
             await contentOf(ix, m, token, channel.phoneNumberId, now),
             m.context?.replyToWaMessageId ?? null,
           );
+    // All message sources (campaigns, permission requests and inbox) share one sender budget.
+    let delay = await acquireMessageSlot(ix.wa.redis, channel, ix.wa.env.WA_CAMPAIGN_MPS);
+    if (delay > 0 && delay <= 100) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delay));
+      const fresh = await WhatsAppChannelModel.findOne({
+        _id: channel._id,
+        accountId: channel.accountId,
+      }).lean<WhatsAppChannelDoc>();
+      if (!fresh || !['connected', 'restricted'].includes(fresh.status))
+        throw new NotSendable('The WhatsApp number is not connected');
+      delay = await acquireMessageSlot(ix.wa.redis, fresh, ix.wa.env.WA_CAMPAIGN_MPS);
+    }
+    if (delay > 0) return { kind: 'later', delayMs: delay };
     const { waMessageId } = await ix.wa.meta.sendMessage(token, channel.phoneNumberId, payload);
     await update(m, 'queued', { waMessageId, error: null }, 'accepted', now);
     await trackCampaignMessage({ _id: m._id, status: 'accepted' });

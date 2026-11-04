@@ -1,5 +1,12 @@
 # P19 RUN — Open signup, reseller panel, bulk WhatsApp campaigns (T19.1 → T19.16) — One-Paste Autonomous Run Prompt
 
+> **Resume update — 5 Nov 2026:** Use [PHASE_19_CONTINUATION_PROMPT.md](PHASE_19_CONTINUATION_PROMPT.md)
+> for all remaining work and the owner's added requirements: three campaign types,
+> WhatsApp sender caps of **18 / 75 messages per second**, incoming/outgoing WhatsApp AI,
+> and number-aware templates/approval/call choices. It supersedes conflicting instructions
+> below, including the old STEP 0, 80 msg/sec default and historical checkpoint rules.
+> Preserve existing branches and uncommitted work; do not restart Phase 19.
+
 > **HOW TO RUN — ek hi paste, poora phase. Beech mein kahin nahi rukna.**
 >
 > **Ek paste = STEP 0 → Batch 1 → Batch 2 (checkpoint) → Batch 3 → Batch 4 → sign-off.** Checkpoint (`P19-B2-DONE`) pe sirf commit + 2 line progress note, aur **usi turn mein agla task**.
@@ -98,7 +105,7 @@ A customer not under this reseller → **404** `RESOURCE_NOT_FOUND` (never 403).
 - **Any approved template** of the number can be a campaign variant — MARKETING, UTILITY, AUTHENTICATION-free, and **`purpose: 'call_permission'` (consent)**. A consent variant sends through `permissions.request(actor, { channelId, contactId, forceTemplate: true, templateId, variables, clientId })` (Phase 18B) so Meta's limits, the permission row (`requested`) and `contacts.waCallPermission` stay right; its skip reasons add `already_allowed`, `declined_recently`, `meta_limit` (same meanings as the bulk permission run). Every send (any purpose) is priced, held and charged from the wallet by the existing template send path; `wallet_empty` auto-pauses.
 - Estimate: `{ recipients, skipped: Record<reason, n>, byMarket: [{ market, count, priceMicros }], totalMicros, walletAvailableMicros, enough }` (prices from the existing pricing, per category of each variant).
 - Jobs (queue `whatsapp`): **`whatsapp-campaign.dispatch`** (job id `wa-campaign-<id>`, batches of 100 claimed `pending → sending`), **`whatsapp-campaign.sweep`** every 5 min (scheduled starts, stale `sending` > 10 min → `pending`, `waiting_for_limit` → resume when the window opens, A/B winner decisions). Per recipient `clientId` = UUID v5-style from `wac:<campaignId>:<contactId>` (same helper style as `bulkClientId`).
-- Pacing: tier → unique recipients per rolling 24 h: `TIER_50` 50, `TIER_250` 250, `TIER_1K` 1,000, `TIER_2K` 2,000, `TIER_10K` 10,000, `TIER_100K` 100,000, `TIER_UNLIMITED` ∞ — minus business-initiated conversations the number already opened in the last 24 h; throughput env **`WA_CAMPAIGN_MPS`** (default 80); cap env **`WA_CAMPAIGN_MAX_RECIPIENTS`** (default 100,000).
+- Pacing: tier → unique recipients per rolling 24 h: `TIER_50` 50, `TIER_250` 250, `TIER_1K` 1,000, `TIER_2K` 2,000, `TIER_10K` 10,000, `TIER_100K` 100,000, `TIER_UNLIMITED` ∞ — minus business-initiated conversations the number already opened in the last 24 h. **Owner amendment (5 Nov):** per-number shared throughput cap **18 msg/sec** for Business App/coexistence, **75 msg/sec** for confirmed regular WhatsApp Cloud API; `WA_CAMPAIGN_MPS`, if retained, may only lower that cap. Follow the continuation prompt §1b for classification, atomic pacing, retries and multi-worker behavior. Cap env **`WA_CAMPAIGN_MAX_RECIPIENTS`** remains default 100,000.
 - Auto pause: wallet empty, template `PAUSED` / `DISABLED`, quality `RED`, channel not connected → `paused` + `pauseReason` + bell.
 - Replies: an inbound message from a recipient within **72 h** of `sentAt` sets `repliedAt` once (lookup by `{ accountId, contactId }` on recipients of running / completed campaigns of the last 3 days — indexed, one query per inbound).
 - Realtime **`whatsapp_campaign.progress`** (account level, throttled 1 / s per campaign) `{ campaignId, status, counters }` — WS events **+1 → 41**.
