@@ -248,9 +248,12 @@
             "type": ["object", "null"],
             "properties": {
               "impersonatorId": { "type": "string" },
-              "expiresAt": { "type": "string" }
+              "expiresAt": { "type": "string" },
+              "mode": { "type": "string", "enum": ["view", "act"] },
+              "kind": { "type": "string", "enum": ["superadmin", "reseller"] },
+              "returnTo": { "type": "string" }
             },
-            "required": ["impersonatorId", "expiresAt"]
+            "required": ["impersonatorId", "expiresAt", "mode", "kind", "returnTo"]
           }
         },
         "required": ["user", "account", "role", "permissions", "impersonation"]
@@ -272,9 +275,12 @@
             "type": ["object", "null"],
             "properties": {
               "impersonatorId": { "type": "string" },
-              "expiresAt": { "type": "string" }
+              "expiresAt": { "type": "string" },
+              "mode": { "type": "string", "enum": ["view", "act"] },
+              "kind": { "type": "string", "enum": ["superadmin", "reseller"] },
+              "returnTo": { "type": "string" }
             },
-            "required": ["impersonatorId", "expiresAt"]
+            "required": ["impersonatorId", "expiresAt", "mode", "kind", "returnTo"]
           }
         },
         "required": [

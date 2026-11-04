@@ -150,7 +150,15 @@ const sessionBody = {
   account: PublicAccountSchema,
   role: z.object({ key: z.string(), name: z.string() }),
   permissions: z.array(z.string()),
-  impersonation: z.object({ impersonatorId: z.string(), expiresAt: z.string() }).nullable(),
+  impersonation: z
+    .object({
+      impersonatorId: z.string(),
+      expiresAt: z.string(),
+      mode: z.enum(['view', 'act']),
+      kind: z.enum(['superadmin', 'reseller']),
+      returnTo: z.string(),
+    })
+    .nullable(),
 };
 
 export const AuthMeSchema = registry.register('AuthMe', z.object(sessionBody));
