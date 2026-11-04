@@ -5,7 +5,7 @@ import { created, noContent, ok } from '../../shared/http/envelope';
 import { apiKeyAuth } from '../../shared/middlewares/api-key-auth';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import {
-  blockWhenImpersonating,
+  blockSensitiveWhenImpersonating,
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
@@ -49,7 +49,7 @@ export const createApiKeysRouter = (): Router => {
     '/',
     authenticate(),
     requirePermission('apikeys.manage'),
-    blockWhenImpersonating(),
+    blockSensitiveWhenImpersonating(),
     ...handle({ body: CreateApiKeyBody }, async ({ body, req, res }) => {
       res.set('Cache-Control', 'no-store');
       created(res, await createApiKey(req, body));
@@ -59,7 +59,7 @@ export const createApiKeysRouter = (): Router => {
     '/:id',
     authenticate(),
     requirePermission('apikeys.manage'),
-    blockWhenImpersonating(),
+    blockSensitiveWhenImpersonating(),
     ...handle(
       { params: ApiKeyIdParams, body: UpdateApiKeyBody },
       async ({ params, body, req, res }) => {

@@ -29,6 +29,7 @@ import {
   startSession,
   type AuthSession,
   type AuthSessionBody,
+  returnToFor,
 } from './session';
 
 const invalidCredentials = () => new UnauthenticatedError('AUTH_INVALID_CREDENTIALS');
@@ -155,6 +156,9 @@ export const me = async (req: Request): Promise<AuthSessionBody> => {
       ? {
           impersonatorId: auth.impersonatorId,
           expiresAt: (auth.tokenExpiresAt ?? new Date()).toISOString(),
+          mode: auth.impersonationMode ?? 'view',
+          kind: auth.impersonatorKind ?? 'superadmin',
+          returnTo: returnToFor(auth.impersonatorKind ?? 'superadmin', auth.accountId),
         }
       : null,
   );

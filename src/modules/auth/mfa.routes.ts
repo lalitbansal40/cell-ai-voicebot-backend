@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
+import { blockSensitiveWhenImpersonating } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 import { registry } from '../../shared/openapi/registry';
 import { bearer, errors, ok as okResponse } from '../../shared/openapi/responses';
@@ -90,6 +91,11 @@ export const createMfaRouter = (): Router => {
   const router = Router();
   const limiter = createRateLimiter({ windowMs: 15 * 60 * 1000, limit: 30 });
   router.use(limiter, authenticate());
+  // Phase 19: never the owner's second step from a login-as session
+  router.use((req, res, next) => {
+    if (req.method === 'GET') return next();
+    blockSensitiveWhenImpersonating()(req, res, next);
+  });
   router.get('/status', async (req, res) => {
     ok(res, await mfaStatus(req));
   });

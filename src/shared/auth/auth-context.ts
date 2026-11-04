@@ -18,6 +18,9 @@ export interface AuthContext {
   platformRole?: 'superadmin';
   /** Superadmin acting as this user (impersonation token). */
   impersonatorId?: string;
+  /** Phase 19: login-as mode / who did it (only with `impersonatorId`). */
+  impersonationMode?: 'view' | 'act';
+  impersonatorKind?: 'superadmin' | 'reseller';
   /** Refresh family of the session (`imp_…` while impersonating). */
   sessionId?: string;
   tokenVersion?: number;

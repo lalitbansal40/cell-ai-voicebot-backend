@@ -57,7 +57,16 @@ export interface PublicAccount {
 export interface Impersonation {
   impersonatorId: string;
   expiresAt: string;
+  /** Phase 19: `view` = read-only, `act` = may work (sensitive actions still refused). */
+  mode: 'view' | 'act';
+  kind: 'superadmin' | 'reseller';
+  /** Where "Back" goes. */
+  returnTo: string;
 }
+
+/** Phase 19: where "Back" leads after a login-as session. */
+export const returnToFor = (kind: 'superadmin' | 'reseller', accountId: string): string =>
+  kind === 'reseller' ? `/reseller/customers/${accountId}` : `/admin/accounts/${accountId}`;
 
 export interface AuthSessionBody {
   user: PublicUser;
@@ -160,7 +169,12 @@ export const buildSessionBody = (
 export const accessTokenFor = async (
   user: Pick<UserDoc, '_id' | 'accountId' | 'roleId' | 'tokenVersion'>,
   sessionId: string,
-  options: { impersonatorId?: string; ttl?: string } = {},
+  options: {
+    impersonatorId?: string;
+    ttl?: string;
+    mode?: 'view' | 'act';
+    kind?: 'superadmin' | 'reseller';
+  } = {},
 ) =>
   signAccessToken(
     {
@@ -170,6 +184,8 @@ export const accessTokenFor = async (
       tv: user.tokenVersion,
       sid: sessionId,
       ...(options.impersonatorId ? { imp: options.impersonatorId } : {}),
+      ...(options.impersonatorId && options.mode ? { imm: options.mode } : {}),
+      ...(options.impersonatorId && options.kind ? { imk: options.kind } : {}),
     },
     options.ttl ?? getEnv().JWT_ACCESS_TTL,
   );

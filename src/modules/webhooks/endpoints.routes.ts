@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { accepted, created, noContent, ok } from '../../shared/http/envelope';
 import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
-import { blockWhenImpersonating } from '../../shared/middlewares/require-permission';
+import { blockSensitiveWhenImpersonating } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
 import type { WebhookRuntime } from './deliver.job';
@@ -32,7 +32,7 @@ export const createWebhookEndpointsRouter = (rt: WebhookRuntime): Router => {
   const router = Router();
   router.use(authenticate({ apiKeys: true }));
   const manage = access({ permission: 'integrations.manage', scope: 'webhooks:manage' });
-  const change = [manage, blockWhenImpersonating()];
+  const change = [manage, blockSensitiveWhenImpersonating()];
 
   router.get('/', manage, async (req, res) => {
     ok(res, await listEndpoints(req));
@@ -115,7 +115,7 @@ export const createWebhookDeliveriesRouter = (): Router => {
   router.post(
     '/:id/replay',
     access({ permission: 'integrations.manage', scope: 'webhooks:manage' }),
-    blockWhenImpersonating(),
+    blockSensitiveWhenImpersonating(),
     ...handle({ params: EndpointParams }, async ({ params, req, res }) => {
       accepted(res, await replayDelivery(req, params.id));
     }),

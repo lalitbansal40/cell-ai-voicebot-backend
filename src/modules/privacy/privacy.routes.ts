@@ -5,7 +5,7 @@ import { ProviderError } from '../../shared/errors/app-error';
 import { accepted, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import {
-  blockWhenImpersonating,
+  blockSensitiveWhenImpersonating,
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
@@ -38,7 +38,11 @@ export const createContactEraseRouter = ({
   jobs: ContactJobs;
 }): Router => {
   const router = Router();
-  const guard = [authenticate(), requirePermission('contacts.erase'), blockWhenImpersonating()];
+  const guard = [
+    authenticate(),
+    requirePermission('contacts.erase'),
+    blockSensitiveWhenImpersonating(),
+  ];
   router.post(
     '/bulk-erase',
     ...guard,
@@ -77,8 +81,8 @@ export const createAccountPrivacyRouter = ({
 }): Router => {
   const router = Router();
   const auth = authenticate({ allowSuspended: true });
-  const exporting = [auth, requirePermission('account.export'), blockWhenImpersonating()];
-  const deleting = [auth, requirePermission('account.delete'), blockWhenImpersonating()];
+  const exporting = [auth, requirePermission('account.export'), blockSensitiveWhenImpersonating()];
+  const deleting = [auth, requirePermission('account.delete'), blockSensitiveWhenImpersonating()];
   router.post(
     '/export',
     ...exporting,

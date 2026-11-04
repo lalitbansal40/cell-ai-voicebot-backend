@@ -31,7 +31,13 @@ export interface TestAccount {
 /** Access token for a user document (same claims as a real login). */
 export const tokenFor = async (
   user: Pick<UserDoc, '_id' | 'accountId' | 'roleId' | 'tokenVersion'>,
-  extra: { sid?: string; imp?: string; ttl?: string } = {},
+  extra: {
+    sid?: string;
+    imp?: string;
+    ttl?: string;
+    imm?: 'view' | 'act';
+    imk?: 'superadmin' | 'reseller';
+  } = {},
 ): Promise<string> =>
   (
     await signAccessToken(
@@ -42,6 +48,8 @@ export const tokenFor = async (
         tv: user.tokenVersion,
         sid: extra.sid ?? `test_${uid()}`,
         ...(extra.imp ? { imp: extra.imp } : {}),
+        ...(extra.imm ? { imm: extra.imm } : {}),
+        ...(extra.imk ? { imk: extra.imk } : {}),
       },
       extra.ttl ?? '15m',
     )

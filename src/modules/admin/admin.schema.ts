@@ -27,6 +27,10 @@ export const ListAccountsQuery = z.strictObject({
 });
 
 export const AccountIdParams = z.strictObject({ id: ObjectIdSchema });
+/** Phase 19: `view` = read-only (today), `act` = may work; sensitive actions refused in both. */
+export const ImpersonateBody = z
+  .strictObject({ mode: z.enum(['view', 'act']).default('view') })
+  .default({ mode: 'view' });
 
 /** A customer account made by a superadmin, whose owner can sign in with this password at once. */
 export const CreateAccountBody = z.strictObject({

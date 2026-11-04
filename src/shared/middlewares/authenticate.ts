@@ -90,7 +90,13 @@ export const authenticate = (
       roleKey: role.key,
       permissions,
       ...(superadmin ? { platformRole: 'superadmin' as const } : {}),
-      ...(claims.imp ? { impersonatorId: claims.imp } : {}),
+      ...(claims.imp
+        ? {
+            impersonatorId: claims.imp,
+            impersonationMode: claims.imm ?? ('view' as const),
+            impersonatorKind: claims.imk ?? ('superadmin' as const),
+          }
+        : {}),
       sessionId: claims.sid,
       tokenVersion: user.tokenVersion,
       ...(claims.exp ? { tokenExpiresAt: new Date(claims.exp * 1000) } : {}),

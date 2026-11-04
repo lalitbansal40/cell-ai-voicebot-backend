@@ -7,7 +7,7 @@ import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { originCheck } from '../../shared/middlewares/origin-check';
 import { createRateLimiter, type RateLimiterOptions } from '../../shared/middlewares/rate-limit';
-import { blockWhenImpersonating } from '../../shared/middlewares/require-permission';
+import { blockSensitiveWhenImpersonating } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 import { getSignupSettings } from '../account/kinds';
 import { AcceptInviteBody, InviteTokenQuery } from '../team/team.schema';
@@ -107,10 +107,10 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
   router.post(
     '/change-password',
     authenticate(),
-    blockWhenImpersonating(),
+    blockSensitiveWhenImpersonating(),
     ...handle({ body: ChangePasswordBody }, changePasswordHandler),
   );
-  router.post('/logout-all', authenticate(), blockWhenImpersonating(), logoutAllHandler);
+  router.post('/logout-all', authenticate(), blockSensitiveWhenImpersonating(), logoutAllHandler);
   router.get('/me', authenticate(), meHandler);
   router.patch(
     '/me',
@@ -123,6 +123,7 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
   router.delete(
     '/sessions/:id',
     authenticate(),
+    blockSensitiveWhenImpersonating(),
     ...handle({ params: SessionIdParams }, revokeSessionHandler),
   );
   return router;

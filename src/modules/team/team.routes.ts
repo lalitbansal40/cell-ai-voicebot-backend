@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { created, noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import {
+  blockSensitiveWhenImpersonating,
   blockWhenImpersonating,
   requirePermission,
 } from '../../shared/middlewares/require-permission';
@@ -81,7 +82,7 @@ export const createTeamRouter = (): Router => {
   );
   router.post(
     '/transfer-ownership',
-    blockWhenImpersonating(),
+    blockSensitiveWhenImpersonating(),
     ...handle({ body: TransferOwnershipBody }, async ({ body, req, res }) => {
       ok(res, await transferOwnership(req, body));
     }),

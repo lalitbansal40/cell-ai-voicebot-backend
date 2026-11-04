@@ -4,7 +4,7 @@ import { tenantFilter } from '../../shared/auth/tenant';
 import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import {
-  blockWhenImpersonating,
+  blockSensitiveWhenImpersonating,
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
@@ -37,7 +37,7 @@ export const createWalletRouter = (deps: TopupRouterDeps): Router => {
   router.patch(
     '/settings',
     requirePermission('wallet.topup'),
-    blockWhenImpersonating(),
+    blockSensitiveWhenImpersonating(),
     ...handle({ body: WalletSettingsBody }, async ({ body, req, res }) => {
       ok(res, await updateSettings(req, body));
     }),

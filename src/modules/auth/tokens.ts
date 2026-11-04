@@ -20,6 +20,10 @@ export interface AccessClaims {
   sid: string;
   /** impersonating superadmin's userId */
   imp?: string;
+  /** Phase 19: login-as mode (`view` = read-only, `act` = may work; absent = view). */
+  imm?: 'view' | 'act';
+  /** Phase 19: who logged in as (absent = superadmin). */
+  imk?: 'superadmin' | 'reseller';
   /** expiry (unix seconds) — set by verifyAccessToken */
   exp?: number;
 }
@@ -59,7 +63,7 @@ export const verifyAccessToken = async (token: string): Promise<AccessClaims> =>
       audience: ACCESS_AUDIENCE,
       clockTolerance: 5,
     });
-    const { sub, acc, rid, tv, sid, imp, exp } = payload as Record<string, unknown>;
+    const { sub, acc, rid, tv, sid, imp, imm, imk, exp } = payload as Record<string, unknown>;
     if (
       !isString(sub) ||
       !isString(acc) ||
@@ -76,6 +80,8 @@ export const verifyAccessToken = async (token: string): Promise<AccessClaims> =>
       tv,
       sid,
       ...(isString(imp) ? { imp } : {}),
+      ...(imm === 'view' || imm === 'act' ? { imm } : {}),
+      ...(imk === 'superadmin' || imk === 'reseller' ? { imk } : {}),
       ...(typeof exp === 'number' ? { exp } : {}),
     };
   } catch (err) {

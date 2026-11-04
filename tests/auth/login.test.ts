@@ -259,6 +259,9 @@ describe('GET /auth/me', () => {
     expect(viewing.body.data.impersonation).toEqual({
       impersonatorId: 'aaaaaaaaaaaaaaaaaaaaaaaa',
       expiresAt: expect.stringMatching(/^\d{4}-/),
+      mode: 'view',
+      kind: 'superadmin',
+      returnTo: `/admin/accounts/${user.accountId.toString()}`,
     });
     expect((await request(app).get('/api/v1/auth/me')).status).toBe(401);
   });

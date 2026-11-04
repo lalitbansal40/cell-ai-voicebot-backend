@@ -4,7 +4,7 @@ import { GST_STATES } from '../../shared/gst-states';
 import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import {
-  blockWhenImpersonating,
+  blockSensitiveWhenImpersonating,
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
@@ -32,7 +32,7 @@ export const createBillingRouter = (): Router => {
   router.put(
     '/profile',
     requirePermission('wallet.topup'),
-    blockWhenImpersonating(),
+    blockSensitiveWhenImpersonating(),
     ...handle({ body: BillingProfileBody }, async ({ body, req, res }) => {
       ok(res, await saveBillingProfile(req, body));
     }),

@@ -10,7 +10,7 @@ import { created, ok } from '../../shared/http/envelope';
 import { idempotency } from '../../shared/middlewares/idempotency';
 import { createRateLimiter, type RateLimiterOptions } from '../../shared/middlewares/rate-limit';
 import {
-  blockWhenImpersonating,
+  blockSensitiveWhenImpersonating,
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
@@ -51,7 +51,7 @@ export const createTopupsRouter = ({
   router.post(
     '/',
     requirePermission('wallet.topup'),
-    blockWhenImpersonating(),
+    blockSensitiveWhenImpersonating(),
     idempotency({ scope: (req) => req.auth?.accountId }),
     ordersPerHour,
     ...handle({ body: CreateTopupBody }, async ({ body, req, res }) => {
@@ -76,7 +76,7 @@ export const createTopupsRouter = ({
   router.post(
     '/:id/verify',
     requirePermission('wallet.topup'),
-    blockWhenImpersonating(),
+    blockSensitiveWhenImpersonating(),
     ...handle(
       { params: TopupIdParams, body: VerifyTopupBody },
       async ({ params, body, req, res }) => {
@@ -88,7 +88,7 @@ export const createTopupsRouter = ({
     router.post(
       '/:id/fake-complete',
       requirePermission('wallet.topup'),
-      blockWhenImpersonating(),
+      blockSensitiveWhenImpersonating(),
       ...handle(
         { params: TopupIdParams, body: FakeCompleteBody },
         async ({ params, body, req, res }) => {

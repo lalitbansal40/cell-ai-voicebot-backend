@@ -17,7 +17,6 @@ import {
   CampaignModel,
   type CampaignDoc,
 } from '../../db/models/campaign.model';
-import { RoleModel, type RoleDoc } from '../../db/models/role.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
 import { WalletModel } from '../../db/models/wallet.model';
 import { withTransaction } from '../../db/transaction';
@@ -27,17 +26,10 @@ import { ConflictError, NotFoundError, ValidationError } from '../../shared/erro
 import { uniqueSlug } from '../account/slug';
 import type { AuditAction } from '../audit/audit-actions';
 import { recordAudit } from '../audit/audit.service';
-import { IMPERSONATION_TTL } from '../auth/auth.constants';
-import { randomToken } from '../auth/hmac';
+import { startLoginAs, type LoginAsMode } from '../auth/login-as';
 import { hashPassword, validatePasswordPolicy } from '../auth/password';
 import { revokeAllForUser } from '../auth/refresh.service';
-import {
-  accessTokenFor,
-  buildSessionBody,
-  toPublicAccount,
-  toPublicUser,
-  type AuthSession,
-} from '../auth/session';
+import { toPublicAccount, toPublicUser, type AuthSession } from '../auth/session';
 import { resumeCampaignDoc } from '../campaigns/campaigns.service';
 import { pauseAccountCampaigns } from '../campaigns/jobs';
 import { cancelDeletion } from '../privacy/account-delete.service';
@@ -420,40 +412,17 @@ export const resumeAdminPaused = async (req: Request, id: string, campaignId: st
  * Superadmin → 30-minute access token of the account owner with the `imp`
  * claim. No refresh token: when it expires the impersonation ends.
  */
-export const impersonate = async (req: Request, id: string): Promise<AuthSession> => {
-  const auth = requireAuth(req);
-  const account = await findCustomerAccount(id);
-  const owner = account.ownerId ? await UserModel.findById(account.ownerId).lean<UserDoc>() : null;
-  if (!owner || owner.status !== 'active' || !owner.emailVerifiedAt) {
-    throw new ConflictError(
-      'CONFLICT_INVALID_STATE',
-      'This account has no active owner to view as.',
-    );
-  }
-  const role = await RoleModel.findOne({
-    _id: owner.roleId,
-    accountId: account._id,
-  }).lean<RoleDoc>();
-  if (!role) throw new NotFoundError();
-  const { token, expiresAt } = await accessTokenFor(owner, `imp_${randomToken(9)}`, {
-    impersonatorId: auth.userId,
-    ttl: IMPERSONATION_TTL,
+export const impersonate = async (
+  req: Request,
+  id: string,
+  mode: LoginAsMode = 'view',
+): Promise<AuthSession> =>
+  startLoginAs(req, await findCustomerAccount(id), {
+    mode,
+    kind: 'superadmin',
+    action: 'admin.impersonation_started',
   });
-  await auditBothSides(req, account, 'admin.impersonation_started', {
-    ownerId: owner._id.toString(),
-    expiresAt: expiresAt.toISOString(),
-  });
-  return {
-    accessToken: token,
-    expiresIn: Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 1000)),
-    ...buildSessionBody(
-      { user: owner, role, account },
-      { impersonatorId: auth.userId ?? '', expiresAt: expiresAt.toISOString() },
-    ),
-  };
-};
 
-/** Called with the impersonation token itself. */
 export const stopImpersonation = async (req: Request): Promise<void> => {
   const auth = requireAuth(req);
   if (!auth.impersonatorId) {
@@ -462,10 +431,18 @@ export const stopImpersonation = async (req: Request): Promise<void> => {
   const impersonator = await UserModel.findById(auth.impersonatorId).lean<UserDoc>();
   const account = await AccountModel.findById(auth.accountId).lean<AccountDoc>();
   if (!account) throw new NotFoundError();
-  const actor = { type: 'user' as const, id: auth.impersonatorId, platform: true };
+  const reseller = auth.impersonatorKind === 'reseller';
+  const actor = {
+    type: 'user' as const,
+    id: auth.impersonatorId,
+    ...(reseller ? {} : { platform: true }),
+  };
   const entry = {
     actor,
-    action: 'admin.impersonation_stopped' as const,
+    action: reseller
+      ? ('reseller.login_as_stopped' as const)
+      : ('admin.impersonation_stopped' as const),
+    ...(reseller ? { meta: { customerId: auth.accountId } } : {}),
     target: { type: 'account', id: auth.accountId },
     ip: req.ip ?? null,
   };

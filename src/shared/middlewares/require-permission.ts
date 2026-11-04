@@ -42,8 +42,22 @@ export const requirePlatformAdmin = (): RequestHandler => (req, _res, next) => {
   next();
 };
 
-/** Sensitive actions a superadmin may not do while viewing as a user. */
+/**
+ * Changes refused while **viewing** as a user (login-as `view`). A login-as `act` session
+ * (Phase 19) may do them; sensitive ones use `blockSensitiveWhenImpersonating`.
+ */
 export const blockWhenImpersonating = (): RequestHandler => (req, _res, next) => {
+  if (req.auth?.impersonatorId && req.auth.impersonationMode !== 'act') {
+    throw new AppError('AUTH_IMPERSONATION_BLOCKED');
+  }
+  next();
+};
+
+/**
+ * Phase 19: refused in **every** login-as session (view and act) — the owner's password, MFA
+ * and sessions, API keys, ownership, account export / delete / erase, money and billing.
+ */
+export const blockSensitiveWhenImpersonating = (): RequestHandler => (req, _res, next) => {
   if (req.auth?.impersonatorId) throw new AppError('AUTH_IMPERSONATION_BLOCKED');
   next();
 };

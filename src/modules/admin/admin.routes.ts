@@ -21,6 +21,7 @@ import { createAdminBillingRouter } from './admin-billing.routes';
 import {
   AccountCampaignParams,
   AccountIdParams,
+  ImpersonateBody,
   AccountLimitsBody,
   ApiLimitsBody,
   CreateAccountBody,
@@ -215,10 +216,13 @@ export const createAdminRouter = ({
   router.post(
     '/accounts/:id/impersonate',
     fresh,
-    ...handle({ params: AccountIdParams }, async ({ params, req, res }) => {
-      res.set('Cache-Control', 'no-store');
-      ok(res, await impersonate(req, params.id));
-    }),
+    ...handle(
+      { params: AccountIdParams, body: ImpersonateBody },
+      async ({ params, body, req, res }) => {
+        res.set('Cache-Control', 'no-store');
+        ok(res, await impersonate(req, params.id, body.mode));
+      },
+    ),
   );
   router.use(createAdminBillingRouter({ env }));
   router.use(createAdminAiRouter({ env, provider }));
