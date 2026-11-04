@@ -7474,6 +7474,271 @@
           "lowBalanceCustomers"
         ]
       },
+      "WhatsAppCampaign": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "channelId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "scheduled",
+              "running",
+              "waiting_for_limit",
+              "paused",
+              "completed",
+              "stopped",
+              "failed"
+            ]
+          },
+          "pauseReason": {
+            "type": ["string", "null"],
+            "enum": ["user", "wallet_empty", "template_paused", "quality_red", "channel_down", null]
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": { "type": "string", "enum": ["A", "B", "C"] },
+                "templateId": { "type": "string" },
+                "splitPct": { "type": "number" }
+              },
+              "required": ["key", "templateId", "splitPct"]
+            }
+          },
+          "abWinner": {
+            "type": ["object", "null"],
+            "properties": {
+              "metric": { "type": "string", "enum": ["read", "reply"] },
+              "afterHours": { "type": "number" },
+              "decidedAt": { "type": ["string", "null"] },
+              "winner": { "type": ["string", "null"], "enum": ["A", "B", "C", null] }
+            },
+            "required": ["metric", "afterHours", "decidedAt", "winner"]
+          },
+          "variables": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["field", "contact.name", "contact.phone", "static"]
+                },
+                "value": { "type": ["string", "null"] }
+              },
+              "required": ["kind", "value"]
+            }
+          },
+          "audience": {
+            "type": "object",
+            "properties": {
+              "listIds": { "type": "array", "items": { "type": "string" } },
+              "segmentId": { "type": ["string", "null"] },
+              "tags": {
+                "type": ["object", "null"],
+                "properties": {
+                  "values": { "type": "array", "items": { "type": "string" } },
+                  "mode": { "type": "string", "enum": ["any", "all"] }
+                },
+                "required": ["values", "mode"]
+              },
+              "contactIds": { "type": "array", "items": { "type": "string" } },
+              "csvUploadId": { "type": ["string", "null"] }
+            },
+            "required": ["listIds", "segmentId", "tags", "contactIds", "csvUploadId"]
+          },
+          "excludeRecentDays": { "type": "number" },
+          "schedule": {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string", "enum": ["now", "at"] },
+              "at": { "type": ["string", "null"] }
+            },
+            "required": ["kind", "at"]
+          },
+          "counters": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "number" },
+              "queued": { "type": "number" },
+              "sent": { "type": "number" },
+              "delivered": { "type": "number" },
+              "read": { "type": "number" },
+              "replied": { "type": "number" },
+              "failedTotal": { "type": "number" },
+              "skippedTotal": { "type": "number" },
+              "skipped": { "type": "object", "additionalProperties": { "type": "number" } },
+              "failed": { "type": "object", "additionalProperties": { "type": "number" } }
+            },
+            "required": [
+              "total",
+              "queued",
+              "sent",
+              "delivered",
+              "read",
+              "replied",
+              "failedTotal",
+              "skippedTotal",
+              "skipped",
+              "failed"
+            ]
+          },
+          "cost": {
+            "type": "object",
+            "properties": {
+              "estimateMicros": { "type": "number" },
+              "chargedMicros": { "type": "number" }
+            },
+            "required": ["estimateMicros", "chargedMicros"]
+          },
+          "nextBatchAt": { "type": ["string", "null"] },
+          "startedAt": { "type": ["string", "null"] },
+          "finishedAt": { "type": ["string", "null"] },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "channelId",
+          "status",
+          "pauseReason",
+          "variants",
+          "abWinner",
+          "variables",
+          "audience",
+          "excludeRecentDays",
+          "schedule",
+          "counters",
+          "cost",
+          "nextBatchAt",
+          "startedAt",
+          "finishedAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "WhatsAppCampaignEstimate": {
+        "type": "object",
+        "properties": {
+          "recipients": { "type": "number" },
+          "byMarket": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "market": { "type": "string" },
+                "count": { "type": "number" },
+                "priceMicros": { "type": "number" }
+              },
+              "required": ["market", "count", "priceMicros"]
+            }
+          },
+          "totalMicros": { "type": "number" },
+          "walletAvailableMicros": { "type": "number" },
+          "enough": { "type": "boolean" },
+          "note": { "type": "string" }
+        },
+        "required": [
+          "recipients",
+          "byMarket",
+          "totalMicros",
+          "walletAvailableMicros",
+          "enough",
+          "note"
+        ]
+      },
+      "WhatsAppCampaignRecipient": {
+        "type": "object",
+        "properties": {
+          "contactId": { "type": "string" },
+          "name": { "type": ["string", "null"] },
+          "phone": { "type": ["string", "null"], "description": "Masked" },
+          "variant": { "type": "string", "enum": ["A", "B", "C"] },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "sending", "sent", "delivered", "read", "failed", "skipped"]
+          },
+          "skipReason": { "type": ["string", "null"] },
+          "errorCode": { "type": ["number", "null"] },
+          "sentAt": { "type": ["string", "null"] },
+          "repliedAt": { "type": ["string", "null"] }
+        },
+        "required": [
+          "contactId",
+          "name",
+          "phone",
+          "variant",
+          "status",
+          "skipReason",
+          "errorCode",
+          "sentAt",
+          "repliedAt"
+        ]
+      },
+      "WhatsAppCampaignReport": {
+        "type": "object",
+        "properties": {
+          "funnel": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "number" },
+              "skipped": { "type": "number" },
+              "sent": { "type": "number" },
+              "delivered": { "type": "number" },
+              "read": { "type": "number" },
+              "replied": { "type": "number" },
+              "failed": { "type": "number" }
+            },
+            "required": ["total", "skipped", "sent", "delivered", "read", "replied", "failed"]
+          },
+          "cost": {
+            "type": "object",
+            "properties": {
+              "estimateMicros": { "type": "number" },
+              "chargedMicros": { "type": "number" }
+            },
+            "required": ["estimateMicros", "chargedMicros"]
+          },
+          "skippedByReason": { "type": "object", "additionalProperties": { "type": "number" } },
+          "failedByCode": { "type": "object", "additionalProperties": { "type": "number" } },
+          "perDay": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "day": { "type": "string" }, "sent": { "type": "number" } },
+              "required": ["day", "sent"]
+            }
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": { "type": "string" },
+                "sent": { "type": "number" },
+                "read": { "type": "number" },
+                "replied": { "type": "number" }
+              },
+              "required": ["key", "sent", "read", "replied"]
+            }
+          },
+          "winner": { "type": ["string", "null"], "enum": ["A", "B", "C", null] }
+        },
+        "required": [
+          "funnel",
+          "cost",
+          "skippedByReason",
+          "failedByCode",
+          "perDay",
+          "variants",
+          "winner"
+        ]
+      },
       "WebhookEndpoint": {
         "type": "object",
         "properties": {
@@ -31432,6 +31697,896 @@
                       "required": ["customersCanTopUp"],
                       "additionalProperties": false
                     }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns": {
+      "get": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "WhatsApp campaigns (whatsapp.campaigns.read)",
+        "parameters": [
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "scheduled",
+                "running",
+                "waiting_for_limit",
+                "paused",
+                "completed",
+                "stopped",
+                "failed"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/WhatsAppCampaign" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Create a draft campaign (whatsapp.campaigns.write; 30 / h)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "variants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": { "type": "string", "enum": ["A", "B", "C"] },
+                        "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "splitPct": { "type": "integer", "minimum": 1, "maximum": 100 }
+                      },
+                      "required": ["key", "templateId", "splitPct"],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 3
+                  },
+                  "abWinner": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "metric": { "type": "string", "enum": ["read", "reply"] },
+                      "afterHours": { "type": "integer", "minimum": 1, "maximum": 72 }
+                    },
+                    "required": ["metric", "afterHours"],
+                    "additionalProperties": false
+                  },
+                  "variables": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["field", "contact.name", "contact.phone", "static"]
+                        },
+                        "value": { "type": ["string", "null"], "maxLength": 1024 }
+                      },
+                      "required": ["kind"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "audience": {
+                    "type": "object",
+                    "properties": {
+                      "listIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 50
+                      },
+                      "segmentId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
+                      "tags": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "values": {
+                            "type": "array",
+                            "items": { "type": "string", "minLength": 1, "maxLength": 50 },
+                            "maxItems": 50
+                          },
+                          "mode": { "type": "string", "enum": ["any", "all"] }
+                        },
+                        "required": ["values", "mode"],
+                        "additionalProperties": false
+                      },
+                      "contactIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 5000
+                      },
+                      "csvUploadId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "additionalProperties": false
+                  },
+                  "excludeRecentDays": { "type": "integer", "minimum": 0, "maximum": 90 },
+                  "schedule": {
+                    "type": "object",
+                    "properties": {
+                      "kind": { "type": "string", "enum": ["now", "at"] },
+                      "at": { "type": ["string", "null"], "format": "date-time" }
+                    },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["name", "channelId", "variants", "audience"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCampaign" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}": {
+      "get": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "One campaign with live counters",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCampaign" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Edit a draft or scheduled campaign (409 WA_CAMPAIGN_NOT_EDITABLE after start)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "variants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": { "type": "string", "enum": ["A", "B", "C"] },
+                        "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "splitPct": { "type": "integer", "minimum": 1, "maximum": 100 }
+                      },
+                      "required": ["key", "templateId", "splitPct"],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 3
+                  },
+                  "abWinner": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "metric": { "type": "string", "enum": ["read", "reply"] },
+                      "afterHours": { "type": "integer", "minimum": 1, "maximum": 72 }
+                    },
+                    "required": ["metric", "afterHours"],
+                    "additionalProperties": false
+                  },
+                  "variables": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": ["field", "contact.name", "contact.phone", "static"]
+                        },
+                        "value": { "type": ["string", "null"], "maxLength": 1024 }
+                      },
+                      "required": ["kind"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "audience": {
+                    "type": "object",
+                    "properties": {
+                      "listIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 50
+                      },
+                      "segmentId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
+                      "tags": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "values": {
+                            "type": "array",
+                            "items": { "type": "string", "minLength": 1, "maxLength": 50 },
+                            "maxItems": 50
+                          },
+                          "mode": { "type": "string", "enum": ["any", "all"] }
+                        },
+                        "required": ["values", "mode"],
+                        "additionalProperties": false
+                      },
+                      "contactIds": {
+                        "type": "array",
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 5000
+                      },
+                      "csvUploadId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "additionalProperties": false
+                  },
+                  "excludeRecentDays": { "type": "integer", "minimum": 0, "maximum": 90 },
+                  "schedule": {
+                    "type": "object",
+                    "properties": {
+                      "kind": { "type": "string", "enum": ["now", "at"] },
+                      "at": { "type": ["string", "null"], "format": "date-time" }
+                    },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["name", "channelId", "variants", "audience"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCampaign" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Delete a draft",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": { "description": "No content" },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}/estimate": {
+      "post": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Cost by market × template price, and the wallet check",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCampaignEstimate" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}/start": {
+      "post": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Snapshot the audience, check the wallet, send now or at the scheduled time (Idempotency-Key)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCampaign" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}/pause": {
+      "post": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Pause (sends stop between batches)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCampaign" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}/resume": {
+      "post": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Resume a paused campaign",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCampaign" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}/stop": {
+      "post": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Stop for good: the rest are skipped `stopped`",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCampaign" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}/retry-failed": {
+      "post": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Send again to failed recipients with a retryable error",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "retried": { "type": "number" } },
+                      "required": ["retried"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}/recipients": {
+      "get": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Recipients with status (phones masked)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "sending", "sent", "delivered", "read", "failed", "skipped"]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/WhatsAppCampaignRecipient" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/OffsetPageMeta" }
+                  },
+                  "required": ["success", "data", "meta"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}/export": {
+      "get": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "CSV of every recipient (phones only with contacts.export)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV",
+            "content": { "text/csv": { "schema": { "type": "string" } } }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp-campaigns/{id}/report": {
+      "get": {
+        "tags": ["WhatsApp campaigns"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Funnel, cost, errors, per day, variants",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCampaignReport" }
                   },
                   "required": ["success", "data"]
                 }

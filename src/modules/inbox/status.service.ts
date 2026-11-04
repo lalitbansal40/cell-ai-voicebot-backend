@@ -11,6 +11,7 @@ import { stringEq } from '../../db/partial-match';
 import { getLogger } from '../../shared/logger';
 import { recordTemplateUsage } from '../templates/template.service';
 import { publishMessageStatus } from '../webhooks/publish';
+import { trackCampaignMessage } from '../whatsapp-campaigns/tracking';
 
 import { applyChannelEffect } from './channel-effects';
 import type { InboxContext } from './context';
@@ -122,6 +123,8 @@ const applyOne = async (
     if (conv) emitConversation(conv);
     await applyChannelEffect(ix.wa, channel._id, effect);
     await bill();
+    // Phase 19: WhatsApp campaign counters follow the statuses
+    if (updated.direction === 'out') await trackCampaignMessage(updated);
     // Phase 11: template usage counters follow the statuses
     if (
       updated.template &&

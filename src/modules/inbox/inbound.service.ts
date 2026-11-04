@@ -14,6 +14,7 @@ import { stringEq } from '../../db/partial-match';
 import { getLogger } from '../../shared/logger';
 import { publishMessageReceived } from '../webhooks/publish';
 import { WebhookSchemaError } from '../whatsapp/webhook-handlers';
+import { trackCampaignReply } from '../whatsapp-campaigns/tracking';
 
 import { findOrCreateWhatsAppContact } from './contacts';
 import { inboxNow, type InboxContext } from './context';
@@ -138,6 +139,9 @@ export const processCustomerMessage = async (
     conversation = (await touchLastMessage(conversation._id, stored)) ?? conversation;
   }
   if (n.mediaId) await ix.jobs.enqueueMediaDownload(stored._id.toString());
+  // Phase 19: a reply within 72 h of a WhatsApp campaign message counts once
+  if (type !== 'reaction')
+    await trackCampaignReply({ accountId: channel.accountId, contactId: contact._id, at });
   const permission = stored.interactive?.callPermission;
   if (ix.calling && stored.interactive?.kind === 'call_permission_reply' && permission) {
     await ix.calling.onPermissionReply({

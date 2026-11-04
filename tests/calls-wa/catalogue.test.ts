@@ -184,6 +184,25 @@ describe('Phase 12 catalogue', () => {
     expect(has('calls.trigger')).toEqual([true, true, true, true, false]);
   });
 
+  it('Phase 19: catalogue counts at the P19-DONE targets', () => {
+    // prompt §1 literals: errors 115, audit 194, notifications 45, permissions 49, ledger 12, WS 41
+    expect(PERMISSIONS).toHaveLength(49);
+    expect(LEDGER_TYPES).toHaveLength(12);
+    expect(WS_EVENT_TYPES).toHaveLength(41);
+    expect(PERMISSIONS).toEqual(
+      expect.arrayContaining([
+        'reseller.read',
+        'reseller.manage',
+        'whatsapp.campaigns.read',
+        'whatsapp.campaigns.write',
+      ]),
+    );
+    expect(LEDGER_TYPES).toEqual(
+      expect.arrayContaining(['credit_transfer_out', 'credit_transfer_in']),
+    );
+    expect(WS_EVENT_TYPES).toEqual(expect.arrayContaining(['whatsapp_campaign.progress']));
+  });
+
   it('job names, ids (no `:`) and schedules', () => {
     expect(CALLING_JOBS).toEqual({
       permissionBulk: 'call-permission-bulk',

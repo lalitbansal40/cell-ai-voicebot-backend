@@ -38,6 +38,8 @@ export const EXPORT_STORES = [
   'flowAudio',
   'campaigns',
   'campaignContacts',
+  'whatsappCampaigns',
+  'whatsappCampaignRecipients',
   'conversations',
   'messages',
   'conversationSummaries',

@@ -74,6 +74,15 @@ import {
   createCallingHooks,
   createInboxCallingHook,
 } from '../../../modules/whatsapp-calling/webhooks';
+import type { WaCampaignJobs } from '../../../modules/whatsapp-campaigns/campaigns.service';
+import { dispatchCampaign, sweepCampaigns } from '../../../modules/whatsapp-campaigns/dispatch';
+import {
+  queueWaCampaignJobs,
+  WA_CAMPAIGN_JOBS,
+  WA_CAMPAIGN_SWEEP_CRON,
+  WA_CAMPAIGN_SWEEP_JOB_ID,
+  type WaCampaignDispatchData,
+} from '../../../modules/whatsapp-campaigns/jobs';
 import type { StorageProvider } from '../../storage';
 import { QUEUES } from '../names';
 import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-factory';
@@ -90,7 +99,13 @@ export interface CallingContext {
  * (Phase 10, with an inbox context) the inbox jobs.
  */
 export const processWhatsAppJob =
-  (h: HandlerContext, ix?: InboxContext, tx?: TemplateContext, cx?: CallingContext) =>
+  (
+    h: HandlerContext,
+    ix?: InboxContext,
+    tx?: TemplateContext,
+    cx?: CallingContext,
+    wx?: { jobs: WaCampaignJobs },
+  ) =>
   async (job: Job, token?: string): Promise<unknown> => {
     const finalAttempt = () => job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
     if (job.name === WEBHOOK_PROCESS_JOB) {
@@ -125,6 +140,19 @@ export const processWhatsAppJob =
       if (job.name === TEMPLATE_DAILY_SYNC_JOB) return queueDailyTemplateSyncs(tx);
     }
     if (ix) {
+      // Phase 19: WhatsApp campaigns
+      if (job.name === WA_CAMPAIGN_JOBS.dispatch) {
+        const { campaignId } = job.data as WaCampaignDispatchData;
+        return dispatchCampaign(
+          { ix, ...(cx?.permissions ? { permissions: cx.permissions } : {}) },
+          campaignId,
+        );
+      }
+      if (job.name === WA_CAMPAIGN_JOBS.sweep) {
+        const due = await sweepCampaigns();
+        for (const id of due) await wx?.jobs.enqueueDispatch(id);
+        return { dispatched: due.length };
+      }
       if (job.name === INBOX_JOBS.mediaDownload) {
         const { messageId } = job.data as MessageJobData;
         return {
@@ -212,7 +240,8 @@ export const startWhatsAppWorker = async (
         token: (id) => service.getChannelToken(id),
       }),
     });
-  const worker = createWorker(QUEUES.whatsapp, processWhatsAppJob(h, ix, tx, cx), {
+  const wx = { jobs: queueWaCampaignJobs(queue) };
+  const worker = createWorker(QUEUES.whatsapp, processWhatsAppJob(h, ix, tx, cx, wx), {
     ...deps,
     concurrency: WHATSAPP_LIMITS.workerConcurrency,
   });
@@ -226,6 +255,12 @@ export const startWhatsAppWorker = async (
     TEMPLATE_DAILY_SYNC_JOB,
     { pattern: TEMPLATE_DAILY_SYNC_CRON, tz: 'UTC' },
     { name: TEMPLATE_DAILY_SYNC_JOB },
+  );
+  // Phase 19: WhatsApp campaigns — scheduled starts, stale claims, tier waits, A/B (every 5 min)
+  await queue.upsertJobScheduler(
+    WA_CAMPAIGN_SWEEP_JOB_ID,
+    { pattern: WA_CAMPAIGN_SWEEP_CRON, tz: 'UTC' },
+    { name: WA_CAMPAIGN_JOBS.sweep },
   );
   // Phase 12: permission expiry (hourly) + Meta's call settings (daily, 04:20 IST)
   for (const sched of CALLING_SCHEDULES) {

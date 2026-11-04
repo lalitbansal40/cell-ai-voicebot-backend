@@ -27,6 +27,7 @@ import { templatePayloadFor } from '../templates/send.service';
 import { historyPush, recordTemplateUsage } from '../templates/template.service';
 import { SYSTEM_ACTOR } from '../whatsapp/channel-status';
 import { openSecret } from '../whatsapp/context';
+import { trackCampaignMessage } from '../whatsapp-campaigns/tracking';
 
 import { applyChannelEffect } from './channel-effects';
 import { inboxNow, type InboxContext } from './context';
@@ -317,6 +318,7 @@ const fail = async (
       pricing: null,
     });
     if (m.template) await recordTemplateUsage(m.template.templateId, 'failed', now);
+    await trackCampaignMessage({ _id: m._id, status: 'failed', error: { code } });
   }
   return { kind: 'failed' as const, reason };
 };
@@ -388,6 +390,7 @@ export const processSend = async (
           );
     const { waMessageId } = await ix.wa.meta.sendMessage(token, channel.phoneNumberId, payload);
     await update(m, 'queued', { waMessageId, error: null }, 'accepted', now);
+    await trackCampaignMessage({ _id: m._id, status: 'accepted' });
     return { kind: 'accepted', waMessageId };
   } catch (err) {
     if (err instanceof NotSendable) return fail(ix, m, null, null, err.reason, now);

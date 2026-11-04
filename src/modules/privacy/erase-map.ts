@@ -27,6 +27,7 @@ import { TranscriptTurnModel } from '../../db/models/transcript-turn.model';
 import { WebhookDeliveryModel } from '../../db/models/webhook-delivery.model';
 import { WebhookEventModel } from '../../db/models/webhook-event.model';
 import { WhatsAppCallPermissionModel } from '../../db/models/whatsapp-call-permission.model';
+import { WhatsAppCampaignRecipientModel } from '../../db/models/whatsapp-campaign-recipient.model';
 import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
 import { open, secretKeys } from '../../shared/crypto/secret-box';
 
@@ -457,6 +458,18 @@ export const ERASE_MAP: EraseEntry[] = [
   { store: 'idempotencyKeys', action: 'delete', run: eraseIdempotency },
   { store: 'notifications', action: 'delete', run: eraseNotifications },
   { store: 'calls', action: 'scrub', run: scrubCalls },
+  // Phase 19: a WhatsApp campaign recipient row goes with the person (counters stay on the campaign)
+  {
+    store: 'whatsappCampaignRecipients',
+    action: 'delete',
+    run: async (ctx) =>
+      deleted(
+        await WhatsAppCampaignRecipientModel.collection.deleteMany({
+          accountId: ctx.accountId,
+          contactId: ctx.contactId,
+        }),
+      ),
+  },
   {
     store: 'campaignContacts',
     action: 'scrub',
@@ -514,6 +527,7 @@ export const ERASE_MAP: EraseEntry[] = [
       ['mockPaymentRecords', 'keep', 'Development only, never mounted in production'],
       ['phoneNumbers', 'keep', "The business's caller IDs, not a contact's number"],
       ['callPermissionRuns', 'keep', 'Bulk call permission runs: ids and counters only'],
+      ['whatsappCampaigns', 'keep', 'Campaign settings and counters: no personal data'],
     ] as const
   ).map(([store, action, reason]) => ({ store, action, reason })),
   ...[

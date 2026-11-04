@@ -5,3 +5,15 @@ Each key may make **600 reads** (`GET`) and **60 writes** (`POST` / `PATCH` / `D
 - Use the bulk route for many contacts: `POST /contacts/bulk-upsert`, up to 1,000 per request with a result per row.
 - Use webhooks instead of polling for call results and message statuses.
 - Ask support if your account needs higher limits.
+
+## Named limiters
+
+Beyond the per-key defaults above, a few routes carry their own named limiter (window and limit fixed, keyed per account or per IP):
+
+| Limiter key                | Window | Limit | Keyed by         | Used by                                                                  |
+| -------------------------- | ------ | ----- | ---------------- | ------------------------------------------------------------------------ |
+| `signup-ip`                | 1 h    | 5     | client IP        | `POST /auth/signup` (and `POST /auth/signup-options` reads)              |
+| `login-as`                 | 1 h    | 30    | account          | superadmin / reseller log-in-as                                          |
+| `reseller-customer-create` | 1 day  | 50    | reseller account | `POST /reseller/customers`                                               |
+| `reseller-credit`          | 1 h    | 60    | reseller account | `POST /reseller/customers/:id/credit` (give + reclaim share the limiter) |
+| `wa-campaign-create`       | 1 h    | 30    | account          | `POST /whatsapp-campaigns`                                               |

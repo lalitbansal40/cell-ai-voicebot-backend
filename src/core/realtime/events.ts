@@ -119,6 +119,8 @@ export interface WsEventMap {
     status: string;
     expiresAt: string | null;
   };
+  /** Account level (Phase 19): a WhatsApp campaign moved on (throttled 1 / s). */
+  'whatsapp_campaign.progress': { campaignId: string; status: string; counters: unknown };
   /** Account level (Phase 18B): a bulk call permission run moved on. */
   'call_permission_bulk.progress': {
     runId: string;
@@ -190,6 +192,7 @@ export const WS_EVENT_TYPES = [
   'whatsapp.call.ended_ringing',
   'whatsapp.call_permission.updated',
   'call_permission_bulk.progress',
+  'whatsapp_campaign.progress',
   'wallet.updated',
   'wallet.low_balance',
   'wallet.exhausted',
