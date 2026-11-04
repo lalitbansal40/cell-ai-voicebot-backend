@@ -157,7 +157,7 @@ Customers (active / suspended), credit given this month, customers' spend 30 d b
 ### T19.11 — Sender job (backend) · B3
 
 1. Job `whatsapp-campaign.dispatch` (queue `whatsapp`): claims recipients in batches (findOneAndUpdate `pending → sending` with `claimedAt`), sends via `sendMessage` with `clientId = uuid(campaignId, contactId)` (retry never sends twice), saves after each batch.
-2. Pacing: messaging tier (unique recipients / 24 h: 1k / 10k / 100k / unlimited, the channel's tier minus what it already sent today) + Meta throughput (default 80 msg/s, `WA_CAMPAIGN_MPS`); spreads over days when the tier is lower than the audience (status `waiting_for_limit` with "next batch at").
+2. Pacing: messaging tier (unique recipients / 24 h: 50 / 250 / 1k / 2k / 10k / 100k / unlimited, the channel's tier minus what it already sent today) + Meta throughput (default 80 msg/s, `WA_CAMPAIGN_MPS`); spreads over days when the tier is lower than the audience (status `waiting_for_limit` with "next batch at").
 3. Pause / resume / stop (stop = the rest `skipped: stopped`), restart safe (stale `sending` claims released after 10 min), wallet empty → pause + bell; template paused / disabled by Meta → pause + bell; quality RED → pause.
 4. Schedule `at` / recurrence (reuse Phase 8 recurrence helpers).
 
@@ -188,7 +188,7 @@ Permissions `whatsapp_campaigns.read` / `.write` (owner, admin, manager write; a
 
 1. Playwright new specs (one per area): signup business + reseller, reseller creates customer + credit + log in as + back, superadmin creates reseller + log in as, WhatsApp campaign 50 contacts (fake Meta) start → pause → resume → stats, call campaign 5 contacts (dry-run).
 2. Perf: `perf:wa-campaign` 1,000 recipients on fake Meta (time, no double send after a kill), 100-contact WhatsApp call campaign on the dry-run line.
-3. Docs: `auth.md` (signup without e-mail), `resellers.md` (new), `campaigns.md` WhatsApp section, `data-model.md`, `audit.md`, `error-codes.md`, `DATA_MAP.md`, `api.md`, CHANGELOGs, BUILD_PLAN_V2 reorder, `src/README.md` both, sign-off.
+3. Docs: `security.md` + `api.md` (signup without e-mail, login as), `resellers.md` (new), `api.md` WhatsApp campaigns, `data-model.md`, `audit.md`, `error-codes.md`, `DATA_MAP.md`, `api.md`, CHANGELOGs, BUILD_PLAN_V2 reorder, `src/README.md` both, sign-off.
 
 ---
 
@@ -227,3 +227,4 @@ Permissions `whatsapp_campaigns.read` / `.write` (owner, admin, manager write; a
 ## Changelog
 
 - 2026-11-04: Draft — checked signup, impersonation, accounts, wallet, campaigns, templates; gaps G1–G7; decisions D1–D12 with defaults; 16 tasks in 4 batches; test rule (targeted per task, full suites twice, targeted Playwright).
+- 2026-11-04: Run prompt written ([PHASE_19_PROMPT.md](../prompts/PHASE_19_PROMPT.md)) — defaults D1–D12 locked; literals: errors +7 → 115, audit +20 → 194, notifications +6 → 45, permissions +4 → 49, ledger +2 → 12, WS +1 → 41, migrations 0021 / 0022.
