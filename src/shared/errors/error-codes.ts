@@ -277,6 +277,32 @@ export const ERROR_CODES = {
     status: 502,
     message: 'WhatsApp did not apply the change. Refresh and check the number before trying again.',
   },
+  // Phase 19: open signup, resellers, WhatsApp campaigns
+  SIGNUP_CLOSED: { status: 403, message: 'Signups are closed. Contact us to get an account.' },
+  AUTH_EMAIL_TAKEN: {
+    status: 409,
+    message: 'An account with this e-mail already exists. Log in instead.',
+  },
+  AUTH_ROUTE_GONE: {
+    status: 410,
+    message: 'This link is no longer used. Log in with your e-mail and password.',
+  },
+  RESELLER_NOT_APPROVED: {
+    status: 403,
+    message: 'Your reseller account is waiting for approval.',
+  },
+  TOPUP_NOT_ALLOWED: {
+    status: 403,
+    message: 'Your provider adds credit to this account. Contact them to add more.',
+  },
+  WA_CAMPAIGN_NOT_EDITABLE: {
+    status: 409,
+    message: 'This campaign has started and can no longer be edited.',
+  },
+  WA_CAMPAIGN_AUDIENCE_EMPTY: {
+    status: 422,
+    message: 'Nobody in this audience can get the message.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

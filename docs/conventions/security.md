@@ -117,3 +117,8 @@ Never log prompts, persona text, user / assistant messages, knowledge text, func
 - **API keys:** refused on all privacy and MFA routes. Limits per account in `accounts.apiLimits`, picked up within 30 s.
 - **Webhooks:** signed paths skip the global limit, because they all come from a few provider addresses. The signature and body size protect them.
 - **Logs:** never phones, names, texts, TOTP secrets, recovery codes or sensitive values.
+
+## 15. Open signup and resellers (Phase 19)
+
+- **Signup without e-mail:** `POST /auth/signup` creates a business or reseller account and a verified owner and returns a session; no e-mail or code. Protection: the auth limiter plus `signup-ip` (5 / hour per IP), a hidden honeypot field (`website`, any value → 422 + `signup_honeypot` log), the password policy, the superadmin switches `signup.open` / `signup.resellerSignup`. A taken e-mail answers `AUTH_EMAIL_TAKEN` (409) — an accepted enumeration trade-off for a form people must be able to recover from; rate limited.
+- The old e-mail code routes answer `AUTH_ROUTE_GONE` (410); login, refresh and `authenticate` no longer look at `emailVerifiedAt`.

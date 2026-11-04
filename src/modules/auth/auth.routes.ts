@@ -2,13 +2,14 @@ import { Router } from 'express';
 import { ipKeyGenerator, type Store } from 'express-rate-limit';
 
 import type { Env } from '../../config/env';
-import { AUTH_RATE_LIMIT, AUTH_REFRESH_RATE_LIMIT } from '../../config/limits';
+import { AUTH_RATE_LIMIT, AUTH_REFRESH_RATE_LIMIT, SIGNUP_RATE_LIMIT } from '../../config/limits';
 import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { originCheck } from '../../shared/middlewares/origin-check';
 import { createRateLimiter, type RateLimiterOptions } from '../../shared/middlewares/rate-limit';
 import { blockWhenImpersonating } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
+import { getSignupSettings } from '../account/kinds';
 import { AcceptInviteBody, InviteTokenQuery } from '../team/team.schema';
 import { acceptInvite, inviteInfo } from '../team/team.service';
 
@@ -19,13 +20,12 @@ import {
   logoutAllHandler,
   logoutHandler,
   meHandler,
+  goneHandler,
   refreshHandler,
-  resendHandler,
   resetPasswordHandler,
   revokeSessionHandler,
   sessionsHandler,
   signupHandler,
-  verifyEmailHandler,
 } from './auth.controller';
 import {
   ChangePasswordBody,
@@ -35,7 +35,6 @@ import {
   SessionIdParams,
   SignupBody,
   UpdateProfileBody,
-  VerifyEmailBody,
 } from './auth.schema';
 import { updateProfile } from './login.service';
 
@@ -62,9 +61,22 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
     ...deps.rateLimit,
   });
 
-  router.post('/signup', limiter, ...handle({ body: SignupBody }, signupHandler));
-  router.post('/verify-email', limiter, ...handle({ body: VerifyEmailBody }, verifyEmailHandler));
-  router.post('/verify-email/resend', limiter, ...handle({ body: EmailOnlyBody }, resendHandler));
+  // Phase 19: open signup (no e-mail) — 5 an hour per IP on top of the auth limiter
+  const signupLimiter = createRateLimiter({
+    windowMs: SIGNUP_RATE_LIMIT.windowMs,
+    limit: SIGNUP_RATE_LIMIT.limit,
+    keyGenerator: (req) => `signup-ip:${ipKeyGenerator(req.ip ?? '')}`,
+    ...(deps.rateLimitStore ? { store: deps.rateLimitStore } : {}),
+    // tests that lift the auth limit lift this one too
+    ...(deps.rateLimit?.limit !== undefined ? { limit: deps.rateLimit.limit } : {}),
+  });
+  router.get('/signup-options', async (_req, res) => {
+    res.set('Cache-Control', 'public, max-age=60');
+    ok(res, await getSignupSettings());
+  });
+  router.post('/signup', limiter, signupLimiter, ...handle({ body: SignupBody }, signupHandler));
+  router.post('/verify-email', goneHandler);
+  router.post('/verify-email/resend', goneHandler);
   router.post('/login', limiter, ...handle({ body: LoginBody }, loginHandler));
   router.post('/refresh', limiter, originCheck(deps.env), refreshHandler);
   router.post('/logout', originCheck(deps.env), logoutHandler);

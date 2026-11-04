@@ -13,13 +13,22 @@ export const TimezoneSchema = z
   .openapi({ example: 'Asia/Kolkata' });
 
 export const SignupBody = z.strictObject({
+  /** Phase 19: a business uses the product; a reseller creates accounts for its customers. */
+  accountType: z.enum(['business', 'reseller']).default('business'),
   businessName: z.string().trim().min(2).max(80).openapi({ example: 'Demo Finance' }),
   name: z.string().trim().min(1).max(80).openapi({ example: 'Asha Verma' }),
   email: EmailSchema,
   password: PasswordInputSchema,
   phone: PhoneE164Schema.optional(),
   timezone: TimezoneSchema.optional(),
+  acceptTerms: z.literal(true, { message: 'Accept the terms to continue' }),
+  /** Honeypot: people never fill it (hidden field). */
+  website: z.string().max(200).optional(),
 });
+export const SignupOptionsSchema = registry.register(
+  'SignupOptions',
+  z.object({ open: z.boolean(), resellerSignup: z.enum(['open', 'approval', 'closed']) }),
+);
 
 export const VerifyEmailBody = z.strictObject({
   email: EmailSchema,
@@ -170,18 +179,32 @@ registry.registerPath({
   method: 'post',
   path: '/api/v1/auth/signup',
   tags: ['Auth'],
-  summary: 'Create an account + owner; sends a 6-digit email code (always 202)',
+  summary:
+    'Sign up as a business or a reseller and sign in at once (Phase 19: no e-mail; 5 / hour per IP)',
   request: json(SignupBody),
-  responses: { 202: accepted, 422: errors[422], 429: errors[429] },
+  responses: {
+    201: ok(AuthSessionSchema, sessionCookie),
+    403: errors[403],
+    409: errors[409],
+    422: errors[422],
+    429: errors[429],
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/auth/signup-options',
+  tags: ['Auth'],
+  summary: 'Whether signup and reseller signup are open (public)',
+  responses: { 200: ok(SignupOptionsSchema) },
 });
 
 registry.registerPath({
   method: 'post',
   path: '/api/v1/auth/verify-email',
   tags: ['Auth'],
-  summary: 'Confirm the email code and sign in',
-  request: json(VerifyEmailBody),
-  responses: { 200: ok(AuthSessionSchema, sessionCookie), 422: errors[422], 429: errors[429] },
+  summary: 'Gone (Phase 19): signup no longer sends an e-mail code — always 410 AUTH_ROUTE_GONE',
+  responses: { 410: errors[409] },
 });
 
 registry.registerPath({
@@ -257,9 +280,8 @@ registry.registerPath({
   method: 'post',
   path: '/api/v1/auth/verify-email/resend',
   tags: ['Auth'],
-  summary: 'Send a new email code (always 202; 60 s cooldown, 5 per hour)',
-  request: json(EmailOnlyBody),
-  responses: { 202: accepted, 422: errors[422], 429: errors[429] },
+  summary: 'Gone (Phase 19) — always 410 AUTH_ROUTE_GONE',
+  responses: { 410: errors[409] },
 });
 
 registry.registerPath({

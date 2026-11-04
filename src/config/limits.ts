@@ -34,6 +34,8 @@ export const SIGNED_URL_TTL_SEC = 900;
  * brute force is stopped by the per-email lockout and OTP attempt caps.
  */
 export const AUTH_RATE_LIMIT = { windowMs: 15 * 60_000, limit: 30 } as const;
+/** Phase 19: open signup without e-mail — 5 new accounts an hour per IP (`signup-ip`). */
+export const SIGNUP_RATE_LIMIT = { windowMs: 60 * 60_000, limit: 5 } as const;
 
 /**
  * `/auth/refresh` runs on every page load and tab (and every ~14 min), and is

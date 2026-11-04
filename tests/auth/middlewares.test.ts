@@ -143,10 +143,9 @@ describe('authenticate', () => {
     expect((await request(app).get('/me').set(bearer(invited.token))).body.error.code).toBe(
       'AUTH_UNAUTHENTICATED',
     );
+    // Phase 19: signup sends no e-mail, so an unverified user is a normal user
     const unverified = await t.addUser('viewer', { emailVerifiedAt: null });
-    expect((await request(app).get('/me').set(bearer(unverified.token))).body.error.code).toBe(
-      'AUTH_EMAIL_NOT_VERIFIED',
-    );
+    expect((await request(app).get('/me').set(bearer(unverified.token))).status).toBe(200);
     const deleted = await t.addUser('viewer');
     await UserModel.updateOne({ _id: deleted.user._id }, { $set: { deletedAt: new Date() } });
     expect((await request(app).get('/me').set(bearer(deleted.token))).status).toBe(401);

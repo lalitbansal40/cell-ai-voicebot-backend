@@ -90,6 +90,14 @@
         },
         "required": ["nextCursor", "hasMore"]
       },
+      "SignupOptions": {
+        "type": "object",
+        "properties": {
+          "open": { "type": "boolean" },
+          "resellerSignup": { "type": "string", "enum": ["open", "approval", "closed"] }
+        },
+        "required": ["open", "resellerSignup"]
+      },
       "Session": {
         "type": "object",
         "properties": {
@@ -1247,7 +1255,27 @@
               "phone_number.updated",
               "phone_number.assigned",
               "phone_number.released",
-              "whatsapp.call_permission_bulk_requested"
+              "whatsapp.call_permission_bulk_requested",
+              "account.signed_up",
+              "account.reseller_changed",
+              "platform.signup_settings_updated",
+              "reseller.approved",
+              "reseller.customer_created",
+              "reseller.customer_suspended",
+              "reseller.customer_enabled",
+              "reseller.customer_password_reset",
+              "reseller.credit_transferred",
+              "reseller.credit_reclaimed",
+              "reseller.login_as_started",
+              "reseller.login_as_stopped",
+              "reseller.settings_updated",
+              "whatsapp_campaign.created",
+              "whatsapp_campaign.started",
+              "whatsapp_campaign.paused",
+              "whatsapp_campaign.resumed",
+              "whatsapp_campaign.stopped",
+              "whatsapp_campaign.completed",
+              "whatsapp_campaign.retried"
             ]
           },
           "actor": {
@@ -6687,7 +6715,13 @@
               "account.delete_scheduled",
               "sip.spend_guard_paused",
               "sip.trunk_down",
-              "whatsapp.call_permission_bulk_done"
+              "whatsapp.call_permission_bulk_done",
+              "account.reseller_signed_up",
+              "reseller.approved",
+              "wallet.credit_received",
+              "wallet.customer_low_balance",
+              "whatsapp_campaign.completed",
+              "whatsapp_campaign.paused"
             ]
           },
           "title": { "type": "string" },
@@ -9085,13 +9119,18 @@
     "/api/v1/auth/signup": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Create an account + owner; sends a 6-digit email code (always 202)",
+        "summary": "Sign up as a business or a reseller and sign in at once (Phase 19: no e-mail; 5 / hour per IP)",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
+                  "accountType": {
+                    "type": "string",
+                    "enum": ["business", "reseller"],
+                    "default": "business"
+                  },
                   "businessName": {
                     "type": "string",
                     "minLength": 2,
@@ -9117,19 +9156,42 @@
                     "format": "password"
                   },
                   "phone": { "type": "string" },
-                  "timezone": { "type": "string", "example": "Asia/Kolkata" }
+                  "timezone": { "type": "string", "example": "Asia/Kolkata" },
+                  "acceptTerms": { "type": "boolean", "enum": [true] },
+                  "website": { "type": "string", "maxLength": 200 }
                 },
-                "required": ["businessName", "name", "email", "password"],
+                "required": ["businessName", "name", "email", "password", "acceptTerms"],
                 "additionalProperties": false
               }
             }
           }
         },
         "responses": {
-          "202": {
-            "description": "Accepted",
+          "201": {
+            "description": "Signed in. Sets the httpOnly `cav_rt` refresh cookie (Path=/api/v1/auth, SameSite=Strict).",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AuthSession" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           },
           "422": {
@@ -9147,54 +9209,36 @@
         }
       }
     },
-    "/api/v1/auth/verify-email": {
-      "post": {
+    "/api/v1/auth/signup-options": {
+      "get": {
         "tags": ["Auth"],
-        "summary": "Confirm the email code and sign in",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "format": "email",
-                    "example": "asha@example.com"
-                  },
-                  "code": { "type": "string", "pattern": "^\\d{6}$", "example": "042917" }
-                },
-                "required": ["email", "code"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
+        "summary": "Whether signup and reseller signup are open (public)",
         "responses": {
           "200": {
-            "description": "Signed in. Sets the httpOnly `cav_rt` refresh cookie (Path=/api/v1/auth, SameSite=Strict).",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "success": { "type": "boolean", "enum": [true] },
-                    "data": { "$ref": "#/components/schemas/AuthSession" }
+                    "data": { "$ref": "#/components/schemas/SignupOptions" }
                   },
                   "required": ["success", "data"]
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "429": {
-            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Gone (Phase 19): signup no longer sends an e-mail code — always 410 AUTH_ROUTE_GONE",
+        "responses": {
+          "410": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
@@ -9479,41 +9523,10 @@
     "/api/v1/auth/verify-email/resend": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Send a new email code (always 202; 60 s cooldown, 5 per hour)",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "maxLength": 254,
-                    "format": "email",
-                    "example": "asha@example.com"
-                  }
-                },
-                "required": ["email"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
+        "summary": "Gone (Phase 19) — always 410 AUTH_ROUTE_GONE",
         "responses": {
-          "202": {
-            "description": "Accepted",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/Accepted" } }
-            }
-          },
-          "422": {
-            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "429": {
-            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+          "410": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

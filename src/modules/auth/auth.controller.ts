@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
 import type { z } from 'zod';
 
-import { noContent, ok } from '../../shared/http/envelope';
+import { AppError } from '../../shared/errors/app-error';
+import { created, noContent, ok } from '../../shared/http/envelope';
 
 import { MIN_ENUMERATION_SAFE_MS } from './auth.constants';
 import type {
@@ -11,9 +12,8 @@ import type {
   ResetPasswordBody,
   SessionIdParams,
   SignupBody,
-  VerifyEmailBody,
 } from './auth.schema';
-import { resendVerification, signup, verifyEmail, withMinDuration } from './auth.service';
+import { signup, withMinDuration } from './auth.service';
 import { login, logout, logoutAll, me, refresh, revokeSession, sessions } from './login.service';
 import { changePassword, forgotPassword, resetPassword } from './password.service';
 
@@ -22,36 +22,19 @@ const accepted = (res: Response, message: string) =>
 
 export const signupHandler = async ({
   body,
-  res,
-}: {
-  body: z.infer<typeof SignupBody>;
-  res: Response;
-}) => {
-  await withMinDuration(MIN_ENUMERATION_SAFE_MS, () => signup(body));
-  accepted(res, 'Check your email for a verification code.');
-};
-
-export const verifyEmailHandler = async ({
-  body,
   req,
   res,
 }: {
-  body: z.infer<typeof VerifyEmailBody>;
+  body: z.infer<typeof SignupBody>;
   req: Request;
   res: Response;
 }) => {
-  ok(res, await verifyEmail(req, res, body));
+  created(res, await signup(req, res, body));
 };
 
-export const resendHandler = async ({
-  body,
-  res,
-}: {
-  body: z.infer<typeof EmailOnlyBody>;
-  res: Response;
-}) => {
-  await withMinDuration(MIN_ENUMERATION_SAFE_MS, () => resendVerification(body.email));
-  accepted(res, 'If the email needs verification, a new code is on its way.');
+/** Phase 19: the e-mail code routes are gone (old links / apps get a clear answer). */
+export const goneHandler = (): never => {
+  throw new AppError('AUTH_ROUTE_GONE');
 };
 
 export const loginHandler = async ({

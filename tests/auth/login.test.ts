@@ -106,12 +106,11 @@ describe('POST /auth/login', () => {
     expect((await loginAs(user.email)).body.error.code).toBe('AUTH_USER_DISABLED');
   });
 
-  it('sends a new code to unverified users and answers AUTH_EMAIL_NOT_VERIFIED', async () => {
+  it('Phase 19: signs in a user who never verified the e-mail; no code is sent', async () => {
     const { user } = await t.addUser('owner', { emailVerifiedAt: null });
     const res = await loginAs(user.email);
-    expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe('AUTH_EMAIL_NOT_VERIFIED');
-    expect(lastEmail(sent, 'auth.verify_email', user.email)).toBeDefined();
+    expect(res.status).toBe(200);
+    expect(lastEmail(sent, 'auth.verify_email', user.email)).toBeUndefined();
   });
 
   it('lets suspended accounts sign in read-only', async () => {

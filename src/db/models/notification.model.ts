@@ -47,6 +47,13 @@ export const NOTIFICATION_TYPES = [
   'sip.trunk_down',
   // Phase 18B
   'whatsapp.call_permission_bulk_done',
+  // Phase 19
+  'account.reseller_signed_up',
+  'reseller.approved',
+  'wallet.credit_received',
+  'wallet.customer_low_balance',
+  'whatsapp_campaign.completed',
+  'whatsapp_campaign.paused',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

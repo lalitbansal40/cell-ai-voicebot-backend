@@ -183,6 +183,27 @@ export const AUDIT_ACTIONS = [
   'phone_number.released',
   // Phase 18B: WhatsApp calling go-live
   'whatsapp.call_permission_bulk_requested',
+  // Phase 19: open signup, resellers, WhatsApp campaigns
+  'account.signed_up',
+  'account.reseller_changed',
+  'platform.signup_settings_updated',
+  'reseller.approved',
+  'reseller.customer_created',
+  'reseller.customer_suspended',
+  'reseller.customer_enabled',
+  'reseller.customer_password_reset',
+  'reseller.credit_transferred',
+  'reseller.credit_reclaimed',
+  'reseller.login_as_started',
+  'reseller.login_as_stopped',
+  'reseller.settings_updated',
+  'whatsapp_campaign.created',
+  'whatsapp_campaign.started',
+  'whatsapp_campaign.paused',
+  'whatsapp_campaign.resumed',
+  'whatsapp_campaign.stopped',
+  'whatsapp_campaign.completed',
+  'whatsapp_campaign.retried',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
