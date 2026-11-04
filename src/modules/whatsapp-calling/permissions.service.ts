@@ -393,6 +393,7 @@ export const createCallPermissions = (deps: PermissionDeps) => {
       /** Bulk: a stable id per contact and run, so a retried job never sends twice. */
       clientId?: string;
       bulk?: boolean;
+      campaignRef?: string;
     },
   ) => {
     const now = nowOf(ctx);
@@ -482,7 +483,10 @@ export const createCallPermissions = (deps: PermissionDeps) => {
           ...(input.variables ? { variables: input.variables } : {}),
           clientId: input.clientId ?? randomUUID(),
         },
-        { bulk: input.bulk ?? false },
+        {
+          bulk: input.bulk ?? false,
+          ...(input.campaignRef ? { externalRef: input.campaignRef } : {}),
+        },
       );
       messageId = sent.message._id;
     }

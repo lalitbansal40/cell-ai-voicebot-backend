@@ -398,3 +398,7 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 
 - `GET /admin/system` (superadmin): build, MongoDB, Redis, queue counts, last backup / drill / release, certificate days, superadmins without 2FA. Cached 10 s, no secrets.
 - `POST /csp-report` (public, 60 / min per IP, 16 KB): browsers' CSP violation reports. Logs the directive and the blocked origin only; answers 204.
+
+## Phase 19 continuation: message campaigns
+
+WhatsApp message campaign estimates return eligible recipients, skipped counts, shortfallMicros and per-market/category prices. Create/update accept headerMediaToken (owned composer upload; null clears) and recurring schedules (timezone + recurrence freq/days/time/until). Media is retained independently for recurring and multi-recipient sends. Completion follows provider acceptance, and paused/stopped campaigns do not send queued messages.

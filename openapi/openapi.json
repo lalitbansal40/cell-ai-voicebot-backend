@@ -7555,10 +7555,39 @@
           "schedule": {
             "type": "object",
             "properties": {
-              "kind": { "type": "string", "enum": ["now", "at"] },
-              "at": { "type": ["string", "null"] }
+              "kind": { "type": "string", "enum": ["now", "at", "recurring"] },
+              "at": { "type": ["string", "null"] },
+              "timezone": { "type": "string" },
+              "recurrence": {
+                "type": ["object", "null"],
+                "properties": {
+                  "freq": { "type": "string", "enum": ["daily", "weekly"] },
+                  "days": {
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0, "maximum": 6 },
+                    "maxItems": 7,
+                    "default": []
+                  },
+                  "time": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                  "until": { "type": ["string", "null"], "format": "date-time", "default": null }
+                },
+                "required": ["freq", "time"],
+                "additionalProperties": false
+              }
             },
-            "required": ["kind", "at"]
+            "required": ["kind", "at", "timezone", "recurrence"]
+          },
+          "parentCampaignId": { "type": ["string", "null"] },
+          "recurrenceEnabled": { "type": "boolean" },
+          "headerMedia": {
+            "type": ["object", "null"],
+            "properties": {
+              "kind": { "type": "string" },
+              "fileName": { "type": ["string", "null"] },
+              "mimeType": { "type": "string" },
+              "size": { "type": "number" }
+            },
+            "required": ["kind", "fileName", "mimeType", "size"]
           },
           "counters": {
             "type": "object",
@@ -7613,6 +7642,9 @@
           "audience",
           "excludeRecentDays",
           "schedule",
+          "parentCampaignId",
+          "recurrenceEnabled",
+          "headerMedia",
           "counters",
           "cost",
           "nextBatchAt",
@@ -7626,16 +7658,19 @@
         "type": "object",
         "properties": {
           "recipients": { "type": "number" },
+          "skipped": { "type": "object", "additionalProperties": { "type": "number" } },
+          "shortfallMicros": { "type": "number" },
           "byMarket": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
                 "market": { "type": "string" },
+                "category": { "type": "string" },
                 "count": { "type": "number" },
                 "priceMicros": { "type": "number" }
               },
-              "required": ["market", "count", "priceMicros"]
+              "required": ["market", "category", "count", "priceMicros"]
             }
           },
           "totalMicros": { "type": "number" },
@@ -7645,6 +7680,8 @@
         },
         "required": [
           "recipients",
+          "skipped",
+          "shortfallMicros",
           "byMarket",
           "totalMicros",
           "walletAvailableMicros",
@@ -8128,6 +8165,10 @@
               "TIER_UNLIMITED",
               null
             ]
+          },
+          "messageRateLimit": {
+            "type": "number",
+            "description": "Application send cap per second, including any lower deployment ceiling"
           },
           "isOnBizApp": {
             "type": "boolean",
@@ -31794,6 +31835,7 @@
                 "type": "object",
                 "properties": {
                   "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "headerMediaToken": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
                   "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "variants": {
                     "type": "array",
@@ -31869,8 +31911,29 @@
                   "schedule": {
                     "type": "object",
                     "properties": {
-                      "kind": { "type": "string", "enum": ["now", "at"] },
-                      "at": { "type": ["string", "null"], "format": "date-time" }
+                      "kind": { "type": "string", "enum": ["now", "at", "recurring"] },
+                      "at": { "type": ["string", "null"], "format": "date-time" },
+                      "timezone": { "type": "string", "example": "Asia/Kolkata" },
+                      "recurrence": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "freq": { "type": "string", "enum": ["daily", "weekly"] },
+                          "days": {
+                            "type": "array",
+                            "items": { "type": "integer", "minimum": 0, "maximum": 6 },
+                            "maxItems": 7,
+                            "default": []
+                          },
+                          "time": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                          "until": {
+                            "type": ["string", "null"],
+                            "format": "date-time",
+                            "default": null
+                          }
+                        },
+                        "required": ["freq", "time"],
+                        "additionalProperties": false
+                      }
                     },
                     "required": ["kind"],
                     "additionalProperties": false
@@ -31975,6 +32038,7 @@
                 "type": "object",
                 "properties": {
                   "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "headerMediaToken": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
                   "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "variants": {
                     "type": "array",
@@ -32050,8 +32114,29 @@
                   "schedule": {
                     "type": "object",
                     "properties": {
-                      "kind": { "type": "string", "enum": ["now", "at"] },
-                      "at": { "type": ["string", "null"], "format": "date-time" }
+                      "kind": { "type": "string", "enum": ["now", "at", "recurring"] },
+                      "at": { "type": ["string", "null"], "format": "date-time" },
+                      "timezone": { "type": "string", "example": "Asia/Kolkata" },
+                      "recurrence": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "freq": { "type": "string", "enum": ["daily", "weekly"] },
+                          "days": {
+                            "type": "array",
+                            "items": { "type": "integer", "minimum": 0, "maximum": 6 },
+                            "maxItems": 7,
+                            "default": []
+                          },
+                          "time": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                          "until": {
+                            "type": ["string", "null"],
+                            "format": "date-time",
+                            "default": null
+                          }
+                        },
+                        "required": ["freq", "time"],
+                        "additionalProperties": false
+                      }
                     },
                     "required": ["kind"],
                     "additionalProperties": false

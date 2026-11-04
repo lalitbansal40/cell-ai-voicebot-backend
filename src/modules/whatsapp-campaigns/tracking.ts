@@ -10,6 +10,8 @@ import {
 import { WhatsAppCampaignModel } from '../../db/models/whatsapp-campaign.model';
 import { getLogger } from '../../shared/logger';
 
+import { maybeComplete } from './lifecycle';
+
 /** Forward-only order of a recipient (a late `delivered` never undoes `read`). */
 const RANK: Record<WaRecipientStatus, number> = {
   pending: 0,
@@ -64,14 +66,25 @@ export const trackCampaignMessage = async (message: {
     const next = fromMessage(message.status);
     if (!next) return;
     const r = await WhatsAppCampaignRecipientModel.findOne({ messageId: message._id })
-      .select({ status: 1, campaignId: 1 })
-      .lean<Pick<WhatsAppCampaignRecipientDoc, '_id' | 'status' | 'campaignId'>>();
-    if (!r) return;
-    if (RANK[next] <= RANK[r.status] && !(next === 'failed' && r.status === 'sending')) return;
+      .select({ status: 1, campaignId: 1, sentCounted: 1 })
+      .lean<Pick<WhatsAppCampaignRecipientDoc, '_id' | 'status' | 'campaignId' | 'sentCounted'>>();
+    if (!r || r.status === 'skipped') return;
+    if (
+      RANK[next] <= RANK[r.status] &&
+      !(next === 'failed' && ['sending', 'sent'].includes(r.status))
+    )
+      return;
     const code = message.error?.code ?? null;
     const moved = await WhatsAppCampaignRecipientModel.updateOne(
       { _id: r._id, status: r.status },
-      { $set: { status: next, ...(next === 'failed' ? { errorCode: code } : {}) } },
+      {
+        $set: {
+          status: next,
+          ...(next === 'failed'
+            ? { errorCode: code }
+            : { sentCounted: true, ...(!r.sentCounted ? { sentAt: new Date() } : {}) }),
+        },
+      },
     );
     if (!moved.modifiedCount) return;
     // a status can jump (sent → read): count every step it passed
@@ -83,11 +96,14 @@ export const trackCampaignMessage = async (message: {
       if (r.status === 'sending') inc['counters.queued'] = -1;
     } else {
       for (const s of steps) {
-        if (RANK[s] > RANK[r.status] && RANK[s] <= RANK[next]) inc[`counters.${s}`] = 1;
+        if (RANK[s] > RANK[r.status] && RANK[s] <= RANK[next] && (s !== 'sent' || !r.sentCounted))
+          inc[`counters.${s}`] = 1;
       }
       if (r.status === 'sending') inc['counters.queued'] = -1;
     }
     await WhatsAppCampaignModel.updateOne({ _id: r.campaignId }, { $inc: inc });
+    const campaign = await WhatsAppCampaignModel.findById(r.campaignId).lean();
+    if (campaign) await maybeComplete(campaign, new Date());
     await emitProgress(r.campaignId);
   } catch (err) {
     getLogger().error({ err }, 'whatsapp campaign: status tracking failed');

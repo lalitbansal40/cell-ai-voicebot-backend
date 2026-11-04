@@ -38,3 +38,5 @@ the historical campaign task ticks. Final suite/sign-off has not run.
   SIP/calling campaign access. Backend readiness/dial guards remain authoritative.
 
 - P19R-T2: atomic rolling-window limiter uses Redis time, no future reservations, bounded TTL, and fails closed. All message sources consume one sender budget; interactive sends have queue priority 1, bulk work priority 10. Batch sleep is replaced by provider pacing.
+
+- P19R-T3 message engine: shared dry-run audience resolution now prices eligible contacts by assigned variant category/market, returns skips/shortfall and propagates pricing failures. Durable campaign headers are copied per recipient; recurring runs have a unique root/occurrence index (migration 0023). Completion waits for provider acceptance; queued messages obey pause/stop. Sent→failed tracking and retry send-count deduplication are fixed. Backend targeted campaign/migration checks: 16/16; frontend draft/wizard/detail checks: 16/16. Three-type navigation and final regression checks remain open.

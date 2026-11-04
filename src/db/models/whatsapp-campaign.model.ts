@@ -1,5 +1,8 @@
 import mongoose, { Schema, type Model, type Types } from 'mongoose';
 
+import type { CampaignRecurrence } from './campaign.model';
+import type { InboxUploadDoc } from './inbox-upload.model';
+
 export const WA_CAMPAIGN_STATUSES = [
   'draft',
   'scheduled',
@@ -105,7 +108,18 @@ export interface WhatsAppCampaignDoc {
     csvUploadId: Types.ObjectId | null;
   };
   excludeRecentDays: number;
-  schedule: { kind: 'now' | 'at'; at: Date | null };
+  schedule: {
+    kind: 'now' | 'at' | 'recurring';
+    at: Date | null;
+    timezone?: string;
+    recurrence?: CampaignRecurrence | null;
+  };
+  parentCampaignId?: Types.ObjectId | null;
+  recurrenceEnabled?: boolean;
+  headerMedia?: Pick<
+    InboxUploadDoc,
+    'kind' | 'storageKey' | 'mimeType' | 'size' | 'sha256' | 'fileName'
+  > | null;
   counters: WaCampaignCounters;
   cost: { estimateMicros: number; chargedMicros: number };
   /** Next time the tier allows a batch (`waiting_for_limit`). */
@@ -148,9 +162,14 @@ const schema = new Schema<WhatsAppCampaignDoc>(
     },
     excludeRecentDays: { type: Number, min: 0, max: 90, default: 0 },
     schedule: {
-      kind: { type: String, enum: ['now', 'at'], default: 'now' },
+      kind: { type: String, enum: ['now', 'at', 'recurring'], default: 'now' },
       at: { type: Date, default: null },
+      timezone: { type: String, default: 'Asia/Kolkata' },
+      recurrence: { type: Schema.Types.Mixed, default: null },
     },
+    parentCampaignId: { type: Schema.Types.ObjectId, default: null },
+    recurrenceEnabled: { type: Boolean, default: true },
+    headerMedia: { type: Schema.Types.Mixed, default: null },
     counters: { type: Schema.Types.Mixed, default: emptyCounters },
     cost: {
       estimateMicros: { type: Number, default: 0 },
@@ -165,6 +184,14 @@ const schema = new Schema<WhatsAppCampaignDoc>(
 );
 schema.index({ accountId: 1, createdAt: -1 });
 schema.index({ status: 1, 'schedule.at': 1 });
+schema.index(
+  { parentCampaignId: 1, 'schedule.at': 1 },
+  {
+    unique: true,
+    partialFilterExpression: { parentCampaignId: { $type: 'objectId' } },
+    name: 'wa_recurring_run',
+  },
+);
 
 /** Phase 19 bulk WhatsApp template campaigns (`whatsappCampaigns`): ids, settings, counters. */
 export const WhatsAppCampaignModel: Model<WhatsAppCampaignDoc> =

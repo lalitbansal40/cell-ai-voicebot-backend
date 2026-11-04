@@ -27,6 +27,7 @@ export interface WhatsAppCampaignRecipientDoc {
   sentAt: Date | null;
   repliedAt: Date | null;
   attempts: number;
+  sentCounted?: boolean;
   /** Charged for this message (micros), filled as the charge lands. */
   costMicros: number;
   createdAt: Date;
@@ -46,6 +47,7 @@ const schema = new Schema<WhatsAppCampaignRecipientDoc>(
     claimedAt: { type: Date, default: null },
     sentAt: { type: Date, default: null },
     repliedAt: { type: Date, default: null },
+    sentCounted: { type: Boolean, default: false },
     attempts: { type: Number, default: 0 },
     costMicros: { type: Number, default: 0 },
   },

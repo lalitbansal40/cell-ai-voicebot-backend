@@ -1146,3 +1146,7 @@ Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, r
 - Public account (session, `/auth/me`) gains `kind`, `parentAccountId`, `reseller` (`status`, `customersCanTopUp`).
 - Ledger types `credit_transfer_out` (payer, debit) / `credit_transfer_in` (receiver, credit), ref type `credit_transfer`, `ref.id` = transfer id shared by both rows, idempotency keys `transfer:<id>:out|in`. `core/billing/engine.ts` `transferCredit` writes both in one transaction with both wallet locks in ascending id order; the payer spends only its available balance (no credit limit). Reseller → customer = give, customer → reseller = take back.
 - `/reseller/*` (`modules/resellers`): the only code that reads accounts by `parentAccountId`; a customer of another reseller is a 404. Redis `reseller:summary:<id>` (5 min, busted on transfer / customer change).
+
+## Phase 19 continuation: message campaigns
+
+WhatsApp message campaigns now store optional durable header media metadata, recurring schedule/timezone, parentCampaignId and recurrenceEnabled. Migration 0023 adds a unique parentCampaignId + schedule.at index for scheduled occurrences. Recipient sentCounted prevents a retry from counting the same person twice.

@@ -1,5 +1,7 @@
+import { getEnv } from '../../config/env';
 import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
 import { callingSummary } from '../whatsapp-calling/json';
+import { campaignMps } from '../whatsapp-campaigns/pacing';
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 const idOf = (v: { toString(): string } | null | undefined) => (v ? v.toString() : null);
@@ -36,6 +38,7 @@ export const channelListItem = (c: WhatsAppChannelDoc) => ({
   qualityRating: c.qualityRating,
   messagingLimitTier: c.messagingLimitTier,
   isOnBizApp: c.isOnBizApp,
+  messageRateLimit: campaignMps(c, getEnv().WA_CAMPAIGN_MPS),
   /** Phase 12: WhatsApp calling on this number (settings: `/whatsapp/channels/:id/calling`). */
   calling: callingSummary(c),
   billing: {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Store } from 'express-rate-limit';
 
+import type { StorageProvider } from '../../core/storage';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { created, noContent, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
@@ -38,7 +39,7 @@ import {
 
 /** `/api/v1/whatsapp-campaigns` (Phase 19): bulk template sends, charged from the wallet. */
 export const createWaCampaignsRouter = (
-  deps: { jobs?: WaCampaignJobs; createStore?: Store } = {},
+  deps: { jobs?: WaCampaignJobs; createStore?: Store; storage?: StorageProvider } = {},
 ): Router => {
   const router = Router();
   router.use(authenticate());
@@ -65,7 +66,7 @@ export const createWaCampaignsRouter = (
     ...write,
     createLimit,
     ...handle({ body: CampaignBody }, async ({ req, res, body }) => {
-      created(res, await createCampaign(req, body));
+      created(res, await createCampaign(req, body, deps.storage));
     }),
   );
   router.get(
@@ -81,7 +82,7 @@ export const createWaCampaignsRouter = (
     ...handle(
       { params: CampaignIdParams, body: CampaignBody },
       async ({ req, res, params, body }) => {
-        ok(res, await updateCampaign(req, params.id, body));
+        ok(res, await updateCampaign(req, params.id, body, deps.storage));
       },
     ),
   );

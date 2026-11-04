@@ -444,6 +444,7 @@ export const createApiRouter = ({
   router.use(
     '/whatsapp-campaigns',
     createWaCampaignsRouter({
+      ...(whatsapp?.storage ? { storage: whatsapp.storage } : {}),
       ...(whatsapp?.waCampaignJobs ? { jobs: whatsapp.waCampaignJobs } : {}),
     }),
   );

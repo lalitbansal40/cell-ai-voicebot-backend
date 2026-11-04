@@ -12,6 +12,7 @@ import {
 } from '../../core/meta';
 import { ConversationModel, type ConversationDoc } from '../../db/models/conversation.model';
 import { MessageModel, type MessageDoc } from '../../db/models/message.model';
+import { WhatsAppCampaignModel } from '../../db/models/whatsapp-campaign.model';
 import {
   WhatsAppChannelModel,
   type WhatsAppChannelDoc,
@@ -402,6 +403,18 @@ export const processSend = async (
       delay = await acquireMessageSlot(ix.wa.redis, fresh, ix.wa.env.WA_CAMPAIGN_MPS);
     }
     if (delay > 0) return { kind: 'later', delayMs: delay };
+    if (m.externalRef?.startsWith('wac:')) {
+      const campaign = await WhatsAppCampaignModel.findOne({
+        _id: m.externalRef.slice(4),
+        accountId: m.accountId,
+      })
+        .select({ status: 1 })
+        .lean<{ status: string }>();
+      if (!campaign || ['stopped', 'failed'].includes(campaign.status))
+        throw new NotSendable('Campaign stopped');
+      if (['paused', 'scheduled'].includes(campaign.status))
+        return { kind: 'later', delayMs: 1000 };
+    }
     const { waMessageId } = await ix.wa.meta.sendMessage(token, channel.phoneNumberId, payload);
     await update(m, 'queued', { waMessageId, error: null }, 'accepted', now);
     await trackCampaignMessage({ _id: m._id, status: 'accepted' });

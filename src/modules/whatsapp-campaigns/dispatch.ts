@@ -19,19 +19,21 @@ import {
   WhatsAppChannelModel,
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
-import { WhatsAppTemplateModel } from '../../db/models/whatsapp-template.model';
 import { AppError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
-import { recordAudit } from '../audit/audit.service';
 import type { InboxContext } from '../inbox/context';
 import { upsertConversation } from '../inbox/conversation-store';
 import { sendMessage } from '../inbox/outbound.service';
-import { notify, usersWithPermission } from '../notifications/notifications.service';
 import type { CallPermissionsService } from '../whatsapp-calling/permissions.service';
 
 import { variablesFor, type VariantInfo } from './audience';
+import { bellCreator, systemAudit, maybeComplete } from './lifecycle';
+import { campaignHeaderFor } from './media';
 import { allowedNow } from './pacing';
+import { prepareRecurringRun, scheduleRecurringRuns } from './recurrence';
 import { emitProgress, trackCampaignMessage } from './tracking';
+import { loadVariants } from './variants';
+export { loadVariants } from './variants';
 
 export const DISPATCH_BATCH = 100;
 /** A `sending` claim older than this is a crash: the sweep puts it back to `pending`. */
@@ -52,44 +54,6 @@ export interface DispatchDeps {
   /** Tests: no waiting between batches. */
   sleep?: (ms: number) => Promise<void>;
 }
-
-/** Variant templates of a campaign (approved, on the campaign's WABA). */
-export const loadVariants = async (
-  campaign: Pick<WhatsAppCampaignDoc, 'accountId' | 'variants'>,
-  wabaId: string,
-): Promise<VariantInfo[]> => {
-  const templates = await WhatsAppTemplateModel.find({
-    _id: { $in: campaign.variants.map((v) => v.templateId) },
-    accountId: campaign.accountId,
-    wabaId,
-  })
-    .select({ category: 1, purpose: 1, variables: 1, status: 1 })
-    .lean<
-      {
-        _id: Types.ObjectId;
-        category: string;
-        purpose?: string;
-        status: string;
-        variables: { key: string }[];
-      }[]
-    >();
-  const byId = new Map(templates.map((t) => [t._id.toString(), t]));
-  return campaign.variants.flatMap((v) => {
-    const t = byId.get(v.templateId.toString());
-    return t
-      ? [
-          {
-            key: v.key,
-            templateId: t._id,
-            category: t.category,
-            purpose: t.purpose ?? 'general',
-            keys: [...new Set(t.variables.map((x) => x.key))],
-            status: t.status,
-          },
-        ]
-      : [];
-  });
-};
 
 /** People the number started a business conversation with in the last 24 h (tier usage). */
 export const sentLast24h = async (channelId: Types.ObjectId, now: Date): Promise<number> => {
@@ -118,46 +82,6 @@ const pauseReasonOf = (
   return null;
 };
 
-const bellCreator = async (
-  campaign: WhatsAppCampaignDoc,
-  type: 'whatsapp_campaign.completed' | 'whatsapp_campaign.paused',
-  body: string,
-) => {
-  try {
-    const ids = new Set([campaign.createdBy.toString()]);
-    if (type === 'whatsapp_campaign.paused') {
-      for (const u of await usersWithPermission(campaign.accountId, 'account.update'))
-        ids.add(u.userId.toString());
-    }
-    await notify({
-      accountId: campaign.accountId,
-      userIds: [...ids].map((id) => new Types.ObjectId(id)),
-      type,
-      title:
-        type === 'whatsapp_campaign.completed'
-          ? 'WhatsApp campaign finished'
-          : 'WhatsApp campaign paused',
-      body,
-      link: `/campaigns/whatsapp/${campaign._id.toString()}`,
-    });
-  } catch (err) {
-    getLogger().error({ err }, 'whatsapp campaign: bell failed');
-  }
-};
-
-const systemAudit = (
-  campaign: WhatsAppCampaignDoc,
-  action: 'whatsapp_campaign.paused' | 'whatsapp_campaign.completed',
-  meta: Record<string, unknown>,
-) =>
-  recordAudit({
-    accountId: campaign.accountId,
-    actor: { type: 'system' },
-    action,
-    target: { type: 'whatsapp_campaign', id: campaign._id.toString() },
-    meta,
-  });
-
 /** Moves a running campaign to paused with a reason (bell + audit). */
 export const autoPause = async (campaign: WhatsAppCampaignDoc, reason: WaCampaignPauseReason) => {
   const done = await WhatsAppCampaignModel.updateOne(
@@ -175,43 +99,6 @@ export const autoPause = async (campaign: WhatsAppCampaignDoc, reason: WaCampaig
   };
   await bellCreator(campaign, 'whatsapp_campaign.paused', `${campaign.name}: ${text[reason]}`);
   await emitProgress(campaign._id, true);
-};
-
-/**
- * Marks the campaign completed once dispatch is done — nothing left to claim. A `sending`
- * recipient that already has a message is in flight (Meta / the status webhook will move it
- * on), so it does not keep the campaign open; a `sending` without a message is a crash
- * mid-claim, and the sweep re-claims it, so that one keeps it open.
- */
-const maybeComplete = async (campaign: WhatsAppCampaignDoc, now: Date) => {
-  const [pending, stuck] = await Promise.all([
-    WhatsAppCampaignRecipientModel.exists({ campaignId: campaign._id, status: 'pending' }),
-    WhatsAppCampaignRecipientModel.exists({
-      campaignId: campaign._id,
-      status: 'sending',
-      messageId: null,
-    }),
-  ]);
-  if (pending || stuck) return false;
-  const done = await WhatsAppCampaignModel.findOneAndUpdate(
-    { _id: campaign._id, status: { $in: ['running', 'waiting_for_limit'] } },
-    { $set: { status: 'completed', finishedAt: now, nextBatchAt: null } },
-    { returnDocument: 'after' },
-  ).lean<WhatsAppCampaignDoc>();
-  if (done) {
-    await systemAudit(done, 'whatsapp_campaign.completed', {
-      sent: done.counters.sent,
-      failed: done.counters.failedTotal,
-      chargedMicros: done.cost.chargedMicros,
-    });
-    await bellCreator(
-      done,
-      'whatsapp_campaign.completed',
-      `${done.name}: ${String(done.counters.sent)} sent, ${String(done.counters.skippedTotal)} skipped, ${String(done.counters.failedTotal)} failed.`,
-    );
-    await emitProgress(done._id, true);
-  }
-  return true;
 };
 
 const skipRecipient = async (r: WhatsAppCampaignRecipientDoc, reason: WaCampaignSkipReason) => {
@@ -286,8 +173,9 @@ export const dispatchCampaign = async (
       claimed.push(r);
     }
     if (!claimed.length) {
-      await maybeComplete(campaign, now());
-      return { status: 'completed', sent };
+      const completed = await maybeComplete(campaign, now());
+      await emitProgress(campaign._id, true);
+      return { status: completed ? 'completed' : 'running', sent };
     }
     await WhatsAppCampaignModel.updateOne(
       { _id: campaign._id },
@@ -343,6 +231,7 @@ export const dispatchCampaign = async (
               contactId: contact._id.toString(),
               forceTemplate: true,
               bulk: true,
+              campaignRef: `wac:${campaign._id.toString()}`,
               templateId: v.templateId.toString(),
               ...(Object.keys(values).length ? { variables: values } : {}),
               clientId,
@@ -368,6 +257,9 @@ export const dispatchCampaign = async (
             conversation._id.toString(),
             {
               type: 'template',
+              ...(campaign.headerMedia
+                ? { header: await campaignHeaderFor(campaign, deps.ix.storage) }
+                : {}),
               templateId: v.templateId.toString(),
               ...(Object.keys(values).length ? { variables: values } : {}),
               clientId,
@@ -378,7 +270,7 @@ export const dispatchCampaign = async (
         }
         await WhatsAppCampaignRecipientModel.updateOne(
           { _id: r._id },
-          { $set: { messageId, sentAt: now(), variant: v.key } },
+          { $set: { messageId, variant: v.key } },
         );
         sent += 1;
         // the send job may already have moved the message on
@@ -438,6 +330,7 @@ export const dispatchCampaign = async (
  * campaigns waiting for the tier, A/B winners. Returns the campaigns to dispatch.
  */
 export const sweepCampaigns = async (now = new Date()): Promise<string[]> => {
+  await scheduleRecurringRuns(now);
   await WhatsAppCampaignRecipientModel.updateMany(
     {
       status: 'sending',
@@ -452,10 +345,11 @@ export const sweepCampaigns = async (now = new Date()): Promise<string[]> => {
       { status: 'waiting_for_limit', nextBatchAt: { $lte: now } },
       { status: 'running', updatedAt: { $lt: new Date(now.getTime() - STALE_CLAIM_MS) } },
     ],
-  })
-    .select({ _id: 1, status: 1 })
-    .lean<{ _id: Types.ObjectId; status: WhatsAppCampaignDoc['status'] }[]>();
+  }).lean<WhatsAppCampaignDoc[]>();
+  const ready: string[] = [];
   for (const c of due) {
+    if (c.status === 'scheduled' && !(await prepareRecurringRun(c, now))) continue;
+    ready.push(c._id.toString());
     if (c.status !== 'running') {
       await WhatsAppCampaignModel.updateOne(
         { _id: c._id, status: c.status },
@@ -470,7 +364,7 @@ export const sweepCampaigns = async (now = new Date()): Promise<string[]> => {
     }
   }
   await decideWinners(now);
-  return due.map((c) => c._id.toString());
+  return ready;
 };
 
 /** A/B: after `afterHours`, the variant with the best read (or reply) rate wins (ties → A). */

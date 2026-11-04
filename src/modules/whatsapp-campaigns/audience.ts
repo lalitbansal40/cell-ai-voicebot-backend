@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { Types } from 'mongoose';
 
+import { getEnv } from '../../config/env';
 import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import { MessageModel } from '../../db/models/message.model';
 import { WhatsAppCallPermissionModel } from '../../db/models/whatsapp-call-permission.model';
@@ -20,7 +21,9 @@ import { suppressedPhones } from '../privacy/suppression';
 
 /** PHASE_19_PROMPT §1: env `WA_CAMPAIGN_MAX_RECIPIENTS` (default 100,000), snapshots of 1,000. */
 export const WA_CAMPAIGN_LIMITS = {
-  maxRecipients: Number(process.env.WA_CAMPAIGN_MAX_RECIPIENTS ?? 100_000),
+  get maxRecipients() {
+    return getEnv().WA_CAMPAIGN_MAX_RECIPIENTS;
+  },
   snapshotBatch: 1_000,
 } as const;
 const DAY_MS = 86_400_000;
@@ -160,14 +163,15 @@ export const skipFor = (
  * Snapshots the audience into recipient rows (batches of 1,000, unique per campaign, capped)
  * and returns the counts. Re-running is safe: existing rows stay as they are.
  */
-export const snapshotAudience = async (
+export async function* resolveAudienceBatches(
   campaign: WhatsAppCampaignDoc,
   variants: VariantInfo[],
   now = new Date(),
-): Promise<{ total: number; skipped: Partial<Record<WaCampaignSkipReason, number>> }> => {
+): AsyncGenerator<
+  { contact: ContactLite; variant: VariantInfo; skipReason: WaCampaignSkipReason | null }[]
+> {
   const filter = await audienceFilter(campaign);
   const byKey = new Map(variants.map((v) => [v.key, v]));
-  const skipped: Partial<Record<WaCampaignSkipReason, number>> = {};
   let total = 0;
   let lastId: Types.ObjectId | null = null;
   const consent = variants.some((v) => v.purpose === 'call_permission');
@@ -195,12 +199,14 @@ export const snapshotAudience = async (
         accountId: campaign.accountId,
         contactId: { $in: ids },
         direction: 'out',
+        status: { $in: ['accepted', 'sent', 'delivered', 'read'] },
         'template.templateId': { $in: variants.map((v) => v.templateId) },
         createdAt: { $gte: new Date(now.getTime() - campaign.excludeRecentDays * DAY_MS) },
       })
-        .select({ contactId: 1 })
-        .lean<{ contactId: Types.ObjectId }[]>();
-      for (const r of rows) recent.add(r.contactId.toString());
+        .select({ contactId: 1, 'template.templateId': 1 })
+        .lean<{ contactId: Types.ObjectId; template: { templateId: Types.ObjectId } }[]>();
+      for (const r of rows)
+        recent.add(`${r.contactId.toString()}:${r.template.templateId.toString()}`);
     }
     const perms = new Map<string, { status: string; at: Date | null }>();
     if (consent) {
@@ -214,36 +220,60 @@ export const snapshotAudience = async (
       for (const r of rows)
         perms.set(r.contactId.toString(), { status: r.status, at: r.updatedAt });
     }
-    const docs: Partial<WhatsAppCampaignRecipientDoc>[] = contacts.map((c) => {
+    const docs = contacts.map((c) => {
       const key = variantFor(c._id, campaign.variants);
       const v = byKey.get(key) ?? variants[0];
       const reason = v
         ? skipFor(c, v, {
             suppressed: suppressed.has(c.phoneE164),
-            sentRecently: recent.has(c._id.toString()),
+            sentRecently: recent.has(`${c._id.toString()}:${v.templateId.toString()}`),
             mapping: campaign.variables,
             permission: perms.get(c._id.toString()) ?? null,
             now,
           })
         : 'missing_variable';
-      if (reason) skipped[reason] = (skipped[reason] ?? 0) + 1;
-      return {
-        campaignId: campaign._id,
-        accountId: campaign.accountId,
-        contactId: c._id,
-        variant: key,
-        status: reason ? 'skipped' : 'pending',
-        skipReason: reason,
-      };
+      if (!v) throw new Error('Campaign variant is missing');
+      return { contact: c, variant: v, skipReason: reason };
     });
-    await WhatsAppCampaignRecipientModel.insertMany(docs, { ordered: false }).catch(
-      (err: { code?: number; writeErrors?: unknown[] }) => {
-        // duplicates (a re-run) are fine; anything else is not
-        if (err.code !== 11000 && !err.writeErrors) throw err;
-      },
-    );
+    yield docs;
     total += contacts.length;
     if (contacts.length < WA_CAMPAIGN_LIMITS.snapshotBatch) break;
+  }
+}
+
+/** The estimate and persisted snapshot use the same eligibility decisions. */
+export const snapshotAudience = async (
+  campaign: WhatsAppCampaignDoc,
+  variants: VariantInfo[],
+  now = new Date(),
+) => {
+  let total = 0;
+  const skipped: Partial<Record<WaCampaignSkipReason, number>> = {};
+  for await (const batch of resolveAudienceBatches(campaign, variants, now)) {
+    total += batch.length;
+    const docs: Partial<WhatsAppCampaignRecipientDoc>[] = batch.map(
+      ({ contact, variant, skipReason }) => {
+        if (skipReason) skipped[skipReason] = (skipped[skipReason] ?? 0) + 1;
+        return {
+          campaignId: campaign._id,
+          accountId: campaign.accountId,
+          contactId: contact._id,
+          variant: variant.key,
+          status: skipReason ? 'skipped' : 'pending',
+          skipReason,
+        };
+      },
+    );
+    await WhatsAppCampaignRecipientModel.insertMany(docs, { ordered: false }).catch(
+      (err: { code?: number; writeErrors?: { code?: number }[] }) => {
+        if (
+          err.writeErrors?.length
+            ? err.writeErrors.some((e) => e.code !== 11000)
+            : err.code !== 11000
+        )
+          throw err;
+      },
+    );
   }
   return { total, skipped };
 };

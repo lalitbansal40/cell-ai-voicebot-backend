@@ -9,6 +9,8 @@ import { registry } from '../../shared/openapi/registry';
 import { bearer, errors, noContentResponse, ok } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema, PaginationQuerySchema } from '../../shared/validation/schemas';
+import { TimezoneSchema } from '../auth/auth.schema';
+import { RecurrenceInput } from '../campaigns/campaigns.schema';
 
 export const CampaignIdParams = z.strictObject({ id: ObjectIdSchema });
 export const ListCampaignsQuery = z.strictObject({
@@ -21,6 +23,7 @@ export const RecipientsQuery = z.strictObject({
 });
 export const CampaignBody = z.strictObject({
   name: z.string().trim().min(1).max(120),
+  headerMediaToken: ObjectIdSchema.nullable().optional(),
   channelId: ObjectIdSchema,
   variants: z
     .array(
@@ -76,8 +79,10 @@ export const CampaignBody = z.strictObject({
   excludeRecentDays: z.number().int().min(0).max(90).optional(),
   schedule: z
     .strictObject({
-      kind: z.enum(['now', 'at']),
+      kind: z.enum(['now', 'at', 'recurring']),
       at: z.iso.datetime({ offset: true }).nullable().optional(),
+      timezone: TimezoneSchema.optional(),
+      recurrence: RecurrenceInput.nullable().optional(),
     })
     .optional(),
 });
@@ -125,7 +130,22 @@ export const WaCampaignSchema = registry.register(
       csvUploadId: z.string().nullable(),
     }),
     excludeRecentDays: z.number(),
-    schedule: z.object({ kind: z.enum(['now', 'at']), at: z.string().nullable() }),
+    schedule: z.object({
+      kind: z.enum(['now', 'at', 'recurring']),
+      at: z.string().nullable(),
+      timezone: z.string(),
+      recurrence: RecurrenceInput.nullable(),
+    }),
+    parentCampaignId: z.string().nullable(),
+    recurrenceEnabled: z.boolean(),
+    headerMedia: z
+      .object({
+        kind: z.string(),
+        fileName: z.string().nullable(),
+        mimeType: z.string(),
+        size: z.number(),
+      })
+      .nullable(),
     counters: Counters,
     cost: z.object({ estimateMicros: z.number(), chargedMicros: z.number() }),
     nextBatchAt: z.string().nullable(),
@@ -139,7 +159,16 @@ const EstimateSchema = registry.register(
   'WhatsAppCampaignEstimate',
   z.object({
     recipients: z.number(),
-    byMarket: z.array(z.object({ market: z.string(), count: z.number(), priceMicros: z.number() })),
+    skipped: z.record(z.string(), z.number()),
+    shortfallMicros: z.number(),
+    byMarket: z.array(
+      z.object({
+        market: z.string(),
+        category: z.string(),
+        count: z.number(),
+        priceMicros: z.number(),
+      }),
+    ),
     totalMicros: z.number(),
     walletAvailableMicros: z.number(),
     enough: z.boolean(),

@@ -58,7 +58,7 @@ const AudienceInput = z.strictObject({
   skipIfMissing: z.array(z.string().regex(FIELD_KEY)).max(50).optional(),
 });
 
-const RecurrenceInput = z.strictObject({
+export const RecurrenceInput = z.strictObject({
   freq: z.enum(RECURRENCE_FREQS),
   days: z.array(int(0, 6)).max(7).default([]),
   time: z.string().regex(HHMM, 'Must be HH:mm (24 h)'),

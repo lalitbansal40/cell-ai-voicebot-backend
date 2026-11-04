@@ -1,11 +1,10 @@
 import type { Request } from 'express';
 import { Types } from 'mongoose';
 
-import type { PriceCategory } from '../../core/billing/whatsapp';
+import type { StorageProvider } from '../../core/storage';
 import { ContactModel } from '../../db/models/contact.model';
 import { LedgerEntryModel } from '../../db/models/ledger-entry.model';
 import { MessageModel } from '../../db/models/message.model';
-import { WalletModel, type WalletDoc } from '../../db/models/wallet.model';
 import {
   WhatsAppCampaignRecipientModel,
   type WhatsAppCampaignRecipientDoc,
@@ -20,6 +19,7 @@ import {
   WhatsAppChannelModel,
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
+import { WhatsAppTemplateModel } from '../../db/models/whatsapp-template.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter } from '../../shared/auth/tenant';
 import {
@@ -30,11 +30,13 @@ import {
 } from '../../shared/errors/app-error';
 import type { AuditAction } from '../audit/audit-actions';
 import { recordAudit } from '../audit/audit.service';
-import { priceMessage } from '../whatsapp-billing/pricing.service';
+import { nextOccurrence } from '../campaigns/recurrence';
 
-import { audienceFilter, snapshotAudience, toObjectIds } from './audience';
-import { loadVariants } from './dispatch';
+import { snapshotAudience, toObjectIds } from './audience';
+import { estimateCampaignDoc } from './estimate';
+import { saveCampaignMedia, validateCampaignMedia } from './media';
 import { emitProgress } from './tracking';
+import { loadVariants } from './variants';
 
 export interface WaCampaignJobs {
   enqueueDispatch(campaignId: string): Promise<void>;
@@ -42,6 +44,7 @@ export interface WaCampaignJobs {
 
 export interface CampaignInput {
   name: string;
+  headerMediaToken?: string | null | undefined;
   channelId: string;
   variants: { key: 'A' | 'B' | 'C'; templateId: string; splitPct: number }[];
   abWinner?: { metric: 'read' | 'reply'; afterHours: number } | null | undefined;
@@ -62,7 +65,17 @@ export interface CampaignInput {
     csvUploadId?: string | null | undefined;
   };
   excludeRecentDays?: number | undefined;
-  schedule?: { kind: 'now' | 'at'; at?: string | null | undefined } | undefined;
+  schedule?:
+    | {
+        kind: 'now' | 'at' | 'recurring';
+        at?: string | null | undefined;
+        timezone?: string | undefined;
+        recurrence?:
+          | { freq: 'daily' | 'weekly'; days: number[]; time: string; until: string | null }
+          | null
+          | undefined;
+      }
+    | undefined;
 }
 
 const EDITABLE = ['draft', 'scheduled'] as const;
@@ -90,7 +103,24 @@ const view = (c: WhatsAppCampaignDoc) => ({
     csvUploadId: c.audience.csvUploadId ? c.audience.csvUploadId.toString() : null,
   },
   excludeRecentDays: c.excludeRecentDays,
-  schedule: { kind: c.schedule.kind, at: c.schedule.at?.toISOString() ?? null },
+  schedule: {
+    kind: c.schedule.kind,
+    at: c.schedule.at?.toISOString() ?? null,
+    timezone: c.schedule.timezone ?? 'Asia/Kolkata',
+    recurrence: c.schedule.recurrence
+      ? { ...c.schedule.recurrence, until: c.schedule.recurrence.until?.toISOString() ?? null }
+      : null,
+  },
+  parentCampaignId: c.parentCampaignId?.toString() ?? null,
+  recurrenceEnabled: c.recurrenceEnabled ?? true,
+  headerMedia: c.headerMedia
+    ? {
+        kind: c.headerMedia.kind,
+        fileName: c.headerMedia.fileName,
+        mimeType: c.headerMedia.mimeType,
+        size: c.headerMedia.size,
+      }
+    : null,
   counters: { ...emptyCounters(), ...c.counters },
   cost: c.cost,
   nextBatchAt: c.nextBatchAt?.toISOString() ?? null,
@@ -138,6 +168,21 @@ const validate = async (accountId: Types.ObjectId, input: CampaignInput) => {
     : null;
   if (!channel)
     throw new ValidationError([{ path: 'channelId', message: 'Unknown WhatsApp number' }]);
+  const schedule = input.schedule;
+  if (schedule?.kind === 'at' && (!schedule.at || Date.parse(schedule.at) <= Date.now()))
+    throw new ValidationError([{ path: 'schedule.at', message: 'Choose a future start time' }]);
+  if (schedule?.kind === 'recurring') {
+    const r = schedule.recurrence;
+    if (!r || (r.freq === 'weekly' && !r.days.length))
+      throw new ValidationError([
+        { path: 'schedule.recurrence', message: 'Choose the recurring time and weekly days' },
+      ]);
+    const recurrence = { ...r, until: r.until ? new Date(r.until) : null };
+    if (!nextOccurrence(recurrence, schedule.timezone ?? 'Asia/Kolkata', new Date()))
+      throw new ValidationError([
+        { path: 'schedule.recurrence.until', message: 'The recurrence has no future occurrences' },
+      ]);
+  }
   const total = input.variants.reduce((a, v) => a + v.splitPct, 0);
   if (total !== 100)
     throw new ValidationError([{ path: 'variants', message: 'The split must add up to 100' }]);
@@ -204,10 +249,55 @@ const toDoc = (input: CampaignInput) => ({
   schedule: {
     kind: input.schedule?.kind ?? 'now',
     at: input.schedule?.at ? new Date(input.schedule.at) : null,
+    timezone: input.schedule?.timezone ?? 'Asia/Kolkata',
+    recurrence:
+      input.schedule?.kind === 'recurring' && input.schedule.recurrence
+        ? {
+            ...input.schedule.recurrence,
+            until: input.schedule.recurrence.until
+              ? new Date(input.schedule.recurrence.until)
+              : null,
+          }
+        : null,
   },
 });
 
-export const createCampaign = async (req: Request, input: CampaignInput) => {
+const mediaForInput = async (
+  req: Request,
+  input: CampaignInput,
+  existing: WhatsAppCampaignDoc['headerMedia'],
+  storage?: StorageProvider,
+) => {
+  const auth = requireAuth(req);
+  const media =
+    input.headerMediaToken === null
+      ? null
+      : input.headerMediaToken
+        ? await saveCampaignMedia({
+            token: input.headerMediaToken,
+            accountId: new Types.ObjectId(auth.accountId),
+            userId: new Types.ObjectId(auth.userId),
+            ...(storage ? { storage } : {}),
+          })
+        : existing;
+  const templates = await WhatsAppTemplateModel.find({
+    accountId: auth.accountId,
+    _id: { $in: input.variants.map((v) => v.templateId) },
+  })
+    .select({ components: 1 })
+    .lean<{ components: Record<string, unknown>[] }[]>();
+  validateCampaignMedia(
+    media,
+    templates.map((t) => t.components),
+  );
+  return media ?? null;
+};
+
+export const createCampaign = async (
+  req: Request,
+  input: CampaignInput,
+  storage?: StorageProvider,
+) => {
   const { accountId } = tenantFilter(req);
   const auth = requireAuth(req);
   await validate(accountId, input);
@@ -215,6 +305,7 @@ export const createCampaign = async (req: Request, input: CampaignInput) => {
     accountId,
     createdBy: new Types.ObjectId(auth.userId),
     ...toDoc(input),
+    headerMedia: await mediaForInput(req, input, null, storage),
   });
   await audit(req, c, 'whatsapp_campaign.created', {
     channelId: input.channelId,
@@ -244,14 +335,24 @@ export const listCampaigns = async (
 
 export const getCampaign = async (req: Request, id: string) => view(await load(req, id));
 
-export const updateCampaign = async (req: Request, id: string, input: CampaignInput) => {
+export const updateCampaign = async (
+  req: Request,
+  id: string,
+  input: CampaignInput,
+  storage?: StorageProvider,
+) => {
   const c = await load(req, id);
   if (!(EDITABLE as readonly string[]).includes(c.status))
     throw new AppError('WA_CAMPAIGN_NOT_EDITABLE');
   await validate(c.accountId, input);
   const updated = await WhatsAppCampaignModel.findOneAndUpdate(
     { _id: c._id, status: { $in: [...EDITABLE] } },
-    { $set: toDoc(input) },
+    {
+      $set: {
+        ...toDoc(input),
+        headerMedia: await mediaForInput(req, input, c.headerMedia, storage),
+      },
+    },
     { returnDocument: 'after' },
   ).lean<WhatsAppCampaignDoc>();
   if (!updated) throw new AppError('WA_CAMPAIGN_NOT_EDITABLE');
@@ -267,63 +368,7 @@ export const deleteCampaign = async (req: Request, id: string) => {
 
 /** Cost before sending: recipients by market × price of each variant's category; wallet check. */
 export const estimateCampaign = async (req: Request, id: string) => {
-  const c = await load(req, id);
-  const channel = await WhatsAppChannelModel.findById(c.channelId).lean<WhatsAppChannelDoc>();
-  if (!channel)
-    throw new ValidationError([{ path: 'channelId', message: 'Unknown WhatsApp number' }]);
-  const variants = await loadVariants(c, channel.wabaId);
-  // a dry snapshot: count without writing rows
-  const filter = await audienceFilter(c);
-  const contacts = await ContactModel.find(filter)
-    .select({ phoneE164: 1 })
-    .limit(100_000)
-    .lean<{ phoneE164: string }[]>();
-  const priceCache = new Map<string, { market: string; priceMicros: number }>();
-  const byMarket = new Map<string, { count: number; priceMicros: number }>();
-  const category = (variants[0]?.category ?? 'MARKETING').toLowerCase() as PriceCategory;
-  let totalMicros = 0;
-  for (const ct of contacts) {
-    const key = ct.phoneE164.slice(0, 5);
-    let q = priceCache.get(key);
-    if (!q) {
-      try {
-        const quote = await priceMessage({
-          accountId: c.accountId,
-          payer: channel.metaPayer,
-          phoneE164: ct.phoneE164,
-          category,
-        });
-        q = { market: quote.market, priceMicros: quote.priceMicros };
-      } catch {
-        q = { market: 'OTHER', priceMicros: 0 };
-      }
-      priceCache.set(key, q);
-    }
-    const m = byMarket.get(q.market) ?? { count: 0, priceMicros: q.priceMicros };
-    m.count += 1;
-    byMarket.set(q.market, m);
-    totalMicros += q.priceMicros;
-  }
-  const wallet = await WalletModel.findOne({ accountId: c.accountId }).lean<WalletDoc>();
-  const available = wallet
-    ? wallet.balanceMicros - wallet.holdMicros + wallet.creditLimitMicros
-    : 0;
-  await WhatsAppCampaignModel.updateOne(
-    { _id: c._id },
-    { $set: { 'cost.estimateMicros': totalMicros } },
-  );
-  return {
-    recipients: contacts.length,
-    byMarket: [...byMarket.entries()].map(([market, v]) => ({
-      market,
-      count: v.count,
-      priceMicros: v.priceMicros,
-    })),
-    totalMicros,
-    walletAvailableMicros: Math.max(0, available),
-    enough: available >= totalMicros,
-    note: 'Upper bound: contacts skipped at start (DND, opted out…) are not charged.',
-  };
+  return estimateCampaignDoc(await load(req, id));
 };
 
 /** Snapshots the audience, checks the wallet, then runs now or at the scheduled time. */
@@ -337,6 +382,11 @@ export const startCampaign = async (req: Request, id: string, jobs?: WaCampaignJ
     throw new ConflictError('CONFLICT_INVALID_STATE', 'Connect the WhatsApp number first.');
   }
   const variants = await loadVariants(c, channel.wabaId);
+  if (variants.length !== c.variants.length || variants.some((v) => v.status !== 'APPROVED'))
+    throw new ValidationError([
+      { path: 'variants', message: 'Choose approved templates before starting' },
+    ]);
+  const est = await estimateCampaign(req, id);
   const snap = await snapshotAudience(c, variants);
   const pending = await WhatsAppCampaignRecipientModel.countDocuments({
     campaignId: c._id,
@@ -349,22 +399,29 @@ export const startCampaign = async (req: Request, id: string, jobs?: WaCampaignJ
       { path: 'audience', message: JSON.stringify(snap.skipped) },
     ]);
   }
-  const est = await estimateCampaign(req, id);
-  const perMessage = est.recipients ? est.totalMicros / est.recipients : 0;
-  const need = Math.round(perMessage * pending);
+  const need = est.totalMicros;
   if (est.walletAvailableMicros < need) {
     await WhatsAppCampaignRecipientModel.deleteMany({ campaignId: c._id });
     throw new AppError('WALLET_INSUFFICIENT_BALANCE', undefined, [
       { path: 'shortfallMicros', message: String(need - est.walletAvailableMicros) },
     ]);
   }
-  const later = c.schedule.kind === 'at' && c.schedule.at && c.schedule.at.getTime() > Date.now();
   const now = new Date();
+  const at =
+    c.schedule.kind === 'recurring' && c.schedule.recurrence
+      ? nextOccurrence(
+          c.schedule.recurrence,
+          c.schedule.timezone ?? 'Asia/Kolkata',
+          c.schedule.at && c.schedule.at > now ? new Date(c.schedule.at.getTime() - 1) : now,
+        )
+      : c.schedule.at;
+  const later = c.schedule.kind !== 'now' && at && at > now;
   const updated = await WhatsAppCampaignModel.findOneAndUpdate(
     { _id: c._id, status: { $in: [...EDITABLE] } },
     {
       $set: {
         status: later ? 'scheduled' : 'running',
+        'schedule.at': at,
         startedAt: later ? null : now,
         'counters.total': snap.total,
         'counters.skippedTotal': skippedTotal,
@@ -434,12 +491,24 @@ export const stopCampaign = async (req: Request, id: string) => {
   const updated = await move(
     req,
     id,
-    ['running', 'waiting_for_limit', 'paused', 'scheduled'],
-    { status: 'stopped', finishedAt: new Date(), nextBatchAt: null },
+    ['running', 'waiting_for_limit', 'paused', 'scheduled', 'completed'],
+    { status: 'stopped', finishedAt: new Date(), nextBatchAt: null, recurrenceEnabled: false },
     'whatsapp_campaign.stopped',
   );
+  const rootId = updated.parentCampaignId ?? updated._id;
+  await WhatsAppCampaignModel.updateOne(
+    { _id: rootId, accountId: updated.accountId },
+    { $set: { recurrenceEnabled: false } },
+  );
+  await WhatsAppCampaignModel.updateMany(
+    {
+      parentCampaignId: rootId,
+      status: { $in: ['scheduled', 'running', 'waiting_for_limit', 'paused'] },
+    },
+    { $set: { status: 'stopped', recurrenceEnabled: false, finishedAt: new Date() } },
+  );
   const rest = await WhatsAppCampaignRecipientModel.updateMany(
-    { campaignId: updated._id, status: { $in: ['pending', 'sending'] }, messageId: null },
+    { campaignId: updated._id, status: { $in: ['pending', 'sending'] } },
     { $set: { status: 'skipped', skipReason: 'stopped', claimedAt: null } },
   );
   if (rest.modifiedCount) {
