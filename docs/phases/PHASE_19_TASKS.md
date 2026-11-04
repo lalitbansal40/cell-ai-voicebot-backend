@@ -4,14 +4,14 @@ Plan: [PHASE_19_PLAN.md](PHASE_19_PLAN.md) · Prompt: [PHASE_19_PROMPT.md](../pr
 
 | ✓   | #      | Task                                  | Repo | Size | Batch |
 | --- | ------ | ------------------------------------- | ---- | ---- | ----- |
-| [ ] | T19.1  | Account kinds and parent              | be   | S    | B1    |
-| [ ] | T19.2  | Signup without e-mail                 | both | M    | B1    |
-| [ ] | T19.3  | Log in as v2 (view / act)             | both | M    | B1    |
-| [ ] | T19.4  | Superadmin resellers and users        | both | M    | B1    |
-| [ ] | T19.5  | Reseller API                          | be   | M    | B2    |
-| [ ] | T19.6  | Credit transfer                       | be   | M    | B2    |
-| [ ] | T19.7  | Reseller dashboard numbers            | be   | S    | B2    |
-| [ ] | T19.8  | Reseller panel                        | fe   | M    | B2    |
+| [x] | T19.1  | Account kinds and parent              | be   | S    | B1    |
+| [x] | T19.2  | Signup without e-mail                 | both | M    | B1    |
+| [x] | T19.3  | Log in as v2 (view / act)             | both | M    | B1    |
+| [x] | T19.4  | Superadmin resellers and users        | both | M    | B1    |
+| [x] | T19.5  | Reseller API                          | be   | M    | B2    |
+| [x] | T19.6  | Credit transfer                       | be   | M    | B2    |
+| [x] | T19.7  | Reseller dashboard numbers            | be   | S    | B2    |
+| [x] | T19.8  | Reseller panel                        | fe   | M    | B2    |
 | [ ] | T19.9  | WhatsApp campaign model + audience    | be   | M    | B3    |
 | [ ] | T19.10 | Estimate + wallet                     | be   | S    | B3    |
 | [ ] | T19.11 | Sender + tier pacing                  | be   | L    | B3    |
