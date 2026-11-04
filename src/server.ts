@@ -285,6 +285,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
             templateJobs: whatsapp.templateJobs,
           },
           bus: callBus,
+          jobs: whatsapp.callingJobs,
           calls: {
             logger,
             registry: callRegistry,

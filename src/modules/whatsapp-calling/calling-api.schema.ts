@@ -15,6 +15,23 @@ export const PermissionRequestBody = z.object({
   contactId: ObjectIdSchema,
   body: z.string().trim().min(1).max(1024).optional(),
 });
+/** Phase 18B: ask many contacts at once with an approved permission template. */
+export const BulkPermissionBody = z.strictObject({
+  channelId: ObjectIdSchema,
+  target: z
+    .strictObject({
+      contactIds: z.array(ObjectIdSchema).min(1).max(5_000).optional(),
+      listId: ObjectIdSchema.optional(),
+      segmentId: ObjectIdSchema.optional(),
+    })
+    .refine(
+      (t) => [t.contactIds, t.listId, t.segmentId].filter((v) => v !== undefined).length === 1,
+      { message: 'Give exactly one of contactIds, listId or segmentId' },
+    ),
+  templateId: ObjectIdSchema,
+  variables: z.record(z.string().max(60), z.string().max(1024)).optional(),
+});
+export const BulkRunParams = z.object({ runId: ObjectIdSchema });
 export const StartWhatsAppCallBody = z
   .object({
     channelId: ObjectIdSchema,

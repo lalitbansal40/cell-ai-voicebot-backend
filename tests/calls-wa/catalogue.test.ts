@@ -109,7 +109,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('has 127 audit actions incl. the nine Phase 12 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(173); // Phase 18: T18.6 2, T18.7 4; + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2; Phase 16: T16.3 1, T16.4 1, T16.5 2, T16.6 5, T16.7 2, T16.9 4; Phase 17: T17.6 2
+    expect(AUDIT_ACTIONS).toHaveLength(174); // Phase 18B: T18B.4 1; Phase 18: T18.6 2, T18.7 4; + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2; Phase 16: T16.3 1, T16.4 1, T16.5 2, T16.6 5, T16.7 2, T16.9 4; Phase 17: T17.6 2
     expect(AUDIT_ACTIONS.slice(118, 127)).toEqual([
       'whatsapp.calling_settings_updated',
       'whatsapp.call_permission_requested',
@@ -125,7 +125,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('adds 5 notification types (26 + 5; Phase 14: 32) with titles, audiences, links and e-mail flags', () => {
-    expect(NOTIFICATION_TYPES).toHaveLength(38); // Phase 18: T18.14 1, T18.15 1; + Phase 14 analytics.reconcile_mismatch, Phase 15 webhook.endpoint_disabled
+    expect(NOTIFICATION_TYPES).toHaveLength(39); // Phase 18B: T18B.4 1; Phase 18: T18.14 1, T18.15 1; + Phase 14 analytics.reconcile_mismatch, Phase 15 webhook.endpoint_disabled
     const added = NOTIFICATION_TYPES.slice(26, 31);
     expect(added).toEqual([
       'call.whatsapp_missed',
@@ -186,6 +186,7 @@ describe('Phase 12 catalogue', () => {
 
   it('job names, ids (no `:`) and schedules', () => {
     expect(CALLING_JOBS).toEqual({
+      permissionBulk: 'call-permission-bulk',
       permissionSweep: 'whatsapp.call_permission_sweep',
       settingsSync: 'whatsapp.calling_settings_sync',
       backfillIgnore: 'whatsapp.calls_backfill_ignore',

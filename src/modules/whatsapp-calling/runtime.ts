@@ -5,12 +5,14 @@ import type { WhatsAppContext } from '../whatsapp/context';
 import type { CallingHooks } from '../whatsapp/webhook-handlers';
 import type { WhatsAppService } from '../whatsapp/whatsapp.service';
 
+import { createBulkPermissions, type BulkPermissionsService } from './bulk-permissions';
 import type { CallControlBus } from './bus';
 import {
   createWhatsAppCalls,
   type WhatsAppCallsDeps,
   type WhatsAppCallsService,
 } from './calls.service';
+import type { CallingJobs } from './jobs';
 import { createCallPermissions, type CallPermissionsService } from './permissions.service';
 import { createCallingSettings, type CallingSettingsService } from './settings.service';
 import { createCallingHooks, createInboxCallingHook } from './webhooks';
@@ -19,6 +21,8 @@ import { createCallingHooks, createInboxCallingHook } from './webhooks';
 export interface CallingRuntime {
   settings: CallingSettingsService;
   permissions: CallPermissionsService;
+  /** Phase 18B: bulk call permission requests (runs + the job). */
+  bulk: BulkPermissionsService;
   /** Present where calls are placed (the media process). */
   calls: WhatsAppCallsService | null;
   /** For `HandlerContext.calling` (the WhatsApp worker). */
@@ -30,6 +34,8 @@ export const createCallingRuntime = (deps: {
   service: Pick<WhatsAppService, 'getChannelToken'>;
   inbox: InboxContext;
   bus?: CallControlBus;
+  /** Queues the bulk permission job (the API); the worker runs it without. */
+  jobs?: CallingJobs;
   /** The Phase 7 parts calls need (tts, storage, registry, scripts…); omitted = no calls here. */
   calls?: Omit<WhatsAppCallsDeps, 'ctx' | 'token' | 'bus' | 'permissions' | 'inbox'>;
 }): CallingRuntime => {
@@ -52,5 +58,6 @@ export const createCallingRuntime = (deps: {
     settings,
     ...(calls ? { calls: (channel, value, event) => calls.onWebhook(channel, value, event) } : {}),
   });
-  return { settings, permissions, calls, hooks };
+  const bulk = createBulkPermissions({ permissions, ...(deps.jobs ? { jobs: deps.jobs } : {}) });
+  return { settings, permissions, bulk, calls, hooks };
 };

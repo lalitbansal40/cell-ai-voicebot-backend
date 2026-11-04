@@ -513,6 +513,7 @@ export const ERASE_MAP: EraseEntry[] = [
       ['ttsCache', 'keep', "Cached audio can't be linked to a person; it ages out"],
       ['mockPaymentRecords', 'keep', 'Development only, never mounted in production'],
       ['phoneNumbers', 'keep', "The business's caller IDs, not a contact's number"],
+      ['callPermissionRuns', 'keep', 'Bulk call permission runs: ids and counters only'],
     ] as const
   ).map(([store, action, reason]) => ({ store, action, reason })),
   ...[

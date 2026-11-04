@@ -119,6 +119,15 @@ export interface WsEventMap {
     status: string;
     expiresAt: string | null;
   };
+  /** Account level (Phase 18B): a bulk call permission run moved on. */
+  'call_permission_bulk.progress': {
+    runId: string;
+    status: string;
+    total: number;
+    sent: number;
+    failed: number;
+    skipped: Record<string, number>;
+  };
   'wallet.updated': {
     balanceMicros: number;
     holdMicros: number;
@@ -180,6 +189,7 @@ export const WS_EVENT_TYPES = [
   'whatsapp.call.taken',
   'whatsapp.call.ended_ringing',
   'whatsapp.call_permission.updated',
+  'call_permission_bulk.progress',
   'wallet.updated',
   'wallet.low_balance',
   'wallet.exhausted',

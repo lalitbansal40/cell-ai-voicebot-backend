@@ -5,7 +5,7 @@ import { Types } from 'mongoose';
 import { UserModel } from '../../db/models/user.model';
 import { actingUserId, requireAuth } from '../../shared/auth/auth-context';
 import { AppError, ValidationError } from '../../shared/errors/app-error';
-import { created, ok } from '../../shared/http/envelope';
+import { accepted, created, ok } from '../../shared/http/envelope';
 import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { idempotency } from '../../shared/middlewares/idempotency';
@@ -19,6 +19,8 @@ import { findCall, viewOne } from '../calls/calls.service';
 
 import type { CallCommand } from './bus';
 import {
+  BulkPermissionBody,
+  BulkRunParams,
   CallingParams,
   CallHoldBody,
   CallTransferBody,
@@ -31,7 +33,7 @@ import type { CallingRuntime } from './runtime';
 
 export interface CallingRouterDeps {
   runtime: CallingRuntime;
-  stores?: { calls?: Store; permissions?: Store; settings?: Store };
+  stores?: { calls?: Store; permissions?: Store; settings?: Store; bulk?: Store };
 }
 
 const actor = (req: Request) => {
@@ -148,6 +150,24 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
           source: h.source,
         })),
       });
+    }),
+  );
+  // Phase 18B: many contacts → one run (202), progress over the socket + GET
+  router.post(
+    '/whatsapp/call-permissions/bulk',
+    ...reply,
+    requirePermission('contacts.read'),
+    limiter('wa-call-perm-bulk', 5, 3_600_000, stores.bulk),
+    idempotency({ scope: (req) => req.auth?.accountId }),
+    ...handle({ body: BulkPermissionBody }, async ({ req, res, body }) => {
+      accepted(res, await runtime.bulk.start(actor(req), body));
+    }),
+  );
+  router.get(
+    '/whatsapp/call-permissions/bulk/:runId',
+    read,
+    ...handle({ params: BulkRunParams }, async ({ req, res, params }) => {
+      ok(res, await runtime.bulk.get(actor(req).accountId, params.runId));
     }),
   );
   router.post(

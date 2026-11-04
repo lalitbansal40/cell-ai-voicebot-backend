@@ -28,10 +28,9 @@ beforeEach(async () => {
 });
 
 describe('0019-sip-lines', () => {
-  it('is registered right after 0018 and is the last one', () => {
+  it('is registered right after 0018', () => {
     const names = MIGRATIONS.map((m) => m.name);
     expect(names.indexOf('0019-sip-lines')).toBe(names.indexOf('0018-security-privacy') + 1);
-    expect(names.at(-1)).toBe('0019-sip-lines');
   });
 
   it('up puts every account on the test line and creates the number indexes (idempotent)', async () => {

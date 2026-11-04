@@ -10,6 +10,8 @@ export const CALLING_JOBS = {
   settingsSync: 'whatsapp.calling_settings_sync',
   /** Worker start, once: `calls` events stored before Phase 12 → consumed `ignored_stale`. */
   backfillIgnore: 'whatsapp.calls_backfill_ignore',
+  /** Phase 18B: one job per bulk call permission run (batches of 50, resumes at the cursor). */
+  permissionBulk: 'call-permission-bulk',
 } as const;
 export type CallingJobName = (typeof CALLING_JOBS)[keyof typeof CALLING_JOBS];
 
@@ -50,7 +52,13 @@ export interface CallingSettingsSyncJobData {
 /** Enqueues calling jobs (the API / webhooks depend on this, not on BullMQ). */
 export interface CallingJobs {
   enqueueSettingsSync(channelId: string, reason: CallingSettingsSyncReason): Promise<void>;
+  enqueuePermissionBulk(runId: string): Promise<void>;
 }
+
+export interface PermissionBulkJobData {
+  runId: string;
+}
+export const permissionBulkJobId = (runId: string): string => `call-permission-bulk-${runId}`;
 
 export const queueCallingJobs = (queue: {
   add(name: string, data: unknown, opts: Record<string, unknown>): Promise<unknown>;
@@ -61,5 +69,11 @@ export const queueCallingJobs = (queue: {
       { channelId, reason } satisfies CallingSettingsSyncJobData,
       { ...CALLING_JOB_OPTIONS, jobId: callingSettingsSyncJobId(channelId) },
     );
+  },
+  async enqueuePermissionBulk(runId) {
+    await queue.add(CALLING_JOBS.permissionBulk, { runId } satisfies PermissionBulkJobData, {
+      ...CALLING_JOB_OPTIONS,
+      jobId: permissionBulkJobId(runId),
+    });
   },
 });

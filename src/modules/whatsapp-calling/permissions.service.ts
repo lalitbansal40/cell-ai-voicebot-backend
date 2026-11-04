@@ -363,12 +363,13 @@ export const createCallPermissions = (deps: PermissionDeps) => {
   };
 
   /** The WABA's approved call permission template (Phase 11), if any. */
-  const permissionTemplate = (channel: WhatsAppChannelDoc) =>
+  const permissionTemplate = (channel: WhatsAppChannelDoc, templateId?: string) =>
     WhatsAppTemplateModel.findOne({
       accountId: channel.accountId,
       wabaId: channel.wabaId,
       purpose: 'call_permission',
       status: 'APPROVED',
+      ...(templateId ? { _id: new Types.ObjectId(templateId) } : {}),
     })
       .select({ _id: 1 })
       .lean<{ _id: Types.ObjectId }>();
@@ -380,7 +381,18 @@ export const createCallPermissions = (deps: PermissionDeps) => {
    */
   const request = async (
     actor: PermissionActor,
-    input: { channelId: string; contactId: string; body?: string | null },
+    input: {
+      channelId: string;
+      contactId: string;
+      body?: string | null;
+      /** Bulk (Phase 18B): always the template (never relies on the 24 h window). */
+      forceTemplate?: boolean;
+      /** Bulk: this approved permission template, with its variable values. */
+      templateId?: string;
+      variables?: Record<string, string>;
+      /** Bulk: a stable id per contact and run, so a retried job never sends twice. */
+      clientId?: string;
+    },
   ) => {
     const now = nowOf(ctx);
     const channel = await loadChannel(actor.accountId, input.channelId);
@@ -444,7 +456,7 @@ export const createCallPermissions = (deps: PermissionDeps) => {
         source: 'outbound',
       }));
     const calling = channel.calling ?? defaultCalling();
-    const inWindow = isWindowOpen(conversation, now);
+    const inWindow = !input.forceTemplate && isWindowOpen(conversation, now);
     let kind: 'interactive' | 'template';
     let messageId: Types.ObjectId;
     if (inWindow) {
@@ -457,12 +469,13 @@ export const createCallPermissions = (deps: PermissionDeps) => {
       messageId = sent.message._id;
     } else {
       kind = 'template';
-      const template = await permissionTemplate(channel);
+      const template = await permissionTemplate(channel, input.templateId);
       if (!template) throw new AppError('WHATSAPP_CALL_PERMISSION_TEMPLATE_MISSING');
       const sent = await sendMessage(deps.inbox, actor, conversation._id.toString(), {
         type: 'template',
         templateId: template._id.toString(),
-        clientId: randomUUID(),
+        ...(input.variables ? { variables: input.variables } : {}),
+        clientId: input.clientId ?? randomUUID(),
       });
       messageId = sent.message._id;
     }
@@ -702,11 +715,14 @@ export const createCallPermissions = (deps: PermissionDeps) => {
   return {
     statusFor,
     request,
+    permissionTemplate,
     onReply,
     onCallOutcome,
     sweep,
     metaPermission,
     loadRow,
+    loadChannel,
+    channelBlock,
     valid,
   };
 };

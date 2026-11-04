@@ -50,6 +50,7 @@ import {
   hasDeferredCallEvents,
   ignoreStaleCallEvents,
 } from '../../../modules/whatsapp-calling/backfill';
+import type { BulkPermissionsService } from '../../../modules/whatsapp-calling/bulk-permissions';
 import {
   CALLING_DAILY_SYNC_JOB_ID,
   CALLING_JOB_OPTIONS,
@@ -58,6 +59,7 @@ import {
   CALLS_BACKFILL_IGNORE_JOB_ID,
   PERMISSION_SWEEP_JOB_ID,
   type CallingSettingsSyncJobData,
+  type PermissionBulkJobData,
 } from '../../../modules/whatsapp-calling/jobs';
 import type { CallPermissionsService } from '../../../modules/whatsapp-calling/permissions.service';
 import {
@@ -80,6 +82,7 @@ import { createQueue, createWorker, type QueueFactoryDeps } from '../queue-facto
 export interface CallingContext {
   settings: CallingSettingsService;
   permissions: CallPermissionsService;
+  bulk?: BulkPermissionsService;
 }
 
 /**
@@ -101,6 +104,9 @@ export const processWhatsAppJob =
     }
     if (cx) {
       if (job.name === CALLING_JOBS.permissionSweep) return cx.permissions.sweep();
+      if (job.name === CALLING_JOBS.permissionBulk && cx.bulk) {
+        return cx.bulk.process((job.data as PermissionBulkJobData).runId);
+      }
       if (job.name === CALLING_JOBS.settingsSync) {
         const data = job.data as Partial<CallingSettingsSyncJobData>;
         if (!data.channelId) return cx.settings.syncAll();
@@ -196,7 +202,7 @@ export const startWhatsAppWorker = async (
     deps.calling ?? (ix ? createCallingRuntime({ ctx: deps.ctx, service, inbox: ix }) : null);
   if (ix && runtime) ix.calling = createInboxCallingHook(runtime.permissions);
   const cx: CallingContext | undefined = runtime
-    ? { settings: runtime.settings, permissions: runtime.permissions }
+    ? { settings: runtime.settings, permissions: runtime.permissions, bulk: runtime.bulk }
     : undefined;
   h.calling =
     runtime?.hooks ??

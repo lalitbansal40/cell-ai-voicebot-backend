@@ -45,6 +45,8 @@ export const NOTIFICATION_TYPES = [
   // Phase 18: SIP line
   'sip.spend_guard_paused',
   'sip.trunk_down',
+  // Phase 18B
+  'whatsapp.call_permission_bulk_done',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
