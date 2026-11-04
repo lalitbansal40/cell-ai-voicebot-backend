@@ -1,6 +1,6 @@
 # Phase 19 — Open signup, reseller panel, bulk WhatsApp campaigns (detailed plan)
 
-**Status:** Draft (2026-11-04) — waiting for the owner's OK on §2 decisions · **Branches:** `feature/phase-19-reseller-campaigns` (both repos) · **Size:** L (≈ 6–8 working days) · **Roadmap:** BUILD_PLAN_V2 Phase 20 (bulk campaigns) moves up and is joined by signup + resellers; Inbound phone calls (old Phase 19) becomes Phase 20.
+**Status:** Locked (2026-11-04) — defaults D1–D12 in use · **Branches:** `feature/phase-19-reseller-campaigns` (both repos) · **Size:** L (≈ 6–8 working days) · **Roadmap:** BUILD_PLAN_V2 Phase 20 (bulk campaigns) moves up and is joined by signup + resellers; Inbound phone calls (old Phase 19) becomes Phase 20.
 
 ---
 
@@ -228,3 +228,4 @@ Permissions `whatsapp_campaigns.read` / `.write` (owner, admin, manager write; a
 
 - 2026-11-04: Draft — checked signup, impersonation, accounts, wallet, campaigns, templates; gaps G1–G7; decisions D1–D12 with defaults; 16 tasks in 4 batches; test rule (targeted per task, full suites twice, targeted Playwright).
 - 2026-11-04: Run prompt written ([PHASE_19_PROMPT.md](../prompts/PHASE_19_PROMPT.md)) — defaults D1–D12 locked; literals: errors +7 → 115, audit +20 → 194, notifications +6 → 45, permissions +4 → 49, ledger +2 → 12, WS +1 → 41, migrations 0021 / 0022.
+- 2026-11-04: Locked. Defaults D1–D12 in use. Owner: a bulk campaign sends **any** approved template, incl. the consent (call permission) template, charged from the wallet — consent variants go through the permission request path (prompt §1).

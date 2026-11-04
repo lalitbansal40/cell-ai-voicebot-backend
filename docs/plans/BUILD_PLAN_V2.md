@@ -289,7 +289,11 @@ Client se chahiye: 🔴 SIP host / port / auth, DID / caller ID (1600-series), c
 
 ---
 
-### Phase 19 — Inbound phone calls (M) 🔴
+### Phase 19 — Open signup, resellers, bulk WhatsApp campaigns (L)
+
+See [PHASE_19_PLAN.md](../phases/PHASE_19_PLAN.md). Moved up by the owner (2026-11-04); inbound phone calls became Phase 20.
+
+### Phase 20 — Inbound phone calls (M) 🔴
 
 (Pehle wala Phase 14.) DID → flow / agent mapping, greeting, contact match, business hours, missed calls + callback list, human transfer / queue, Phone numbers page. (WhatsApp inbound calls Phase 12 me already.)
 
@@ -297,7 +301,7 @@ Client se chahiye: 🔴 inbound DID.
 
 ---
 
-### Phase 20 — Bulk WhatsApp campaigns + bulk WhatsApp calling (L) — last
+### (moved into Phase 19) Bulk WhatsApp campaigns + bulk WhatsApp calling (L)
 
 **AutoChatix ke pattern pe** (campaign model, audience filters, A/B, tier pacing, stats, fail reasons) + hamare Phase 8 engine ki reliability (claims, restart safety, idempotency).
 
