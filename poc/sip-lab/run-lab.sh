@@ -15,7 +15,8 @@ trap cleanup EXIT
 if [ ! -f .env.lab ]; then
   {
     echo "ARI_USER=cavlab"
-    echo "ARI_PASSWORD=$(openssl rand -hex 12)"
+    pw="$(openssl rand -hex 12)"
+    echo "ARI_PASSWORD=${pw}"
     echo "SOFTPHONE_PASSWORD=$(openssl rand -hex 12)"
   } > .env.lab
   echo "Created .env.lab with random lab passwords."

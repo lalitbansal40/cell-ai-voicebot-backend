@@ -25,7 +25,7 @@ const CALLS = arg('calls', 30);
 const SECONDS = arg('seconds', 60);
 const lab = path.resolve(__dirname, '../deploy/asterisk/lab');
 const password =
-  /ARI_PASSWORD=(\S+)/.exec(readFileSync(path.join(lab, '.env.lab'), 'utf8'))?.[1] ?? '';
+  /^ARI_PASSWORD\s*=\s*(\S+)/m.exec(readFileSync(path.join(lab, '.env.lab'), 'utf8'))?.[1] ?? '';
 const advertise =
   process.env.SIP_LAB_ADVERTISE ??
   execFileSync(

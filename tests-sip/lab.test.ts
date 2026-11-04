@@ -18,7 +18,7 @@ import { systemClock } from '../src/core/voice/clock';
  */
 const lab = path.resolve(__dirname, '../deploy/asterisk/lab');
 const password =
-  /ARI_PASSWORD=(\S+)/.exec(readFileSync(path.join(lab, '.env.lab'), 'utf8'))?.[1] ?? '';
+  /^ARI_PASSWORD\s*=\s*(\S+)/m.exec(readFileSync(path.join(lab, '.env.lab'), 'utf8'))?.[1] ?? '';
 /** Docker Desktop: the container reaches the Mac here; on Linux CI it is the bridge gateway. */
 const advertise =
   process.env.SIP_LAB_ADVERTISE ??
