@@ -87,6 +87,7 @@ import { createTemplatesRouter } from './modules/templates/templates.routes';
 import {
   createVoiceApiAdminRouter,
   createVoiceApiRouter,
+  createVoiceWebhookRouter,
 } from './modules/voice-api/voice-api.routes';
 import { createWalletRouter } from './modules/wallet/wallet.routes';
 import { webhookRuntime, type WebhookHooks } from './modules/webhooks/deliver.job';
@@ -261,6 +262,7 @@ export const createApiRouter = ({
   // VAPI: recorded-voice / IVR campaigns over Cell24x7
   router.use('/admin', createVoiceApiAdminRouter());
   router.use('/', createVoiceApiRouter());
+  router.use('/', createVoiceWebhookRouter());
   router.use('/account', createRetentionRouter());
   router.use('/account', createAccountRouter());
   router.use('/inbox', createChatSummaryRouter({ jobs: ai.jobs ?? unavailableAiJobs }));

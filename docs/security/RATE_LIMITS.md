@@ -23,6 +23,7 @@ Every request also passes the global limit of 1,200 a minute per IP. API keys ha
 - `GET /api/v1/system/info`: no limiter. Static build info
 - `GET /api/v1/auth/invite-info`: own limiter
 - `POST /api/v1/auth/accept-invite`: own limiter
+- `POST /api/v1/webhooks/voice-api/{secret}`: own limiter
 
 ## Signed-in routes with their own limiter
 
