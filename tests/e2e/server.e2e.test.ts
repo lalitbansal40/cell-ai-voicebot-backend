@@ -210,6 +210,8 @@ describe('startServer (e2e)', () => {
     expect(hooks).toEqual([
       'readiness',
       'campaigns',
+      // VAPI: the fake voice provider's timers stop
+      'voice-api',
       // Phase 12: live WhatsApp calls end politely (Meta terminate) before the fake stops
       'whatsapp-calls',
       'fake-meta-statuses',

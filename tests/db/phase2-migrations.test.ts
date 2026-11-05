@@ -82,6 +82,8 @@ describe('phase 2 migrations', () => {
     await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);
+    // VAPI: 0025
+    await migrateDown(db(), MIGRATIONS, logger);
     expect(await AccountModel.countDocuments({ slug: 'platform' })).toBe(0);
   });
 });

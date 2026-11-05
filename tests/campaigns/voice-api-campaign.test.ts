@@ -80,10 +80,12 @@ describe('recorded-voice campaigns (Cell24x7)', () => {
       perCallMicros: 1_000_000,
       totalMicros: 5_000_000,
     });
-    expect(estimate.voice).toMatchObject({
-      pulsesPerNumber: 2,
-      notPriced: false,
-      notIndianMobile: 1,
+    expect(estimate).toMatchObject({
+      voice: {
+        pulsesPerNumber: 2,
+        notPriced: false,
+        notIndianMobile: 1,
+      },
     });
 
     const started = await startCampaign(w.req, created.id);
