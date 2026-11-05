@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { Types } from 'mongoose';
 import type { z } from 'zod';
 
@@ -38,6 +39,7 @@ import { FlowAudioModel } from '../../db/models/flow-audio.model';
 import { FlowVersionModel, type FlowVersionDoc } from '../../db/models/flow-version.model';
 import { FlowModel, type FlowDoc } from '../../db/models/flow.model';
 import { SegmentModel } from '../../db/models/segment.model';
+import { WhatsAppTemplateModel } from '../../db/models/whatsapp-template.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import {
@@ -54,6 +56,8 @@ import { accountVariables } from '../ai-agents/variables';
 import { auditRequest } from '../audit/audit.service';
 import { effectiveLine } from '../calls/line';
 import { resolveCallerId } from '../phone-numbers/phone-numbers.service';
+import { quoteCall, type CallQuote } from '../whatsapp-calling/billing';
+import { programProblems } from '../whatsapp-calling/program';
 
 import { audienceQuery, previewAudience, toAudience, usedFields } from './audience';
 import { loadNames, toCampaignListItem, toCampaignView, toContactRow } from './campaign-json';
@@ -69,6 +73,7 @@ import { canMoveCampaign, DELETABLE, editRule, LIVE_EDITABLE } from './lifecycle
 import { notifyCampaignStatus } from './notifications';
 import { firstRunAt } from './recurrence';
 import { takeSnapshot } from './snapshot';
+import { validateWhatsAppLine } from './whatsapp-line';
 import { intersect } from './window';
 
 // ── hooks (wired by the scheduler / dispatcher, T8.5) ─────────────────────────
@@ -156,7 +161,7 @@ export interface PinnedVersion {
  */
 export const loadFlowVersion = async (
   accountId: Types.ObjectId,
-  flowId: Types.ObjectId | string,
+  flowId: Types.ObjectId | string | null | undefined,
   chosenVersion: number | null,
 ): Promise<PinnedVersion> => {
   const _id = toObjectId(String(flowId));
@@ -187,6 +192,26 @@ export const loadFlowVersion = async (
     ]);
   }
   return { flow, version, graph, hasAi: nodes.some((n) => n.type === 'ai_agent') };
+};
+
+export const loadCampaignProgram = async (
+  campaign: Pick<CampaignDoc, 'accountId' | 'flowId' | 'chosenVersion' | 'line' | 'program'>,
+) => {
+  if (campaign.line === 'whatsapp' && campaign.program?.kind === 'agent') {
+    const problems = await programProblems(campaign.accountId, campaign.program);
+    if (problems.length) throw new ValidationError(problems);
+    return {
+      pinned: null,
+      hasAi: true,
+      used: await usedFields(campaign.accountId, {}, [campaign.program.id]),
+    };
+  }
+  const pinned = await loadFlowVersion(campaign.accountId, campaign.flowId, campaign.chosenVersion);
+  return {
+    pinned,
+    hasAi: pinned.hasAi,
+    used: await usedFields(campaign.accountId, pinned.graph, pinned.version.agentIds),
+  };
 };
 
 /** Problems that stop a pinned version from running (agents off / gone, audio gone). */
@@ -243,6 +268,10 @@ type CampaignSettings = Pick<
   CampaignDoc,
   | 'name'
   | 'mode'
+  | 'line'
+  | 'channelId'
+  | 'program'
+  | 'askPermissionFirst'
   | 'flowId'
   | 'chosenVersion'
   | 'versionPolicy'
@@ -260,11 +289,15 @@ type CampaignSettings = Pick<
 /** New-campaign defaults (PHASE_8_PROMPT §1 "Limits"), bounded by the account limits. */
 export const defaultSettings = (
   account: AccountFacts,
-  base: { name: string; flowId: Types.ObjectId; mode: CampaignDoc['mode'] },
+  base: { name: string; flowId: Types.ObjectId | null; mode: CampaignDoc['mode'] },
 ): CampaignSettings => ({
   name: base.name,
   mode: base.mode,
   flowId: base.flowId,
+  line: 'phone',
+  channelId: null,
+  program: null,
+  askPermissionFirst: null,
   chosenVersion: null,
   versionPolicy: 'pinned',
   audience: {
@@ -330,7 +363,34 @@ export const mergeSettings = (
   return {
     name: input.name ?? current.name,
     mode,
-    flowId: input.flowId ? new Types.ObjectId(input.flowId) : current.flowId,
+    line: input.line ?? current.line ?? 'phone',
+    channelId:
+      input.channelId === undefined
+        ? current.channelId
+        : input.channelId
+          ? new Types.ObjectId(input.channelId)
+          : null,
+    program:
+      input.program === undefined
+        ? current.program
+        : input.program
+          ? { kind: input.program.kind, id: new Types.ObjectId(input.program.id) }
+          : null,
+    askPermissionFirst:
+      input.askPermissionFirst === undefined
+        ? current.askPermissionFirst
+        : input.askPermissionFirst
+          ? { templateId: new Types.ObjectId(input.askPermissionFirst.templateId) }
+          : null,
+    flowId:
+      (input.line ?? current.line) === 'whatsapp' &&
+      (input.program ?? current.program)?.kind === 'agent'
+        ? null
+        : input.program?.kind === 'flow'
+          ? new Types.ObjectId(input.program.id)
+          : input.flowId
+            ? new Types.ObjectId(input.flowId)
+            : current.flowId,
     chosenVersion: input.chosenVersion === undefined ? current.chosenVersion : input.chosenVersion,
     versionPolicy: input.versionPolicy ?? current.versionPolicy,
     audience: input.audience ? toAudience(input.audience, current.audience) : current.audience,
@@ -383,7 +443,32 @@ export const validateSettings = async (
   account: AccountFacts,
   now: Date,
 ): Promise<void> => {
-  if (s.mode === 'live' && account.line !== 'sip') throw liveRefused();
+  if (s.mode === 'live' && s.line !== 'whatsapp' && account.line !== 'sip') throw liveRefused();
+  if (s.line === 'whatsapp') {
+    const channel = await validateWhatsAppLine(accountId, s.channelId);
+    if (
+      s.askPermissionFirst &&
+      !(await WhatsAppTemplateModel.exists({
+        _id: s.askPermissionFirst.templateId,
+        accountId,
+        wabaId: channel.wabaId,
+        purpose: 'call_permission',
+        status: 'APPROVED',
+      }))
+    )
+      throw new ValidationError([
+        {
+          path: 'askPermissionFirst.templateId',
+          message: 'Choose an approved permission template on this number',
+        },
+      ]);
+    const problems = await programProblems(
+      accountId,
+      s.program ?? (s.flowId ? { kind: 'flow', id: s.flowId } : null),
+    );
+    if (problems.length) throw new ValidationError(problems);
+  } else if (!s.flowId)
+    throw new ValidationError([{ path: 'flowId', message: 'Choose a published call flow' }]);
   const details: ErrorDetail[] = [];
   if (!intersect(s.window, account.window)) {
     details.push({
@@ -539,13 +624,13 @@ export const createCampaign = async (req: Request, body: z.infer<typeof CreateCa
   const settings = mergeSettings(
     defaultSettings(account, {
       name: body.name,
-      flowId: new Types.ObjectId(body.flowId),
+      flowId: body.flowId ? new Types.ObjectId(body.flowId) : null,
       mode: body.mode,
     }),
     body,
   );
   await validateSettings(accountId, settings, account, new Date());
-  await loadFlowVersion(accountId, settings.flowId, settings.chosenVersion);
+  await loadCampaignProgram({ ...settings, accountId });
   if (await nameTaken(accountId, settings.name)) throw duplicateName();
   const by = userOf(req);
   let campaign: CampaignDoc;
@@ -567,7 +652,7 @@ export const createCampaign = async (req: Request, body: z.infer<typeof CreateCa
   }
   await auditRequest(req, 'campaign.created', {
     target: target(campaign),
-    meta: { mode: campaign.mode, flowId: campaign.flowId.toString() },
+    meta: { mode: campaign.mode, flowId: campaign.flowId?.toString() ?? '' },
   });
   return view(campaign);
 };
@@ -580,6 +665,7 @@ export const listCampaigns = async (req: Request, query: z.infer<typeof ListCamp
   const filter: Record<string, unknown> = { accountId };
   if (query.status) filter.status = { $in: query.status };
   if (query.mode) filter.mode = query.mode;
+  if (query.line) filter.line = query.line === 'phone' ? { $ne: 'whatsapp' } : 'whatsapp';
   if (query.flowId) filter.flowId = new Types.ObjectId(query.flowId);
   if (query.parentId) filter.parentId = new Types.ObjectId(query.parentId);
   if (query.q) filter.name = { $regex: escapeRegex(query.q), $options: 'i' };
@@ -663,7 +749,7 @@ export const updateCampaign = async (
   const settings = mergeSettings(campaign, input);
   await validateSettings(accountId, settings, account, new Date());
   if (input.flowId !== undefined || input.chosenVersion !== undefined) {
-    await loadFlowVersion(accountId, settings.flowId, settings.chosenVersion);
+    await loadCampaignProgram({ ...settings, accountId });
   }
   if (input.name !== undefined && (await nameTaken(accountId, settings.name, campaign._id))) {
     throw duplicateName();
@@ -713,6 +799,10 @@ export const duplicateCampaign = async (req: Request, id: string) => {
       name,
       mode: source.mode,
       flowId: source.flowId,
+      line: source.line,
+      channelId: source.channelId,
+      program: source.program,
+      askPermissionFirst: source.askPermissionFirst,
       chosenVersion: source.chosenVersion,
       versionPolicy: source.versionPolicy,
       audience: source.audience,
@@ -733,7 +823,7 @@ export const duplicateCampaign = async (req: Request, id: string) => {
   ).toObject({ transform: false });
   await auditRequest(req, 'campaign.created', {
     target: target(copy),
-    meta: { mode: copy.mode, flowId: copy.flowId.toString(), source: 'duplicate' },
+    meta: { mode: copy.mode, flowId: copy.flowId?.toString() ?? '', source: 'duplicate' },
   });
   return view(copy);
 };
@@ -812,7 +902,15 @@ export const previewCampaignAudience = async (
   body: z.infer<typeof AudiencePreviewBody>,
 ) => {
   const { accountId } = tenantFilter(req);
-  const pinned = await loadFlowVersion(accountId, body.flowId, body.chosenVersion ?? null);
+  const facts = await loadCampaignProgram({
+    accountId,
+    flowId: body.flowId ? new Types.ObjectId(body.flowId) : null,
+    chosenVersion: body.chosenVersion ?? null,
+    line: body.line ?? 'phone',
+    program: body.program
+      ? { kind: body.program.kind, id: new Types.ObjectId(body.program.id) }
+      : null,
+  });
   const audience = toAudience(body.audience, {
     listIds: [],
     segmentId: null,
@@ -823,15 +921,29 @@ export const previewCampaignAudience = async (
   });
   const problems = await audienceRefProblems(accountId, audience);
   if (problems.length) throw new ValidationError(problems);
-  const used = await usedFields(accountId, pinned.graph, pinned.version.agentIds);
-  return previewAudience({ accountId, audience, used });
+  const used = facts.used;
+  const channel =
+    body.line === 'whatsapp'
+      ? await validateWhatsAppLine(
+          accountId,
+          body.channelId ? new Types.ObjectId(body.channelId) : null,
+        )
+      : null;
+  return previewAudience({
+    accountId,
+    audience,
+    used,
+    ...(channel
+      ? { callPermission: { channelId: channel._id, askFirst: body.askPermissionFirst === true } }
+      : {}),
+  });
 };
 
 export const estimateCampaignCost = async (req: Request, id: string) => {
   const { accountId } = tenantFilter(req);
   const campaign = await findCampaign(accountId, id);
-  const pinned = await loadFlowVersion(accountId, campaign.flowId, campaign.chosenVersion);
-  const used = await usedFields(accountId, pinned.graph, pinned.version.agentIds);
+  const facts = await loadCampaignProgram(campaign);
+  const used = facts.used;
   const contacts = campaign.snapshot.done
     ? campaign.stats.total - campaign.stats.skipped
     : (
@@ -840,14 +952,46 @@ export const estimateCampaignCost = async (req: Request, id: string) => {
           audience: campaign.audience,
           used,
           campaignId: campaign._id,
+          ...(campaign.line === 'whatsapp' && campaign.channelId
+            ? {
+                callPermission: {
+                  channelId: campaign.channelId,
+                  askFirst: Boolean(campaign.askPermissionFirst),
+                },
+              }
+            : {}),
         })
       ).willCall;
+  let whatsappQuotes: CallQuote[] | undefined;
+  if (campaign.line === 'whatsapp') {
+    const channel = await validateWhatsAppLine(accountId, campaign.channelId);
+    const query = await audienceQuery(accountId, campaign.audience);
+    const recipients = query
+      ? await ContactModel.find(query)
+          .select({ phoneE164: 1 })
+          .limit(100_000)
+          .lean<{ phoneE164: string }[]>()
+      : [];
+    const quotes = new Map<string, CallQuote>();
+    for (const recipient of recipients) {
+      const market =
+        parsePhoneNumberFromString(recipient.phoneE164)?.country ?? recipient.phoneE164;
+      if (!quotes.has(market))
+        quotes.set(
+          market,
+          await quoteCall({ accountId, phoneE164: recipient.phoneE164, payer: channel.metaPayer }),
+        );
+    }
+    whatsappQuotes = [...quotes.values()];
+  }
   const estimate = await estimateCost({
     accountId,
+    whatsappQuotes,
+    aiShareBps: campaign.program?.kind === 'agent' ? 10000 : undefined,
     flowId: campaign.flowId,
     contacts,
     retry: campaign.retry,
-    hasAi: pinned.hasAi,
+    hasAi: facts.hasAi,
   });
   await CampaignModel.updateOne(
     { _id: campaign._id },
@@ -865,7 +1009,16 @@ export const estimateCampaignCost = async (req: Request, id: string) => {
       },
     },
   );
-  return { ...estimate, walletAvailableMicros: await walletAvailable(accountId) };
+  return {
+    ...estimate,
+    walletAvailableMicros: await walletAvailable(accountId),
+    ...(campaign.line === 'whatsapp'
+      ? {
+          transportNote:
+            'WhatsApp estimate uses the highest quoted audience-market call rate, plus AI usage; actual charges follow talk time.',
+        }
+      : {}),
+  };
 };
 
 // ── lifecycle ────────────────────────────────────────────────────────────────
@@ -935,20 +1088,21 @@ export const beginRun = async (
   campaign: CampaignDoc,
   by: Types.ObjectId | null,
 ): Promise<CampaignDoc> => {
-  const pinned = await loadFlowVersion(campaign.accountId, campaign.flowId, campaign.chosenVersion);
-  const problems = await runnableProblems(pinned);
+  const facts = await loadCampaignProgram(campaign);
+  const pinned = facts.pinned;
+  const problems = pinned ? await runnableProblems(pinned) : [];
   if (problems.length) throw notRunnable(problems);
   const now = new Date();
   const running = await setStatus(campaign, 'running', {
     by,
     set: {
-      flowVersionId: pinned.version._id,
-      flowVersion: pinned.version.version,
+      flowVersionId: pinned?.version._id ?? null,
+      flowVersion: pinned?.version.version ?? null,
       startedAt: campaign.startedAt ?? now,
       startedBy: campaign.startedBy ?? by,
     },
   });
-  const used = await usedFields(campaign.accountId, pinned.graph, pinned.version.agentIds);
+  const used = facts.used;
   const counts = await takeSnapshot(running, used, now);
   const fresh = (await CampaignModel.findById(campaign._id).lean<CampaignDoc>()) as CampaignDoc;
   if (counts.byStat.pending === 0) {
@@ -963,6 +1117,8 @@ export const beginRun = async (
  * gone, flow / version not loadable) — empty when it can.
  */
 export const pinnedProblems = async (campaign: CampaignDoc): Promise<ErrorDetail[]> => {
+  if (campaign.line === 'whatsapp' && campaign.program?.kind === 'agent')
+    return programProblems(campaign.accountId, campaign.program);
   try {
     const pinned = await loadFlowVersion(
       campaign.accountId,
@@ -987,7 +1143,8 @@ export const startCampaign = async (req: Request, id: string) => {
     );
   }
   const account = await accountFacts(accountId);
-  if (campaign.mode === 'live' && account.line !== 'sip') throw liveRefused();
+  if (campaign.mode === 'live' && campaign.line !== 'whatsapp' && account.line !== 'sip')
+    throw liveRefused();
   if (account.status === 'suspended') {
     throw notRunnable([{ path: 'account', message: 'The account is suspended' }]);
   }
@@ -995,8 +1152,9 @@ export const startCampaign = async (req: Request, id: string) => {
   if (!(await audienceQuery(accountId, campaign.audience))) {
     throw notRunnable([{ path: 'audience', message: 'Choose who to call' }]);
   }
-  const pinned = await loadFlowVersion(accountId, campaign.flowId, campaign.chosenVersion);
-  const problems = await runnableProblems(pinned);
+  const facts = await loadCampaignProgram(campaign);
+  const pinned = facts.pinned;
+  const problems = pinned ? await runnableProblems(pinned) : [];
   if (problems.length) throw notRunnable(problems);
   const active = await CampaignModel.countDocuments({
     accountId,
@@ -1013,8 +1171,8 @@ export const startCampaign = async (req: Request, id: string) => {
     const recurring = campaign.schedule.recurrence
       ? {
           // the parent pins its version now (runs use it with versionPolicy "pinned")
-          flowVersionId: pinned.version._id,
-          flowVersion: pinned.version.version,
+          flowVersionId: pinned?.version._id ?? null,
+          flowVersion: pinned?.version.version ?? null,
           nextRunAt: firstRunAt(campaign.schedule, new Date()),
         }
       : {};

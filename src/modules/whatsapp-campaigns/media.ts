@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { Types } from 'mongoose';
 
+import { TEMPLATE_LIMITS } from '../../config/limits';
 import type { StorageProvider } from '../../core/storage';
 import { storageKey } from '../../core/storage/keys';
 import { InboxUploadModel, type InboxUploadDoc } from '../../db/models/inbox-upload.model';
@@ -26,6 +27,13 @@ export const saveCampaignMedia = async (input: {
   if (!upload || !input.storage)
     throw new ValidationError([
       { path: 'headerMediaToken', message: 'Upload the header file again' },
+    ]);
+  if (
+    upload.size >
+    TEMPLATE_LIMITS.headerExampleMaxBytes[upload.kind as 'image' | 'video' | 'document']
+  )
+    throw new ValidationError([
+      { path: 'headerMediaToken', message: 'The file exceeds the WhatsApp template header limit' },
     ]);
   const key = storageKey({
     accountId: input.accountId.toString(),

@@ -87,6 +87,8 @@ export const SKIP_REASONS = [
   // Phase 18: SIP line
   'rejected',
   'number_not_allowed',
+  'no_call_permission',
+  'unanswered_limit',
 ] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
 
@@ -207,7 +209,11 @@ export interface CampaignDoc {
   accountId: Types.ObjectId;
   name: string;
   mode: CampaignMode;
-  flowId: Types.ObjectId;
+  flowId: Types.ObjectId | null;
+  line?: 'phone' | 'whatsapp';
+  channelId?: Types.ObjectId | null;
+  program?: { kind: 'flow' | 'agent'; id: Types.ObjectId } | null;
+  askPermissionFirst?: { templateId: Types.ObjectId } | null;
   /** Set at start (pinned); `null` before. */
   flowVersionId: Types.ObjectId | null;
   /** Version number the pinned version has (display). */
@@ -302,7 +308,11 @@ const schema = new Schema<CampaignDoc>(
   {
     name: { type: String, required: true, trim: true, maxlength: CAMPAIGN_LIMITS.nameMaxChars },
     mode: { type: String, enum: CAMPAIGN_MODES, default: 'dry_run' },
-    flowId: { type: Schema.Types.ObjectId, required: true },
+    flowId: { type: Schema.Types.ObjectId, default: null },
+    line: { type: String, enum: ['phone', 'whatsapp'], default: 'phone' },
+    channelId: { type: Schema.Types.ObjectId, default: null },
+    program: { type: Schema.Types.Mixed, default: null },
+    askPermissionFirst: { type: Schema.Types.Mixed, default: null },
     flowVersionId: { type: Schema.Types.ObjectId, default: null },
     flowVersion: { type: Number, default: null },
     chosenVersion: { type: Number, default: null },
@@ -397,6 +407,7 @@ schema.index(
 schema.index({ accountId: 1, status: 1, createdAt: -1 });
 schema.index({ status: 1, 'schedule.startAt': 1 });
 schema.index({ accountId: 1, flowId: 1, status: 1 });
+schema.index({ accountId: 1, line: 1, status: 1 }, { name: 'campaign_line_status' });
 schema.index({ parentId: 1, runNumber: -1 });
 
 /** Campaigns (data-model.md §2.5 — Phase 8). */

@@ -51,6 +51,7 @@ export interface AppDeps {
   storage?: StorageProvider;
   /** Auth routes limiter: separate Redis store (`rl:auth:`) + test overrides. */
   authRateLimitStore?: Store;
+  signupRateLimitStore?: Store;
   authRateLimit?: Partial<RateLimiterOptions>;
   /** Enqueues background contact jobs (imports, exports, bulk) — Phase 3. */
   contactJobs?: ContactJobs;
@@ -96,6 +97,7 @@ export const createApp = ({
   readiness,
   storage,
   authRateLimitStore,
+  signupRateLimitStore,
   authRateLimit,
   contactJobs,
   payments = createPaymentProvider(env),
@@ -160,7 +162,7 @@ export const createApp = ({
     '/api/v1',
     createApiRouter({
       env,
-      auth: { rateLimitStore: authRateLimitStore, rateLimit: authRateLimit },
+      auth: { rateLimitStore: authRateLimitStore, signupRateLimitStore, rateLimit: authRateLimit },
       contacts: { storage, jobs: contactJobs },
       billing: { storage, payments, jobs: billingJobs, topupRateLimitStore },
       ai: {

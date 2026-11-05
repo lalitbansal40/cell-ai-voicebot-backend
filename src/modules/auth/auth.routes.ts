@@ -42,6 +42,8 @@ export interface AuthRouterDeps {
   env: Pick<Env, 'CORS_ORIGINS' | 'NODE_ENV'> & Partial<Pick<Env, 'AUTH_RATE_LIMIT_MAX'>>;
   /** Separate store (prefix `rl:auth:`) — never share the global limiter's store. */
   rateLimitStore?: Store;
+  /** Signup uses a different hour-long Redis window/prefix. */
+  signupRateLimitStore?: Store;
   /** Test hook. */
   rateLimit?: Partial<RateLimiterOptions>;
 }
@@ -66,7 +68,7 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
     windowMs: SIGNUP_RATE_LIMIT.windowMs,
     limit: SIGNUP_RATE_LIMIT.limit,
     keyGenerator: (req) => `signup-ip:${ipKeyGenerator(req.ip ?? '')}`,
-    ...(deps.rateLimitStore ? { store: deps.rateLimitStore } : {}),
+    ...(deps.signupRateLimitStore ? { store: deps.signupRateLimitStore } : {}),
     // tests that lift the auth limit lift this one too
     ...(deps.rateLimit?.limit !== undefined ? { limit: deps.rateLimit.limit } : {}),
   });

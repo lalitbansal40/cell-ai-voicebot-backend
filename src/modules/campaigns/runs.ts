@@ -41,6 +41,10 @@ const createRunDoc = async (parent: CampaignDoc, at: Date): Promise<CampaignDoc>
     name: await runName(parent, at, runNumber),
     mode: parent.mode,
     flowId: parent.flowId,
+    line: parent.line,
+    channelId: parent.channelId,
+    program: parent.program,
+    askPermissionFirst: parent.askPermissionFirst,
     // pinned: the version the parent pinned when it was scheduled; latest: decided at start
     chosenVersion: parent.versionPolicy === 'pinned' ? parent.flowVersion : null,
     versionPolicy: parent.versionPolicy,

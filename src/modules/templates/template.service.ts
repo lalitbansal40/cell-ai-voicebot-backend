@@ -4,7 +4,10 @@ import { TEMPLATE_LIMITS } from '../../config/limits';
 import type { MetaTemplate } from '../../core/meta';
 import { AccountModel, DEFAULT_TEMPLATE_SETTINGS } from '../../db/models/account.model';
 import { CustomFieldModel } from '../../db/models/custom-field.model';
-import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
+import {
+  WhatsAppChannelModel,
+  type WhatsAppChannelDoc,
+} from '../../db/models/whatsapp-channel.model';
 import {
   EDITABLE_TEMPLATE_STATUSES,
   LIVE_TEMPLATE_STATUSES,
@@ -33,7 +36,13 @@ import { getLogger } from '../../shared/logger';
 import { recordAudit } from '../audit/audit.service';
 import { SYSTEM_ACTOR, type WaActor } from '../whatsapp/channel-status';
 
-import { loadAccountChannel, templateMetaError, templateToken, wabaChannel } from './channel';
+import {
+  loadAccountChannel,
+  templateMetaError,
+  templateToken,
+  templateChannel,
+  wabaChannel,
+} from './channel';
 import { headerFormat, isEditable, StoredComponentsSchema } from './components';
 import { templateNow, type TemplateContext } from './context';
 import { auditTemplate, emitTemplateUpdated } from './notify';
@@ -242,7 +251,7 @@ export const createTemplate = async (
   });
   emitTemplateUpdated(created);
   if (input.submit === false) return templateDetail(created, now);
-  return submitTemplate(tx, accountId, actor, created._id.toString());
+  return submitTemplate(tx, accountId, actor, created._id.toString(), input.channelId);
 };
 
 /** Sends a draft (or a re-edited rejected one) to Meta for review. */
@@ -251,8 +260,10 @@ export const submitTemplate = async (
   accountId: Types.ObjectId,
   actor: WaActor,
   id: string,
+  channelId?: string,
 ) => {
   const t = await loadTemplate(accountId, id);
+  const channel = await templateChannel(accountId, t.wabaId, channelId);
   if (t.status !== 'DRAFT') {
     throw editNotAllowed('status', 'Only drafts can be submitted — edit the template instead');
   }
@@ -261,7 +272,6 @@ export const submitTemplate = async (
       { path: 'headerMedia', message: 'Upload an example file for the media header' },
     ]);
   }
-  const channel = await wabaChannel(accountId, t.wabaId);
   await assertWithinLimits(tx, channel);
   const { token } = await templateToken(tx, channel._id);
   const now = templateNow(tx);
@@ -308,6 +318,7 @@ export const submitTemplate = async (
 /* ── edit ────────────────────────────────────────────────────────────────── */
 
 export interface EditTemplateInput {
+  channelId?: string;
   components?: unknown[];
   category?: TemplateCategory;
   ttlSeconds?: number | null;
@@ -329,6 +340,9 @@ export const editTemplate = async (
   patch: EditTemplateInput,
 ) => {
   const t = await loadTemplate(accountId, id);
+  const selectedChannel = patch.channelId
+    ? await templateChannel(accountId, t.wabaId, patch.channelId)
+    : null;
   const now = templateNow(tx);
   if (!(EDITABLE_TEMPLATE_STATUSES as readonly string[]).includes(t.status)) {
     throw editNotAllowed('status', `A template that is ${t.status.toLowerCase()} can't be edited`);
@@ -371,7 +385,7 @@ export const editTemplate = async (
   }
   const stored = components as unknown as Record<string, unknown>[];
   const fields = Object.keys(patch).filter(
-    (k) => patch[k as keyof EditTemplateInput] !== undefined,
+    (k) => k !== 'channelId' && patch[k as keyof EditTemplateInput] !== undefined,
   );
   const mediaChanged = headerFormat(stored) !== headerFormat(t.components);
   const set: Record<string, unknown> = {
@@ -404,7 +418,7 @@ export const editTemplate = async (
         { path: 'headerMedia', message: 'Upload an example file for the media header' },
       ]);
     }
-    const channel = await wabaChannel(accountId, t.wabaId);
+    const channel = selectedChannel ?? (await wabaChannel(accountId, t.wabaId));
     const { token } = await templateToken(tx, channel._id);
     try {
       await tx.wa.meta.editTemplate(token, t.metaTemplateId ?? '', {
@@ -861,8 +875,8 @@ export const listTemplates = async (accountId: Types.ObjectId, query: ListTempla
   else if (!query.includeDeleted) filter.status = { $ne: 'DELETED' };
   if (query.category) filter.category = query.category;
   if (query.purpose) filter.purpose = query.purpose;
-  if (query.channelId && Types.ObjectId.isValid(query.channelId))
-    filter.channelIds = new Types.ObjectId(query.channelId);
+  if (query.channelId)
+    filter.wabaId = (await loadAccountChannel(accountId, query.channelId)).wabaId;
   if (query.q?.trim()) {
     filter.name = {
       $regex: query.q
@@ -876,11 +890,32 @@ export const listTemplates = async (accountId: Types.ObjectId, query: ListTempla
     .sort({ updatedAt: -1, _id: -1 })
     .limit(1000)
     .lean<WhatsAppTemplateDoc[]>();
-  return rows.map(templateListItem);
+  const channels = await WhatsAppChannelModel.find({
+    accountId,
+    wabaId: { $in: rows.map((r) => r.wabaId) },
+    status: { $ne: 'disconnected' },
+  })
+    .select({ _id: 1, wabaId: 1 })
+    .lean<{ _id: Types.ObjectId; wabaId: string }[]>();
+  return rows.map((r) =>
+    templateListItem({
+      ...r,
+      channelIds: channels.filter((c) => c.wabaId === r.wabaId).map((c) => c._id),
+    }),
+  );
 };
 
-export const getTemplate = async (accountId: Types.ObjectId, id: string, now = new Date()) =>
-  templateDetail(await loadTemplate(accountId, id), now);
+export const getTemplate = async (accountId: Types.ObjectId, id: string, now = new Date()) => {
+  const t = await loadTemplate(accountId, id);
+  const channels = await WhatsAppChannelModel.find({
+    accountId,
+    wabaId: t.wabaId,
+    status: { $ne: 'disconnected' },
+  })
+    .select({ _id: 1 })
+    .lean<{ _id: Types.ObjectId }[]>();
+  return templateDetail({ ...t, channelIds: channels.map((c) => c._id) }, now);
+};
 
 /** Raw row for other modules (send pipeline): 404 for another account. */
 export const loadAccountTemplate = loadTemplate;

@@ -48,6 +48,8 @@ const redisDb9 = (url: string) => {
 
 export interface PerfRun {
   server: ChildProcess;
+  /** Kill/restart this isolated API; Redis and Mongo survive. */
+  restart(): Promise<void>;
   redis: Redis;
   stop(): Promise<void>;
 }
@@ -80,10 +82,8 @@ export const startPerf = async (extraEnv: Record<string, string> = {}): Promise<
     EMAIL_DRIVER: 'log',
     ...extraEnv,
   };
-  const server = spawn(
-    process.execPath,
-    ['--env-file-if-exists=.env', path.join('dist', 'index.js')],
-    {
+  const launch = () =>
+    spawn(process.execPath, ['--env-file-if-exists=.env', path.join('dist', 'index.js')], {
       env: { ...childEnv, WORKERS_ENABLED: process.env.PERF_SPLIT ? 'false' : 'true' },
       // PERF_SERVER_LOG=<file> keeps the API's error logs for a failed run
       stdio: [
@@ -91,8 +91,8 @@ export const startPerf = async (extraEnv: Record<string, string> = {}): Promise<
         process.env.PERF_SERVER_LOG ? openSync(process.env.PERF_SERVER_LOG, 'w') : 'ignore',
         'inherit',
       ],
-    },
-  );
+    });
+  let server = launch();
   // PERF_SPLIT=1: API and workers in two processes, as in production (ADR 0049)
   const worker = process.env.PERF_SPLIT
     ? spawn(process.execPath, ['--env-file-if-exists=.env', path.join('dist', 'index.js')], {
@@ -111,8 +111,30 @@ export const startPerf = async (extraEnv: Record<string, string> = {}): Promise<
     await sleep(300);
   }
   return {
-    server,
+    get server() {
+      return server;
+    },
     redis,
+    restart: async () => {
+      if (worker) throw new Error('Restart check requires one API/worker process');
+      const previous = server;
+      await new Promise<void>((resolve) => {
+        previous.once('exit', () => resolve());
+        previous.kill('SIGKILL');
+      });
+      server = launch();
+      const until = Date.now() + 60_000;
+      while (
+        !(await fetch(`${BASE}/health`).then(
+          (r) => r.ok,
+          () => false,
+        ))
+      ) {
+        if (server.exitCode !== null || Date.now() > until)
+          throw new Error('The isolated API did not restart');
+        await sleep(200);
+      }
+    },
     stop: async () => {
       server.kill('SIGTERM');
       worker?.kill('SIGTERM');

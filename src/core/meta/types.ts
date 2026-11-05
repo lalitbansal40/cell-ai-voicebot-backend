@@ -94,6 +94,7 @@ export interface MetaPhone {
   status: string | null;
   isOfficialBusinessAccount: boolean;
   isOnBizApp: boolean;
+  isOnBizAppKnown?: boolean;
 }
 
 export interface MetaCreditLineAttach {

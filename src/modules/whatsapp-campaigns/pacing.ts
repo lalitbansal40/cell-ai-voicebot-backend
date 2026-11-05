@@ -13,10 +13,15 @@ export const TIER_LIMITS: Record<WaLimitTier, number> = {
 
 /** Owner caps; an optional deployment ceiling may only lower them. */
 export const campaignMps = (
-  channel?: { mode?: string; isOnBizApp?: boolean },
+  channel?: { mode?: string; isOnBizApp?: boolean; messageClassificationKnown?: boolean },
   ceiling?: number,
 ): number => {
-  const cap = channel?.mode === 'cloud_api' && channel.isOnBizApp === false ? 75 : 18;
+  const cap =
+    channel?.messageClassificationKnown === true &&
+    channel.mode === 'cloud_api' &&
+    channel.isOnBizApp === false
+      ? 75
+      : 18;
   return ceiling !== undefined && Number.isFinite(ceiling) && ceiling > 0
     ? Math.min(cap, Math.max(1, Math.floor(ceiling)))
     : cap;

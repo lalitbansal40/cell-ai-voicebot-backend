@@ -132,3 +132,12 @@ Never log prompts, persona text, user / assistant messages, knowledge text, func
   | Ownership and data    | `POST /team/transfer-ownership`, `POST /account/export`, account delete / cancel, `POST /privacy/erase…` |
 
   Every other `blockWhenImpersonating()` route (campaigns, inbox, templates, contacts, flows, agents, calls, WhatsApp settings, team invites, exports, reports, insights, knowledge, post-call rules, sheet imports, public messages) is allowed in **act** mode.
+
+## Phase 19 continuation guards
+
+Sending budgets are atomic Redis rolling windows per tenant/sender; Redis failure defers.
+Unknown number classification cannot gain 75/sec from legacy false defaults. Sender IDs
+remain account/WABA scoped, including approval/media. Consent is per sender/contact;
+program activity and number readiness are rechecked before calls. Selected SIP senders
+are carried to the backend; stale transport rejects rather than silently simulating.
+Signup now has its own `rl:signup:` Redis store, separate from `rl:auth:` and its window.

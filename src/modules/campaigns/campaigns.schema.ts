@@ -123,7 +123,12 @@ const PhoneLineInput = z.strictObject({
   voicemailText: z.string().trim().min(1).max(500).nullable().optional(),
 });
 
+const ProgramInput = z.strictObject({ kind: z.enum(['flow', 'agent']), id: ObjectIdSchema });
 const settings = {
+  line: z.enum(['phone', 'whatsapp']).optional(),
+  channelId: ObjectIdSchema.nullable().optional(),
+  program: ProgramInput.nullable().optional(),
+  askPermissionFirst: z.strictObject({ templateId: ObjectIdSchema }).nullable().optional(),
   audience: AudienceInput.optional(),
   phoneLine: PhoneLineInput.optional(),
   schedule: ScheduleInput.optional(),
@@ -140,7 +145,7 @@ const settings = {
 export const CreateCampaignBody = z.strictObject({
   name: z.string().trim().min(1).max(CAMPAIGN_LIMITS.nameMaxChars),
   mode: z.enum(CAMPAIGN_MODES).default('dry_run'),
-  flowId: ObjectIdSchema,
+  flowId: ObjectIdSchema.optional(),
   ...settings,
 });
 
@@ -157,12 +162,17 @@ export const CancelCampaignBody = z.strictObject({ hangUpLive: z.boolean().defau
 export const ExportCampaignBody = z.strictObject({ format: z.enum(EXPORT_FORMATS).default('csv') });
 
 export const AudiencePreviewBody = z.strictObject({
-  flowId: ObjectIdSchema,
+  channelId: ObjectIdSchema.nullable().optional(),
+  askPermissionFirst: z.boolean().optional(),
+  line: z.enum(['phone', 'whatsapp']).optional(),
+  program: ProgramInput.nullable().optional(),
+  flowId: ObjectIdSchema.optional(),
   chosenVersion: z.number().int().min(1).nullable().optional(),
   audience: AudienceInput,
 });
 
 export const ListCampaignsQuery = z.strictObject({
+  line: z.enum(['phone', 'whatsapp']).optional(),
   ...CursorQuerySchema.shape,
   status: z
     .union([z.enum(CAMPAIGN_STATUSES), z.array(z.enum(CAMPAIGN_STATUSES))])
@@ -220,6 +230,10 @@ export const CampaignListItemSchema = registry.register(
     status: z.enum(CAMPAIGN_STATUSES),
     pauseReason: z.enum(PAUSE_REASONS).nullable(),
     waitingUntil: z.string().nullable(),
+    line: z.enum(['phone', 'whatsapp']).optional(),
+    channelId: z.string().nullable().optional(),
+    program: ProgramInput.extend({ name: z.string().optional() }).nullable().optional(),
+    askPermissionFirst: z.object({ templateId: z.string() }).nullable().optional(),
     flow: z.object({ id: z.string(), name: z.string(), version: z.number().nullable() }),
     stats: CampaignStatsSchema,
     progressPct: z.number(),
@@ -371,6 +385,7 @@ export const CampaignEstimateSchema = registry.register(
       expectedAttempts: z.number(),
     }),
     walletAvailableMicros: z.number(),
+    transportNote: z.string().optional(),
   }),
 );
 

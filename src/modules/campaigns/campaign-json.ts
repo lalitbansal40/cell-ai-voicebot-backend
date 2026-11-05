@@ -1,5 +1,6 @@
 import type { Types } from 'mongoose';
 
+import { AiAgentModel } from '../../db/models/ai-agent.model';
 import type { CampaignContactDoc } from '../../db/models/campaign-contact.model';
 import type { CampaignDoc, CampaignStats } from '../../db/models/campaign.model';
 import { FlowModel } from '../../db/models/flow.model';
@@ -8,6 +9,7 @@ import { UserModel } from '../../db/models/user.model';
 export interface CampaignNames {
   flows: Map<string, string>;
   users: Map<string, string>;
+  agents?: Map<string, string>;
 }
 
 const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString() : null);
@@ -17,14 +19,20 @@ export const loadNames = async (
   accountId: Types.ObjectId,
   campaigns: readonly CampaignDoc[],
 ): Promise<CampaignNames> => {
-  const flowIds = [...new Set(campaigns.map((c) => c.flowId.toString()))];
+  const flowIds = [...new Set(campaigns.flatMap((c) => (c.flowId ? [c.flowId.toString()] : [])))];
   const userIds = new Set<string>();
   for (const c of campaigns) {
     for (const id of [c.createdBy, c.startedBy, ...c.history.map((h) => h.by)]) {
       if (id) userIds.add(id.toString());
     }
   }
-  const [flows, users] = await Promise.all([
+  const [agents, flows, users] = await Promise.all([
+    AiAgentModel.find({
+      accountId,
+      _id: { $in: campaigns.flatMap((c) => (c.program?.kind === 'agent' ? [c.program.id] : [])) },
+    })
+      .select({ name: 1 })
+      .lean<{ _id: Types.ObjectId; name: string }[]>(),
     FlowModel.find({ _id: { $in: flowIds }, accountId }, null, { withDeleted: true })
       .select({ name: 1 })
       .lean<{ _id: Types.ObjectId; name: string }[]>(),
@@ -35,6 +43,7 @@ export const loadNames = async (
       : Promise.resolve([]),
   ]);
   return {
+    agents: new Map(agents.map((a) => [a._id.toString(), a.name])),
     flows: new Map(flows.map((f) => [f._id.toString(), f.name])),
     users: new Map(users.map((u) => [u._id.toString(), u.name])),
   };
@@ -54,13 +63,28 @@ export const toCampaignListItem = (
 ) => ({
   id: c._id.toString(),
   name: c.name,
+  line: c.line ?? 'phone',
+  channelId: c.channelId?.toString() ?? null,
+  program: c.program
+    ? {
+        kind: c.program.kind,
+        id: c.program.id.toString(),
+        name:
+          c.program.kind === 'agent'
+            ? (names.agents?.get(c.program.id.toString()) ?? '')
+            : (names.flows.get(c.program.id.toString()) ?? ''),
+      }
+    : null,
+  askPermissionFirst: c.askPermissionFirst
+    ? { templateId: c.askPermissionFirst.templateId.toString() }
+    : null,
   mode: c.mode,
   status: c.status,
   pauseReason: c.pauseReason,
   waitingUntil: iso(c.waitingUntil),
   flow: {
-    id: c.flowId.toString(),
-    name: names.flows.get(c.flowId.toString()) ?? '',
+    id: c.flowId?.toString() ?? '',
+    name: names.flows.get(c.flowId?.toString() ?? '') ?? '',
     version: c.flowVersion,
   },
   stats: c.stats,

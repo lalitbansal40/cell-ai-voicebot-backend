@@ -17,6 +17,7 @@ import { processSend } from '../../src/modules/inbox/send.job';
 import { createUpload } from '../../src/modules/inbox/upload.service';
 import { recordingTemplateJobs } from '../../src/modules/templates/jobs';
 import { createTemplate } from '../../src/modules/templates/template.service';
+import { onMessageStatus } from '../../src/modules/whatsapp-billing/billing-hook';
 import { skipFor, variantFor } from '../../src/modules/whatsapp-campaigns/audience';
 import {
   campaignReport,
@@ -96,7 +97,7 @@ const template = async (category: 'UTILITY' | 'MARKETING', text: string) => {
 const contact = (over: Record<string, unknown> = {}) =>
   ContactModel.create({
     accountId: state.acc.account._id,
-    phoneE164: `+9190011${String(++n).padStart(5, '0')}`,
+    phoneE164: `+9190011${String(50_000 + ++n).padStart(5, '0')}`,
     name: `Customer ${String(n)}`,
     source: { type: 'manual' },
     ...over,
@@ -145,6 +146,73 @@ beforeEach(async () => {
   utility = await template('UTILITY', 'Hi {{1}}, your EMI is due.');
   marketing = await template('MARKETING', 'Hi {{1}}, a new offer.');
   jobs.calls.length = 0;
+});
+
+describe('continuation header and schedule boundaries', () => {
+  it('requires a location header and carries it to the actual template message', async () => {
+    const c = await contact();
+    await WhatsAppTemplateModel.updateOne(
+      { _id: utility },
+      {
+        $set: {
+          components: [
+            { type: 'HEADER', format: 'LOCATION' },
+            { type: 'BODY', text: 'Hi {{1}}', example: { body_text: [['A']] } },
+          ],
+        },
+      },
+    );
+    const missing = await draft([c._id]);
+    await expect(startCampaign(req(), missing.id)).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+    });
+    const location = { latitude: 26.9124, longitude: 75.7873, name: 'Synthetic office' };
+    const campaign = await draft([c._id], { headerLocation: location });
+    await startCampaign(req(), campaign.id);
+    await run(campaign.id);
+    const message = await MessageModel.findOne({ externalRef: `wac:${campaign.id}` }).lean();
+    expect(message?.location).toMatchObject(location);
+  });
+
+  it('reports captures whose ledger reference is the stable client ID, including a replay', async () => {
+    const c = await contact();
+    const campaign = await draft([c._id]);
+    await startCampaign(req(), campaign.id);
+    await run(campaign.id);
+    const message = await MessageModel.findOne({ externalRef: `wac:${campaign.id}` }).lean();
+    expect(message?.billing?.status).toBe('held');
+    const event = {
+      accountId: state.acc.account._id,
+      messageId: message!._id,
+      status: 'delivered' as const,
+      pricing: {
+        billable: true,
+        category: 'utility',
+        model: 'PMP',
+        type: 'regular',
+        subtype: null,
+        conversationId: null,
+        conversationOrigin: null,
+      },
+    };
+    await onMessageStatus(event);
+    await onMessageStatus(event);
+    const report = await campaignReport(req(), campaign.id);
+    expect(report.cost.chargedMicros).toBe(message!.billing!.priceMicros);
+    expect(report.cost.chargedMicros).toBeGreaterThan(0);
+  });
+
+  it('keeps a future scheduled start when paused and resumed', async () => {
+    const c = await contact();
+    const at = new Date(Date.now() + 3_600_000).toISOString();
+    const campaign = await draft([c._id], { schedule: { kind: 'at', at } });
+    await startCampaign(req(), campaign.id);
+    await pauseCampaign(req(), campaign.id);
+    const resumed = await resumeCampaign(req(), campaign.id, jobs);
+    expect(resumed.status).toBe('scheduled');
+    expect(resumed.schedule.at).toBe(at);
+    expect(jobs.calls).toEqual([]);
+  });
 });
 
 describe('WhatsApp campaigns: rules (T19.9)', () => {

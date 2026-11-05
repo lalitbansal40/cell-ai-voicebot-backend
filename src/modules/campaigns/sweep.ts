@@ -4,8 +4,7 @@ import { CampaignContactModel } from '../../db/models/campaign-contact.model';
 import { CampaignModel, type CampaignDoc } from '../../db/models/campaign.model';
 import type { Logger } from '../../shared/logger';
 
-import { usedFields } from './audience';
-import { loadFlowVersion, resumeCampaignDoc, startScheduled } from './campaigns.service';
+import { loadCampaignProgram, resumeCampaignDoc, startScheduled } from './campaigns.service';
 import { applyResult, completeCampaign, moveStats, type CampaignDispatcher } from './dispatcher';
 import { dueParents, runDue } from './runs';
 import { contactCounts, countsToStats, takeSnapshot } from './snapshot';
@@ -82,12 +81,8 @@ export const sweepCampaigns = async (deps: {
     CampaignDoc[]
   >();
   for (const c of unfinished) {
-    const pinned = await loadFlowVersion(c.accountId, c.flowId, c.flowVersion);
-    await takeSnapshot(
-      c,
-      await usedFields(c.accountId, pinned.graph, pinned.version.agentIds),
-      c.startedAt ?? now,
-    );
+    const facts = await loadCampaignProgram(c);
+    await takeSnapshot(c, facts.used, c.startedAt ?? now);
     result.snapshots += 1;
   }
 

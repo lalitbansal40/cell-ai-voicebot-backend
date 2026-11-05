@@ -17,3 +17,12 @@ Beyond the per-key defaults above, a few routes carry their own named limiter (w
 | `reseller-customer-create` | 1 day  | 50    | reseller account | `POST /reseller/customers`                                               |
 | `reseller-credit`          | 1 h    | 60    | reseller account | `POST /reseller/customers/:id/credit` (give + reclaim share the limiter) |
 | `wa-campaign-create`       | 1 h    | 30    | account          | `POST /whatsapp-campaigns`                                               |
+
+## Phase 19 sender pacing
+
+In addition to request limiters, all outbound WhatsApp attempts share the Redis sender
+pacer: known Cloud API 75/sec, Business App/coexistence or unknown 18/sec. The optional
+`WA_CAMPAIGN_MPS` only lowers the derived limit. Redis time, a rolling 1000ms window,
+minimum spacing and a two-second key TTL prevent process-local resets/bursts. Inbox
+priority 1 precedes bulk priority 10. Daily messaging tiers and provider backoff remain.
+Signup uses a separate `rl:signup:` store/window; it does not reuse the auth store.

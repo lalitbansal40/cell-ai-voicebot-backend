@@ -88,3 +88,14 @@ Every collection and file store, and what happens to its personal data. `src/mod
 ## Outside our systems
 
 Chats on the customer's phone, data held by Meta, data sent earlier to a webhook receiver and Google Sheets are not ours to delete. The privacy policy says so.
+
+## Phase 19 continuation storage
+
+`whatsappCampaigns` now includes recurrence/root identifiers, header location and durable
+`headerMedia.storageKey` (account-owned business content). `whatsappCampaignRecipients`
+adds `sentCounted` for retry-safe counters. `campaigns` adds transport/channel and a
+flow-or-agent program; agent campaigns have no fabricated flow ID. Recipient erasure
+still deletes campaign recipient links. Account purge now deletes campaign and template
+header media as well as message/upload copies. No Meta tokens or SIP secrets are public.
+`messageClassificationKnown` records whether Meta explicitly reported number mode; legacy
+unknowns are conservatively paced. No new PII-bearing event or catalogue entry was added.

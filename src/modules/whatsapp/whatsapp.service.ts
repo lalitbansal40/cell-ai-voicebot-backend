@@ -137,6 +137,7 @@ const phonePatch = (phone: MetaPhone): Partial<WhatsAppChannelDoc> => ({
   phoneStatus: phone.status,
   isOfficialBusinessAccount: phone.isOfficialBusinessAccount,
   isOnBizApp: phone.isOnBizApp,
+  messageClassificationKnown: phone.isOnBizAppKnown === true,
   mode: phone.isOnBizApp ? 'coexistence' : 'cloud_api',
 });
 

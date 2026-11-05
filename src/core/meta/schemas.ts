@@ -228,6 +228,7 @@ export const toPhone = (raw: z.infer<typeof phoneSchema>): MetaPhone => ({
   status: orNull(raw.status),
   isOfficialBusinessAccount: raw.is_official_business_account ?? false,
   isOnBizApp: raw.is_on_biz_app ?? false,
+  isOnBizAppKnown: typeof raw.is_on_biz_app === 'boolean',
 });
 
 export const toCreditLineAttach = (

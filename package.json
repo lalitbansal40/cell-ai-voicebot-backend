@@ -76,7 +76,8 @@
     "perf:ws": "tsx --env-file-if-exists=.env scripts/perf-ws.ts",
     "perf:soak": "tsx --env-file-if-exists=.env scripts/perf-soak.ts",
     "perf:webhooks": "tsx --env-file-if-exists=.env scripts/perf-webhooks.ts",
-    "perf:sip": "tsx scripts/perf-sip.ts"
+    "perf:sip": "tsx scripts/perf-sip.ts",
+    "perf:wa-campaign": "tsx --env-file-if-exists=.env scripts/perf-wa-campaign.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

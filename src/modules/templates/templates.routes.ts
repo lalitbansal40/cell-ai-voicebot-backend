@@ -42,6 +42,7 @@ import {
   EditTemplateBody,
   ListTemplatesQuery,
   SyncTemplatesBody,
+  SubmitTemplateBody,
   TemplateParams,
   VariableSourcesBody,
 } from './templates.schema';
@@ -186,9 +187,12 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
     '/templates/:id/submit',
     ...manage,
     limit,
-    ...handle({ params: TemplateParams }, async ({ params, req, res }) => {
-      ok(res, await submitTemplate(tx, accountOf(req), actorOf(req), params.id));
-    }),
+    ...handle(
+      { params: TemplateParams, body: SubmitTemplateBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await submitTemplate(tx, accountOf(req), actorOf(req), params.id, body.channelId));
+      },
+    ),
   );
   router.delete(
     '/templates/:id',
@@ -223,18 +227,28 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
     '/templates/:id/media',
     ...manage,
     uploadExample,
-    ...handle({ params: TemplateParams }, async ({ params, req, res }) => {
-      if (!req.file)
-        throw new ValidationError([{ path: 'file', message: 'Upload one file named "file"' }]);
-      ok(
-        res,
-        await uploadHeaderExample(tx, accountOf(req), actorOf(req), params.id, {
-          bytes: req.file.buffer,
-          mimeType: req.file.mimetype,
-          fileName: req.file.originalname,
-        }),
-      );
-    }),
+    ...handle(
+      { params: TemplateParams, body: SubmitTemplateBody },
+      async ({ params, body, req, res }) => {
+        if (!req.file)
+          throw new ValidationError([{ path: 'file', message: 'Upload one file named "file"' }]);
+        ok(
+          res,
+          await uploadHeaderExample(
+            tx,
+            accountOf(req),
+            actorOf(req),
+            params.id,
+            {
+              bytes: req.file.buffer,
+              mimeType: req.file.mimetype,
+              fileName: req.file.originalname,
+            },
+            body.channelId,
+          ),
+        );
+      },
+    ),
   );
   return router;
 };

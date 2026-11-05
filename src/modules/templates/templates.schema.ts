@@ -68,6 +68,7 @@ export const CreateTemplateBody = z
 
 export const EditTemplateBody = z
   .object({
+    channelId: ObjectIdSchema.optional(),
     name: name.optional(),
     language: language.optional(),
     category: z.enum(TEMPLATE_CATEGORIES).optional(),
@@ -82,6 +83,8 @@ export const DeleteTemplateQuery = z.object({
   /** `language` = this language only; `name` = every language of the name. */
   scope: z.enum(['language', 'name']).default('language'),
 });
+
+export const SubmitTemplateBody = z.object({ channelId: ObjectIdSchema.optional() }).prefault({});
 
 export const SyncTemplatesBody = z.object({ channelId: ObjectIdSchema });
 

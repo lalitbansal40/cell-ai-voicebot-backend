@@ -12,7 +12,7 @@ import { AppError, ValidationError } from '../../shared/errors/app-error';
 import { mimeAgrees, sniff } from '../inbox/sniff';
 import type { WaActor } from '../whatsapp/channel-status';
 
-import { templateMetaError, templateToken, wabaChannel } from './channel';
+import { templateMetaError, templateToken, templateChannel } from './channel';
 import { headerFormat } from './components';
 import { templateNow, type TemplateContext } from './context';
 import { auditTemplate } from './notify';
@@ -50,6 +50,7 @@ export const uploadHeaderExample = async (
   actor: WaActor,
   templateId: string,
   file: ExampleFile,
+  channelId?: string,
 ) => {
   if (!tx.storage) throw new AppError('INTERNAL_ERROR', 'File storage is not configured');
   const t = await WhatsAppTemplateModel.findOne({
@@ -80,7 +81,7 @@ export const uploadHeaderExample = async (
       { path: 'file', message: `Use ${ALLOWED[format].join(' or ')} for this header` },
     ]);
   }
-  const channel = await wabaChannel(accountId, t.wabaId);
+  const channel = await templateChannel(accountId, t.wabaId, channelId);
   const { token } = await templateToken(tx, channel._id);
   const fileName = safeName(file.fileName, sniffed.ext);
   let handle: string;

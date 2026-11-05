@@ -1,9 +1,11 @@
 import { Types } from 'mongoose';
 
+import { notifyAccount } from '../../core/realtime/notify';
 import { WhatsAppCampaignRecipientModel } from '../../db/models/whatsapp-campaign-recipient.model';
 import {
   WhatsAppCampaignModel,
   type WhatsAppCampaignDoc,
+  type WaCampaignPauseReason,
 } from '../../db/models/whatsapp-campaign.model';
 import { getLogger } from '../../shared/logger';
 import { recordAudit } from '../audit/audit.service';
@@ -82,4 +84,29 @@ export const maybeComplete = async (campaign: WhatsAppCampaignDoc, now: Date) =>
     );
   }
   return true;
+};
+
+/** Moves a running campaign to paused with a reason (bell + audit). */
+export const autoPause = async (campaign: WhatsAppCampaignDoc, reason: WaCampaignPauseReason) => {
+  const done = await WhatsAppCampaignModel.updateOne(
+    { _id: campaign._id, status: { $in: ['running', 'waiting_for_limit'] } },
+    { $set: { status: 'paused', pauseReason: reason } },
+  );
+  if (!done.modifiedCount) return;
+  await systemAudit(campaign, 'whatsapp_campaign.paused', { reason });
+  const text: Record<WaCampaignPauseReason, string> = {
+    user: 'Paused.',
+    wallet_empty: 'The wallet ran out. Add credit, then resume.',
+    template_paused: 'WhatsApp paused or disabled the template.',
+    quality_red: "The number's quality is low (red). Wait for it to recover, then resume.",
+    channel_down: 'The WhatsApp number is not connected.',
+  };
+  await bellCreator(campaign, 'whatsapp_campaign.paused', `${campaign.name}: ${text[reason]}`);
+  const latest = await WhatsAppCampaignModel.findById(campaign._id).lean<WhatsAppCampaignDoc>();
+  if (latest)
+    notifyAccount(latest.accountId.toString(), 'whatsapp_campaign.progress', {
+      campaignId: latest._id.toString(),
+      status: latest.status,
+      counters: latest.counters,
+    });
 };

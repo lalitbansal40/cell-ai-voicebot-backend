@@ -121,6 +121,7 @@ export const startSingleCall = async (
   }
 
   const account = await accountFacts(accountId);
+  if (body.callerNumberId && account.line !== 'sip') throw new AppError('CALLER_NUMBER_INVALID');
   const now = new Date();
   const facts = await loadContactFacts({
     accountId: accountId.toString(),
@@ -166,7 +167,7 @@ export const startSingleCall = async (
       ? await deps.manager.startOutboundCall({
           ...common,
           provider: 'sip',
-          callerId: (await resolveCallerId(accountId, null))?.number ?? null,
+          callerId: (await resolveCallerId(accountId, body.callerNumberId))?.number ?? null,
         })
       : await deps.manager.startOutboundCall({
           ...common,

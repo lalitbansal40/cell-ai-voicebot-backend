@@ -35,6 +35,7 @@ export const acquireMessageSlot = async (
     accountId: { toString(): string };
     mode?: string;
     isOnBizApp?: boolean;
+    messageClassificationKnown?: boolean;
   },
   ceiling?: number,
   /** Deterministic clock for isolated limiter tests only; production uses Redis TIME. */

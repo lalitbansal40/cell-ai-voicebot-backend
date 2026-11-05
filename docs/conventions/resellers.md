@@ -6,3 +6,10 @@
 - **What a reseller sees:** per customer only name, status, owner, wallet, spend in the last 30 days and last sign-in. Contacts, chats, calls and campaigns only through **Log in as** (audited).
 - **Money:** customers pay platform prices from their own wallet; the reseller funds it with credit transfers (`credit_transfer_out` / `_in` pair, zero-sum). What the reseller charges its customer is outside the platform. A customer's low-balance alert also reaches the reseller (`wallet.customer_low_balance`).
 - **Superadmin:** creates resellers / businesses (optionally under a reseller), moves a business between resellers, approves resellers, can suspend all of a reseller's customers, opens / closes signup and reseller signup, and can **View as** or **Log in as** any account.
+
+## Campaign channels
+
+Customer capabilities and calling consent are evaluated inside that customer account.
+A reseller login-as act session can edit ordinary campaign settings; direct calling and
+sensitive actions retain existing impersonation guards. View mode stays read-only.
+[Channel guide](campaign-channels.md) describes the three campaign types and sender caps.

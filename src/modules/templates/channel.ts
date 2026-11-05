@@ -6,7 +6,7 @@ import {
   type WaChannelStatus,
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
-import { AppError, NotFoundError } from '../../shared/errors/app-error';
+import { AppError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
 import { markNeedsReconnect, TOKEN_INVALID_REASON } from '../whatsapp/channel-status';
 import { openSecret } from '../whatsapp/context';
@@ -94,4 +94,22 @@ export const templateMetaError = async (
   return new AppError(mapped.code, mapped.message, undefined, {
     ...(mapped.code === 'RATE_LIMITED' ? { retryAfterSec: 3600 } : {}),
   });
+};
+
+/** An explicit sender must own the same WABA; shared-WABA numbers remain valid. */
+export const templateChannel = async (
+  accountId: Types.ObjectId,
+  wabaId: string,
+  channelId?: string,
+) => {
+  if (!channelId) return wabaChannel(accountId, wabaId); // legacy internal callers
+  const channel = await loadAccountChannel(accountId, channelId);
+  if (channel.wabaId !== wabaId)
+    throw new ValidationError([
+      {
+        path: 'channelId',
+        message: 'Choose a WhatsApp number of this template’s Business account',
+      },
+    ]);
+  return channel;
 };

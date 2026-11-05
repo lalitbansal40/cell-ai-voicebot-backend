@@ -65,6 +65,18 @@ describe('seeded randomness', () => {
 });
 
 describe('scripts', () => {
+  it('AI-only dry runs use speech instead of waiting for a DTMF menu', () => {
+    const plan = planDryRun({
+      seed: 'agent',
+      mix: ANSWER,
+      scenarios: ONLY('paid'),
+      templateKey: null,
+      agentOnly: true,
+    });
+    expect(plan.steps.some((step) => 'dtmf' in step)).toBe(false);
+    expect(plan.steps.some((step) => 'say' in step)).toBe(true);
+    expect(plan.steps.at(-1)).toEqual({ hangup: true });
+  });
   it('every template has a script for every scenario; unknown templates get the generic one', () => {
     for (const script of Object.values(TEMPLATE_SCRIPTS)) {
       expect(Object.keys(script).sort()).toEqual([...SCENARIO_KEYS].sort());

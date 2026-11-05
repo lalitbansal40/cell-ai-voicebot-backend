@@ -319,6 +319,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
     ...(whatsapp ? { whatsapp: { ...whatsapp, ...(calling ? { calling } : {}) } } : {}),
     rateLimitStore: createRedisRateLimitStore(redis),
     authRateLimitStore: createRedisRateLimitStore(redis, 'rl:auth:'),
+    signupRateLimitStore: createRedisRateLimitStore(redis, 'rl:signup:'),
     storage,
     contactJobs,
     billingJobs,
@@ -400,10 +401,12 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       // Phase 8: the dispatcher dials in this process (it owns the calls)
       const dispatcher = new CampaignDispatcher({
         calls: callManager,
+        ...(calling?.calls ? { whatsappCalls: calling.calls } : {}),
         rate: new DialRate(redis, prefix ? `${prefix}:` : ''),
         logger,
       });
       const unwire = wireCampaigns({
+        ...(calling ? { calling } : {}),
         jobs: queueCampaignJobs(createQueue(QUEUES.campaigns, queueDeps)),
         dispatcher,
         calls: callManager,

@@ -32,6 +32,8 @@ export const PURGE_KEEP = new Set([
 /** Where a store keeps files that go with its rows. */
 const FILE_FIELDS: Record<string, string[]> = {
   calls: ['recording.fileKey'],
+  whatsappCampaigns: ['headerMedia.storageKey'],
+  whatsappTemplates: ['headerMedia.storageKey'],
   messages: ['media.storageKey'],
   inboxUploads: ['storageKey'],
   importJobs: ['fileKey', 'errorReportKey'],

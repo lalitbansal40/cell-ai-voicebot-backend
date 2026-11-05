@@ -159,3 +159,11 @@ Phase 17: `ops/` adds `live-calls` (release waits for live calls), `storage-migr
 Phase 18B: `modules/whatsapp-calling/readiness.ts` (10-item calling readiness, cached facts in Redis), `settings.service.ts` `readBackMismatch` (read-back after every calling write), `bulk-permissions.ts` (bulk call permission runs: target → ids ≤ 5,000, skip rules, wallet stop, cursor resume, stable `clientId`), `permissions.service.ts` `permissionSummary` / `summarizePermission` (`contacts.waCallPermission`); `modules/admin/wa-calls-status.ts` (System "WhatsApp calls"); `ops/health-rules.ts` `wa-media-no-public-ip` / `wa-call-setup-failing`; model `call-permission-run`, migration `0020-call-permission-runs`.
 
 Phase 18: `core/telephony/sip/` is the SIP line (ADR 0050): `ari-client` (Asterisk REST + events), `rtp-packet` / `jitter` / `port-pool` / `rtp-session` (G.711 over loopback RTP), `causes` (Q.850 → hangup cause), `leg` (`SipCallLeg`: dial, answer into a bridge, DTMF, AMD, transfer, media timeout), `provider` (routes ARI events, trunk leases, reconnect, orphan channels), `capacity` (Redis channels + calls per second), `guard` (dialable numbers, spend per hour), `cdr` (trunk CDR reconcile), `index` (`createSipLine`). `modules/calls/line.ts` picks the line per account; `modules/phone-numbers/` the caller-ID pool; `modules/admin/sip-status.ts` the System card.
+
+## Phase 19 continuation
+
+The existing call and WhatsApp-message engines expose three campaign types. Sender
+pacing lives in `modules/whatsapp/message-pacer.ts`; number policy is derived by
+`whatsapp-campaigns/pacing.ts`. Call campaigns reuse WhatsApp calling runtime and
+per-channel consent. Templates remain shared by WABA. See the channel guide and
+continuation progress/sign-off for contracts, migrations, tests and remaining checks.

@@ -1,11 +1,16 @@
+import { createHash } from 'node:crypto';
+
 import type { Job, JobsOptions, Queue } from 'bullmq';
 import { Types } from 'mongoose';
 
 import { availableMicros, walletEvents, type WalletChange } from '../../core/billing/events';
 import type { StorageProvider } from '../../core/storage';
+import { CampaignContactModel } from '../../db/models/campaign-contact.model';
 import { CampaignModel, type CampaignDoc } from '../../db/models/campaign.model';
+import { AppError } from '../../shared/errors/app-error';
 import type { Logger } from '../../shared/logger';
 import type { CallManager } from '../calls/call.service';
+import type { CallingRuntime } from '../whatsapp-calling/runtime';
 
 import {
   pauseCampaignDoc,
@@ -189,17 +194,46 @@ export const wireCampaigns = (deps: {
   jobs: CampaignJobs;
   dispatcher: CampaignDispatcher;
   calls: CallManager;
+  calling?: CallingRuntime;
   logger: Logger;
 }): (() => void) => {
   setCampaignHooks({
     scheduled: (c) => deps.jobs.schedule(c),
     unscheduled: (c) => deps.jobs.drop(c),
     running: async (c) => {
+      if (c.line === 'whatsapp' && c.askPermissionFirst && c.channelId && c.createdBy) {
+        if (!deps.calling) throw new AppError('PROVIDER_UNAVAILABLE');
+        const rows = await CampaignContactModel.find({
+          campaignId: c._id,
+          accountId: c.accountId,
+          status: { $in: ['pending', 'retry_wait'] },
+        })
+          .sort({ seq: 1 })
+          .select({ contactId: 1 })
+          .lean();
+        for (let offset = 0; offset < rows.length; offset += 5000) {
+          const ids = rows.slice(offset, offset + 5000).map((r) => r.contactId.toString());
+          const runId = createHash('sha1')
+            .update(`campaign-permissions:${c._id.toString()}:${ids[0] ?? ''}`)
+            .digest('hex')
+            .slice(0, 24);
+          await deps.calling.bulk.start(
+            { type: 'system', id: null, accountId: c.accountId, userId: c.createdBy },
+            {
+              runId,
+              channelId: c.channelId.toString(),
+              target: { contactIds: ids },
+              templateId: c.askPermissionFirst.templateId.toString(),
+            },
+          );
+        }
+      }
       await deps.jobs.scheduleEnd(c);
       deps.dispatcher.wake(c.accountId.toString());
     },
     hangUpLive: async (c) => {
       await deps.calls.hangupCampaign(c._id.toString());
+      await deps.calling?.calls?.hangupCampaign(c._id.toString());
     },
     resumeBlocker,
   });

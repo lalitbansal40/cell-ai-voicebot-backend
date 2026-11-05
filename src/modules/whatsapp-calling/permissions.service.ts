@@ -30,6 +30,7 @@ import { stringEq } from '../../db/partial-match';
 import { AppError, NotFoundError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
 import { recordAudit, type AuditActorInput } from '../audit/audit.service';
+import { onCampaignCallPermission } from '../campaigns/permission-events';
 import type { InboxContext } from '../inbox/context';
 import { upsertConversation } from '../inbox/conversation-store';
 import { isWindowOpen, sendMessage } from '../inbox/outbound.service';
@@ -223,6 +224,7 @@ export const createCallPermissions = (deps: PermissionDeps) => {
     ).lean<WhatsAppCallPermissionDoc>();
     if (!row) throw new NotFoundError('Call permission not found');
     emitUpdated(row);
+    await onCampaignCallPermission(row);
     return row;
   };
 

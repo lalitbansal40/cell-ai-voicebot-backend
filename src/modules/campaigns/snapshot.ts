@@ -22,6 +22,7 @@ import {
   type ClassifyContext,
   type UsedField,
 } from './audience';
+import { allowedCallContacts } from './whatsapp-line';
 
 /** Where each campaign-contact status is counted in `campaign.stats`. */
 export const STATUS_STAT: Record<CampaignContactStatus, keyof CampaignStats> = {
@@ -126,8 +127,22 @@ export const takeSnapshot = async (
             campaign._id,
           )
         : new Set();
+      const allowed =
+        campaign.line === 'whatsapp' && campaign.channelId
+          ? await allowedCallContacts(
+              campaign.accountId,
+              campaign.channelId,
+              batch.map((row) => row._id),
+              now,
+            )
+          : null;
       const docs = batch.map((row) => {
-        const { skip } = classifyRow(row, ctx);
+        const base = classifyRow(row, ctx);
+        const skip =
+          base.skip ??
+          (allowed && !allowed.has(row._id.toString()) && !campaign.askPermissionFirst
+            ? 'no_call_permission'
+            : null);
         seq += 1;
         return {
           accountId: campaign.accountId,

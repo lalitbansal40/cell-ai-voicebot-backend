@@ -3217,6 +3217,23 @@
             ]
           },
           "waitingUntil": { "type": ["string", "null"] },
+          "line": { "type": "string", "enum": ["phone", "whatsapp"] },
+          "channelId": { "type": ["string", "null"] },
+          "program": {
+            "type": ["object", "null"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["flow", "agent"] },
+              "id": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+              "name": { "type": "string" }
+            },
+            "required": ["kind", "id"],
+            "additionalProperties": false
+          },
+          "askPermissionFirst": {
+            "type": ["object", "null"],
+            "properties": { "templateId": { "type": "string" } },
+            "required": ["templateId"]
+          },
           "flow": {
             "type": "object",
             "properties": {
@@ -3583,6 +3600,8 @@
               "campaign_ended",
               "rejected",
               "number_not_allowed",
+              "no_call_permission",
+              "unanswered_limit",
               null
             ]
           },
@@ -3666,7 +3685,8 @@
             },
             "required": ["avgDurationSec", "answerRateBps", "aiShareBps", "expectedAttempts"]
           },
-          "walletAvailableMicros": { "type": "number" }
+          "walletAvailableMicros": { "type": "number" },
+          "transportNote": { "type": "string" }
         },
         "required": [
           "contacts",
@@ -7579,6 +7599,17 @@
           },
           "parentCampaignId": { "type": ["string", "null"] },
           "recurrenceEnabled": { "type": "boolean" },
+          "headerLocation": {
+            "type": ["object", "null"],
+            "properties": {
+              "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+              "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+              "name": { "type": "string", "maxLength": 1000 },
+              "address": { "type": "string", "maxLength": 1000 }
+            },
+            "required": ["latitude", "longitude"],
+            "additionalProperties": false
+          },
           "headerMedia": {
             "type": ["object", "null"],
             "properties": {
@@ -8166,6 +8197,7 @@
               null
             ]
           },
+          "messageClassificationKnown": { "type": "boolean" },
           "messageRateLimit": {
             "type": "number",
             "description": "Application send cap per second, including any lower deployment ceiling"
@@ -9073,6 +9105,7 @@
       "WhatsAppTemplateEdit": {
         "type": "object",
         "properties": {
+          "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
           "name": { "type": "string", "minLength": 1, "maxLength": 512 },
           "language": { "type": "string", "minLength": 2, "maxLength": 20 },
           "category": { "type": "string", "enum": ["MARKETING", "UTILITY", "AUTHENTICATION"] },
@@ -16455,6 +16488,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "callerNumberId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "version": {
@@ -17023,6 +17057,12 @@
         "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
+            "schema": { "type": "string", "enum": ["phone", "whatsapp"] },
+            "required": false,
+            "name": "line",
+            "in": "query"
+          },
+          {
             "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
             "required": false,
             "name": "cursor",
@@ -17160,6 +17200,25 @@
                   "name": { "type": "string", "minLength": 1, "maxLength": 120 },
                   "mode": { "type": "string", "enum": ["dry_run", "live"], "default": "dry_run" },
                   "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "line": { "type": "string", "enum": ["phone", "whatsapp"] },
+                  "channelId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
+                  "program": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "kind": { "type": "string", "enum": ["flow", "agent"] },
+                      "id": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "required": ["kind", "id"],
+                    "additionalProperties": false
+                  },
+                  "askPermissionFirst": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "required": ["templateId"],
+                    "additionalProperties": false
+                  },
                   "audience": {
                     "type": "object",
                     "properties": {
@@ -17338,7 +17397,7 @@
                   "chosenVersion": { "type": ["integer", "null"], "minimum": 1 },
                   "versionPolicy": { "type": "string", "enum": ["pinned", "latest"] }
                 },
-                "required": ["name", "flowId"],
+                "required": ["name"],
                 "additionalProperties": false
               }
             }
@@ -17452,6 +17511,18 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "channelId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
+                  "askPermissionFirst": { "type": "boolean" },
+                  "line": { "type": "string", "enum": ["phone", "whatsapp"] },
+                  "program": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "kind": { "type": "string", "enum": ["flow", "agent"] },
+                      "id": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "required": ["kind", "id"],
+                    "additionalProperties": false
+                  },
                   "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "chosenVersion": { "type": ["integer", "null"], "minimum": 1 },
                   "audience": {
@@ -17484,7 +17555,7 @@
                     "additionalProperties": false
                   }
                 },
-                "required": ["flowId", "audience"],
+                "required": ["audience"],
                 "additionalProperties": false
               }
             }
@@ -17604,6 +17675,25 @@
                   "name": { "type": "string", "minLength": 1, "maxLength": 120 },
                   "mode": { "type": "string", "enum": ["dry_run", "live"] },
                   "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                  "line": { "type": "string", "enum": ["phone", "whatsapp"] },
+                  "channelId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
+                  "program": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "kind": { "type": "string", "enum": ["flow", "agent"] },
+                      "id": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "required": ["kind", "id"],
+                    "additionalProperties": false
+                  },
+                  "askPermissionFirst": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "templateId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "required": ["templateId"],
+                    "additionalProperties": false
+                  },
                   "audience": {
                     "type": "object",
                     "properties": {
@@ -18492,7 +18582,9 @@
                 "cap_reached",
                 "campaign_ended",
                 "rejected",
-                "number_not_allowed"
+                "number_not_allowed",
+                "no_call_permission",
+                "unanswered_limit"
               ]
             },
             "required": false,
@@ -31836,6 +31928,17 @@
                 "properties": {
                   "name": { "type": "string", "minLength": 1, "maxLength": 120 },
                   "headerMediaToken": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
+                  "headerLocation": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+                      "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+                      "name": { "type": "string", "maxLength": 1000 },
+                      "address": { "type": "string", "maxLength": 1000 }
+                    },
+                    "required": ["latitude", "longitude"],
+                    "additionalProperties": false
+                  },
                   "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "variants": {
                     "type": "array",
@@ -32039,6 +32142,17 @@
                 "properties": {
                   "name": { "type": "string", "minLength": 1, "maxLength": 120 },
                   "headerMediaToken": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
+                  "headerLocation": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+                      "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+                      "name": { "type": "string", "maxLength": 1000 },
+                      "address": { "type": "string", "maxLength": 1000 }
+                    },
+                    "required": ["latitude", "longitude"],
+                    "additionalProperties": false
+                  },
                   "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "variants": {
                     "type": "array",
@@ -33188,7 +33302,7 @@
     "/api/v1/whatsapp/templates/{id}/submit": {
       "post": {
         "tags": ["WhatsApp templates"],
-        "summary": "Submit a draft to Meta for review (templates.manage)",
+        "summary": "Submit a draft to Meta for review using an owned same-WABA sender (templates.manage)",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -33198,6 +33312,17 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "channelId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" } },
+                "default": {}
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -33350,7 +33475,10 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "properties": { "file": { "type": "string", "format": "binary" } },
+                "properties": {
+                  "file": { "type": "string", "format": "binary" },
+                  "channelId": { "type": "string" }
+                },
                 "required": ["file"]
               }
             }

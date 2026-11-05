@@ -16,6 +16,7 @@ import { compileOrThrow } from '../contacts/filter/compile';
 import { isEncrypted, SENSITIVE_MASK } from '../privacy/sensitive';
 
 import { isValidPhone } from './dial-guard';
+import { allowedCallContacts } from './whatsapp-line';
 
 /** Contact fields a campaign snapshots: the ones the flow (or its agents) use, + name. */
 export type UsedField = Pick<VariableInfo, 'name' | 'label' | 'type'>;
@@ -28,6 +29,7 @@ export const AUDIENCE_SKIPS = [
   'duplicate_phone',
   'in_active_campaign',
   'missing_values',
+  'no_call_permission',
 ] as const satisfies readonly SkipReason[];
 
 /**
@@ -200,6 +202,7 @@ export const previewAudience = async (input: {
   audience: CampaignAudience;
   used: readonly UsedField[];
   campaignId?: Types.ObjectId | null;
+  callPermission?: { channelId: Types.ObjectId; askFirst: boolean };
 }): Promise<AudiencePreview> => {
   const preview: AudiencePreview = {
     total: 0,
@@ -226,9 +229,21 @@ export const previewAudience = async (input: {
           input.campaignId ?? null,
         )
       : new Set();
+    const allowed =
+      input.callPermission && !input.callPermission.askFirst
+        ? await allowedCallContacts(
+            input.accountId,
+            input.callPermission.channelId,
+            batch.map((row) => row._id),
+          )
+        : null;
     for (const row of batch) {
       preview.total += 1;
-      const { skip, missing } = classifyRow(row, ctx);
+      const classified = classifyRow(row, ctx);
+      const { missing } = classified;
+      const skip =
+        classified.skip ??
+        (allowed && !allowed.has(row._id.toString()) ? 'no_call_permission' : null);
       for (const f of missing) missingBy.set(f, (missingBy.get(f) ?? 0) + 1);
       if (skip) {
         preview.excluded[skip as keyof AudiencePreview['excluded']] += 1;

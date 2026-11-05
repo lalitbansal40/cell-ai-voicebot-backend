@@ -75,3 +75,23 @@ the soak. The single 500 fell in the MongoDB stall.
 - `SIP_PCMU_PASSTHROUGH` is not needed: G.711 in TypeScript costs about 0.35 % of a core per call.
 - **Found:** with too few RTP ports Asterisk 22.11 cannot allocate one for an ExternalMedia channel and then **crashes (segfault)**. Asterisk uses even ports only and each call needs two (trunk leg and ExternalMedia), plus two more during a transfer. Keep the RTP range at least **4 × `SIP_MAX_CHANNELS`** ports (production 20000–20999 = 1,000 ports, enough for 250 channels). Compose restarts the container.
 - Staging / production-sized numbers: open (no staging server, Phase 17).
+
+## Phase 19 continuation sender benchmark — 5 Nov 2026
+
+`npm run perf:wa-campaign`, fake Meta, isolated cav_perf/Redis DB 9; two 500-recipient
+campaigns per sender, two independent senders running together. Real wall-clock run
+(`/tmp/cav-p19r-perf7.log`) passed after a paused/quiesced hard process restart.
+
+| Sender classification             | Recipients | Peak attempts in rolling 1000ms | First-to-last attempt | Captured charges | Duplicate client/provider IDs |
+| --------------------------------- | ---------: | ------------------------------: | --------------------: | ---------------: | ----------------------------: |
+| Business App/coexistence (cap 18) |       1000 |                              18 |              69.070 s |             1000 |                             0 |
+| Confirmed Cloud API (cap 75)      |       1000 |                              57 |              59.940 s |             1000 |                             0 |
+
+Overall wall-clock 72.107 s including setup/start/restart observation. This measures
+fake-provider completion on this laptop, not guaranteed Meta throughput. The application
+cap is an upper bound; database work, shared queue capacity and callbacks reduced the
+75/sec sender's observed peak. Redis controlled-clock tests independently cover 1000
+attempts/classification, multiple workers, downgrade, retries and fail-closed behavior.
+Daily tier and wallet boundaries are tested in campaign integration tests. Restart
+was a hard kill after all campaigns paused and provider callbacks quiesced; an arbitrary
+network acknowledgement-loss window is not represented by this paused restart check.

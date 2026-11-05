@@ -53,6 +53,8 @@ export interface DryRunSettings {
   scenarios: Record<ScenarioKey, number>;
   /** `Flow.templateKey` of the flow on the call (scripts per template). */
   templateKey: string | null;
+  /** An AI agent consumes speech, not the DTMF menu of a flow. */
+  agentOnly?: boolean;
 }
 
 export interface DryRunCallRequest extends StartCallRequest {
@@ -73,7 +75,24 @@ export const planDryRun = (settings: DryRunSettings): DryRunPlan => {
   const ringMs = 3000 + Math.floor(rng() * 9000);
   const outcome = pickOutcome(settings.mix, rng);
   const scenario = pickScenario(settings.scenarios, rng);
-  return { outcome, ringMs, scenario, steps: scriptFor(settings.templateKey, scenario, rng) };
+  const steps: CustomerStep[] = settings.agentOnly
+    ? scenario === 'silence'
+      ? [{ wait: true }, { hangup: true }]
+      : [
+          { say: 'haan ji bataiye' },
+          {
+            say:
+              scenario === 'promise'
+                ? 'kal tak de dunga'
+                : scenario === 'refuse'
+                  ? 'nahi chahiye'
+                  : 'payment kar diya hai',
+          },
+          { say: 'dhanyavaad' },
+          { hangup: true },
+        ]
+    : scriptFor(settings.templateKey, scenario, rng);
+  return { outcome, ringMs, scenario, steps };
 };
 
 /**

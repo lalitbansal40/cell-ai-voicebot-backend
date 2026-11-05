@@ -29,6 +29,7 @@ import { historyPush, recordTemplateUsage } from '../templates/template.service'
 import { SYSTEM_ACTOR } from '../whatsapp/channel-status';
 import { openSecret } from '../whatsapp/context';
 import { acquireMessageSlot } from '../whatsapp/message-pacer';
+import { autoPause } from '../whatsapp-campaigns/lifecycle';
 import { trackCampaignMessage } from '../whatsapp-campaigns/tracking';
 
 import { applyChannelEffect } from './channel-effects';
@@ -353,7 +354,12 @@ export const processSend = async (
   options: { finalAttempt: boolean; waits: number },
 ): Promise<SendOutcome> => {
   const m = await MessageModel.findById(messageId).lean<MessageDoc>();
-  if (!m || m.status !== 'queued' || m.direction !== 'out') return { kind: 'skipped' };
+  if (!m || m.direction !== 'out') return { kind: 'skipped' };
+  if (m.status !== 'queued') {
+    // A worker may have committed acceptance before crashing ahead of campaign tracking.
+    await trackCampaignMessage(m);
+    return { kind: 'skipped' };
+  }
   const now = inboxNow(ix);
   const earlier = await MessageModel.exists({
     conversationId: m.conversationId,
@@ -407,13 +413,25 @@ export const processSend = async (
       const campaign = await WhatsAppCampaignModel.findOne({
         _id: m.externalRef.slice(4),
         accountId: m.accountId,
-      })
-        .select({ status: 1 })
-        .lean<{ status: string }>();
+      }).lean();
       if (!campaign || ['stopped', 'failed'].includes(campaign.status))
         throw new NotSendable('Campaign stopped');
       if (['paused', 'scheduled'].includes(campaign.status))
         return { kind: 'later', delayMs: 1000 };
+      const templateUnavailable =
+        m.template &&
+        !(await WhatsAppTemplateModel.exists({
+          _id: m.template.templateId,
+          accountId: m.accountId,
+          status: 'APPROVED',
+        }));
+      if (channel.qualityRating === 'RED' || templateUnavailable) {
+        await autoPause(
+          campaign,
+          channel.qualityRating === 'RED' ? 'quality_red' : 'template_paused',
+        );
+        return { kind: 'later', delayMs: 1000 };
+      }
     }
     const { waMessageId } = await ix.wa.meta.sendMessage(token, channel.phoneNumberId, payload);
     await update(m, 'queued', { waMessageId, error: null }, 'accepted', now);

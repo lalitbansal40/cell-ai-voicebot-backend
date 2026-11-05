@@ -108,6 +108,44 @@ describe('create / submit', () => {
     });
   });
 
+  it('uses an explicit same-WABA sender and rejects foreign tenants/WABAs for approval, edit and media', async () => {
+    const { accountId } = await t.setup();
+    const actor = userActor();
+    const draft = await createTemplate(t.state.tx, accountId, actor, input({ submit: false }));
+    const original = await WhatsAppChannelModel.findById(t.state.channel._id)
+      .select('+tokenSealed')
+      .lean();
+    const other = await WhatsAppChannelModel.create({
+      ...original,
+      _id: new Types.ObjectId(),
+      wabaId: 'other-waba',
+      phoneNumberId: 'other-phone',
+    });
+    await expect(
+      submitTemplate(t.state.tx, accountId, actor, draft.id, other._id.toString()),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    await expect(
+      editTemplate(t.state.tx, accountId, actor, draft.id, {
+        channelId: other._id.toString(),
+        category: 'MARKETING',
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    await expect(
+      submitTemplate(t.state.tx, new Types.ObjectId(), actor, draft.id, original!._id.toString()),
+    ).rejects.toMatchObject({ code: 'TEMPLATE_NOT_FOUND' });
+    const sibling = await WhatsAppChannelModel.create({
+      ...original,
+      _id: new Types.ObjectId(),
+      phoneNumberId: 'sibling-phone',
+    });
+    expect(
+      (await listTemplates(accountId, { channelId: sibling._id.toString() })).map((r) => r.id),
+    ).toContain(draft.id);
+    expect(
+      (await submitTemplate(t.state.tx, accountId, actor, draft.id, sibling._id.toString())).status,
+    ).toBe('PENDING');
+  });
+
   it('submits at once by default; `instant` names come back approved', async () => {
     const { accountId } = await t.setup();
     const r = await createTemplate(

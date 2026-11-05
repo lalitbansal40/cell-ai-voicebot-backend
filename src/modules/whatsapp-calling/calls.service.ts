@@ -126,6 +126,7 @@ interface LiveCall {
   appliedEvents: Set<string>;
   metaDuration: number | null;
   summary: CallEndedSummary | null;
+  outcomeNotified?: boolean;
   settleTimer: NodeJS.Timeout | null;
   settlement?: Promise<void>;
   endTask?: Promise<void>;
@@ -161,6 +162,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
   const { ctx } = deps;
   const clock = deps.clock ?? systemClock;
   const live = new Map<string, LiveCall>();
+  const endedListeners = new Set<(summary: CallEndedSummary) => Promise<void>>();
   const byWaCall = new Map<string, LiveCall>();
 
   const capacity = () => ({ active: live.size, max: ctx.env.WA_MEDIA_MAX_CALLS });
@@ -328,6 +330,13 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
   };
 
   const forget = (call: LiveCall) => {
+    if (call.summary && !call.outcomeNotified) {
+      call.outcomeNotified = true;
+      const summary = call.summary;
+      void Promise.all([...endedListeners].map((fn) => fn(summary))).catch((err: unknown) =>
+        deps.logger.error({ err, callId: call.callId }, 'whatsapp call: campaign outcome failed'),
+      );
+    }
     live.delete(call.callId);
     if (call.waCallId) {
       byWaCall.delete(call.waCallId);
@@ -577,8 +586,25 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       contactId: string;
       mode: 'ai' | 'human';
       program?: CallProgram | null;
+      campaign?: {
+        campaignId: string;
+        campaignContactId: string;
+        attempt: number;
+        flowVersionId?: string | null;
+        flowVersion?: number | null;
+      };
     },
   ) => {
+    if (input.campaign) {
+      const previous = await CallModel.findOne({
+        accountId: actor.accountId,
+        campaignContactId: input.campaign.campaignContactId,
+        attempt: input.campaign.attempt,
+      })
+        .select({ _id: 1 })
+        .lean();
+      if (previous) return { callId: previous._id.toString() };
+    }
     const now = new Date(clock.now());
     const channel = await loadChannel(actor.accountId, input.channelId);
     const contact = await ContactModel.findOne({
@@ -638,7 +664,24 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       from: `whatsapp:${channel._id.toString()}`,
       to: contact.phoneE164,
       mode: input.mode,
-      source: sourceOf(input.mode, program),
+      source: {
+        ...sourceOf(input.mode, program),
+        ...(input.campaign && program?.kind === 'flow'
+          ? {
+              ...(input.campaign.flowVersion ? { flowVersionRef: input.campaign.flowVersion } : {}),
+              flowVersionId: input.campaign.flowVersionId
+                ? new Types.ObjectId(input.campaign.flowVersionId)
+                : null,
+            }
+          : {}),
+      },
+      ...(input.campaign
+        ? {
+            campaignId: input.campaign.campaignId,
+            campaignContactId: input.campaign.campaignContactId,
+            attempt: input.campaign.attempt,
+          }
+        : {}),
       contactId: contact._id,
       startedBy: actor.userId,
       agentUserId: input.mode === 'human' ? actor.userId : null,
@@ -1417,6 +1460,21 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
 
   return {
     startOutbound,
+    onCallEnded: (listener: (summary: CallEndedSummary) => Promise<void>) => {
+      endedListeners.add(listener);
+      return () => endedListeners.delete(listener);
+    },
+    hangupCampaign: async (campaignId: string) => {
+      const rows = await CallModel.find({ campaignId, _id: { $in: [...live.keys()] } })
+        .select({ _id: 1 })
+        .lean();
+      await Promise.all(
+        rows.map(async (row) => {
+          await live.get(row._id.toString())?.session?.end('campaign_canceled');
+        }),
+      );
+      return rows.length;
+    },
     attachAgent,
     setHold,
     /** Agent actions on the media owner; answer / decline on a call no one owns is not ringing. */

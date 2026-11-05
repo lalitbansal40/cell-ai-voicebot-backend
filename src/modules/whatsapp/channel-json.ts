@@ -38,6 +38,7 @@ export const channelListItem = (c: WhatsAppChannelDoc) => ({
   qualityRating: c.qualityRating,
   messagingLimitTier: c.messagingLimitTier,
   isOnBizApp: c.isOnBizApp,
+  messageClassificationKnown: c.messageClassificationKnown === true,
   messageRateLimit: campaignMps(c, getEnv().WA_CAMPAIGN_MPS),
   /** Phase 12: WhatsApp calling on this number (settings: `/whatsapp/channels/:id/calling`). */
   calling: callingSummary(c),

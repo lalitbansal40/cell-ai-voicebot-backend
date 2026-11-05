@@ -10,6 +10,7 @@ import {
   ListTemplatesQuery,
   SyncResultSchema,
   SyncTemplatesBody,
+  SubmitTemplateBody,
   TemplateDetailSchema,
   TemplateListItemSchema,
   TemplateParams,
@@ -96,9 +97,9 @@ registry.registerPath({
   method: 'post',
   path: `${base}/{id}/submit`,
   tags,
-  summary: 'Submit a draft to Meta for review (templates.manage)',
+  summary: 'Submit a draft to Meta for review using an owned same-WABA sender (templates.manage)',
   security: bearer,
-  request: { params: TemplateParams },
+  request: { params: TemplateParams, ...json(SubmitTemplateBody) },
   responses: { 200: ok(TemplateDetailSchema), ...writes },
 });
 registry.registerPath({
@@ -133,7 +134,10 @@ registry.registerPath({
     body: {
       content: {
         'multipart/form-data': {
-          schema: z.object({ file: z.string().openapi({ format: 'binary' }) }),
+          schema: z.object({
+            file: z.string().openapi({ format: 'binary' }),
+            channelId: z.string().optional(),
+          }),
         },
       },
     },

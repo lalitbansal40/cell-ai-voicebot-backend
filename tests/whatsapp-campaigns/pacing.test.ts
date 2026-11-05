@@ -14,6 +14,7 @@ const channel = (mode = 'cloud_api', isOnBizApp = false) => ({
   accountId: prefix,
   mode,
   isOnBizApp,
+  messageClassificationKnown: true,
 });
 beforeAll(async () => {
   redis = (await requireRedis()).client;
@@ -32,6 +33,7 @@ describe('per-number shared message pacing', () => {
     expect(campaignMps(channel('coexistence'))).toBe(18);
     expect(campaignMps(channel('cloud_api', true))).toBe(18);
     expect(campaignMps()).toBe(18);
+    expect(campaignMps({ mode: 'cloud_api', isOnBizApp: false })).toBe(18);
     expect(campaignMps({ mode: 'cloud_api' })).toBe(18);
     expect(campaignMps(channel(), 80)).toBe(75);
     expect(campaignMps(channel('coexistence'), 75)).toBe(18);
@@ -46,7 +48,7 @@ describe('per-number shared message pacing', () => {
     const c = channel(mode, app);
     const attempts: number[] = [];
     let time = 10_000;
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 1000; i++) {
       const worker = i % 2 ? other : redis;
       let delay = await acquireMessageSlot(worker, c, undefined, time);
       while (delay) {

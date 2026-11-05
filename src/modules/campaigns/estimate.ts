@@ -3,9 +3,11 @@ import type { Types } from 'mongoose';
 import { CAMPAIGN_LIMITS } from '../../config/limits';
 import { estimateCampaign } from '../../core/billing/pricing';
 import { effectiveRateCard } from '../../core/billing/rates';
+import { callPrice } from '../../core/billing/whatsapp-calls';
 import { CallModel } from '../../db/models/call.model';
 import type { CampaignRetry } from '../../db/models/campaign.model';
 import { BPS_SCALE, ceilDiv, mulBps } from '../../shared/money';
+import type { CallQuote } from '../whatsapp-calling/billing';
 
 /** Default assumptions (PHASE_8_PLAN §1j). */
 export const ANSWER_RATE_BPS = 6_000;
@@ -17,7 +19,7 @@ export const RANGE_BPS = 2_500;
 /** Average answered duration of the flow's last real calls (else the default). */
 export const averageDurationSec = async (
   accountId: Types.ObjectId,
-  flowId: Types.ObjectId,
+  flowId: Types.ObjectId | null,
 ): Promise<number> => {
   const [row] = await CallModel.aggregate<{ avg: number; n: number }>([
     {
@@ -66,22 +68,35 @@ export interface CampaignCostEstimate {
  */
 export const estimateCost = async (input: {
   accountId: Types.ObjectId;
-  flowId: Types.ObjectId;
+  flowId: Types.ObjectId | null;
   contacts: number;
   retry: CampaignRetry;
   hasAi: boolean;
+  whatsappQuotes?: CallQuote[] | undefined;
+  aiShareBps?: number | undefined;
 }): Promise<CampaignCostEstimate> => {
   const card = await effectiveRateCard(input.accountId);
   const avgDurationSec = await averageDurationSec(input.accountId, input.flowId);
   const attemptsBps = expectedAttemptsBps(input.retry);
   const calls = ceilDiv(input.contacts * attemptsBps, BPS_SCALE);
-  const aiShareBps = input.hasAi ? AI_SHARE_BPS : 0;
-  const est = estimateCampaign(card, {
-    calls,
-    avgDurationSec,
-    answerRateBps: ANSWER_RATE_BPS,
-    aiShareBps,
-  });
+  const aiShareBps = input.hasAi ? (input.aiShareBps ?? AI_SHARE_BPS) : 0;
+  const est = estimateCampaign(
+    input.whatsappQuotes === undefined ? card : { ...card, callPerMinuteMicros: 0 },
+    {
+      calls,
+      avgDurationSec,
+      answerRateBps: ANSWER_RATE_BPS,
+      aiShareBps,
+    },
+  );
+  if (input.whatsappQuotes) {
+    const transport = Math.max(
+      0,
+      ...input.whatsappQuotes.map((quote) => callPrice(quote, avgDurationSec).totalMicros),
+    );
+    est.perCallMicros += transport;
+    est.totalMicros += transport * est.answeredCalls;
+  }
   return {
     contacts: input.contacts,
     calls,

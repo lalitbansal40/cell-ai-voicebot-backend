@@ -23,6 +23,7 @@ import { callPermissionRunsMigration } from './0020-call-permission-runs';
 import { accountsResellersMigration } from './0021-accounts-resellers';
 import { whatsappCampaignsMigration } from './0022-whatsapp-campaigns';
 import { waCampaignRunsMigration } from './0023-wa-campaign-runs';
+import { whatsappCallCampaignsMigration } from './0024-whatsapp-call-campaigns';
 
 /** Ordered migration registry. Add new files here (no fs globbing — keeps builds simple). */
 export const MIGRATIONS: Migration[] = [
@@ -49,4 +50,5 @@ export const MIGRATIONS: Migration[] = [
   accountsResellersMigration,
   whatsappCampaignsMigration,
   waCampaignRunsMigration,
+  whatsappCallCampaignsMigration,
 ];

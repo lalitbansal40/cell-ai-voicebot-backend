@@ -72,6 +72,7 @@ const csvOf = <T extends readonly [string, ...string[]]>(values: T) =>
 /** `POST /calls` — one outbound call to a contact (dry-run provider until phone lines exist). */
 export const StartCallBody = z
   .strictObject({
+    callerNumberId: ObjectIdSchema.optional(),
     contactId: ObjectIdSchema,
     flowId: ObjectIdSchema.optional(),
     version: z

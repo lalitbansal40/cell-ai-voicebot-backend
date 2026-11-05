@@ -35,6 +35,7 @@ import { nextOccurrence } from '../campaigns/recurrence';
 import { snapshotAudience, toObjectIds } from './audience';
 import { estimateCampaignDoc } from './estimate';
 import { saveCampaignMedia, validateCampaignMedia } from './media';
+import { prepareRecurringRun } from './recurrence';
 import { emitProgress } from './tracking';
 import { loadVariants } from './variants';
 
@@ -44,6 +45,7 @@ export interface WaCampaignJobs {
 
 export interface CampaignInput {
   name: string;
+  headerLocation?: WhatsAppCampaignDoc['headerLocation'];
   headerMediaToken?: string | null | undefined;
   channelId: string;
   variants: { key: 'A' | 'B' | 'C'; templateId: string; splitPct: number }[];
@@ -113,6 +115,7 @@ const view = (c: WhatsAppCampaignDoc) => ({
   },
   parentCampaignId: c.parentCampaignId?.toString() ?? null,
   recurrenceEnabled: c.recurrenceEnabled ?? true,
+  headerLocation: c.headerLocation ?? null,
   headerMedia: c.headerMedia
     ? {
         kind: c.headerMedia.kind,
@@ -305,6 +308,7 @@ export const createCampaign = async (
     accountId,
     createdBy: new Types.ObjectId(auth.userId),
     ...toDoc(input),
+    headerLocation: input.headerLocation ?? null,
     headerMedia: await mediaForInput(req, input, null, storage),
   });
   await audit(req, c, 'whatsapp_campaign.created', {
@@ -350,6 +354,8 @@ export const updateCampaign = async (
     {
       $set: {
         ...toDoc(input),
+        headerLocation:
+          input.headerLocation === undefined ? c.headerLocation : input.headerLocation,
         headerMedia: await mediaForInput(req, input, c.headerMedia, storage),
       },
     },
@@ -385,6 +391,19 @@ export const startCampaign = async (req: Request, id: string, jobs?: WaCampaignJ
   if (variants.length !== c.variants.length || variants.some((v) => v.status !== 'APPROVED'))
     throw new ValidationError([
       { path: 'variants', message: 'Choose approved templates before starting' },
+    ]);
+  const headers = await WhatsAppTemplateModel.find({
+    accountId: c.accountId,
+    _id: { $in: c.variants.map((v) => v.templateId) },
+  })
+    .select({ components: 1 })
+    .lean<{ components: Record<string, unknown>[] }[]>();
+  if (
+    headers.some((t) => t.components.some((p) => p.type === 'HEADER' && p.format === 'LOCATION')) &&
+    !c.headerLocation
+  )
+    throw new ValidationError([
+      { path: 'headerLocation', message: 'Add the location for the template header' },
     ]);
   const est = await estimateCampaign(req, id);
   const snap = await snapshotAudience(c, variants);
@@ -475,15 +494,24 @@ export const pauseCampaign = async (req: Request, id: string) =>
   );
 
 export const resumeCampaign = async (req: Request, id: string, jobs?: WaCampaignJobs) => {
+  const c = await load(req, id);
+  const now = new Date();
+  const scheduled = !c.startedAt && Boolean(c.schedule.at && c.schedule.at > now);
   const updated = await move(
     req,
     id,
     ['paused'],
-    { status: 'running', pauseReason: null, startedAt: new Date() },
+    { status: 'scheduled', pauseReason: null },
     'whatsapp_campaign.resumed',
   );
+  if (scheduled) return view(updated);
+  if (!(await prepareRecurringRun(updated, now))) return view(await load(req, id));
+  await WhatsAppCampaignModel.updateOne(
+    { _id: c._id, status: 'scheduled' },
+    { $set: { status: 'running', startedAt: c.startedAt ?? now } },
+  );
   await jobs?.enqueueDispatch(updated._id.toString());
-  return view(updated);
+  return view(await load(req, id));
 };
 
 /** Stops for good: everyone not sent yet is skipped `stopped`. */
@@ -550,8 +578,20 @@ export const retryFailed = async (req: Request, id: string, jobs?: WaCampaignJob
   await WhatsAppCampaignModel.updateOne(
     { _id: c._id },
     {
-      $inc: { 'counters.failedTotal': -retry.length },
-      $set: { status: 'running', pauseReason: null, finishedAt: null },
+      $inc: {
+        'counters.failedTotal': -retry.length,
+        ...Object.fromEntries(
+          [...new Set(retry.map((r) => String(r.errorCode ?? 'unknown')))].map((code) => [
+            `counters.failed.${code}`,
+            -retry.filter((r) => String(r.errorCode ?? 'unknown') === code).length,
+          ]),
+        ),
+      },
+      $set: {
+        status: c.status === 'paused' ? 'paused' : 'running',
+        pauseReason: c.status === 'paused' ? c.pauseReason : null,
+        finishedAt: null,
+      },
     },
   );
   await audit(req, c, 'whatsapp_campaign.retried', { count: retry.length });
@@ -680,7 +720,16 @@ export const campaignReport = async (req: Request, id: string) => {
     }),
   ]);
   let charged = 0;
-  const ids = messageIds.map(String);
+  const messages = await MessageModel.find({
+    accountId: c.accountId,
+    $or: [{ externalRef: `wac:${c._id.toString()}` }, { _id: { $in: messageIds } }],
+  })
+    .select({ _id: 1, clientId: 1 })
+    .lean<{ _id: Types.ObjectId; clientId?: string | null }[]>();
+  // Normal captures retain the hold's client ID; late charges use the message ID.
+  const ids = [
+    ...new Set(messages.flatMap((m) => [m._id.toString(), ...(m.clientId ? [m.clientId] : [])])),
+  ];
   for (let i = 0; i < ids.length; i += 5_000) {
     const rows = await LedgerEntryModel.aggregate<{ micros: number }>([
       {

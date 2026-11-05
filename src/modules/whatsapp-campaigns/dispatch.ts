@@ -27,7 +27,8 @@ import { sendMessage } from '../inbox/outbound.service';
 import type { CallPermissionsService } from '../whatsapp-calling/permissions.service';
 
 import { variablesFor, type VariantInfo } from './audience';
-import { bellCreator, systemAudit, maybeComplete } from './lifecycle';
+import { autoPause, maybeComplete } from './lifecycle';
+export { autoPause } from './lifecycle';
 import { campaignHeaderFor } from './media';
 import { allowedNow } from './pacing';
 import { prepareRecurringRun, scheduleRecurringRuns } from './recurrence';
@@ -80,25 +81,6 @@ const pauseReasonOf = (
   if (channel.qualityRating === 'RED') return 'quality_red';
   if (variants.some((v) => v.status !== 'APPROVED')) return 'template_paused';
   return null;
-};
-
-/** Moves a running campaign to paused with a reason (bell + audit). */
-export const autoPause = async (campaign: WhatsAppCampaignDoc, reason: WaCampaignPauseReason) => {
-  const done = await WhatsAppCampaignModel.updateOne(
-    { _id: campaign._id, status: { $in: ['running', 'waiting_for_limit'] } },
-    { $set: { status: 'paused', pauseReason: reason } },
-  );
-  if (!done.modifiedCount) return;
-  await systemAudit(campaign, 'whatsapp_campaign.paused', { reason });
-  const text: Record<WaCampaignPauseReason, string> = {
-    user: 'Paused.',
-    wallet_empty: 'The wallet ran out. Add credit, then resume.',
-    template_paused: 'WhatsApp paused or disabled the template.',
-    quality_red: "The number's quality is low (red). Wait for it to recover, then resume.",
-    channel_down: 'The WhatsApp number is not connected.',
-  };
-  await bellCreator(campaign, 'whatsapp_campaign.paused', `${campaign.name}: ${text[reason]}`);
-  await emitProgress(campaign._id, true);
 };
 
 const skipRecipient = async (r: WhatsAppCampaignRecipientDoc, reason: WaCampaignSkipReason) => {
@@ -192,6 +174,21 @@ export const dispatchCampaign = async (
     const variantOf = new Map(variants.map((v) => [v.key, v]));
     const actor = { accountId: campaign.accountId, userId: campaign.createdBy };
     for (const r of claimed) {
+      const current = await WhatsAppCampaignModel.findById(campaign._id)
+        .select({ status: 1 })
+        .lean<{ status: string }>();
+      if (current?.status !== 'running') {
+        const returned = await WhatsAppCampaignRecipientModel.updateMany(
+          { campaignId: campaign._id, status: 'sending', messageId: null },
+          { $set: { status: 'pending', claimedAt: null } },
+        );
+        if (returned.modifiedCount)
+          await WhatsAppCampaignModel.updateOne(
+            { _id: campaign._id },
+            { $inc: { 'counters.queued': -returned.modifiedCount } },
+          );
+        return { status: current?.status ?? 'missing', sent };
+      }
       const contact = contactOf.get(r.contactId.toString());
       const v =
         variantOf.get(campaign.abWinner?.winner ?? r.variant) ??
@@ -257,6 +254,7 @@ export const dispatchCampaign = async (
             conversation._id.toString(),
             {
               type: 'template',
+              ...(campaign.headerLocation ? { header: { location: campaign.headerLocation } } : {}),
               ...(campaign.headerMedia
                 ? { header: await campaignHeaderFor(campaign, deps.ix.storage) }
                 : {}),

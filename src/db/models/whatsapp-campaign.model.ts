@@ -116,6 +116,7 @@ export interface WhatsAppCampaignDoc {
   };
   parentCampaignId?: Types.ObjectId | null;
   recurrenceEnabled?: boolean;
+  headerLocation?: { latitude: number; longitude: number; name?: string; address?: string } | null;
   headerMedia?: Pick<
     InboxUploadDoc,
     'kind' | 'storageKey' | 'mimeType' | 'size' | 'sha256' | 'fileName'
@@ -170,6 +171,7 @@ const schema = new Schema<WhatsAppCampaignDoc>(
     parentCampaignId: { type: Schema.Types.ObjectId, default: null },
     recurrenceEnabled: { type: Boolean, default: true },
     headerMedia: { type: Schema.Types.Mixed, default: null },
+    headerLocation: { type: Schema.Types.Mixed, default: null },
     counters: { type: Schema.Types.Mixed, default: emptyCounters },
     cost: {
       estimateMicros: { type: Number, default: 0 },

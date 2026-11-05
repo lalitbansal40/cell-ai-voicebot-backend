@@ -55,3 +55,4 @@ Every request also passes the global limit of 1,200 a minute per IP. API keys ha
 - `POST /api/v1/reseller/customers/{id}/login-as`
 - `POST /api/v1/reseller/customers/{id}/credit`
 - `POST /api/v1/reseller/customers/{id}/credit/reclaim`
+- `POST /api/v1/whatsapp-campaigns`

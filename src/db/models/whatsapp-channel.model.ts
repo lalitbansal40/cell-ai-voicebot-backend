@@ -259,6 +259,7 @@ export interface WhatsAppChannelDoc {
   isOfficialBusinessAccount: boolean;
   /** WhatsApp Business app number (coexistence) — calling is not available. */
   isOnBizApp: boolean;
+  messageClassificationKnown?: boolean;
   capabilities: Record<string, unknown> | null;
   tokenSealed?: string | null;
   tokenType: string | null;
@@ -452,6 +453,7 @@ const schema = new Schema<WhatsAppChannelDoc>({
   phoneStatus: nullableString,
   isOfficialBusinessAccount: { type: Boolean, default: false },
   isOnBizApp: { type: Boolean, default: false },
+  messageClassificationKnown: { type: Boolean, default: false },
   capabilities: { type: Schema.Types.Mixed, default: null },
   tokenSealed: { type: String, default: null, select: false },
   tokenType: nullableString,

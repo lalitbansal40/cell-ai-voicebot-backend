@@ -32,6 +32,8 @@ export const BULK_PERMISSION_LIMITS = { maxContacts: 5_000, batchSize: 50 } as c
 const DECLINED_RECENTLY_MS = 7 * 86_400_000;
 
 export interface BulkPermissionInput {
+  /** Internal campaign batch identity, never accepted from the HTTP body. */
+  runId?: string;
   channelId: string;
   target: { contactIds?: string[]; listId?: string; segmentId?: string };
   templateId: string;
@@ -158,6 +160,17 @@ export const createBulkPermissions = (deps: {
     actor: PermissionActor & { userId: Types.ObjectId },
     input: BulkPermissionInput,
   ) => {
+    if (input.runId) {
+      const existing = await CallPermissionRunModel.findOne({
+        _id: input.runId,
+        accountId: actor.accountId,
+      }).lean();
+      if (existing) {
+        if (deps.jobs && !['done', 'stopped'].includes(existing.status))
+          await deps.jobs.enqueuePermissionBulk(existing._id.toString());
+        return { runId: existing._id.toString() };
+      }
+    }
     const channel = await deps.permissions.loadChannel(actor.accountId, input.channelId);
     const block = deps.permissions.channelBlock(channel, now());
     if (block === 'calling_unavailable' || block === 'country' || block === 'not_connected') {
@@ -196,6 +209,7 @@ export const createBulkPermissions = (deps: {
       throw new ValidationError([{ path: 'target', message: 'No contacts to ask' }]);
     }
     const run = await CallPermissionRunModel.create({
+      ...(input.runId ? { _id: new Types.ObjectId(input.runId) } : {}),
       accountId: actor.accountId,
       channelId: channel._id,
       templateId: template._id,

@@ -7,6 +7,7 @@ import { availableMicros } from '../../core/billing/events';
 import { getOrCreateWallet } from '../../core/billing/wallets';
 import { notifyAccount } from '../../core/realtime/notify';
 import { systemClock, type Clock } from '../../core/voice/clock';
+import { AiAgentModel } from '../../db/models/ai-agent.model';
 import { CallModel, type CallDoc } from '../../db/models/call.model';
 import {
   CampaignContactModel,
@@ -26,6 +27,7 @@ import type { Logger } from '../../shared/logger';
 import type { CallManager } from '../calls/call.service';
 import type { CallEndedSummary } from '../calls/session';
 import { resolveCallerId } from '../phone-numbers/phone-numbers.service';
+import type { WhatsAppCallsService } from '../whatsapp-calling/calls.service';
 
 import { accountFacts, pauseCampaignDoc, pinnedProblems, setStatus } from './campaigns.service';
 import { decideDial, loadContactFacts } from './dial-guard';
@@ -33,6 +35,7 @@ import { publishProgress } from './progress';
 import { classifyResult } from './results';
 import type { DialRate } from './slots';
 import { contactCounts, countsToStats, STATUS_STAT } from './snapshot';
+import { allowedCallContacts, validateWhatsAppLine } from './whatsapp-line';
 import { canDialAt, effectiveWindow, nextWindowStart } from './window';
 
 const PRIORITY_RANK = { high: 0, normal: 1, low: 2 } as const;
@@ -48,6 +51,7 @@ const OPEN: readonly CampaignContactStatus[] = [
 
 export interface DispatcherDeps {
   calls: CallManager;
+  whatsappCalls?: Pick<WhatsAppCallsService, 'startOutbound' | 'onCallEnded' | 'hangupCampaign'>;
   rate: DialRate;
   logger: Logger;
   clock?: Clock;
@@ -84,6 +88,7 @@ export class CampaignDispatcher {
 
   constructor(private readonly deps: DispatcherDeps) {
     this.clock = deps.clock ?? systemClock;
+    deps.whatsappCalls?.onCallEnded((summary) => this.callEnded(summary));
     // returned: CallManager.shutdown() waits for the results of the calls it ends
     deps.calls.onCallEnded((summary) =>
       this.callEnded(summary).catch((err: unknown) =>
@@ -212,9 +217,14 @@ export class CampaignDispatcher {
         await pauseCampaignDoc(campaign, 'wallet_empty', null).catch(() => undefined);
         continue;
       }
-      const flow = await FlowModel.findById(campaign.flowId, null, { withDeleted: true })
-        .select({ templateKey: 1 })
-        .lean<{ templateKey: string | null }>();
+      const flow =
+        campaign.program?.kind === 'agent'
+          ? await AiAgentModel.findOne({ _id: campaign.program.id, accountId: campaign.accountId })
+              .select({ templateKey: 1 })
+              .lean<{ templateKey?: string }>()
+          : await FlowModel.findById(campaign.flowId, null, { withDeleted: true })
+              .select({ templateKey: 1 })
+              .lean<{ templateKey: string | null }>();
       ready.push({ campaign, window, templateKey: flow?.templateKey ?? null });
     }
     // high → normal → low: a priority fills the slots before the next one gets a turn;
@@ -251,7 +261,11 @@ export class CampaignDispatcher {
   private async stillRunnable(campaign: CampaignDoc): Promise<boolean> {
     const id = campaign._id.toString();
     const now = this.clock.now();
-    if (now - (this.runnableAt.get(id) ?? -Infinity) < RUNNABLE_CHECK_MS) return true;
+    if (
+      campaign.line !== 'whatsapp' &&
+      now - (this.runnableAt.get(id) ?? -Infinity) < RUNNABLE_CHECK_MS
+    )
+      return true;
     if ((await pinnedProblems(campaign)).length) {
       this.runnableAt.delete(id);
       return false;
@@ -351,50 +365,120 @@ export class CampaignDispatcher {
         await pauseCampaignDoc(campaign, decision.reason, null).catch(() => undefined);
       return 'blocked';
     }
+    if (campaign.line === 'whatsapp') {
+      if (!(await validateWhatsAppLine(campaign.accountId, campaign.channelId).catch(() => null))) {
+        await this.settleContact(campaign, cc, cc.status, {});
+        await pauseCampaignDoc(campaign, 'flow_not_runnable', null);
+        return 'blocked';
+      }
+      const allowed = campaign.channelId
+        ? await allowedCallContacts(campaign.accountId, campaign.channelId, [cc.contactId], now)
+        : new Set<string>();
+      if (!allowed.has(cc.contactId.toString())) {
+        if (campaign.askPermissionFirst) {
+          await this.settleContact(campaign, cc, 'retry_wait', {
+            nextAttemptAt: new Date(now.getTime() + 60_000),
+            waitReason: 'window',
+          });
+        } else
+          await this.settleContact(campaign, cc, 'skipped', {
+            skipReason: 'no_call_permission',
+            nextAttemptAt: null,
+          });
+        return 'handled';
+      }
+      if (
+        (await CallModel.countDocuments({
+          accountId: campaign.accountId,
+          campaignContactId: cc._id,
+          endReason: { $in: ['not_answered', 'no_answer'] },
+        })) >= 2
+      ) {
+        await this.settleContact(campaign, cc, 'skipped', {
+          skipReason: 'unanswered_limit',
+          nextAttemptAt: null,
+        });
+        return 'handled';
+      }
+    }
     // the call's number: every dial counts here, also the ones a shutdown gave back
     const attempt = Math.max(cc.dials ?? 0, cc.attempts) + 1;
     try {
       const live = campaign.mode === 'live';
-      const caller = live ? await callerFor(campaign) : null;
-      const out = await this.deps.calls.startOutboundCall({
-        accountId: campaign.accountId.toString(),
-        provider: live ? 'sip' : 'dryrun',
-        ...(live
-          ? {
-              callerId: caller?.number ?? null,
-              amd: campaign.phoneLine?.amd ?? 'off',
-              voicemailText: campaign.phoneLine?.voicemailText ?? null,
-            }
-          : {}),
-        to: cc.phoneE164,
-        contactId: cc.contactId.toString(),
-        source: {
-          kind: 'flow',
-          flowId: campaign.flowId,
-          flowVersionRef: campaign.flowVersion ?? undefined,
-          flowVersionId: campaign.flowVersionId,
-        },
-        variables: cc.variables,
-        campaign: {
-          campaignId: campaign._id.toString(),
-          campaignContactId: cc._id.toString(),
-          attempt,
-        },
-        initiatedBy: null,
-        groupLimit: campaign.pacing.concurrency,
-        ...(campaign.dryRun
-          ? {
-              dryRun: {
-                seed: `${cc._id.toString()}:${String(attempt)}`,
-                mix: campaign.dryRun.mix,
-                scenarios: campaign.dryRun.scenarios,
-                templateKey,
-                speed: campaign.dryRun.speed,
-                gate: (micros: number) => virtualRoom(campaign).then((room) => room >= micros),
+      const caller = live && campaign.line !== 'whatsapp' ? await callerFor(campaign) : null;
+      const out =
+        live && campaign.line === 'whatsapp'
+          ? await (() => {
+              if (!this.deps.whatsappCalls || !campaign.channelId || !campaign.createdBy)
+                throw new AppError('PROVIDER_UNAVAILABLE');
+              return this.deps.whatsappCalls.startOutbound(
+                {
+                  type: 'system',
+                  id: null,
+                  accountId: campaign.accountId,
+                  userId: campaign.createdBy,
+                },
+                {
+                  channelId: campaign.channelId.toString(),
+                  contactId: cc.contactId.toString(),
+                  mode: 'ai',
+                  program:
+                    campaign.program ??
+                    (campaign.flowId ? { kind: 'flow', id: campaign.flowId } : null),
+                  campaign: {
+                    campaignId: campaign._id.toString(),
+                    campaignContactId: cc._id.toString(),
+                    attempt,
+                    flowVersion: campaign.flowVersion,
+                    flowVersionId: campaign.flowVersionId?.toString() ?? null,
+                  },
+                },
+              );
+            })()
+          : await this.deps.calls.startOutboundCall({
+              accountId: campaign.accountId.toString(),
+              provider: live ? 'sip' : 'dryrun',
+              ...(live && campaign.line !== 'whatsapp'
+                ? {
+                    callerId: caller?.number ?? null,
+                    amd: campaign.phoneLine?.amd ?? 'off',
+                    voicemailText: campaign.phoneLine?.voicemailText ?? null,
+                  }
+                : {}),
+              to: cc.phoneE164,
+              contactId: cc.contactId.toString(),
+              source:
+                campaign.line === 'whatsapp' && campaign.program?.kind === 'agent'
+                  ? { kind: 'agent', agentId: campaign.program.id }
+                  : {
+                      kind: 'flow',
+                      flowId: campaign.flowId ?? undefined,
+                      flowVersionRef: campaign.flowVersion ?? undefined,
+                      flowVersionId: campaign.flowVersionId,
+                    },
+              variables: cc.variables,
+              campaign: {
+                campaignId: campaign._id.toString(),
+                campaignContactId: cc._id.toString(),
+                attempt,
               },
-            }
-          : {}),
-      });
+              initiatedBy: null,
+              groupLimit: campaign.pacing.concurrency,
+              ...(campaign.dryRun
+                ? {
+                    dryRun: {
+                      seed: `${cc._id.toString()}:${String(attempt)}`,
+                      mix: campaign.dryRun.mix,
+                      scenarios: campaign.dryRun.scenarios,
+                      templateKey,
+                      agentOnly: campaign.program?.kind === 'agent',
+                      speed: campaign.dryRun.speed,
+                      gate: (micros: number) =>
+                        virtualRoom(campaign).then((room) => room >= micros),
+                    },
+                  }
+                : {}),
+            });
       await CampaignContactModel.updateOne(
         { _id: cc._id },
         {
@@ -412,9 +496,20 @@ export class CampaignDispatcher {
         { _id: campaign._id },
         { $inc: { ...moveStats('queued', 'calling'), 'stats.attempts': 1 } },
       );
+      const ended = await CallModel.findOne({
+        _id: out.callId,
+        status: { $nin: ['queued', 'ringing', 'in_progress'] },
+      }).lean<CallDoc>();
+      if (
+        ended &&
+        (ended.provider !== 'whatsapp' ||
+          ['settled', 'released', 'free'].includes(ended.billing?.whatsapp?.status ?? ''))
+      )
+        await applyResult(ended, now);
       // canceled while this contact was being dialed: its hang-up missed this call
       if (await CampaignModel.exists({ _id: campaign._id, status: 'canceled' })) {
         await this.deps.calls.hangupCampaign(campaign._id.toString());
+        await this.deps.whatsappCalls?.hangupCampaign(campaign._id.toString());
         return 'blocked';
       }
       return 'dialed';

@@ -133,7 +133,7 @@ export const skipFor = (
     suppressed: boolean;
     sentRecently: boolean;
     mapping: WhatsAppCampaignDoc['variables'];
-    permission: { status: string; at: Date | null } | null;
+    permission: { status: string; at: Date | null; expiresAt?: Date | null } | null;
     now: Date;
   },
 ): WaCampaignSkipReason | null => {
@@ -146,7 +146,11 @@ export const skipFor = (
   if (facts.sentRecently) return 'sent_recently';
   if (v.purpose === 'call_permission' && facts.permission) {
     const s = facts.permission.status;
-    if (s === 'permanent' || s === 'temporary') return 'already_allowed';
+    if (
+      s === 'permanent' ||
+      (s === 'temporary' && facts.permission.expiresAt && facts.permission.expiresAt > facts.now)
+    )
+      return 'already_allowed';
     if (
       s === 'declined' &&
       facts.permission.at &&
@@ -208,17 +212,23 @@ export async function* resolveAudienceBatches(
       for (const r of rows)
         recent.add(`${r.contactId.toString()}:${r.template.templateId.toString()}`);
     }
-    const perms = new Map<string, { status: string; at: Date | null }>();
+    const perms = new Map<string, { status: string; at: Date | null; expiresAt?: Date | null }>();
     if (consent) {
       const rows = await WhatsAppCallPermissionModel.find({
         accountId: campaign.accountId,
         channelId: campaign.channelId,
         contactId: { $in: ids },
       })
-        .select({ contactId: 1, status: 1, updatedAt: 1 })
-        .lean<{ contactId: Types.ObjectId; status: string; updatedAt: Date }[]>();
+        .select({ contactId: 1, status: 1, updatedAt: 1, expiresAt: 1 })
+        .lean<
+          { contactId: Types.ObjectId; status: string; updatedAt: Date; expiresAt?: Date | null }[]
+        >();
       for (const r of rows)
-        perms.set(r.contactId.toString(), { status: r.status, at: r.updatedAt });
+        perms.set(r.contactId.toString(), {
+          status: r.status,
+          at: r.updatedAt,
+          expiresAt: r.expiresAt,
+        });
     }
     const docs = contacts.map((c) => {
       const key = variantFor(c._id, campaign.variants);

@@ -21,9 +21,16 @@ export const RecipientsQuery = z.strictObject({
   ...PaginationQuerySchema.shape,
   status: z.enum(WA_RECIPIENT_STATUSES).optional(),
 });
+const HeaderLocation = z.strictObject({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  name: z.string().max(1000).optional(),
+  address: z.string().max(1000).optional(),
+});
 export const CampaignBody = z.strictObject({
   name: z.string().trim().min(1).max(120),
   headerMediaToken: ObjectIdSchema.nullable().optional(),
+  headerLocation: HeaderLocation.nullable().optional(),
   channelId: ObjectIdSchema,
   variants: z
     .array(
@@ -138,6 +145,7 @@ export const WaCampaignSchema = registry.register(
     }),
     parentCampaignId: z.string().nullable(),
     recurrenceEnabled: z.boolean(),
+    headerLocation: HeaderLocation.nullable().optional(),
     headerMedia: z
       .object({
         kind: z.string(),
