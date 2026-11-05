@@ -32,9 +32,11 @@ export SIP_STRICT_RTP="${SIP_STRICT_RTP:-yes}"
 export ARI_BIND="${ARI_BIND:-127.0.0.1}"
 export ARI_PORT="${ARI_PORT:-8088}"
 export ARI_USER="${ARI_USER:-cav}"
+export ARI_APP="${ARI_APP:-cav}"
 export SIP_QUALIFY_SEC="${SIP_QUALIFY_SEC:-60}"
 export SIP_OUTBOUND_AUTH=""
 
+[[ "${ARI_APP}" =~ ^[A-Za-z0-9_-]{1,40}$ ]] || fail "ARI_APP must be a short name"
 case "${SIP_TRANSPORT}" in udp | tcp) ;; *) fail "SIP_TRANSPORT must be udp or tcp" ;; esac
 case "${SIP_DTMF}" in rfc4733 | info | inband | auto) ;; *) fail "SIP_DTMF is not valid" ;; esac
 [[ "${#ARI_PASSWORD}" -ge 24 ]] || fail "ARI_PASSWORD must be at least 24 characters"
@@ -51,7 +53,7 @@ esac
 
 names=(SIP_HOST SIP_PORT SIP_TRANSPORT SIP_CODECS SIP_DTMF SIP_BIND SIP_LISTEN_PORT
   SIP_EXTERNAL_ADDRESS SIP_LOCAL_NET SIP_TRUNK_IPS SIP_USERNAME SIP_PASSWORD SIP_OUTBOUND_AUTH
-  SIP_RTP_START SIP_RTP_END SIP_STRICT_RTP SIP_QUALIFY_SEC ARI_BIND ARI_PORT ARI_USER ARI_PASSWORD)
+  SIP_RTP_START SIP_RTP_END SIP_STRICT_RTP SIP_QUALIFY_SEC ARI_BIND ARI_PORT ARI_USER ARI_PASSWORD ARI_APP)
 
 # Replaces ${NAME} for the names above only (bash 3.2 safe; no envsubst needed).
 render_file() {

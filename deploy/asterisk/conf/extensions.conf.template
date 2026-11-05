@@ -1,0 +1,24 @@
+; Dialplan (ADR 0050, 0051). Rendered by render.sh (only ${ARI_APP} is substituted).
+; Outbound calls are started by ARI and go straight to the app of the process that dialed;
+; cav-amd is used instead when the campaign asks for answering machine detection.
+[general]
+static=yes
+writeprotect=yes
+
+[cav-in]
+; Calls from the trunk (Phase 20): handed to the API process's inbound app with the dialed
+; number (DID) and the caller's number. When the app is not connected (SIP_INBOUND_ENABLED
+; is false) Stasis fails and the caller hears "unavailable" (cause 34).
+exten => _X.,1,Set(CAV_DID=${EXTEN})
+ same => n,Stasis(${ARI_APP}-inbound,${CAV_DID},${CALLERID(num)})
+ same => n,Hangup(34)
+exten => _+X.,1,Goto(cav-in,${EXTEN:1},1)
+; Trunks that send no number in the request URI: the DID comes from the To header.
+exten => s,1,Set(CAV_DID=${CUT(CUT(PJSIP_HEADER(read,To),@,1),:,2)})
+ same => n,Stasis(${ARI_APP}-inbound,${CAV_DID},${CALLERID(num)})
+ same => n,Hangup(34)
+
+[cav-amd]
+exten => s,1,AMD(2500,1500,800,5000,100,50,3,256)
+ same => n,Stasis(${CAV_APP},amd,${AMDSTATUS},${AMDCAUSE})
+ same => n,Hangup()

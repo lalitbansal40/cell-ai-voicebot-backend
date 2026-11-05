@@ -27,6 +27,8 @@ export type SipEnv = Pick<
   | 'SIP_ASTERISK_RTP_HOST'
   | 'SIP_MAX_CHANNELS'
   | 'SIP_MAX_CPS'
+  | 'SIP_INBOUND_ENABLED'
+  | 'SIP_INBOUND_RESERVED_CHANNELS'
 >;
 
 export interface SipLine {
@@ -34,6 +36,8 @@ export interface SipLine {
   ari: AriClient;
   /** This process's ARI app (`<ARI_APP>-api` / `<ARI_APP>-worker`): events of its calls only. */
   app: string;
+  /** `<ARI_APP>-inbound` on the API process when incoming calls are on (Phase 20), else null. */
+  inboundApp: string | null;
   close(): void;
 }
 
@@ -43,14 +47,24 @@ export interface SipLine {
  */
 export const createSipLine = (
   env: SipEnv,
-  options: { logger: Logger; role: 'api' | 'worker'; redis: Redis; clock?: Clock },
+  options: {
+    logger: Logger;
+    role: 'api' | 'worker';
+    redis: Redis;
+    clock?: Clock;
+    /** This process takes trunk calls (Phase 20): exactly one process kind may. */
+    inbound?: boolean;
+  },
 ): SipLine => {
   const app = `${env.ARI_APP}-${options.role}`;
+  // Only one process kind takes trunk calls (the dialplan hands them to this app).
+  const inboundApp = options.inbound && env.SIP_INBOUND_ENABLED ? `${env.ARI_APP}-inbound` : null;
   const ari = new AriClient({
     url: env.ARI_URL,
     user: env.ARI_USER,
     password: env.ARI_PASSWORD ?? '',
     app,
+    extraApps: inboundApp ? [inboundApp] : [],
   });
   const { min, max } = parsePortRange(env.SIP_APP_RTP_PORTS);
   const provider = new SipTelephonyProvider(
@@ -79,5 +93,5 @@ export const createSipLine = (
     else options.logger.warn({ app }, 'sip: ari disconnected');
   });
   ari.connect();
-  return { provider, ari, app, close: () => ari.close() };
+  return { provider, ari, app, inboundApp, close: () => ari.close() };
 };

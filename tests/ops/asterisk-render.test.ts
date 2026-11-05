@@ -96,10 +96,11 @@ describe('asterisk config render (ADR 0050)', () => {
     ).not.toBe(0);
   });
 
-  it('only answers trunk calls with a refusal until inbound calling exists', () => {
-    const r = render({ ...BASE, SIP_TRUNK_IPS: '203.0.113.10' });
+  it('hands trunk calls to the inbound app with the dialed and calling numbers', () => {
+    const r = render({ ...BASE, SIP_TRUNK_IPS: '203.0.113.10', ARI_APP: 'nn' });
     const dialplan = r.files['extensions.conf']!;
-    expect(dialplan).toMatch(/\[cav-in\][\s\S]*Hangup\(21\)/);
+    expect(dialplan).toContain('Stasis(nn-inbound,${CAV_DID},${CALLERID(num)})');
+    expect(dialplan).toContain('PJSIP_HEADER(read,To)');
     expect(dialplan).toContain('AMD(2500,1500,800,5000,100,50,3,256)');
     expect(dialplan).toContain('Stasis(${CAV_APP},amd,${AMDSTATUS},${AMDCAUSE})');
   });

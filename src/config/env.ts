@@ -262,6 +262,11 @@ const RawEnvSchema = z.object({
   SIP_ASTERISK_RTP_HOST: z.string().regex(HOST, { message: 'must be a host' }).default('127.0.0.1'),
   SIP_TRUNK_COST_PAISE_PER_MIN: z.coerce.number().int().min(0).max(10_000).optional(),
   SIP_SPEND_MINUTES_PER_HOUR: z.coerce.number().int().min(1).max(100_000).default(600),
+  // Incoming trunk calls (Phase 20, ADR 0051)
+  SIP_INBOUND_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+  SIP_INBOUND_PER_CALLER_PER_HOUR: z.coerce.number().int().min(1).max(100).default(10),
+  SIP_INBOUND_RESERVED_CHANNELS: z.coerce.number().int().min(0).max(499).default(0),
+  SIP_INBOUND_RING_MAX_SEC: z.coerce.number().int().min(10).max(300).default(120),
 
   // Recorded-voice / IVR campaigns over the Cell24x7 Voice API (VAPI); `off` hides the feature
   VOICE_API_PROVIDER: z.enum(['off', 'fake', 'cell24x7']).default('off'),
@@ -335,6 +340,7 @@ export type Env = Readonly<
     | 'FAKE_META_CALL_DELAYS_MS'
     | 'WA_CALL_WINDOW_IGNORED'
     | 'CELL24X7_WEBHOOK_SECRET'
+    | 'SIP_INBOUND_ENABLED'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -384,6 +390,8 @@ export type Env = Readonly<
     WA_CALL_WINDOW_IGNORED: boolean;
     /** Resolved (dev default with the fake voice provider; '' when off). */
     CELL24X7_WEBHOOK_SECRET: string;
+    /** Incoming trunk calls are taken (Phase 20); only with the SIP line. */
+    SIP_INBOUND_ENABLED: boolean;
   }
 >;
 
@@ -523,6 +531,11 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       );
     }
   }
+  check(
+    'SIP_INBOUND_RESERVED_CHANNELS',
+    'must be below SIP_MAX_CHANNELS',
+    raw.SIP_INBOUND_RESERVED_CHANNELS < raw.SIP_MAX_CHANNELS,
+  );
   {
     const [lo, hi] = raw.SIP_APP_RTP_PORTS.split('-').map(Number) as [number, number];
     check(
@@ -890,6 +903,7 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
       raw.VOICE_API_PROVIDER === 'off'
         ? ''
         : (raw.CELL24X7_WEBHOOK_SECRET ?? DEV_VOICE_API_WEBHOOK_SECRET),
+    SIP_INBOUND_ENABLED: raw.SIP_INBOUND_ENABLED === 'true' && raw.TELEPHONY_PROVIDER === 'sip',
   });
 };
 

@@ -14,6 +14,8 @@ export interface AriConfig {
   user: string;
   password: string;
   app: string;
+  /** More apps on the same socket (Phase 20: the API process also takes `<ARI_APP>-inbound`). */
+  extraApps?: string[];
   timeoutMs?: number;
   reconnectMinMs?: number;
   reconnectMaxMs?: number;
@@ -123,7 +125,7 @@ export class AriClient extends TypedEmitter<AriEvents> {
 
   private open(): void {
     const url = new URL('/ari/events', this.config.url.replace(/^http/, 'ws'));
-    url.searchParams.set('app', this.config.app);
+    url.searchParams.set('app', [this.config.app, ...(this.config.extraApps ?? [])].join(','));
     url.searchParams.set('subscribeAll', 'false');
     const socket = new WebSocket(url, { headers: { authorization: this.auth } });
     this.socket = socket;
@@ -226,6 +228,18 @@ export class AriClient extends TypedEmitter<AriEvents> {
 
   async answer(channelId: string): Promise<void> {
     await this.request('answer', 'POST', `/channels/${encodeURIComponent(channelId)}/answer`);
+  }
+
+  /** 180 Ringing to the caller of an incoming channel (Phase 20). */
+  async ring(channelId: string): Promise<void> {
+    await this.request('ring', 'POST', `/channels/${encodeURIComponent(channelId)}/ring`);
+  }
+
+  async setVar(channelId: string, variable: string, value: string): Promise<void> {
+    await this.request('setVar', 'POST', `/channels/${encodeURIComponent(channelId)}/variable`, {
+      variable,
+      value,
+    });
   }
 
   async hangup(channelId: string, reason = 'normal'): Promise<void> {

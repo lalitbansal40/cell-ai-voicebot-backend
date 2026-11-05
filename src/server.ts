@@ -233,7 +233,13 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   // Phase 18: the SIP line (ARI + RTP) of this process, only when the install has a trunk
   const sipLine =
     env.TELEPHONY_PROVIDER === 'sip'
-      ? createSipLine(env, { logger, redis, role: env.WORKERS_ENABLED ? 'worker' : 'api' })
+      ? createSipLine(env, {
+          logger,
+          redis,
+          role: env.WORKERS_ENABLED ? 'worker' : 'api',
+          // Phase 20: the API process takes trunk calls (a single dev process does both jobs)
+          inbound: !env.WORKERS_ENABLED || env.NODE_ENV !== 'production',
+        })
       : undefined;
   const callManager = new CallManager({
     logger,
