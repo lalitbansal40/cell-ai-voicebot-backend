@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-05",
+  "scope": "Phase 19 Contact human calls and WhatsApp connection follow-up",
+  "backend": {
+    "passed": 154,
+    "failed": 0,
+    "files": 13,
+    "report": "/tmp/cav-contact-be-final-tests.json"
+  },
+  "frontend": {
+    "passed": 125,
+    "failed": 0,
+    "files": 8,
+    "originalReport": "/tmp/cav-contact-fe-final-tests.json",
+    "affectedRerun": "/tmp/cav-contact-fe-numbers-final.json",
+    "originalResult": {
+      "passed": 124,
+      "failed": 1
+    },
+    "note": "The new signup cancellation test found no visible cancel action while signup was pending. Added Cancel signup and reran the affected 27-test file."
+  },
+  "browser": {
+    "passed": 2,
+    "provider": "fake SIP HTTP/media endpoints; real Chromium microphone/audio client",
+    "firstRun": {
+      "passed": 1,
+      "failed": 1,
+      "log": "/tmp/cav-contact-e2e.log"
+    },
+    "rerun": {
+      "passed": 1,
+      "failed": 0,
+      "log": "/tmp/cav-contact-e2e-rerun.log"
+    },
+    "note": "Initial happy-path test used 5 rather than the keypad accessible name Key 5. Corrected the test selector and reran that case. Microphone-denied case passed in the original run."
+  },
+  "limitations": [
+    "No full-suite/coverage rerun; earlier Phase 19 coverage excludes these changes.",
+    "No real Meta signup or carrier/customer calls.",
+    "Specific WhatsApp connection incident not reproduced: owner does not know the exact error.",
+    "Production not changed."
+  ],
+  "lint": {
+    "note": "Full lint found errors only in changed files; fixed them and checked all affected source/test files. Generated schema follows the existing ESLint ignore policy."
+  }
+}

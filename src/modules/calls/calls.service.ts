@@ -15,7 +15,12 @@ import { UserModel } from '../../db/models/user.model';
 import { stringEq } from '../../db/partial-match';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter } from '../../shared/auth/tenant';
-import { ForbiddenError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
+import {
+  AppError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../../shared/errors/app-error';
 import { decodeCursor, encodeCursor } from '../../shared/http/cursor';
 import { contactVariables, manualVariables } from '../ai-agents/variables';
 import { auditRequest } from '../audit/audit.service';
@@ -421,4 +426,21 @@ export const hangupCall = async (req: Request, id: string, deps: Pick<CallsDeps,
     meta: { forwarded: where === 'forwarded' },
   });
   return { call: await viewOne(await findCall(accountId, id)), forwarded: where === 'forwarded' };
+};
+
+/** Human SIP controls: never issue a browser ticket for another user or an AI call. */
+export const controlHumanCall = async (req: Request, id: string, deps: CallsDeps, on?: boolean) => {
+  const auth = requireAuth(req);
+  if (auth.kind !== 'user' || !auth.userId) throw new ForbiddenError();
+  const { accountId } = tenantFilter(req);
+  const call = await findCall(accountId, id);
+  if (call.provider !== 'sip' || call.mode !== 'human') throw new AppError('CALL_NOT_ACTIVE');
+  if (call.startedBy?.toString() !== auth.userId) throw new ForbiddenError();
+  return deps.manager.controlHumanSip({
+    callId: id,
+    accountId: accountId.toString(),
+    userId: auth.userId,
+    action: on === undefined ? 'media_ticket' : 'hold',
+    ...(on === undefined ? {} : { on }),
+  });
 };

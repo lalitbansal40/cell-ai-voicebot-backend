@@ -79,7 +79,11 @@ export const startSingleCall = async (
   const overrides = body.variables
     ? Object.fromEntries(Object.entries(body.variables).map(([k, v]) => [k, String(v)]))
     : null;
-  if (body.flowId) {
+  if (body.mode === 'human') {
+    if (auth.kind !== 'user' || !auth.userId) throw new ForbiddenError();
+    source = { kind: null };
+    variables = {};
+  } else if (body.flowId) {
     if (!auth.permissions.has('flows.read')) throw new ForbiddenError();
     const flow = await findFlow(accountId, body.flowId);
     const resolved = await resolveVersion(flow, body.version ?? 'published', deps);
@@ -121,7 +125,8 @@ export const startSingleCall = async (
   }
 
   const account = await accountFacts(accountId);
-  if (body.callerNumberId && account.line !== 'sip') throw new AppError('CALLER_NUMBER_INVALID');
+  if ((body.callerNumberId || body.mode === 'human') && account.line !== 'sip')
+    throw new AppError('CALLER_NUMBER_INVALID');
   const now = new Date();
   const facts = await loadContactFacts({
     accountId: accountId.toString(),
@@ -166,6 +171,7 @@ export const startSingleCall = async (
     account.line === 'sip'
       ? await deps.manager.startOutboundCall({
           ...common,
+          mode: body.mode ?? 'ai',
           provider: 'sip',
           callerId: (await resolveCallerId(accountId, body.callerNumberId))?.number ?? null,
         })

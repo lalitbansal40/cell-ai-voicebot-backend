@@ -87,10 +87,15 @@ export const holdEstimate = (
   card: RateCardValues,
   minutes: number = BILLING_LIMITS.callHoldMinutes,
   telephony = true,
+  ai = true,
 ): number => {
   const seconds = count(minutes, 24 * 60, 'minutes') * 60;
-  return callCharge(card, { answered: true, durationSec: seconds, aiSeconds: seconds, telephony })
-    .totalMicros;
+  return callCharge(card, {
+    answered: true,
+    durationSec: seconds,
+    aiSeconds: ai ? seconds : 0,
+    telephony,
+  }).totalMicros;
 };
 
 export interface CampaignEstimateInput {

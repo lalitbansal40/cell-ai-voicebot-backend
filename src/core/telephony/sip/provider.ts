@@ -54,6 +54,9 @@ export const callIdOfChannel = (channelId: string): string | null => {
  */
 export class SipTelephonyProvider implements TelephonyProvider {
   readonly name = 'sip' as const;
+  get ringTimeoutSec(): number {
+    return this.config.ringTimeoutSec;
+  }
   private readonly legs = new Map<string, SipCallLeg>();
   /** Channel leases of this process (call ids and `<callId>:xfer`). */
   private readonly leases = new Set<string>();

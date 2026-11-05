@@ -5,13 +5,14 @@ import path from 'node:path';
 
 import type { Redis } from 'ioredis';
 import { Types } from 'mongoose';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AriClient } from '../../src/core/telephony/sip/ari-client';
 import { SipSpendGuard } from '../../src/core/telephony/sip/guard';
 import { PortPool } from '../../src/core/telephony/sip/port-pool';
 import { SipTelephonyProvider } from '../../src/core/telephony/sip/provider';
-import { systemClock } from '../../src/core/voice/clock';
+import { WebCallLeg } from '../../src/core/telephony/webcall';
+import { FakeClock, systemClock } from '../../src/core/voice/clock';
 import { FakeTts } from '../../src/core/voice/providers';
 import { TtsCache } from '../../src/core/voice/tts-cache';
 import { AccountModel } from '../../src/db/models/account.model';
@@ -22,7 +23,7 @@ import { CallManager, type StartOutboundCallInput } from '../../src/modules/call
 import { CallRegistry } from '../../src/modules/calls/registry';
 import { createLogger } from '../../src/shared/logger';
 import { createTestAccount, type TestAccount } from '../helpers/auth';
-import { ensureRateCard, fund, scriptOf } from '../helpers/calls';
+import { ensureRateCard, fakeChannel, fund, scriptOf } from '../helpers/calls';
 import { useTempStorage } from '../helpers/contacts';
 import { useTestDb } from '../helpers/db';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
@@ -174,6 +175,85 @@ describe('phone calls on the SIP line (T18.6)', () => {
     expect(ended.cost.telephonyMicros).toBeGreaterThan(0);
     const withSip = await CallModel.findById(out.callId).lean<CallDoc>();
     expect(withSip?.sip).toMatchObject({ codec: 'ulaw', sipQ850: 16 });
+  });
+
+  it('human SIP: only the initiating browser can attach; ready dials once; no AI usage', async () => {
+    const userId = new Types.ObjectId().toString();
+    const program = vi.spyOn(manager['deps'], 'scriptFor');
+    const out = await manager.startOutboundCall(
+      input({ mode: 'human', source: { kind: null }, initiatedBy: userId }),
+    );
+    expect(await doc(out.callId)).toMatchObject({
+      mode: 'human',
+      agentUserId: new Types.ObjectId(userId),
+      source: { kind: null },
+    });
+    expect(program).not.toHaveBeenCalled();
+    expect(ari.callsTo('POST', `/channels/${chan(out.callId)}`)).toHaveLength(0);
+    const c = fakeChannel();
+    const browser = new WebCallLeg(c.channel, systemClock);
+    const actor = { callId: out.callId, accountId: t.account._id.toString(), userId };
+    expect(
+      (await manager.attach({ ...actor, userId: new Types.ObjectId().toString() }, browser)).ok,
+    ).toBe(false);
+    expect((await manager.attach(actor, browser)).ok).toBe(true);
+    expect(ari.callsTo('POST', `/channels/${chan(out.callId)}`)).toHaveLength(0);
+    browser.receiveControl({ type: 'call.ready', sampleRate: 24000 });
+    browser.receiveControl({ type: 'call.ready', sampleRate: 24000 });
+    await waitFor(() => ari.callsTo('POST', `/channels/${chan(out.callId)}`).length === 1);
+    ari.send({
+      type: 'StasisStart',
+      channel: { id: chan(out.callId), state: 'Up' },
+      args: [out.callId],
+    });
+    await vi.waitFor(async () => expect((await doc(out.callId)).status).toBe('in_progress'));
+    browser.receiveControl({ type: 'call.dtmf', digit: '5' });
+    await waitFor(() => ari.callsTo('POST', `/channels/${chan(out.callId)}/dtmf`).length === 1);
+    expect(ari.callsTo('POST', `/channels/${chan(out.callId)}/dtmf`)[0]?.query.dtmf).toBe('5');
+    expect(
+      (await manager.attach(actor, new WebCallLeg(fakeChannel().channel, systemClock))).ok,
+    ).toBe(false);
+    await expect(
+      manager.controlHumanSip({
+        ...actor,
+        userId: new Types.ObjectId().toString(),
+        action: 'hold',
+        on: true,
+      }),
+    ).rejects.toMatchObject({ code: 'AUTH_FORBIDDEN' });
+    browser.receiveControl({ type: 'call.hangup' });
+    const end = await out.ended;
+    expect(end.endReason).toBe('agent_end_call');
+    expect((await doc(out.callId)).metrics.aiSeconds).toBe(0);
+    expect((await doc(out.callId)).cost.aiMicros).toBe(0);
+    expect(program).not.toHaveBeenCalled();
+    program.mockRestore();
+  });
+
+  it('releases the hold and capacity without dialing if the human browser never connects', async () => {
+    const clock = new FakeClock();
+    const queued = new CallManager({ ...manager['deps'], clock });
+    try {
+      const out = await queued.startOutboundCall(
+        input({
+          mode: 'human',
+          source: { kind: null },
+          initiatedBy: new Types.ObjectId().toString(),
+        }),
+      );
+      await clock.tick(15001);
+      const end = await out.ended;
+      expect(end.endReason).toBe('no_agent_available');
+      expect(ari.callsTo('POST', `/channels/${chan(out.callId)}`)).toHaveLength(0);
+      const call = await doc(out.callId);
+      expect(call.cost.totalMicros).toBe(0);
+      expect(await manager['deps'].registry.isLive(out.callId)).toBe(false);
+      expect(await LedgerEntryModel.findById(call.holdId).lean()).toMatchObject({
+        status: 'released',
+      });
+    } finally {
+      await queued.shutdown();
+    }
   });
 
   it('records the phone call at 8 kHz, as long as the call (T18.11)', async () => {

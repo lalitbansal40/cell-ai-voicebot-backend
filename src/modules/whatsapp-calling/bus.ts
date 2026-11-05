@@ -71,6 +71,7 @@ export class CallControlBus {
   private readonly inboundHandlers = new Set<BusHandler>();
   private heartbeat: NodeJS.Timeout | null = null;
   private started = false;
+  private readonly callCommands = new Map<string, (command: CallCommand) => Promise<unknown>>();
   private commandHandler: ((command: CallCommand) => Promise<unknown>) | null = null;
   private readonly requests = new Map<
     string,
@@ -227,13 +228,27 @@ export class CallControlBus {
     this.commandHandler = handler;
   }
 
+  /** A provider may register controls for a particular live call. */
+  onCallCommand(callId: string, handler: (command: CallCommand) => Promise<unknown>): void {
+    this.callCommands.set(callId, handler);
+  }
+
+  removeCallCommand(callId: string): void {
+    this.callCommands.delete(callId);
+  }
+
+  private executeCommand(command: CallCommand): Promise<unknown> {
+    const handler = this.callCommands.get(command.callId) ?? this.commandHandler;
+    if (!handler) throw new AppError('CALL_NOT_ACTIVE');
+    return handler(command);
+  }
+
   /** Agent actions reach the media owner even when HTTP lands on another API node. */
   async command(command: CallCommand, timeoutMs = 10_000): Promise<unknown> {
     const owner = await this.nodeOfCall(command.callId);
     if (!owner) throw new AppError('CALL_NOT_ACTIVE');
     if (owner === this.nodeId) {
-      if (!this.commandHandler) throw new AppError('CALL_NOT_ACTIVE');
-      return this.commandHandler(command);
+      return this.executeCommand(command);
     }
     const id = randomBytes(12).toString('hex');
     return new Promise((resolve, reject) => {
@@ -336,8 +351,7 @@ export class CallControlBus {
       if (message.type === 'command') {
         const response: RpcMessage = { type: 'command_result', id: message.id };
         try {
-          if (!this.commandHandler) throw new AppError('CALL_NOT_ACTIVE');
-          response.result = await this.commandHandler(message.command);
+          response.result = await this.executeCommand(message.command);
         } catch (err) {
           response.error = err instanceof AppError ? err.code : 'WHATSAPP_CALL_FAILED';
         }

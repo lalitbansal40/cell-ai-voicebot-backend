@@ -234,6 +234,14 @@ export class AriClient extends TypedEmitter<AriEvents> {
     });
   }
 
+  /** https://docs.asterisk.org/Latest_API/API_Documentation/Asterisk_REST_Interface/Channels_REST_API/#senddtmf */
+  async sendDigits(channelId: string, digits: string): Promise<void> {
+    if (!/^[0-9*#A-D]{1,32}$/.test(digits)) throw new RangeError('Invalid keypad input');
+    await this.request('sendDigits', 'POST', `/channels/${encodeURIComponent(channelId)}/dtmf`, {
+      dtmf: digits,
+    });
+  }
+
   externalMedia(input: ExternalMediaInput): Promise<AriChannel> {
     return this.request<AriChannel>('externalMedia', 'POST', '/channels/externalMedia', {
       channelId: input.channelId,

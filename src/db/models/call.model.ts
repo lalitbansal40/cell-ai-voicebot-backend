@@ -101,7 +101,7 @@ export interface CallWhatsAppBilling {
 }
 
 export interface CallSource {
-  /** `null` for human WhatsApp calls (`mode: 'human'`). */
+  /** `null` for human SIP / WhatsApp calls (`mode: 'human'`). */
   kind: 'flow' | 'agent' | null;
   flowId?: Types.ObjectId;
   /** `'draft'` or a published version number. */

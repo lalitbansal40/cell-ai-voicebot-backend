@@ -155,3 +155,10 @@ Real Meta incoming/outgoing calls on owner devices, carrier SIP calls, productio
 capacity/server checks, migrations/backups and deployment remain unrun and require
 separate owner authorization/test numbers. White-label, commission engine, click
 tracking and Phase 20 incoming SIP remain separate planned work.
+
+## Later Contact-call amendment
+
+The owner's later request adds direct browser human calls to normal SIP, alongside
+flow and AI agent, and connection recovery fixes. Its validation is tracked separately
+in [PHASE_19_CONTACT_CALLS_FOLLOWUP.md](PHASE_19_CONTACT_CALLS_FOLLOWUP.md). The original
+coverage figures above do not measure these later changes.

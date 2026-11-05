@@ -384,6 +384,11 @@ export class SipCallLeg implements CallLeg {
     void notice;
   }
 
+  async sendDigits(digits: string): Promise<void> {
+    if (this.state !== 'answered') return;
+    await this.ari.sendDigits(this.ids.main, digits);
+  }
+
   async hangup(cause: HangupCause): Promise<void> {
     if (this.state === 'ended' || this.askedCause) return;
     this.ourHangup = true;

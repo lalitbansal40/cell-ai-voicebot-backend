@@ -3,6 +3,14 @@
 **Owner requirements updated:** 5 Nov 2026 (Asia/Kolkata). **Status: locally implemented and verified; live-provider/release checks remain open.**
 See [PHASE_19_SIGNOFF.md](../phases/PHASE_19_SIGNOFF.md) for results and limits.
 
+## Latest owner amendment — Contact human calls
+
+On both normal SIP and supported WhatsApp calling numbers, Contact calls must expose
+flow, AI agent and **Call yourself**. Direct human calls must carry real browser audio,
+use the chosen sender, and keep all consent/tenant/caller/wallet/DND checks. Inspect
+connection recovery as part of this amendment. Follow-up implementation and validation:
+[PHASE_19_CONTACT_CALLS_FOLLOWUP.md](../phases/PHASE_19_CONTACT_CALLS_FOLLOWUP.md).
+
 ## Paste this to start
 
 ```text

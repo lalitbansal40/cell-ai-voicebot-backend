@@ -14,9 +14,16 @@ import {
 import { handle } from '../../shared/middlewares/validate';
 import { startSingleCall } from '../campaigns/single-call';
 
-import { CallParams, ListCallsQuery, StartCallBody, StartWebCallBody } from './calls.schema';
+import {
+  CallParams,
+  HumanCallHoldBody,
+  ListCallsQuery,
+  StartCallBody,
+  StartWebCallBody,
+} from './calls.schema';
 import {
   activeCalls,
+  controlHumanCall,
   callEvents,
   callTranscript,
   getCall,
@@ -62,6 +69,23 @@ export const createCallsRouter = (deps: CallsRouterDeps): Router => {
     ...handle({ body: StartCallBody }, async ({ body, req, res }) => {
       created(res, await startSingleCall(req, body, deps));
     }),
+  );
+  router.post(
+    '/:id/media-ticket',
+    ...trigger,
+    ...handle({ params: CallParams }, async ({ params, req, res }) => {
+      ok(res, await controlHumanCall(req, params.id, deps));
+    }),
+  );
+  router.post(
+    '/:id/hold',
+    ...trigger,
+    ...handle(
+      { params: CallParams, body: HumanCallHoldBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await controlHumanCall(req, params.id, deps, body.on));
+      },
+    ),
   );
   router.post(
     '/web',

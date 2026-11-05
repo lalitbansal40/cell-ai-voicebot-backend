@@ -163,6 +163,20 @@ describe('call-control bus', () => {
     ).rejects.toMatchObject({ code: 'CALL_NOT_ACTIVE' });
   });
 
+  it('routes SIP controls to their call handler across nodes without replacing WhatsApp controls', async () => {
+    const media = await bus('phone-command-media');
+    const api = await bus('phone-command-api');
+    const callId = new Types.ObjectId().toString();
+    await media.ownCall(callId);
+    media.onCommand(() => Promise.resolve({ provider: 'whatsapp' }));
+    media.onCallCommand(callId, (command) => Promise.resolve({ provider: 'sip', on: command.on }));
+    const command = { callId, accountId: 'acc', userId: 'user', action: 'hold' as const, on: true };
+    expect(await api.command(command)).toEqual({ provider: 'sip', on: true });
+    expect(await media.command(command)).toEqual({ provider: 'sip', on: true });
+    media.removeCallCommand(callId);
+    expect(await api.command(command)).toEqual({ provider: 'whatsapp' });
+  });
+
   it('an agent holds one call at a time; only that call releases the claim', async () => {
     const a = await bus('agent-a');
     const b = await bus('agent-b');

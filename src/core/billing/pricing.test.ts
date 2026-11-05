@@ -94,6 +94,18 @@ describe('callCharge', () => {
     expect(holdEstimate(card(), 3, false)).toBeLessThan(holdEstimate(card(), 3));
   });
 
+  it('reserves only carrier usage for a human call', () => {
+    const human = holdEstimate(card(), 3, true, false);
+    const usage = callCharge(card(), {
+      answered: true,
+      durationSec: 180,
+      aiSeconds: 0,
+      telephony: true,
+    });
+    expect(human).toBe(usage.totalMicros);
+    expect(human).toBeLessThan(holdEstimate(card(), 3, true));
+  });
+
   it('rejects bad usage numbers', () => {
     expect(() => callCharge(card(), { answered: true, durationSec: -1 })).toThrow(/durationSec/);
     expect(() => callCharge(card(), { answered: true, durationSec: 1.5 })).toThrow();

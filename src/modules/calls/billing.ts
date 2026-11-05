@@ -42,6 +42,7 @@ export class CallBilling implements CallBillingPort {
     private readonly telephony: boolean,
     /** SIP: the account's pulse override (`sipSettings.pulseSec`); else the rate card's. */
     private readonly pulseSeconds: number | null = null,
+    private readonly ai = true,
   ) {}
 
   /** Throws `WALLET_INSUFFICIENT_BALANCE` / `WALLET_BUDGET_EXCEEDED` when the wallet can't hold it. */
@@ -51,7 +52,7 @@ export class CallBilling implements CallBillingPort {
       accountId: this.accountId,
       ref: { type: 'call', id: this.callId },
       idempotencyKey: `hold:${this.callId}`,
-      estimateMicros: holdEstimate(card, BILLING_LIMITS.callHoldMinutes, this.telephony),
+      estimateMicros: holdEstimate(card, BILLING_LIMITS.callHoldMinutes, this.telephony, this.ai),
     });
     const row = result.entries[0];
     if (!row) throw new Error('hold produced no ledger row');
@@ -73,7 +74,7 @@ export class CallBilling implements CallBillingPort {
       accountId: this.accountId,
       holdId: this.holdId,
       idempotencyKey: `extend:${this.callId}:${String(this.extensions)}`,
-      addMicros: holdEstimate(card, BILLING_LIMITS.callHoldExtendMinutes, this.telephony),
+      addMicros: holdEstimate(card, BILLING_LIMITS.callHoldExtendMinutes, this.telephony, this.ai),
     });
     if (!result.ok) return false;
     this.coveredSec += BILLING_LIMITS.callHoldExtendMinutes * 60;

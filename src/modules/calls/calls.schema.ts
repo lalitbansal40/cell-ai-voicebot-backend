@@ -69,9 +69,10 @@ const csvOf = <T extends readonly [string, ...string[]]>(values: T) =>
     )
     .pipe(z.array(z.enum(values)).min(1).max(values.length));
 
-/** `POST /calls` — one outbound call to a contact (dry-run provider until phone lines exist). */
+/** `POST /calls` — a contact through SIP (AI or human) or the simulated test line (AI). */
 export const StartCallBody = z
   .strictObject({
+    mode: z.enum(['ai', 'human']).optional(),
     callerNumberId: ObjectIdSchema.optional(),
     contactId: ObjectIdSchema,
     flowId: ObjectIdSchema.optional(),
@@ -101,13 +102,34 @@ export const StartCallBody = z
       }),
   })
   .superRefine((b, ctx) => {
-    if (Boolean(b.flowId) === Boolean(b.agentId)) {
+    if (b.mode === 'human') {
+      if (b.flowId || b.agentId || b.version !== undefined || b.variables !== undefined)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['mode'],
+          message: 'Human calls do not use a program or variables',
+        });
+      if (!b.callerNumberId)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['callerNumberId'],
+          message: 'Choose a SIP caller number',
+        });
+    } else if (Boolean(b.flowId) === Boolean(b.agentId)) {
       ctx.addIssue({ code: 'custom', path: ['flowId'], message: 'Choose a flow or an agent' });
     }
     if (b.agentId && b.version !== undefined) {
       ctx.addIssue({ code: 'custom', path: ['version'], message: 'Only flows have versions' });
     }
   });
+
+export const HumanCallHoldBody = z.strictObject({ on: z.boolean() });
+export const HumanCallMediaSchema = z.object({
+  callId: ObjectIdSchema,
+  mediaTicket: z.string(),
+  expiresAt: z.iso.datetime(),
+  wsPath: z.string(),
+});
 
 export const ListCallsQuery = z
   .strictObject({
@@ -434,7 +456,7 @@ registry.registerPath({
   method: 'post',
   path: base,
   tags: publicTags,
-  summary: `Call one contact now (calls.trigger + flows.read / agents.read, Idempotency-Key, ${String(CAMPAIGN_LIMITS.singleCallsPerMinutePerUser)} / min / user) — dry-run provider (simulated, never charged) until phone lines exist; the dial guard applies: 422 CALL_OUTSIDE_WINDOW (details[0].message = next window start), 422 CALL_NOT_ALLOWED (DND / opted out / daily or weekly limit / minimum gap)`,
+  summary: `Call one contact now (calls.trigger; AI additionally needs flows.read / agents.read; human needs a signed-in user and SIP caller number; Idempotency-Key, ${String(CAMPAIGN_LIMITS.singleCallsPerMinutePerUser)} / min / user) — configured SIP line or simulated dry-run line; the dial guard applies: 422 CALL_OUTSIDE_WINDOW (details[0].message = next window start), 422 CALL_NOT_ALLOWED (DND / opted out / daily or weekly limit / minimum gap)`,
   security: bearerOrKey,
   request: {
     headers: z.object({ 'idempotency-key': z.string() }),
@@ -447,3 +469,28 @@ registry.registerPath({
     429: errors[429],
   },
 });
+
+for (const action of ['media-ticket', 'hold'] as const) {
+  registry.registerPath({
+    method: 'post',
+    path: `${base}/{id}/${action}`,
+    tags,
+    summary: `Human SIP call ${action} (calls.trigger; signed-in call owner only)`,
+    security: bearer,
+    request: {
+      params: CallParams,
+      ...(action === 'hold'
+        ? { body: { content: { 'application/json': { schema: HumanCallHoldBody } } } }
+        : {}),
+    },
+    responses: {
+      200: ok(
+        action === 'media-ticket'
+          ? HumanCallMediaSchema
+          : z.object({ callId: ObjectIdSchema, on: z.boolean() }),
+      ),
+      ...read,
+      409: errors[409],
+    },
+  });
+}

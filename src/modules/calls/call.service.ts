@@ -31,7 +31,8 @@ import type { Logger } from '../../shared/logger';
 import { DialSlots, type SlotLease } from '../campaigns/slots';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { withoutSensitive } from '../privacy/sensitive';
-import type { CallControlBus } from '../whatsapp-calling/bus';
+import { BridgeScript } from '../whatsapp-calling/bridge';
+import type { CallControlBus, CallCommand } from '../whatsapp-calling/bus';
 
 import { CallBilling } from './billing';
 import { issueMediaTicket } from './media-tickets';
@@ -76,6 +77,7 @@ export interface CallManagerDeps {
 
 /** What the call manager needs from the SIP line (`SipTelephonyProvider`). */
 export interface SipLinePort {
+  readonly ringTimeoutSec?: number;
   readonly connected: boolean;
   startCall(
     request: SipCallRequest,
@@ -84,6 +86,7 @@ export interface SipLinePort {
 
 /** A phone call placed by a campaign or "Call now" (PHASE_8_PLAN §1c). */
 export interface StartOutboundCallInput {
+  mode?: 'ai' | 'human';
   accountId: string;
   /** `sip` only for accounts on the phone line (Phase 18, `line.ts`). */
   provider: 'dryrun' | 'sip';
@@ -178,6 +181,10 @@ export class CallManager {
   /** Phase 12: routes hangups between processes (`attachBus`). */
   private bus: CallControlBus | null = null;
   /** Phase 12: the agent's media socket of a WhatsApp call goes to the calling module. */
+  private readonly humanSip = new Map<
+    string,
+    { bridge: BridgeScript; dial: () => Promise<void>; dialed: boolean; timer: unknown }
+  >();
   private whatsappAttach:
     ((input: MediaAttachInput, leg: CallLeg) => Promise<AttachResult>) | null = null;
 
@@ -200,7 +207,11 @@ export class CallManager {
       await session.end('customer_hangup');
       return true;
     });
-    for (const callId of this.sessions.keys()) void bus.ownCall(callId);
+    for (const callId of this.sessions.keys()) {
+      void bus.ownCall(callId);
+      if (this.humanSip.has(callId))
+        bus.onCallCommand(callId, (command) => this.controlHumanSip(command));
+    }
   }
 
   private track(callId: string, session: CallSession): void {
@@ -212,6 +223,10 @@ export class CallManager {
 
   private untrack(callId: string): void {
     this.sessions.delete(callId);
+    const human = this.humanSip.get(callId);
+    if (human) this.clock.clearTimeout(human.timer);
+    this.humanSip.delete(callId);
+    this.bus?.removeCallCommand(callId);
     void this.bus?.releaseCall(callId).catch(() => undefined);
   }
 
@@ -511,6 +526,8 @@ export class CallManager {
         accountId: input.accountId,
         direction: 'outbound',
         provider: 'sip',
+        mode: input.mode ?? 'ai',
+        agentUserId: input.mode === 'human' ? input.initiatedBy : null,
         from: input.callerId ?? 'sip',
         to: input.to,
         isTest: false,
@@ -542,6 +559,7 @@ export class CallManager {
       callId,
       true,
       sipAccount?.sipSettings?.pulseSec ?? null,
+      input.mode !== 'human',
     );
     const dropCall = async () => {
       await CallModel.deleteOne({ _id: id });
@@ -578,10 +596,13 @@ export class CallManager {
     });
     const account = await AccountModel.findById(input.accountId).select({ settings: 1 }).lean();
     const settings = { ...DEFAULT_ACCOUNT_SETTINGS, ...account?.settings };
-    const program: ScriptChoice = await this.deps.scriptFor(call).catch((err: unknown) => {
-      this.deps.logger.error({ err, callId }, 'call: sip program failed');
-      return { script: failingScript(err), voice: 'coral', language: 'hinglish' };
-    });
+    const bridge = input.mode === 'human' ? new BridgeScript() : null;
+    const program: ScriptChoice = bridge
+      ? { script: bridge, voice: 'coral', language: 'hinglish' }
+      : await this.deps.scriptFor(call).catch((err: unknown) => {
+          this.deps.logger.error({ err, callId }, 'call: sip program failed');
+          return { script: failingScript(err), voice: 'coral', language: 'hinglish' };
+        });
     const choice: ScriptChoice =
       input.amd === 'leave_message' && input.voicemailText
         ? { ...program, script: voicemailOr(program.script, leg, input.voicemailText) }
@@ -606,6 +627,11 @@ export class CallManager {
       registry: this.deps.registry,
       billing,
       script: choice.script,
+      // The SIP ring timeout starts after the browser is ready on a human call.
+      answerTimeout: {
+        sec: (sip.ringTimeoutSec ?? 40) + (bridge ? CALL_LIMITS.readyTimeoutSec : 0),
+        reason: 'no_answer',
+      },
       recordingDir: this.deps.recordingDir,
       recording: { enabled: settings.recordingEnabled, notice: settings.recordingNotice },
       voice: choice.voice,
@@ -642,7 +668,14 @@ export class CallManager {
     this.track(callId, session);
     await session.start();
     if (this.endRequested.delete(callId)) await session.end('campaign_canceled');
-    else await leg.dial();
+    else if (bridge) {
+      const timer = this.clock.setTimeout(() => {
+        void session.end('no_agent_available');
+      }, CALL_LIMITS.readyTimeoutSec * 1000);
+      this.humanSip.set(callId, { bridge, dial: () => leg.dial(), dialed: false, timer });
+      this.bus?.onCallCommand(callId, (command) => this.controlHumanSip(command));
+      await this.bus?.ownCall(callId);
+    } else await leg.dial();
     return { callId, ended };
   }
 
@@ -674,6 +707,38 @@ export class CallManager {
     throw new AppError('LINE_BUSY', 'The phone minutes limit for this hour is reached.');
   }
 
+  /** Browser controls are restricted to the user who placed this human SIP call. */
+  async controlHumanSip(command: CallCommand): Promise<unknown> {
+    const human = this.humanSip.get(command.callId);
+    if (!human && this.bus) return this.bus.command(command);
+    const call = await CallModel.findOne({
+      _id: command.callId,
+      accountId: command.accountId,
+    }).lean<CallDoc>();
+    if (
+      !call ||
+      call.mode !== 'human' ||
+      call.provider !== 'sip' ||
+      !human ||
+      this.sessions.get(command.callId)?.ended
+    )
+      throw new AppError('CALL_NOT_ACTIVE');
+    if (call.startedBy?.toString() !== command.userId) throw new AppError('AUTH_FORBIDDEN');
+    if (command.action === 'media_ticket')
+      return {
+        callId: command.callId,
+        ...(await issueMediaTicket(
+          { callId: command.callId, accountId: command.accountId, userId: command.userId },
+          this.deps.tickets,
+        )),
+      };
+    if (command.action === 'hold') {
+      await human.bridge.setHold(command.on === true);
+      return { callId: command.callId, on: human.bridge.onHold };
+    }
+    throw new AppError('CALL_NOT_ACTIVE');
+  }
+
   /** Phase 12: who takes the agent's socket of a WhatsApp call. */
   setWhatsAppAttach(fn: (input: MediaAttachInput, leg: CallLeg) => Promise<AttachResult>): void {
     this.whatsappAttach = fn;
@@ -695,6 +760,34 @@ export class CallManager {
     }
     if (call.startedBy?.toString() !== input.userId)
       return { ok: false, code: MEDIA_CLOSE.forbidden, reason: 'not your call' };
+    if (call.provider === 'sip' && call.mode === 'human') {
+      const human = this.humanSip.get(input.callId);
+      if (!human || this.sessions.get(input.callId)?.ended)
+        return { ok: false, code: MEDIA_CLOSE.callEnded, reason: 'call ended' };
+      if (!human.bridge.attachAgent(leg))
+        return { ok: false, code: MEDIA_CLOSE.forbidden, reason: 'already connected' };
+      this.clock.clearTimeout(human.timer);
+      human.timer = this.clock.setTimeout(() => {
+        void this.sessions.get(input.callId)?.end('media_error');
+      }, CALL_LIMITS.readyTimeoutSec * 1000);
+      leg.onStatus((status, cause) => {
+        if (status === 'answered') {
+          this.clock.clearTimeout(human.timer);
+          if (!human.dialed) {
+            human.dialed = true;
+            void human.dial().catch(() => this.sessions.get(input.callId)?.end('engine_error'));
+          }
+        }
+        if (status === 'ended') {
+          if (cause !== 'media_error') void this.sessions.get(input.callId)?.end('agent_end_call');
+          else
+            human.timer = this.clock.setTimeout(() => {
+              void this.sessions.get(input.callId)?.end('media_error');
+            }, CALL_LIMITS.readyTimeoutSec * 1000);
+        }
+      });
+      return { ok: true };
+    }
     if (call.status !== 'queued' || this.sessions.has(input.callId)) {
       return { ok: false, code: MEDIA_CLOSE.callEnded, reason: 'call ended' };
     }

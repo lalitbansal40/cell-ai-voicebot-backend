@@ -1,5 +1,7 @@
 import { CALL_LIMITS } from '../../config/limits';
 import type { CallLeg } from '../../core/telephony/types';
+import { Framer } from '../../core/voice/audio/framer';
+import { Resampler } from '../../core/voice/audio/resample';
 import type { CallEndReason } from '../../db/models/call.model';
 import type { CallIO, CallScript, ScriptResult } from '../calls/session';
 
@@ -38,6 +40,10 @@ export class BridgeScript implements CallScript {
   /** The agent left before / while the bridge started (e.g. during the recording notice). */
   private agentLeft = false;
   private reconnectTimer: unknown = null;
+  private toCustomer: Resampler | null = null;
+  private toAgent: Resampler | null = null;
+  private customerFrames: Framer | null = null;
+  private agentFrames: Framer | null = null;
 
   constructor(private readonly options: { agentWaitSec?: number } = {}) {
     this.agentReady = new Promise((resolve) => {
@@ -46,9 +52,13 @@ export class BridgeScript implements CallScript {
   }
 
   /** The agent's socket arrived (`call.ready` already sent by the browser). */
-  attachAgent(leg: CallLeg): void {
-    if (this.agent || this.stopped) return;
+  attachAgent(leg: CallLeg): boolean {
+    if (this.agent || this.stopped) return false;
     this.agent = leg;
+    this.toCustomer = this.io ? new Resampler(leg.rate, this.io.leg.rate) : null;
+    this.toAgent = this.io ? new Resampler(this.io.leg.rate, leg.rate) : null;
+    this.customerFrames = this.io ? new Framer(this.io.leg.rate / 50) : null;
+    this.agentFrames = new Framer(leg.rate / 50);
     if (this.reconnectTimer !== null && this.io) this.io.clock.clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
     // listen at once: the agent may leave while the recording notice still plays
@@ -70,14 +80,18 @@ export class BridgeScript implements CallScript {
       this.done('agent_end_call');
     });
     leg.onAudio((frame) => {
-      if (this.agent === leg && this.io && !this.held && !this.stopped)
-        void this.io.leg.play(frame);
+      if (this.agent === leg && this.io && !this.held && !this.stopped) {
+        const converted = this.toCustomer?.process(frame) ?? frame;
+        for (const chunk of this.customerFrames?.push(converted) ?? [converted])
+          void this.io.leg.play(chunk);
+      }
     });
     leg.onDtmf((digit) => {
       if (this.agent === leg && this.io && !this.stopped)
         void (this.io.leg as KeypadLeg).sendDigits?.(digit);
     });
     this.resolveAgent(leg);
+    return true;
   }
 
   get hasAgent(): boolean {
@@ -95,12 +109,19 @@ export class BridgeScript implements CallScript {
     this.agent?.notify({ type: 'call.hold', on });
     if (on && this.io) {
       this.io.leg.clearAudio();
+      this.agent?.clearAudio();
       await this.io.say(HOLD_LINE, { interruptible: false, source: 'system' });
     }
   }
 
   async run(io: CallIO): Promise<CallEndReason | void> {
     this.io = io;
+    if (this.agent) {
+      this.toCustomer = new Resampler(this.agent.rate, io.leg.rate);
+      this.toAgent = new Resampler(io.leg.rate, this.agent.rate);
+      this.customerFrames = new Framer(io.leg.rate / 50);
+      this.agentFrames = new Framer(this.agent.rate / 50);
+    }
     const waitMs = (this.options.agentWaitSec ?? CALL_LIMITS.readyTimeoutSec) * 1000;
     const agent = await Promise.race([
       this.agentReady,
@@ -115,7 +136,11 @@ export class BridgeScript implements CallScript {
       this.done = resolve;
       // customer → agent
       customer.onAudio((frame) => {
-        if (!this.held && !this.stopped) void this.agent?.play(frame);
+        if (!this.held && !this.stopped) {
+          const converted = this.toAgent?.process(frame) ?? frame;
+          for (const chunk of this.agentFrames?.push(converted) ?? [converted])
+            void this.agent?.play(chunk);
+        }
       });
       // the agent hears a key the customer pressed (no digit in logs / events)
       customer.onDtmf(() => this.agent?.notify({ type: 'call.dtmf' }));

@@ -24,11 +24,13 @@ import { ContactModel } from '../../src/db/models/contact.model';
 import { CustomFieldModel } from '../../src/db/models/custom-field.model';
 import { DndEntryModel } from '../../src/db/models/dnd-entry.model';
 import { ExportJobModel } from '../../src/db/models/export-job.model';
+import { PhoneNumberModel } from '../../src/db/models/phone-number.model';
 import { RoleModel } from '../../src/db/models/role.model';
 import { CallManager } from '../../src/modules/calls/call.service';
 import { createDryRunPrograms } from '../../src/modules/calls/dry-run';
 import { CallRegistry } from '../../src/modules/calls/registry';
 import { authorizeTopic } from '../../src/modules/calls/topic-auth';
+import * as campaignService from '../../src/modules/campaigns/campaigns.service';
 import { runCampaignExport } from '../../src/modules/campaigns/export';
 import { parseXlsx } from '../../src/modules/contact-imports/parsers/xlsx';
 import { purgeExportFiles } from '../../src/modules/contacts/retention';
@@ -533,6 +535,104 @@ describe('POST /calls — single call (PHASE_8_PLAN §1o)', () => {
     ).toBe(422);
     expect((await call(viewer, { contactId: contactIds[2], flowId })).status).toBe(403);
     expect((await call(otherOwner, { contactId: contactIds[2], flowId })).status).toBe(404);
+  });
+
+  it('human calls validate mode/sender and preserve tenant/actor guards on media and hold', async () => {
+    const humanOwner = await t.addUser('owner');
+    const c = await ContactModel.create({
+      accountId: t.account._id,
+      phoneE164: '+919000300088',
+      source: { type: 'manual' },
+    });
+    const number = await PhoneNumberModel.create({
+      accountId: t.account._id,
+      number: '+911600300088',
+      label: 'Office',
+      kind: '1600',
+      purpose: 'outbound',
+      status: 'active',
+    });
+    const body = {
+      contactId: c._id.toString(),
+      callerNumberId: number._id.toString(),
+      mode: 'human',
+    };
+    expect((await call(humanOwner, { ...body, flowId })).status).toBe(422);
+    expect((await call(humanOwner, { contactId: body.contactId, mode: 'human' })).status).toBe(422);
+    // A disconnected/dry-run phone line must never silently replace a human SIP call.
+    expect((await call(humanOwner, body)).body.error.code).toBe('CALLER_NUMBER_INVALID');
+    const facts = await campaignService.accountFacts(t.account._id);
+    const line = vi
+      .spyOn(campaignService, 'accountFacts')
+      .mockResolvedValue({ ...facts, line: 'sip' });
+    const start = vi.spyOn(manager, 'startOutboundCall').mockImplementation(async (input) => {
+      const row = await CallModel.create({
+        accountId: input.accountId,
+        provider: input.provider,
+        direction: 'outbound',
+        mode: input.mode,
+        from: input.callerId ?? 'sip',
+        to: input.to,
+        source: input.source,
+        contactId: input.contactId,
+        startedBy: input.initiatedBy,
+        timestamps: { queuedAt: new Date() },
+      });
+      return { callId: row._id.toString(), ended: new Promise(() => undefined) };
+    });
+    const control = vi.spyOn(manager, 'controlHumanSip').mockResolvedValue({
+      callId: 'controlled',
+      mediaTicket: 'test-ticket',
+      wsPath: '/ws/media',
+      expiresAt: new Date(Date.now() + 60000).toISOString(),
+    });
+    try {
+      const res = await call(humanOwner, body, 'human-contact-once');
+      expect(res.status, JSON.stringify(res.body)).toBe(201);
+      expect(start).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: 'human',
+          provider: 'sip',
+          callerId: number.number,
+          source: { kind: null },
+          variables: {},
+        }),
+      );
+      expect(res.body.data).toMatchObject({ mode: 'human', source: { kind: null } });
+      const replay = await call(humanOwner, body, 'human-contact-once');
+      expect(replay.body.data.id).toBe(res.body.data.id);
+      expect(start).toHaveBeenCalledOnce();
+      const path = `/api/v1/calls/${res.body.data.id as string}`;
+      expect((await request(app).post(`${path}/media-ticket`).set(auth(admin))).status).toBe(403);
+      expect((await request(app).post(`${path}/media-ticket`).set(auth(otherOwner))).status).toBe(
+        404,
+      );
+      expect(
+        (await request(app).post(`${path}/hold`).set(auth(viewer)).send({ on: true })).status,
+      ).toBe(403);
+      expect(control).not.toHaveBeenCalled();
+      expect((await request(app).post(`${path}/media-ticket`).set(auth(humanOwner))).status).toBe(
+        200,
+      );
+      expect(control).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          action: 'media_ticket',
+          userId: humanOwner.user._id.toString(),
+          accountId: t.account._id.toString(),
+          callId: res.body.data.id,
+        }),
+      );
+      expect(
+        (await request(app).post(`${path}/hold`).set(auth(humanOwner)).send({ on: false })).status,
+      ).toBe(200);
+      expect(control).toHaveBeenLastCalledWith(
+        expect.objectContaining({ action: 'hold', on: false }),
+      );
+    } finally {
+      start.mockRestore();
+      line.mockRestore();
+      control.mockRestore();
+    }
   });
 
   it('the dial guard refuses with exact messages', async () => {
