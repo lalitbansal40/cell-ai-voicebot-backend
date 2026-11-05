@@ -86,3 +86,13 @@ are additive. Refresh connected number metadata after migration for classificati
 Apply migrations before workers; preserve Redis queued jobs/budgets on restart.
 Live Meta devices, SIP carrier checks and deployment remain separate checks requiring
 the owner's test numbers/server. No push, merge or deployment is implied by local tests.
+
+## Recorded voice (Cell24x7, VAPI)
+
+The SIP / Normal call type has two ways to call: **AI flow or agent** (SIP trunk or the
+test line) and **Recorded voice or IVR** (`line: 'voice_api'`, Cell24x7). Recorded-voice
+campaigns use the call-campaign engine but never the dialer: a batch job submits numbers
+to Cell24x7 and results come back by webhook and polling. They are always live (no dry
+run), call 10-digit Indian mobiles only, and charge per number per started 15 s when each
+batch is sent. WhatsApp bulk campaigns send approved templates only. Details:
+[cell24x7-voice.md](../integrations/cell24x7-voice.md).

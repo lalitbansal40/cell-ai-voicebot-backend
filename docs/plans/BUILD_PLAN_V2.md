@@ -379,6 +379,7 @@ Bulk WhatsApp calling (client promise "Bulk calling"):
 
 ## Changelog
 
+- 2026-11-05: Recorded-voice / IVR campaigns over the Cell24x7 Voice API added to SIP / Normal call campaigns (VAPI, [guide](../integrations/cell24x7-voice.md)); live check pending owner approval.
 - 2026-10-22: v2 banaya — Phase 8 complete hone ke baad bache phases + WhatsApp extension (Embedded Signup, inbox, templates + billing, calling + permission, App Review, bulk campaigns) ek order me; App Review ke liye WhatsApp pehle, bulk campaigns last.
 - 2026-10-22: Owner decisions — Meta billing both ways per account (platform credit line default / customer pays), coexistence numbers fully supported (echoes, history, contacts), connect owner / admin only. Phase 9 detailed plan: [PHASE_9_PLAN.md](../phases/PHASE_9_PLAN.md).
 - 2026-10-22: **Phase 9 done** ([sign-off](../phases/PHASE_9_SIGNOFF.md)) — built and tested on the fake Meta provider; the real Meta app is an env-only switch ([setup guide](../setup/meta-whatsapp.md)). **Next: Phase 10 (WhatsApp Inbox).**

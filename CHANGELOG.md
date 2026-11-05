@@ -11,6 +11,9 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Recorded-voice / IVR campaigns (Cell24x7 Voice API, VAPI)** — 2026-11-05
+  - SIP / Normal call campaigns can play one recorded audio or a Cell24x7 IVR menu: safe batches (wallet hold → submit → capture), calling-window and redial checks, Stop between batches, uncertain submits never resent (superadmin resolves), results by secret webhook + `/details` polling, call rows for contact history.
+  - Superadmin: per-account enable + IVR assignment, `voiceApiPulseMicros` price, Admin → System status / webhook registration. Migration `0025-voice-api`; env `VOICE_API_*` / `CELL24X7_*` (off by default). Guide: `docs/integrations/cell24x7-voice.md`.
 - **Phase 19 — resellers and campaign channels** — 2026-11-05
   - Open business/reseller signup, reseller customer accounts and atomic credit transfers, audited view/act sessions with sensitive actions blocked.
   - SIP / Normal, bulk WhatsApp templates and WhatsApp call campaigns; published flows or active agents, per-number consent, ask-first permission runs and unanswered limits.
