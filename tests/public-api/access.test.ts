@@ -122,8 +122,8 @@ const send = (route: (typeof ROUTES)[number], headers: Record<string, string>) =
 };
 
 describe('scopes', () => {
-  it('has 13 scopes in 6 groups, each mapped to real permissions', () => {
-    expect(API_KEY_SCOPES).toHaveLength(13);
+  it('has 14 scopes in 7 groups, each mapped to real permissions', () => {
+    expect(API_KEY_SCOPES).toHaveLength(14);
     expect(API_KEY_SCOPES).toEqual(
       expect.arrayContaining([
         'messages:read',
@@ -147,9 +147,9 @@ describe('scopes', () => {
   it('lists the catalogue with groups for the dashboard', async () => {
     const res = await request(app).get('/api/v1/api-keys/scopes').set(bearer(owner.token));
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(13);
+    expect(res.body.data).toHaveLength(API_KEY_SCOPES.length);
     expect(new Set(res.body.data.map((s: { group: string }) => s.group))).toEqual(
-      new Set(['Calls', 'Contacts', 'Campaigns', 'WhatsApp', 'Reports', 'Webhooks']),
+      new Set(['Calls', 'Contacts', 'Campaigns', 'WhatsApp', 'Reports', 'Webhooks', 'Account']),
     );
   });
 });

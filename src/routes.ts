@@ -66,6 +66,7 @@ import {
   createContactEraseRouter,
 } from './modules/privacy/privacy.routes';
 import { createMessagesRouter } from './modules/public-api/messages.routes';
+import { createResourcesRouter } from './modules/public-api/resources.routes';
 import { createRbacRouter } from './modules/rbac/rbac.routes';
 import { createWsTicketsRouter } from './modules/realtime-tickets/tickets.routes';
 import { createRecordExportsRouter } from './modules/record-exports/record-exports.routes';
@@ -263,6 +264,8 @@ export const createApiRouter = ({
   router.use('/admin', createVoiceApiAdminRouter());
   router.use('/', createVoiceApiRouter());
   router.use('/', createVoiceWebhookRouter());
+  // DOCS-T2: read-only ids and balances for API clients
+  router.use('/resources', createResourcesRouter());
   router.use('/account', createRetentionRouter());
   router.use('/account', createAccountRouter());
   router.use('/inbox', createChatSummaryRouter({ jobs: ai.jobs ?? unavailableAiJobs }));

@@ -7125,6 +7125,137 @@
           "at"
         ]
       },
+      "PublicFlow": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "status": { "type": "string" },
+          "publishedVersion": { "type": ["integer", "null"] },
+          "triggers": { "type": "array", "items": { "type": "string" } },
+          "agents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+              "required": ["id", "name"]
+            }
+          },
+          "updatedAt": { "type": "string" }
+        },
+        "required": ["id", "name", "status", "publishedVersion", "triggers", "agents", "updatedAt"]
+      },
+      "PublicAgent": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "language": { "type": "string" },
+          "voice": { "type": "string" },
+          "isActive": { "type": "boolean" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": ["id", "name", "language", "voice", "isActive", "updatedAt"]
+      },
+      "PublicWhatsAppNumber": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "displayPhoneNumber": { "type": ["string", "null"] },
+          "status": { "type": "string" },
+          "mode": { "type": "string" },
+          "qualityRating": { "type": "string" },
+          "messagingLimitTier": { "type": ["string", "null"] },
+          "messagesPerSecond": { "type": "integer" },
+          "calling": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string" },
+              "ready": { "type": "boolean" },
+              "unavailableReason": { "type": ["string", "null"] }
+            },
+            "required": ["status", "ready", "unavailableReason"]
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "displayPhoneNumber",
+          "status",
+          "mode",
+          "qualityRating",
+          "messagingLimitTier",
+          "messagesPerSecond",
+          "calling"
+        ]
+      },
+      "PublicContactList": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "contactsCount": { "type": "integer" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": ["id", "name", "contactsCount", "updatedAt"]
+      },
+      "PublicSegment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "updatedAt": { "type": "string" }
+        },
+        "required": ["id", "name", "updatedAt"]
+      },
+      "PublicPhoneLine": {
+        "type": "object",
+        "properties": {
+          "line": { "type": "string", "enum": ["sip", "dryrun"] },
+          "numbers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "number": { "type": "string" },
+                "kind": { "type": "string" },
+                "label": { "type": "string" }
+              },
+              "required": ["id", "number", "kind", "label"]
+            }
+          },
+          "voiceApi": {
+            "type": "object",
+            "properties": { "enabled": { "type": "boolean" } },
+            "required": ["enabled"]
+          }
+        },
+        "required": ["line", "numbers", "voiceApi"]
+      },
+      "PublicIvr": {
+        "type": "object",
+        "properties": { "id": { "type": "integer" }, "name": { "type": "string" } },
+        "required": ["id", "name"]
+      },
+      "PublicWallet": {
+        "type": "object",
+        "properties": {
+          "balanceMicros": { "type": "integer" },
+          "availableMicros": { "type": "integer" },
+          "holdMicros": { "type": "integer" },
+          "creditLimitMicros": { "type": "integer" },
+          "currency": { "type": "string", "enum": ["INR"] }
+        },
+        "required": [
+          "balanceMicros",
+          "availableMicros",
+          "holdMicros",
+          "creditLimitMicros",
+          "currency"
+        ]
+      },
       "RbacCatalog": {
         "type": "object",
         "properties": {
@@ -15837,7 +15968,8 @@
                         "templates:read",
                         "reports:read",
                         "exports:write",
-                        "webhooks:manage"
+                        "webhooks:manage",
+                        "resources:read"
                       ]
                     },
                     "minItems": 1
@@ -15930,7 +16062,8 @@
                         "templates:read",
                         "reports:read",
                         "exports:write",
-                        "webhooks:manage"
+                        "webhooks:manage",
+                        "resources:read"
                       ]
                     },
                     "minItems": 1
@@ -28649,6 +28782,541 @@
           },
           "404": {
             "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/flows": {
+      "get": {
+        "operationId": "listFlows",
+        "tags": ["Public API", "Account resources"],
+        "summary": "Call flows (ids for calls and campaigns)",
+        "description": "Published call flows by default (`status=all` adds drafts and archived ones). Use a flow `id` in `POST /calls` (`flowId`) or `POST /campaigns` (`flowId` / `program`). Only flows whose `triggers` include `campaign` can run in a campaign; `api` for single calls. At most 200 rows, newest first. Read limit class (600 / min per key).",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "resources:read",
+        "parameters": [
+          {
+            "schema": { "type": "string", "enum": ["published", "all"], "default": "published" },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                      "name": "Loan recovery",
+                      "status": "published",
+                      "publishedVersion": 3,
+                      "triggers": ["campaign", "api"],
+                      "agents": [{ "id": "6720f0a1b2c3d4e5f6a7b8ca", "name": "Recovery agent" }],
+                      "updatedAt": "2026-11-05T09:30:00.000Z"
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/PublicFlow" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/agents": {
+      "get": {
+        "operationId": "listAgents",
+        "tags": ["Public API", "Account resources"],
+        "summary": "AI agents (ids for agent calls and campaigns)",
+        "description": "Active AI agents by default (`active=false` lists all). Use an agent `id` as `agentId` in `POST /calls`, `program: { kind: 'agent', id }` in WhatsApp call campaigns, or in `POST /whatsapp/calls`. Prompts, functions and their secrets are never returned. At most 200 rows, newest first. Read limit class (600 / min per key).",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "resources:read",
+        "parameters": [
+          {
+            "schema": { "type": "string", "enum": ["true", "false"], "default": "true" },
+            "required": false,
+            "name": "active",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                      "name": "Recovery agent",
+                      "language": "hinglish",
+                      "voice": "coral",
+                      "isActive": true,
+                      "updatedAt": "2026-11-05T09:30:00.000Z"
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/PublicAgent" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/whatsapp-numbers": {
+      "get": {
+        "operationId": "listWhatsAppNumbers",
+        "tags": ["Public API", "Account resources"],
+        "summary": "Connected WhatsApp numbers (channel ids)",
+        "description": "Connected WhatsApp numbers of the account. `id` is the `channelId` for template sends, WhatsApp calls and bulk campaigns. `messagesPerSecond` is the bulk-campaign cap of the number (Business App or unconfirmed: 18, Cloud API: 75). `calling.ready` says whether WhatsApp calls can go out now; `unavailableReason` explains why not (e.g. `coexistence`). At most 200 rows, newest first. Read limit class (600 / min per key).",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "resources:read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                      "label": "Support",
+                      "displayPhoneNumber": "+91 90000 00001",
+                      "status": "connected",
+                      "mode": "cloud_api",
+                      "qualityRating": "GREEN",
+                      "messagingLimitTier": "TIER_10K",
+                      "messagesPerSecond": 75,
+                      "calling": { "status": "enabled", "ready": true, "unavailableReason": null }
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/PublicWhatsAppNumber" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/contact-lists": {
+      "get": {
+        "operationId": "listContactLists",
+        "tags": ["Public API", "Account resources"],
+        "summary": "Contact lists (audience ids)",
+        "description": "Contact lists with their live contact counts. Use ids in campaign `audience.listIds`. At most 200 rows, newest first. Read limit class (600 / min per key).",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "resources:read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                      "name": "November dues",
+                      "contactsCount": 1250,
+                      "updatedAt": "2026-11-05T09:30:00.000Z"
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/PublicContactList" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/segments": {
+      "get": {
+        "operationId": "listSegments",
+        "tags": ["Public API", "Account resources"],
+        "summary": "Saved segments (audience ids)",
+        "description": "Saved contact segments (filters). Use an id in campaign `audience.segmentId`; the filter is applied when the campaign starts. At most 200 rows, newest first. Read limit class (600 / min per key).",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "resources:read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                      "name": "Due this week",
+                      "updatedAt": "2026-11-05T09:30:00.000Z"
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/PublicSegment" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/phone-line": {
+      "get": {
+        "operationId": "getPhoneLine",
+        "tags": ["Public API", "Account resources"],
+        "summary": "Phone line, caller numbers and recorded voice",
+        "description": "Which line phone calls use (`sip` = real phones, `dryrun` = the simulated test line), the caller numbers (`phoneLine.callerNumberId` in campaigns) and whether recorded-voice / IVR campaigns (`line: voice_api`) are on for the account.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "resources:read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "line": "sip",
+                    "numbers": [
+                      {
+                        "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                        "number": "+911600123456",
+                        "kind": "1600",
+                        "label": "Main"
+                      }
+                    ],
+                    "voiceApi": { "enabled": true }
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PublicPhoneLine" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/ivrs": {
+      "get": {
+        "operationId": "listIvrs",
+        "tags": ["Public API", "Account resources"],
+        "summary": "IVR menus for recorded-voice campaigns",
+        "description": "IVR menus assigned to this account for recorded-voice campaigns (`voiceApi.content: { kind: 'ivr', ivrId }`). Empty when recorded voice is off or no menu is assigned.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "resources:read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": [{ "id": 101, "name": "Press 1 to confirm" }]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/PublicIvr" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/wallet": {
+      "get": {
+        "operationId": "getWalletBalance",
+        "tags": ["Public API", "Account resources"],
+        "summary": "Wallet balance",
+        "description": "Balance in micros (₹1 = 1,000,000). `availableMicros` = balance − holds + credit limit: what calls, messages and campaigns can still spend. Holds are money reserved by running calls and unsent batches.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "resources:read",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "balanceMicros": 2500000000,
+                    "availableMicros": 2480000000,
+                    "holdMicros": 20000000,
+                    "creditLimitMicros": 0,
+                    "currency": "INR"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PublicWallet" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

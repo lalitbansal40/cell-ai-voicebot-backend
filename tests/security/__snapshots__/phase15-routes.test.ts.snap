@@ -19,6 +19,7 @@ exports[`Phase 15 public API routes (security) > scope × route matrix (each rou
     "reports:read",
     "exports:write",
     "webhooks:manage",
+    "resources:read",
   ],
   "GET /api/v1/calls": [
     "calls:read",
@@ -82,6 +83,30 @@ exports[`Phase 15 public API routes (security) > scope × route matrix (each rou
   ],
   "GET /api/v1/reports/whatsapp": [
     "reports:read",
+  ],
+  "GET /api/v1/resources/agents": [
+    "resources:read",
+  ],
+  "GET /api/v1/resources/contact-lists": [
+    "resources:read",
+  ],
+  "GET /api/v1/resources/flows": [
+    "resources:read",
+  ],
+  "GET /api/v1/resources/ivrs": [
+    "resources:read",
+  ],
+  "GET /api/v1/resources/phone-line": [
+    "resources:read",
+  ],
+  "GET /api/v1/resources/segments": [
+    "resources:read",
+  ],
+  "GET /api/v1/resources/wallet": [
+    "resources:read",
+  ],
+  "GET /api/v1/resources/whatsapp-numbers": [
+    "resources:read",
   ],
   "GET /api/v1/webhook-endpoints": [
     "webhooks:manage",

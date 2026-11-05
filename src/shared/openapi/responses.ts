@@ -51,3 +51,48 @@ export const apiKey = [{ apiKeyAuth: [] as string[] }];
 export const bearerOrKey: Record<string, string[]>[] = [{ bearerAuth: [] }, { apiKeyAuth: [] }];
 /** OpenAPI tag of every route an API key can call (the docs page lists these first). */
 export const PUBLIC_API_TAG = 'Public API';
+
+/** The common error answers of a public route (+ `404` when it has an `{id}`). */
+export const publicErrors = (withId = false, extra: Partial<typeof errors> = {}) => ({
+  401: errors[401],
+  403: errors[403],
+  ...(withId ? { 404: errors[404] } : {}),
+  422: errors[422],
+  429: errors[429],
+  ...extra,
+});
+
+/** `ok()` with an example envelope (`data` = the example). */
+export const okWith = <T extends ZodType>(schema: T, example: unknown, description = 'OK') => ({
+  description,
+  content: {
+    'application/json': {
+      schema: successEnvelope(schema),
+      example: { success: true, data: example },
+    },
+  },
+});
+
+/** A JSON request body with an example. */
+export const jsonWith = <T extends ZodType>(schema: T, example: unknown) => ({
+  body: { content: { 'application/json': { schema, example } } },
+});
+
+/**
+ * The public-API part of a route's docs (PUBLIC_API_DOCS_PROMPT L5): stable id, area tag
+ * after `Public API`, a Markdown description, both auths and the key scope (`x-scope`).
+ */
+export const publicOp = (input: {
+  operationId: string;
+  area: string;
+  scope: string | string[] | null;
+  summary: string;
+  description: string;
+}) => ({
+  operationId: input.operationId,
+  tags: [PUBLIC_API_TAG, input.area],
+  summary: input.summary,
+  description: input.description,
+  security: bearerOrKey,
+  ...(input.scope ? { 'x-scope': input.scope } : {}),
+});

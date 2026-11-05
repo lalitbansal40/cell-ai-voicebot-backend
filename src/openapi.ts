@@ -41,6 +41,7 @@ import './modules/notifications/notifications.schema';
 import './modules/payments/webhooks.schema';
 import './modules/post-call/rules.schema';
 import './modules/public-api/messages.schema';
+import './modules/public-api/resources.schema';
 import './modules/rbac/rbac.schema';
 import './modules/realtime-tickets/tickets.schema';
 import './modules/record-exports/record-exports.schema';
