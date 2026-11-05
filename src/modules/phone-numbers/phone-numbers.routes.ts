@@ -5,6 +5,7 @@ import { tenantFilter } from '../../shared/auth/tenant';
 import { created, ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import {
+  blockWhenImpersonating,
   requirePermission,
   requirePlatformAdmin,
 } from '../../shared/middlewares/require-permission';
@@ -13,17 +14,20 @@ import { handle } from '../../shared/middlewares/validate';
 import {
   AssignPhoneNumberBody,
   CreatePhoneNumberBody,
+  InboundSettingsBody,
   ListPhoneNumbersQuery,
   PhoneNumberIdParams,
   UpdatePhoneNumberBody,
 } from './phone-numbers.schema';
 import {
+  accountInboundNumbers,
   accountPhoneLine,
   accountPhoneNumbers,
   assignPhoneNumber,
   createPhoneNumber,
   listPhoneNumbers,
   releasePhoneNumber,
+  updateInboundSettings,
   updatePhoneNumber,
 } from './phone-numbers.service';
 
@@ -90,6 +94,28 @@ export const createPhoneNumbersRouter = (): Router => {
       requireAuth(req);
       ok(res, await accountPhoneNumbers(tenantFilter(req).accountId));
     },
+  );
+  // Phase 20: incoming calls — who answers each of the account's numbers
+  router.get(
+    '/phone-numbers/inbound',
+    authenticate(),
+    requirePermission('account.read'),
+    async (req, res) => {
+      requireAuth(req);
+      ok(res, await accountInboundNumbers(tenantFilter(req).accountId));
+    },
+  );
+  router.patch(
+    '/phone-numbers/:id/inbound',
+    authenticate(),
+    requirePermission('account.update'),
+    blockWhenImpersonating(),
+    ...handle(
+      { params: PhoneNumberIdParams, body: InboundSettingsBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await updateInboundSettings(req, tenantFilter(req).accountId, params.id, body));
+      },
+    ),
   );
   return router;
 };

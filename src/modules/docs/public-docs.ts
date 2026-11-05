@@ -87,7 +87,7 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
     operationId: 'listCalls',
     area: 'Calls',
     scope: 'calls:read',
-    description: `Calls of the account, newest first: phone (SIP / test line), WhatsApp and recorded-voice calls. Filters: status, provider, direction, mode, campaign, flow, agent, contact, disposition, sentiment, date range. Phones are masked to the last 4 digits. ${CURSOR} ${READ}`,
+    description: `Calls of the account, newest first: phone (SIP / test line), WhatsApp and recorded-voice calls, outgoing and incoming. Filters: status, provider, direction (\`inbound\` = customers who called your numbers), mode, missed (\`open\` = the callback list), campaign, flow, agent, contact, disposition, sentiment, date range. Phones are masked to the last 4 digits. ${CURSOR} ${READ}`,
   },
   'POST /api/v1/calls': {
     errors: ['503'],

@@ -7,6 +7,11 @@ import { AiAgentModel } from '../../db/models/ai-agent.model';
 import { ContactListModel } from '../../db/models/contact-list.model';
 import { ContactModel } from '../../db/models/contact.model';
 import { FlowModel } from '../../db/models/flow.model';
+import {
+  INBOUND_PURPOSES,
+  PhoneNumberModel,
+  type PhoneNumberDoc,
+} from '../../db/models/phone-number.model';
 import { SegmentModel } from '../../db/models/segment.model';
 import {
   WhatsAppChannelModel,
@@ -167,6 +172,21 @@ export const resourcePhoneLine = async (accountId: Types.ObjectId) => {
       label: n.label,
     })),
     voiceApi: line.voiceApi,
+    inboundNumbers: (
+      await PhoneNumberModel.find({
+        accountId,
+        status: 'active',
+        purpose: { $in: INBOUND_PURPOSES },
+      })
+        .sort({ createdAt: 1 })
+        .lean<PhoneNumberDoc[]>()
+    ).map((n) => ({
+      id: n._id.toString(),
+      number: n.number,
+      label: n.label,
+      enabled: n.inbound.enabled,
+      route: n.inbound.route,
+    })),
   };
 };
 

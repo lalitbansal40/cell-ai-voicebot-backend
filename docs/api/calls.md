@@ -15,3 +15,13 @@ curl -X POST https://wa.notifynow.in/api/v1/calls \
 - **Guards:** calling window (09:00–21:00 at most), DND / opt-out, daily / weekly caps per contact, wallet, concurrency.
 - **Results:** `GET /calls/{id}` (status, end reason, duration, disposition, outcome, cost), `/transcript`, `/insights` (AI summary, sentiment, promise to pay), `/after-call` (WhatsApp sent after the call), or the `call.completed` / `call.insights.ready` webhooks.
 - **Cost:** carrier minutes by pulse + AI minutes, in micros (`cost.totalMicros`).
+
+## Incoming calls
+
+Customers can call your numbers too (Phase 20). Who answers is set in the app (**Settings → Phone numbers**): a flow or AI agent, your team in the browser, AI that can hand over to the team, or the team with AI when nobody picks up — plus call hours and what happens after hours.
+
+- **Your numbers:** `GET /resources/phone-line` → `inboundNumbers` (number, label, on / off, route).
+- **Incoming calls:** `GET /calls?direction=inbound` — `inbound.did` is the number the customer dialed; `from` is the caller (`anonymous` when hidden).
+- **Missed calls (callback list):** `GET /calls?missed=open` — calls nobody (person or AI) took, with `missed.reason`: `no_answer`, `no_agents`, `after_hours`, `line_busy`, `wallet_low`, `caller_hung_up`. Calling the customer back (`POST /calls`) clears their missed calls of the last 24 hours.
+- **Webhooks:** `call.started` / `call.completed` carry `direction` and `did`; `call.missed` arrives for each missed call.
+- **Cost:** incoming minutes at the incoming minute price (`GET /wallet/rates` → `inboundCallPerMinuteMicros`) + AI minutes; missed calls and after-hours / low-wallet messages are free.

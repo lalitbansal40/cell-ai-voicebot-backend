@@ -78,6 +78,16 @@ export const PublicPhoneLineSchema = registry.register(
       z.object({ id: z.string(), number: z.string(), kind: z.string(), label: z.string() }),
     ),
     voiceApi: z.object({ enabled: z.boolean() }),
+    /** Phase 20: numbers customers can call (who answers is set in the app). */
+    inboundNumbers: z.array(
+      z.object({
+        id: z.string(),
+        number: z.string(),
+        label: z.string(),
+        enabled: z.boolean(),
+        route: z.enum(['ai', 'team', 'ai_then_team', 'team_then_ai']),
+      }),
+    ),
   }),
 );
 export const PublicIvrSchema = registry.register(
@@ -222,13 +232,16 @@ registry.registerPath({
     scope: SCOPE,
     summary: 'Phone line, caller numbers and recorded voice',
     description:
-      'Which line phone calls use (`sip` = real phones, `dryrun` = the simulated test line), the caller numbers (`phoneLine.callerNumberId` in campaigns) and whether recorded-voice / IVR campaigns (`line: voice_api`) are on for the account.',
+      'Which line phone calls use (`sip` = real phones, `dryrun` = the simulated test line), the caller numbers (`phoneLine.callerNumberId` in campaigns), whether recorded-voice / IVR campaigns (`line: voice_api`) are on for the account, and the numbers customers can call in (`inboundNumbers`: on / off and who answers — flows, AI agents or the team).',
   }),
   responses: {
     200: okWith(PublicPhoneLineSchema, {
       line: 'sip',
       numbers: [{ id: ID, number: '+911600123456', kind: '1600', label: 'Main' }],
       voiceApi: { enabled: true },
+      inboundNumbers: [
+        { id: ID, number: '+911600000001', label: 'Support line', enabled: true, route: 'ai' },
+      ],
     }),
     ...publicErrors(),
   },

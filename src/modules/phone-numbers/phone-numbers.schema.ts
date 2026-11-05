@@ -1,11 +1,15 @@
 import {
+  AFTER_HOURS_ACTIONS,
+  INBOUND_LIMITS,
   PHONE_NUMBER_KINDS,
   PHONE_NUMBER_PURPOSES,
   PHONE_NUMBER_STATUSES,
+  SIP_INBOUND_ROUTES,
 } from '../../db/models/phone-number.model';
 import { registry } from '../../shared/openapi/registry';
 import { bearer, errors, ok } from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
+import { CallHoursBody, ProgramBody } from '../whatsapp-calling/calling.schema';
 
 const E164 = /^\+[1-9]\d{7,14}$/;
 const objectId = z.string().regex(/^[a-f0-9]{24}$/, 'Must be an id');
@@ -112,6 +116,80 @@ registry.registerPath({
   request: idPath,
   responses: { 200: one, 403: errors[403], 404: errors[404] },
 });
+/** Phase 20: who answers calls to one of the account's numbers. */
+export const InboundSettingsBody = z
+  .strictObject({
+    enabled: z.boolean(),
+    route: z.enum(SIP_INBOUND_ROUTES),
+    program: ProgramBody.nullable(),
+    greeting: z.string().trim().max(INBOUND_LIMITS.greetingMax),
+    ringUserIds: z.array(objectId).max(INBOUND_LIMITS.ringUsersMax).nullable(),
+    ringTimeoutSec: z.number().int().min(INBOUND_LIMITS.ringTimeoutMinSec).max(300),
+    callHours: CallHoursBody,
+    afterHours: z.strictObject({
+      action: z.enum(AFTER_HOURS_ACTIONS),
+      message: z.string().trim().min(1).max(INBOUND_LIMITS.messageMax),
+    }),
+  })
+  .openapi('InboundSettingsBody');
+
+export const InboundNumberSchema = registry.register(
+  'InboundNumber',
+  z.object({
+    id: z.string(),
+    number: z.string(),
+    label: z.string(),
+    purpose: z.enum(PHONE_NUMBER_PURPOSES),
+    status: z.enum(PHONE_NUMBER_STATUSES),
+    inbound: z.object({
+      enabled: z.boolean(),
+      route: z.enum(SIP_INBOUND_ROUTES),
+      program: z.object({ kind: z.enum(['flow', 'agent']), id: z.string() }).nullable(),
+      greeting: z.string(),
+      ringUserIds: z.array(z.string()).nullable(),
+      ringTimeoutSec: z.number(),
+      callHours: CallHoursBody,
+      afterHours: z.object({ action: z.enum(AFTER_HOURS_ACTIONS), message: z.string() }),
+      updatedAt: z.string().nullable(),
+    }),
+    /** What still stops calls from being answered (empty `problems` = ready). */
+    readiness: z.object({
+      /** The account is on the SIP line. */
+      line: z.boolean(),
+      /** This server takes incoming calls (`SIP_INBOUND_ENABLED`). */
+      server: z.boolean(),
+      /** The chosen flow is published / agent is on (`null` = the route needs none). */
+      program: z.boolean().nullable(),
+      /** Team members who may answer (`calls.answer`, on the ring list). */
+      teamMembers: z.number(),
+      problems: z.array(z.string()),
+    }),
+  }),
+);
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/phone-numbers/inbound',
+  tags,
+  summary:
+    "This account's numbers that take incoming calls, their settings and readiness (account.read; Phase 20)",
+  security: bearer,
+  responses: { 200: ok(z.array(InboundNumberSchema)), 403: errors[403] },
+});
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/phone-numbers/{id}/inbound',
+  tags,
+  summary:
+    'Who answers calls to this number: route, flow / agent, greeting, ring list, call hours, after hours (account.update; Phase 20) — 422 INBOUND_PROGRAM_REQUIRED / INBOUND_PROGRAM_NOT_READY',
+  security: bearer,
+  request: {
+    ...idPath,
+    body: { content: { 'application/json': { schema: InboundSettingsBody } } },
+  },
+  responses: { 200: ok(InboundNumberSchema), 403: errors[403], 404: errors[404], 422: errors[422] },
+});
+
 export const PhoneLineSchema = registry.register(
   'PhoneLine',
   z.object({

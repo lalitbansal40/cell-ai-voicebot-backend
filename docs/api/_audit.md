@@ -7,7 +7,7 @@ Operations: 72 · with problems: 0
 | Method | Path                                           | operationId                      | Scope                    | Desc | Req ex | 2xx ex | Errors                      | Problems |
 | ------ | ---------------------------------------------- | -------------------------------- | ------------------------ | ---- | ------ | ------ | --------------------------- | -------- |
 | GET    | `/api/v1/api-keys/whoami`                      | whoAmI                           | —                        | 280  | —      | ✓      | 401 403 422 429             | —        |
-| GET    | `/api/v1/calls`                                | listCalls                        | calls:read               | 370  | —      | ✓      | 401 403 422 429             | —        |
+| GET    | `/api/v1/calls`                                | listCalls                        | calls:read               | 478  | —      | ✓      | 401 403 422 429             | —        |
 | POST   | `/api/v1/calls`                                | startCall                        | calls:write              | 651  | ✓      | ✓      | 401 403 404 422 429 503     | —        |
 | GET    | `/api/v1/calls/{id}`                           | getCall                          | calls:read               | 291  | —      | ✓      | 401 403 404 422 429         | —        |
 | GET    | `/api/v1/calls/{id}/transcript`                | getCallTranscript                | calls:read               | 211  | —      | ✓      | 401 403 404 422 429         | —        |
@@ -36,7 +36,7 @@ Operations: 72 · with problems: 0
 | GET    | `/api/v1/resources/whatsapp-numbers`           | listWhatsAppNumbers              | resources:read           | 419  | —      | ✓      | 401 403 422 429             | —        |
 | GET    | `/api/v1/resources/contact-lists`              | listContactLists                 | resources:read           | 155  | —      | ✓      | 401 403 422 429             | —        |
 | GET    | `/api/v1/resources/segments`                   | listSegments                     | resources:read           | 195  | —      | ✓      | 401 403 422 429             | —        |
-| GET    | `/api/v1/resources/phone-line`                 | getPhoneLine                     | resources:read           | 233  | —      | ✓      | 401 403 422 429             | —        |
+| GET    | `/api/v1/resources/phone-line`                 | getPhoneLine                     | resources:read           | 345  | —      | ✓      | 401 403 422 429             | —        |
 | GET    | `/api/v1/resources/ivrs`                       | listIvrs                         | resources:read           | 166  | —      | ✓      | 401 403 422 429             | —        |
 | GET    | `/api/v1/resources/wallet`                     | getWalletBalance                 | resources:read           | 201  | —      | ✓      | 401 403 422 429             | —        |
 | GET    | `/api/v1/reports/overview`                     | getOverviewReport                | reports:read             | 314  | —      | ✓      | 401 403 422 429             | —        |
