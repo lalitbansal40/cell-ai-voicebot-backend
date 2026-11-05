@@ -39,6 +39,7 @@ import { createDevJobsRouter } from './modules/dev-jobs/dev-jobs.routes';
 import { createDndRouter, createOptOutRouter } from './modules/dnd/dnd.routes';
 import {
   createOpenApiHandler,
+  createPostmanHandler,
   createPublicOpenApiHandler,
 } from './modules/docs/openapi.controller';
 import { createFlowAudioRouter } from './modules/flow-audio/flow-audio.routes';
@@ -296,6 +297,7 @@ export const createApiRouter = ({
   router.use('/ws', createWsTicketsRouter());
   router.get('/openapi.json', createOpenApiHandler(env.APP_URL, env.API_DOCS_ENABLED));
   router.get('/openapi.public.json', createPublicOpenApiHandler(env.APP_URL));
+  router.get('/postman.json', createPostmanHandler(env.APP_URL));
   router.use('/system', createSystemRouter());
   router.use('/csp-report', createCspReportRouter());
   router.use('/rbac', createRbacRouter());

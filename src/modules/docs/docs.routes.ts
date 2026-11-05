@@ -2,7 +2,7 @@ import { Router, static as serveStatic } from 'express';
 
 import { docsCsp } from '../../shared/middlewares/security';
 
-import { DOCS_PATH, docsInitJs, renderDocsPage, type DocsMode } from './docs.page';
+import { DOCS_CSS, DOCS_PATH, docsInitJs, renderDocsPage, type DocsMode } from './docs.page';
 
 // The package's index.js `require`s the 1.5 MB browser bundle; we only need the path.
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS-only helper, no types
@@ -27,6 +27,9 @@ export const createDocsRouter = (mode: DocsMode = 'full'): Router => {
   const init = docsInitJs(mode);
   router.get(`${DOCS_PATH}/init.js`, (_req, res) => {
     res.type('application/javascript').send(init);
+  });
+  router.get(`${DOCS_PATH}/page.css`, (_req, res) => {
+    res.type('text/css').set('Cache-Control', 'public, max-age=3600').send(DOCS_CSS);
   });
   router.use(
     `${DOCS_PATH}/assets`,

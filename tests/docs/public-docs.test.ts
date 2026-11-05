@@ -101,6 +101,21 @@ describe('public API docs (plan §7 #6)', () => {
     expect(Object.keys(res.body.paths)).toEqual(Object.keys(pub.paths));
   });
 
+  it('serves a Postman collection with one request per public route', async () => {
+    const res = await request(buildTestApp()).get('/api/v1/postman.json');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-disposition']).toContain('postman_collection.json');
+    const folders = res.body.item as {
+      name: string;
+      item: { request: { url: { raw: string } } }[];
+    }[];
+    expect(folders.flatMap((f) => f.item)).toHaveLength(operations(pub).length);
+    expect(folders.map((f) => f.name)).toEqual((pub.tags ?? []).map((t) => t.name));
+    expect(res.body.auth.apikey).toEqual(
+      expect.arrayContaining([{ key: 'key', value: 'X-API-Key', type: 'string' }]),
+    );
+  });
+
   it('guides.gen.ts matches docs/api/*.md (run `npm run gen:guides`)', async () => {
     const committed = readFileSync(
       path.join(root, 'src', 'modules', 'docs', 'guides.gen.ts'),

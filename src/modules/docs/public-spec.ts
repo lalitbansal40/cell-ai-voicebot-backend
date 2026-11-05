@@ -162,8 +162,9 @@ export const buildPublicSpec = (full: OpenApiDoc): OpenApiDoc => {
   return {
     ...full,
     info: { ...full.info, title: 'NotifyNow API', description: guidesMarkdown() },
-    servers: [{ url: 'https://wa.notifynow.in/api/v1', description: 'Production' }],
-    externalDocs: { description: 'Guides and reference', url: 'https://wa.notifynow.in/api/docs' },
+    // this server's origin (APP_URL); every path already starts with /api/v1
+    servers: full.servers,
+    externalDocs: { description: 'Guides and reference', url: '/api/docs' },
     paths,
     tags: PUBLIC_TAG_ORDER.filter((t) => usedTags.has(t)).map((name) => ({
       name,

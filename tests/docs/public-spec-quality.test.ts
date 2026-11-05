@@ -18,7 +18,10 @@ describe.skipIf(!QUALITY_ENFORCED)('public API docs quality (L5–L7)', () => {
   });
 
   it('the public spec names its server and orders its tags', () => {
-    expect((spec.servers as { url: string }[] | undefined)?.[0]?.url).toMatch(/\/api\/v1$/);
+    // the origin only: every path already starts with /api/v1
+    const url = (spec.servers as { url: string }[] | undefined)?.[0]?.url ?? '';
+    expect(url).toMatch(/^https?:\/\/[^/]+$/);
+    expect(Object.keys(spec.paths).every((p) => p.startsWith('/api/v1/'))).toBe(true);
     const names = (spec.tags ?? []).map((t) => t.name).filter((n) => n !== 'Public API');
     const order = PUBLIC_TAG_ORDER.filter((t) => names.includes(t));
     expect(names).toEqual(order);
