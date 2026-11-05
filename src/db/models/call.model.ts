@@ -4,7 +4,15 @@ import { basePlugin } from '../plugins/base';
 import { tenantPlugin } from '../plugins/tenant';
 
 export const CALL_DIRECTIONS = ['outbound', 'inbound'] as const;
-export const CALL_PROVIDERS = ['webcall', 'sip', 'notifynow', 'dryrun', 'whatsapp'] as const;
+export const CALL_PROVIDERS = [
+  'webcall',
+  'sip',
+  'notifynow',
+  'dryrun',
+  'whatsapp',
+  // VAPI: recorded voice / IVR played by Cell24x7 (result only: no media, transcript or recording)
+  'voice_api',
+] as const;
 export type CallProvider = (typeof CALL_PROVIDERS)[number];
 
 export const CALL_STATUSES = [

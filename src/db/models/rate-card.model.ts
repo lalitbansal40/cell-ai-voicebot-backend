@@ -21,6 +21,8 @@ export interface RateCardValues {
   embeddingPer1kTokensMicros: number;
   /** Transcribing recorded human calls, per audio minute (Phase 14; prorated per second). */
   sttPerMinuteMicros: number;
+  /** VAPI: recorded voice per started 15 seconds per number (0 = not priced, no start). */
+  voiceApiPulseMicros: number;
 }
 
 export interface RateCardDoc extends RateCardValues {
@@ -48,6 +50,8 @@ export const DEFAULT_RATE_CARD: RateCardValues = {
   embeddingPer1kTokensMicros: 10_000,
   // placeholder (OpenAI mini transcribe ≈ ₹0.26 / min) — to confirm with the client
   sttPerMinuteMicros: 500_000,
+  // VAPI: 0 = recorded-voice campaigns stay unpriced until a superadmin sets a price
+  voiceApiPulseMicros: 0,
 };
 
 const rate = {
@@ -70,6 +74,7 @@ const schema = new Schema<RateCardDoc>({
   aiTextPer1kTokensMicros: { ...rate, default: DEFAULT_RATE_CARD.aiTextPer1kTokensMicros },
   embeddingPer1kTokensMicros: { ...rate, default: DEFAULT_RATE_CARD.embeddingPer1kTokensMicros },
   sttPerMinuteMicros: { ...rate, default: DEFAULT_RATE_CARD.sttPerMinuteMicros },
+  voiceApiPulseMicros: { ...rate, default: DEFAULT_RATE_CARD.voiceApiPulseMicros },
   inheritsDefault: { type: Boolean, default: false },
   effectiveFrom: { type: Date, required: true },
   createdBy: { type: Schema.Types.ObjectId, default: null },

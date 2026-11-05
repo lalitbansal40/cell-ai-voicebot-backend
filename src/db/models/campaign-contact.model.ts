@@ -43,6 +43,19 @@ export type CallResult = (typeof CALL_RESULTS)[number];
 export const DUE_RANK = { callback: 0, retry: 1, fresh: 2 } as const;
 export type DueRank = (typeof DUE_RANK)[keyof typeof DUE_RANK];
 
+export interface CampaignContactVoiceApi {
+  batchNo: number;
+  requestId: string | null;
+  receiver10: string;
+  /** Cell24x7's last status (`PP1`, `CALLING`, `ANSWERED`, …). */
+  providerStatus: string | null;
+  durationSec: number;
+  dtmf: string | null;
+  ivrDisposition: string | null;
+  retryCount: number;
+  finalAt: Date | null;
+}
+
 export interface CampaignContactDoc {
   _id: Types.ObjectId;
   accountId: Types.ObjectId;
@@ -75,6 +88,8 @@ export interface CampaignContactDoc {
   claimedAt: Date | null;
   /** Sum of this contact's call costs (real, or virtual for dry runs). */
   costMicros: number;
+  /** VAPI: this contact's number in a Cell24x7 batch (`receiver10` is personal data). */
+  voiceApi?: CampaignContactVoiceApi | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,6 +118,7 @@ const schema = new Schema<CampaignContactDoc>(
     claimToken: { type: String, default: null },
     claimedAt: { type: Date, default: null },
     costMicros: { type: Number, default: 0, min: 0 },
+    voiceApi: { type: Schema.Types.Mixed, default: null },
   },
   { minimize: false },
 );
@@ -114,6 +130,14 @@ schema.index({ campaignId: 1, seq: 1 });
 schema.index({ campaignId: 1, phoneE164: 1 });
 schema.index({ accountId: 1, contactId: 1, status: 1 });
 schema.index({ status: 1, claimedAt: 1 });
+// VAPI: a webhook / poll row finds its contact by Cell24x7 request + number
+schema.index(
+  { 'voiceApi.requestId': 1, 'voiceApi.receiver10': 1 },
+  {
+    name: 'campaign_contact_voice_result',
+    partialFilterExpression: { 'voiceApi.requestId': { $type: 'string' } },
+  },
+);
 
 /** One contact of a campaign (data-model.md §2.5 — Phase 8). Purged with its campaign. */
 export const CampaignContactModel: Model<CampaignContactDoc> =

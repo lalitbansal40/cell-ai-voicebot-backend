@@ -1150,3 +1150,12 @@ Call `dispositionSource: flow | agent | user | ai | null`, `insights { status, r
 ## Phase 19 continuation: message campaigns
 
 WhatsApp message campaigns now store optional durable header media metadata, recurring schedule/timezone, parentCampaignId and recurrenceEnabled. Migration 0023 adds a unique parentCampaignId + schedule.at index for scheduled occurrences. Recipient sentCounted prevents a retry from counting the same person twice.
+
+## Recorded-voice campaigns (VAPI — Cell24x7 Voice API)
+
+- `campaigns.line` adds `voice_api` (recorded voice / IVR played by Cell24x7; `flowId`, `program` null, `phoneLine` unused) and `campaigns.voiceApi`: `{ content: { kind: 'audio', flowAudioId } | { kind: 'ivr', ivrId, ivrName }, audioSec, retries (0–3), retryIntervalMin (5/10/30/60/180/300), nextBatchNo, batches[{ no, state: holding|submitting|open|done|uncertain|failed, requestId, count, holdId, amountMicros, createdAt, submittedAt, doneAt, lastPolledAt, error }], lastError }`. Pause reasons `provider_error`, `provider_uncertain`; skip reason `not_indian_mobile`.
+- `campaignContacts.voiceApi`: `{ batchNo, requestId, receiver10, providerStatus, durationSec, dtmf, ivrDisposition, retryCount, finalAt }`; index `campaign_contact_voice_result` `{ voiceApi.requestId, voiceApi.receiver10 }` (partial).
+- `calls.provider` adds `voice_api` (one row per final result, `attempt: 1`, so the existing `(campaignContactId, attempt)` unique index makes it idempotent).
+- `accounts.voiceApi`: `{ enabled, ivrIds, ivrEstimateSec }` (superadmin only). `flowAudio.providerFiles.cell24x7`: `{ audioFileId, uploadedAt }` (hidden from the API).
+- Rate card `voiceApiPulseMicros` (per started 15 s per number; 0 = not priced). Ledger type `voice_broadcast_charge`, usage kind `voice_broadcast`, breakdown `vaNumbers`, `vaPulses`; engine `holdForVoiceApi` (key `vapi-hold-<campaignId>-<no>`) → `captureVoiceApi` (`vapi-capture-…`) / `releaseVoiceApi`; spend counts as calls.
+- Migration `0025-voice-api` (defaults + index; down drops the index).

@@ -18,6 +18,8 @@ export const LEDGER_TYPES = [
   // Phase 19: credit moved between a reseller and one of its customers (always a pair)
   'credit_transfer_out',
   'credit_transfer_in',
+  // VAPI: recorded-voice calls submitted to Cell24x7 (per batch: numbers × 15 s pulses)
+  'voice_broadcast_charge',
 ] as const;
 export type LedgerType = (typeof LEDGER_TYPES)[number];
 
@@ -70,6 +72,9 @@ export interface LedgerBreakdown {
   /** Phase 12 WhatsApp calls: 6-second pulses billed and Meta's per-minute rate. */
   waPulses?: number;
   waPerMinuteMicros?: number;
+  /** VAPI: numbers in the batch and 15-second pulses per number. */
+  vaNumbers?: number;
+  vaPulses?: number;
 }
 
 export const LEDGER_USAGE_KINDS = [
@@ -84,6 +89,8 @@ export const LEDGER_USAGE_KINDS = [
   'insights',
   'stt',
   'chat_summary',
+  // VAPI
+  'voice_broadcast',
 ] as const;
 export type LedgerUsageKind = (typeof LEDGER_USAGE_KINDS)[number];
 

@@ -29,12 +29,15 @@ const TYPE_TEXT: Record<LedgerEntryDoc['type'], string> = {
   whatsapp_call_charge: 'WhatsApp call',
   credit_transfer_out: 'Credit given to a customer',
   credit_transfer_in: 'Credit added by your provider',
+  voice_broadcast_charge: 'Recorded voice calls',
 };
 
 /** Human description of a row (built here, never stored). */
 export const describeEntry = (e: Pick<LedgerEntryDoc, 'type' | 'status' | 'note'>): string => {
   if (e.type === 'call_charge' && e.status !== 'captured') return 'Call hold';
   if (e.type === 'whatsapp_call_charge' && e.status !== 'captured') return 'WhatsApp call hold';
+  if (e.type === 'voice_broadcast_charge' && e.status !== 'captured')
+    return 'Recorded voice calls hold';
   if (e.type === 'adjustment' && e.note) return `Adjustment: ${e.note}`;
   return TYPE_TEXT[e.type];
 };

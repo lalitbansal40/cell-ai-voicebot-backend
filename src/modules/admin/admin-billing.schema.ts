@@ -97,6 +97,7 @@ const RateCardValuesView = {
   aiTextPer1kTokensMicros: z.number(),
   embeddingPer1kTokensMicros: z.number(),
   sttPerMinuteMicros: z.number(),
+  voiceApiPulseMicros: z.number(),
 };
 
 export const RateCardVersionSchema = registry.register(

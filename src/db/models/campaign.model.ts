@@ -36,6 +36,10 @@ export const PAUSE_REASONS = [
   'admin',
   /** The pinned flow version can't run any more (an AI agent switched off, audio gone). */
   'flow_not_runnable',
+  /** VAPI: the voice provider refused a batch / our login / credits (see `voiceApi.lastError`). */
+  'provider_error',
+  /** VAPI: a submit got no answer; a superadmin decides whether it reached the provider. */
+  'provider_uncertain',
 ] as const;
 export type PauseReason = (typeof PAUSE_REASONS)[number];
 
@@ -89,6 +93,8 @@ export const SKIP_REASONS = [
   'number_not_allowed',
   'no_call_permission',
   'unanswered_limit',
+  // VAPI: the voice provider calls 10-digit Indian mobiles only
+  'not_indian_mobile',
 ] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
 
@@ -204,13 +210,61 @@ export const defaultPhoneLine = (): CampaignPhoneLine => ({
   voicemailText: null,
 });
 
+/** VAPI: lines a call campaign can use (`voice_api` = recorded voice / IVR via Cell24x7). */
+export const CAMPAIGN_LINES = ['phone', 'whatsapp', 'voice_api'] as const;
+export type CampaignLine = (typeof CAMPAIGN_LINES)[number];
+
+export type VoiceApiContent =
+  { kind: 'audio'; flowAudioId: Types.ObjectId } | { kind: 'ivr'; ivrId: number; ivrName: string };
+
+export const VOICE_BATCH_STATES = [
+  'holding',
+  'submitting',
+  'open',
+  'done',
+  'uncertain',
+  'failed',
+] as const;
+export type VoiceBatchState = (typeof VOICE_BATCH_STATES)[number];
+
+/** One Cell24x7 submit (`broadcast_name = cav-<campaignId>-<no>`). */
+export interface VoiceBatch {
+  no: number;
+  state: VoiceBatchState;
+  requestId: string | null;
+  count: number;
+  holdId: Types.ObjectId | null;
+  amountMicros: number;
+  createdAt: Date;
+  submittedAt: Date | null;
+  doneAt: Date | null;
+  lastPolledAt: Date | null;
+  /** Error code of a failed / uncertain submit. */
+  error: string | null;
+}
+
+/** Recorded-voice settings and batches of a `voice_api` campaign. */
+export interface CampaignVoiceApi {
+  /** `null` while a draft has no audio / IVR chosen yet. */
+  content: VoiceApiContent | null;
+  /** Seconds billed per number: the audio's length, or the account's IVR estimate. */
+  audioSec: number;
+  retries: number;
+  retryIntervalMin: number;
+  nextBatchNo: number;
+  batches: VoiceBatch[];
+  lastError: { code: string; at: Date } | null;
+}
+
 export interface CampaignDoc {
   _id: Types.ObjectId;
   accountId: Types.ObjectId;
   name: string;
   mode: CampaignMode;
   flowId: Types.ObjectId | null;
-  line?: 'phone' | 'whatsapp';
+  line?: CampaignLine;
+  /** VAPI: only for `line: 'voice_api'`. */
+  voiceApi?: CampaignVoiceApi | null;
   channelId?: Types.ObjectId | null;
   program?: { kind: 'flow' | 'agent'; id: Types.ObjectId } | null;
   askPermissionFirst?: { templateId: Types.ObjectId } | null;
@@ -309,7 +363,8 @@ const schema = new Schema<CampaignDoc>(
     name: { type: String, required: true, trim: true, maxlength: CAMPAIGN_LIMITS.nameMaxChars },
     mode: { type: String, enum: CAMPAIGN_MODES, default: 'dry_run' },
     flowId: { type: Schema.Types.ObjectId, default: null },
-    line: { type: String, enum: ['phone', 'whatsapp'], default: 'phone' },
+    line: { type: String, enum: CAMPAIGN_LINES, default: 'phone' },
+    voiceApi: { type: Schema.Types.Mixed, default: null },
     channelId: { type: Schema.Types.ObjectId, default: null },
     program: { type: Schema.Types.Mixed, default: null },
     askPermissionFirst: { type: Schema.Types.Mixed, default: null },

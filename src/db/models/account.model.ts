@@ -220,9 +220,25 @@ export interface AccountDoc {
   voiceLine: AccountVoiceLine;
   /** Superadmin overrides of the SIP env defaults; `null` = the env value. */
   sipSettings: AccountSipSettings;
+  /** VAPI: recorded-voice / IVR campaigns over Cell24x7 (superadmin-only settings). */
+  voiceApi?: AccountVoiceApi;
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface AccountVoiceApi {
+  enabled: boolean;
+  /** Cell24x7 IVR menus this account may use (the token is shared by every account). */
+  ivrIds: number[];
+  /** Seconds billed per number for an IVR campaign (an IVR's length is not known up front). */
+  ivrEstimateSec: number;
+}
+
+export const DEFAULT_ACCOUNT_VOICE_API: AccountVoiceApi = {
+  enabled: false,
+  ivrIds: [],
+  ivrEstimateSec: 60,
+};
 
 export const ACCOUNT_VOICE_LINES = ['dryrun', 'sip'] as const;
 export type AccountVoiceLine = (typeof ACCOUNT_VOICE_LINES)[number];
@@ -368,6 +384,10 @@ const schema = new Schema<AccountDoc>({
   sipSettings: {
     type: Schema.Types.Mixed,
     default: () => ({ ...DEFAULT_SIP_SETTINGS }),
+  },
+  voiceApi: {
+    type: Schema.Types.Mixed,
+    default: () => ({ ...DEFAULT_ACCOUNT_VOICE_API, ivrIds: [] }),
   },
   suspendReason: { type: String, default: null, maxlength: 200 },
   ownerId: { type: Schema.Types.ObjectId, default: null },

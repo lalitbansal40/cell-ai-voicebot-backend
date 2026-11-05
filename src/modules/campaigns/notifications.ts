@@ -19,6 +19,9 @@ export const PAUSE_REASON_LABELS: Record<PauseReason, string> = {
   too_many_failures: 'too many calls failed in a row',
   admin: 'paused by the platform team',
   flow_not_runnable: 'its flow can no longer run (an AI agent is switched off or audio is missing)',
+  provider_error: 'the recorded-voice provider refused a batch (support has been told)',
+  provider_uncertain:
+    'the recorded-voice provider did not answer; support checks whether the last batch went out',
 };
 
 const link = (campaignId: Types.ObjectId) => `/campaigns/${campaignId.toString()}`;

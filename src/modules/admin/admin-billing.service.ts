@@ -66,6 +66,7 @@ const VALUE_KEYS = [
   'aiTextPer1kTokensMicros',
   'embeddingPer1kTokensMicros',
   'sttPerMinuteMicros',
+  'voiceApiPulseMicros',
 ] as const;
 
 const customerAccount = async (id: string): Promise<AccountDoc> => {

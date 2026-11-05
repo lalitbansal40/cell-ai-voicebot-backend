@@ -479,6 +479,11 @@ export const ERASE_MAP: EraseEntry[] = [
         { ...filter, status: { $in: ['pending', 'retry_wait', 'callback_wait'] } },
         { $set: { status: 'canceled', nextAttemptAt: null } },
       );
+      // VAPI: the number sent to Cell24x7 (late results for it are then ignored)
+      await CampaignContactModel.collection.updateMany(
+        { ...filter, 'voiceApi.receiver10': { $type: 'string' } },
+        { $set: { 'voiceApi.receiver10': '0000000000', 'voiceApi.dtmf': null } },
+      );
       return (
         await CampaignContactModel.collection.updateMany(filter, {
           $set: {

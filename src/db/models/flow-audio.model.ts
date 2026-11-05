@@ -20,6 +20,8 @@ export interface FlowAudioDoc {
   sampleRate: number;
   channels: number;
   uploadedBy: Types.ObjectId | null;
+  /** VAPI: the provider's copy of this audio (uploaded once, reused by id). */
+  providerFiles?: { cell24x7?: { audioFileId: number; uploadedAt: Date } | null };
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -34,8 +36,9 @@ const schema = new Schema<FlowAudioDoc>({
   sampleRate: { type: Number, required: true, min: 8000, max: 48_000 },
   channels: { type: Number, required: true, min: 1, max: 2 },
   uploadedBy: { type: Schema.Types.ObjectId, default: null },
+  providerFiles: { type: Schema.Types.Mixed, default: () => ({}) },
 });
-schema.plugin(basePlugin, { hide: ['deletedAt', 'fileKey'] });
+schema.plugin(basePlugin, { hide: ['deletedAt', 'fileKey', 'providerFiles'] });
 schema.plugin(tenantPlugin);
 schema.plugin(softDeletePlugin);
 schema.index(

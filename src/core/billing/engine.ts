@@ -708,6 +708,143 @@ export const chargeUsage = async (input: UsageInput): Promise<EngineResult> => {
   });
 };
 
+// ─────────────────────────────── recorded voice (VAPI) ───────────────────────────────
+
+/**
+ * Reserves one Cell24x7 batch (numbers × 15 s pulses × price) before the submit; same
+ * spend rule as a phone call hold. Key `vapi-hold-<campaignId>-<batchNo>` (replays).
+ */
+export const holdForVoiceApi = async (input: {
+  accountId: Types.ObjectId | string;
+  campaignId: string;
+  batchNo: number;
+  amountMicros: number;
+  breakdown: LedgerBreakdown;
+}): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const amount = assertMicros(input.amountMicros);
+  if (amount <= 0) throw new RangeError('Hold must be positive');
+  const key = `vapi-hold-${input.campaignId}-${String(input.batchNo)}`;
+  await getOrCreateWallet(accountId);
+  return raceSafe(accountId, key, async () => {
+    const out = await run(accountId, async (session) => {
+      const existing = await findByKey(accountId, key, session);
+      if (existing) return replay(accountId, [existing], session);
+      const month = await accountMonth(accountId, session);
+      const rule = { useCreditLimit: true, budget: 'call' as const, month };
+      const wallet = await updateWallet(
+        accountId,
+        session,
+        moneyPipeline(month, { hold: amount }),
+        canSpend(amount, rule),
+      );
+      if (!wallet) return insufficient(accountId, amount, session, rule);
+      const entry = await insertRow(session, {
+        accountId,
+        type: 'voice_broadcast_charge',
+        direction: 'debit',
+        status: 'held',
+        amountMicros: amount,
+        breakdown: { ...input.breakdown, kind: 'voice_broadcast' },
+        ref: { type: 'campaign', id: input.campaignId },
+        idempotencyKey: key,
+      });
+      return {
+        result: { entries: [entry], wallet, replay: false },
+        change: change(accountId, wallet, 0, amount),
+      };
+    });
+    return finish(out);
+  });
+};
+
+const loadVoiceApiHold = async (
+  accountId: Types.ObjectId,
+  holdId: Types.ObjectId | string,
+  session: ClientSession,
+): Promise<LedgerEntryDoc> => {
+  const root = await LedgerEntryModel.findOne({ _id: oid(holdId), accountId, holdId: null })
+    .session(session)
+    .lean<LedgerEntryDoc>();
+  if (root?.type !== 'voice_broadcast_charge' || root.direction !== 'debit') {
+    throw new NotFoundError('Hold not found');
+  }
+  return root;
+};
+
+/** Cell24x7 accepted the batch (its credits are spent): the hold becomes a captured charge. */
+export const captureVoiceApi = async (input: {
+  accountId: Types.ObjectId | string;
+  holdId: Types.ObjectId | string;
+  campaignId: string;
+  batchNo: number;
+}): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const key = `vapi-capture-${input.campaignId}-${String(input.batchNo)}`;
+  return raceSafe(accountId, key, async () => {
+    const out = await run(accountId, async (session) => {
+      const existing = await findByKey(accountId, key, session);
+      if (existing) return replay(accountId, [existing], session);
+      const root = await loadVoiceApiHold(accountId, input.holdId, session);
+      if (root.status !== 'held') {
+        throw new ConflictError('CONFLICT_INVALID_STATE', 'This hold was released already');
+      }
+      await releaseRows([root._id], 'captured', session);
+      const amount = root.amountMicros;
+      const month = await accountMonth(accountId, session);
+      const wallet = await updateWallet(
+        accountId,
+        session,
+        moneyPipeline(month, { balance: -amount, hold: -amount, call: amount }),
+      );
+      if (!wallet) throw new NotFoundError('Wallet not found');
+      const entry = await insertRow(session, {
+        accountId,
+        type: 'voice_broadcast_charge',
+        direction: 'debit',
+        status: 'captured',
+        amountMicros: amount,
+        balanceAfterMicros: wallet.balanceMicros,
+        breakdown: root.breakdown ?? null,
+        ref: root.ref,
+        holdId: root._id,
+        idempotencyKey: key,
+      });
+      return {
+        result: { entries: [entry], wallet, replay: false },
+        change: change(accountId, wallet, -amount, -amount),
+      };
+    });
+    return finish(out);
+  });
+};
+
+/** The batch never reached Cell24x7 (refused / resolved as not submitted): the hold goes back. */
+export const releaseVoiceApi = async (input: {
+  accountId: Types.ObjectId | string;
+  holdId: Types.ObjectId | string;
+  reason: string;
+}): Promise<EngineResult> => {
+  const accountId = oid(input.accountId);
+  const out = await run(accountId, async (session) => {
+    const root = await loadVoiceApiHold(accountId, input.holdId, session);
+    if (root.status !== 'held') return replay(accountId, [], session);
+    await releaseRows([root._id], input.reason.slice(0, 60), session);
+    const month = await accountMonth(accountId, session);
+    const wallet = await updateWallet(
+      accountId,
+      session,
+      moneyPipeline(month, { hold: -root.amountMicros }),
+    );
+    if (!wallet) throw new NotFoundError('Wallet not found');
+    return {
+      result: { entries: [], wallet, replay: false },
+      change: change(accountId, wallet, 0, -root.amountMicros),
+    };
+  });
+  return finish(out);
+};
+
 // ─────────────────────────────── WhatsApp messages (Phase 11) ───────────────────────────────
 
 export interface WhatsAppHoldInput {
