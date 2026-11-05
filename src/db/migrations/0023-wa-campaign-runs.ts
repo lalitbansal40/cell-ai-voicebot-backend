@@ -6,12 +6,13 @@ export const waCampaignRunsMigration: Migration = {
   name: '0023-wa-campaign-runs',
   up: async (db) => {
     await WhatsAppCampaignModel.createIndexes();
-    await db
-      .collection('whatsappCampaignRecipients')
-      .updateMany(
-        { status: { $in: ['sent', 'delivered', 'read'] }, sentCounted: { $exists: false } },
-        { $set: { sentCounted: true } },
-      );
+    await db.collection('whatsappCampaignRecipients').updateMany(
+      {
+        $or: [{ status: { $in: ['sent', 'delivered', 'read'] } }, { sentAt: { $type: 'date' } }],
+        sentCounted: { $exists: false },
+      },
+      { $set: { sentCounted: true } },
+    );
     await db
       .collection('whatsappCampaigns')
       .updateMany(

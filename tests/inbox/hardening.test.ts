@@ -181,8 +181,8 @@ describe('inbox hardening', () => {
             finalAttempt: true,
             waits: Math.min(waits, 19),
           });
-          if (out.kind !== 'wait') return out;
-          await new Promise((r) => setTimeout(r, 5));
+          if (out.kind !== 'wait' && out.kind !== 'later') return out;
+          await new Promise((r) => setTimeout(r, out.kind === 'later' ? out.delayMs : 5));
         }
       };
       await Promise.all(pending.map((j) => run(j.id)));

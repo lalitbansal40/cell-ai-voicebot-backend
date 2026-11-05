@@ -170,6 +170,7 @@ export const createBulkPermissions = (deps: {
           await deps.jobs.enqueuePermissionBulk(existing._id.toString());
         return { runId: existing._id.toString() };
       }
+      if (await CallPermissionRunModel.exists({ _id: input.runId })) throw new NotFoundError();
     }
     const channel = await deps.permissions.loadChannel(actor.accountId, input.channelId);
     const block = deps.permissions.channelBlock(channel, now());

@@ -15,7 +15,7 @@ are supported. Explicit selection shows its actual count; it does not imply ever
 matching contact. The estimate applies the same exclusions and variant assignment as
 execution, prices category and market separately, and displays wallet shortfall.
 
-The shared Redis pacer applies immediately before provider attempts: Business App or
+Campaign/template lifecycle checks run before pacing, and repeat after a short wait. No DB work follows the final slot acquisition before the provider call. The shared Redis pacer applies immediately before provider attempts: Business App or
 coexistence numbers use at most 18 messages/second; a confirmed regular Cloud API
 number uses at most 75. `messageClassificationKnown` is set by Meta phone read-back,
 including an explicit `is_on_biz_app` boolean. Missing legacy/read-back classification
@@ -37,7 +37,7 @@ index prevents duplicate runs. Pausing a scheduled run preserves its start time;
 pausing a recurring root prevents new occurrences while paused. Stopping any run
 disables the series and stops its active/scheduled children. Dispatch completion
 waits for provider acceptance; late delivery/reply events continue to refresh reports.
-Captured charges are matched against both message and stable client-ID ledger references.
+Recipient status changes and their counter increments commit in one MongoDB transaction; concurrent/late statuses and replies cannot leave counters half-written. Replacing or deleting durable media releases it only after its final campaign reference is gone. Captured charges are matched against both message and stable client-ID ledger references.
 
 ## WhatsApp calls
 
@@ -59,7 +59,7 @@ Contact main/row actions and Calls use the shared method/sender chooser. Inbox h
 same chooser under Call options alongside its context-specific WhatsApp shortcut.
 One eligible sender is preselected; multiple require a choice. Normal calls carry the
 selected caller ID; stale SIP readiness is rejected, without transport fallback.
-WhatsApp readiness/permission previews are keyed by sender/contact and reset on switches.
+WhatsApp readiness, permission and selling-price previews are keyed by sender/contact and reset on switches. AI confirmation waits for the selected pair’s quote; quote errors offer retry. The quote includes the sender’s payer setting, the contact’s market and account AI rate without exposing Meta costs or margins.
 View-only and impersonated sessions cannot trigger calls; ordinary campaign editing
 continues to follow the existing view/act guards.
 

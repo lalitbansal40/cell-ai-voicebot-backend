@@ -7604,8 +7604,8 @@
             "properties": {
               "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
               "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
-              "name": { "type": "string", "maxLength": 1000 },
-              "address": { "type": "string", "maxLength": 1000 }
+              "name": { "type": "string", "maxLength": 100 },
+              "address": { "type": "string", "maxLength": 200 }
             },
             "required": ["latitude", "longitude"],
             "additionalProperties": false
@@ -7906,6 +7906,29 @@
           "error",
           "attempts",
           "createdAt"
+        ]
+      },
+      "WhatsAppCallPrice": {
+        "type": "object",
+        "properties": {
+          "channelId": { "type": "string" },
+          "contactId": { "type": "string" },
+          "senderLabel": { "type": "string" },
+          "senderPhone": { "type": ["string", "null"] },
+          "market": { "type": "string" },
+          "callPerMinuteMicros": { "type": "number" },
+          "aiPerMinuteMicros": { "type": "number" },
+          "pulseSec": { "type": "number" }
+        },
+        "required": [
+          "channelId",
+          "contactId",
+          "senderLabel",
+          "senderPhone",
+          "market",
+          "callPerMinuteMicros",
+          "aiPerMinuteMicros",
+          "pulseSec"
         ]
       },
       "WhatsAppCallingSettings": {
@@ -31933,8 +31956,8 @@
                     "properties": {
                       "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
                       "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
-                      "name": { "type": "string", "maxLength": 1000 },
-                      "address": { "type": "string", "maxLength": 1000 }
+                      "name": { "type": "string", "maxLength": 100 },
+                      "address": { "type": "string", "maxLength": 200 }
                     },
                     "required": ["latitude", "longitude"],
                     "additionalProperties": false
@@ -32147,8 +32170,8 @@
                     "properties": {
                       "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
                       "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
-                      "name": { "type": "string", "maxLength": 1000 },
-                      "address": { "type": "string", "maxLength": 1000 }
+                      "name": { "type": "string", "maxLength": 100 },
+                      "address": { "type": "string", "maxLength": 200 }
                     },
                     "required": ["latitude", "longitude"],
                     "additionalProperties": false
@@ -35403,6 +35426,81 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           }
+        }
+      }
+    },
+    "/api/v1/whatsapp/channels/{id}/calling/quote": {
+      "get": {
+        "tags": ["WhatsApp calling", "Public API"],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "summary": "Selling price for this owned sender/contact, no provider costs (calls.trigger)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "contactId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCallPrice" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp calling or media capacity unavailable" }
         }
       }
     },

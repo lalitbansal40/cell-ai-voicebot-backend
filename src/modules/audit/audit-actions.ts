@@ -210,3 +210,8 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export const isAuditAction = (value: string): value is AuditAction =>
   (AUDIT_ACTIONS as readonly string[]).includes(value);
+
+/** Retained so historical rows remain readable; these actions have no active writer. */
+export const RETIRED_AUDIT_ACTIONS = [
+  'auth.email_verified',
+] as const satisfies readonly AuditAction[];

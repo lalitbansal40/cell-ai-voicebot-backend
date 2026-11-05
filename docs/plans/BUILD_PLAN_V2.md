@@ -10,7 +10,7 @@ Ye plan bache hue saare kaam ko **ek hi product** maan ke dobara order karta hai
 
 1. **Priority = Meta App Review.** App Review ke liye screencasts chahiye jisme hamara app khud WhatsApp number connect kare (Embedded Signup), template banaye, message bheje / receive kare aur call kare. Isliye WhatsApp ke wo hisse **sabse pehle** (Phase 9–12), phir staging deploy + App Review (Phase 13).
 2. **Server deploy aage aa gaya.** Meta webhooks aur reviewer ko **public HTTPS URL** chahiye — isliye staging deploy App Review se pehle (Phase 13). Production deploy (client server) baad me rahega.
-3. **Bulk campaign sabse last** (aapke kehne pe). Bulk WhatsApp template campaigns + bulk WhatsApp calling + reports AutoChatix ke pattern pe (Phase 20). Agar SIP / inbound client details ki wajah se ruke rahe, to Phase 20 unke parallel shuru ho sakta hai.
+3. **Bulk campaign sabse last** (aapke kehne pe). Owner ne bulk WhatsApp templates/calls aur resellers ko Phase 19 mein move kiya; inbound SIP ab Phase 20 hai. Server/carrier checks alag pending reh sakte hain.
 4. **Phase 7–8 ka reuse.** WhatsApp call bhi ek "phone line" hai: Phase 7 ke `TelephonyProvider` ke peeche ek naya **WhatsApp provider** — matlab AI agents / flows, recording, transcript, billing aur Phase 8 campaign engine bina dobara likhe WhatsApp calls pe chalenge.
 5. **Reference code:** AutoChatix (Embedded Signup, webhooks, calling, templates, wallet holds, bulk campaigns) aur SaaS Universe (Meta rate card + markup rule, bulk engine). Code copy nahi hoga — pattern + seekhi hui galtiyan (WABA discovery fallback, coexistence number error 141000, hold capture on DELIVERED, service hold leak) hamare TypeScript / zod / tests ke standard me dobara likhe jayenge.
 
@@ -46,8 +46,8 @@ Ye plan bache hue saare kaam ko **ek hi product** maan ke dobara order karta hai
 | 16  | Security, compliance & QA                           | Pehle wala Phase 11                      | —                                              | M    |
 | 17  | Production deployment (client server)               | Pehle wala Phase 12                      | 🔴 DB details, domain, server access           | M    |
 | 18  | SIP telephony                                       | Pehle wala Phase 13                      | 🔴 SIP trunk details                           | L    |
-| 19  | Inbound phone calls                                 | Pehle wala Phase 14                      | 🔴 Inbound DID                                 | M    |
-| 20  | Bulk WhatsApp campaigns + bulk WhatsApp calling     | Aapke kehne pe last                      | Messaging tier ≥ 2,000 (calling ke liye)       | L    |
+| 19  | Open signup, resellers, three campaign types        | Owner continuation, 5 Nov 2026           | Local verification; live checks separate       | L    |
+| 20  | Inbound phone calls                                 | Moved after Phase 19                     | 🔴 Inbound DID                                 | M    |
 | 21  | Pilot & launch                                      | Sab ke baad                              | Real flow, real data, live payment keys        | M    |
 
 Size: S ≈ 3–5 din, M ≈ 1–2 hafte, L ≈ 2–3 hafte (ek developer, tests + E2E + docs ke saath — har phase Phase 1–8 jaise plan → prompt → batches → sign-off se chalega).
@@ -353,12 +353,12 @@ Bulk WhatsApp calling (client promise "Bulk calling"):
 | ------------------------------------------------------------------------ | ------ |
 | Meta Business account (verified) + developer app access / admin role     | 9, 13  |
 | Test WhatsApp number (Cloud API pe, WhatsApp Business app pe **nahi**)   | 9–12   |
-| Messaging limit ≥ 2,000 (business-initiated calling ke liye, production) | 12, 20 |
+| Messaging limit ≥ 2,000 (business-initiated calling ke liye, production) | 12, 19 |
 | Staging domain / subdomain (HTTPS)                                       | 13     |
 | Markup % aur rate card decision (Meta price + kitna)                     | 11     |
 | Template texts (payment reminder, call permission, promise reminder)     | 11, 12 |
 | Production DB, domain, server access                                     | 17     |
-| SIP trunk details, 1600-series caller ID, inbound DID                    | 18, 19 |
+| SIP trunk details, 1600-series caller ID, inbound DID                    | 18, 20 |
 | Payment API docs, OpenAI key + ZDR, DLT / SMS, SMTP + domain             | 15, 21 |
 
 ---
@@ -402,5 +402,5 @@ Bulk WhatsApp calling (client promise "Bulk calling"):
 
 - 2026-11-05: Phase 19 continuation implementation includes three campaign types, shared
   18/75 sender pacing, WhatsApp flow/agent call campaigns, scoped templates and call choices.
-  Final coverage/browser/performance sign-off is pending. Next planned feature: Phase 20
+  Local verification and live-provider limits are recorded in [Phase 19 sign-off](../phases/PHASE_19_SIGNOFF.md). Next planned feature: Phase 20
   inbound SIP. White-label, commissions and click tracking remain separate scope.

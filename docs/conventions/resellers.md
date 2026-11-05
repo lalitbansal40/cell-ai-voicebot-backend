@@ -13,3 +13,5 @@ Customer capabilities and calling consent are evaluated inside that customer acc
 A reseller login-as act session can edit ordinary campaign settings; direct calling and
 sensitive actions retain existing impersonation guards. View mode stays read-only.
 [Channel guide](campaign-channels.md) describes the three campaign types and sender caps.
+
+Signup and login default to `/reseller` for reseller accounts; a valid same-app `next` path is preserved. The auth-page guard uses the same default, preventing a competing dashboard redirect. Returning from customer act mode restores the saved reseller session and customer detail.

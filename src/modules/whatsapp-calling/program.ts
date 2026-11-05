@@ -21,9 +21,10 @@ export const programProblems = async (
   if (!program) return [{ path, message: 'Choose a flow or an AI agent' }];
   if (program.kind === 'flow') {
     const flow = await FlowModel.findOne({ _id: program.id, accountId })
-      .select({ publishedVersionId: 1 })
-      .lean<{ publishedVersionId: Types.ObjectId | null }>();
+      .select({ publishedVersionId: 1, status: 1 })
+      .lean<{ publishedVersionId: Types.ObjectId | null; status: string }>();
     if (!flow) return [{ path, message: 'Flow not found' }];
+    if (flow.status === 'archived') return [{ path, message: 'This flow is archived' }];
     if (!flow.publishedVersionId) return [{ path, message: 'Publish the flow first' }];
     return [];
   }

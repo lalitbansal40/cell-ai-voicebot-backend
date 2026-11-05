@@ -1,9 +1,9 @@
 import type { Request } from 'express';
 import { Types } from 'mongoose';
 
+import { capturedWhatsAppMessageCost } from '../../core/billing/whatsapp-message-charges';
 import type { StorageProvider } from '../../core/storage';
 import { ContactModel } from '../../db/models/contact.model';
-import { LedgerEntryModel } from '../../db/models/ledger-entry.model';
 import { MessageModel } from '../../db/models/message.model';
 import {
   WhatsAppCampaignRecipientModel,
@@ -31,10 +31,11 @@ import {
 import type { AuditAction } from '../audit/audit-actions';
 import { recordAudit } from '../audit/audit.service';
 import { nextOccurrence } from '../campaigns/recurrence';
+import { safeCell } from '../contact-imports/error-report';
 
 import { snapshotAudience, toObjectIds } from './audience';
 import { estimateCampaignDoc } from './estimate';
-import { saveCampaignMedia, validateCampaignMedia } from './media';
+import { saveCampaignMedia, validateCampaignMedia, releaseCampaignMedia } from './media';
 import { prepareRecurringRun } from './recurrence';
 import { emitProgress } from './tracking';
 import { loadVariants } from './variants';
@@ -82,55 +83,58 @@ export interface CampaignInput {
 
 const EDITABLE = ['draft', 'scheduled'] as const;
 
-const view = (c: WhatsAppCampaignDoc) => ({
-  id: c._id.toString(),
-  name: c.name,
-  channelId: c.channelId.toString(),
-  status: c.status,
-  pauseReason: c.pauseReason,
-  variants: c.variants.map((v) => ({
+const view = (campaign: WhatsAppCampaignDoc) => ({
+  id: campaign._id.toString(),
+  name: campaign.name,
+  channelId: campaign.channelId.toString(),
+  status: campaign.status,
+  pauseReason: campaign.pauseReason,
+  variants: campaign.variants.map((v) => ({
     key: v.key,
     templateId: v.templateId.toString(),
     splitPct: v.splitPct,
   })),
-  abWinner: c.abWinner
-    ? { ...c.abWinner, decidedAt: c.abWinner.decidedAt?.toISOString() ?? null }
+  abWinner: campaign.abWinner
+    ? { ...campaign.abWinner, decidedAt: campaign.abWinner.decidedAt?.toISOString() ?? null }
     : null,
-  variables: c.variables,
+  variables: campaign.variables,
   audience: {
-    listIds: c.audience.listIds.map(String),
-    segmentId: c.audience.segmentId ? c.audience.segmentId.toString() : null,
-    tags: c.audience.tags,
-    contactIds: c.audience.contactIds.map(String),
-    csvUploadId: c.audience.csvUploadId ? c.audience.csvUploadId.toString() : null,
+    listIds: campaign.audience.listIds.map(String),
+    segmentId: campaign.audience.segmentId ? campaign.audience.segmentId.toString() : null,
+    tags: campaign.audience.tags,
+    contactIds: campaign.audience.contactIds.map(String),
+    csvUploadId: campaign.audience.csvUploadId ? campaign.audience.csvUploadId.toString() : null,
   },
-  excludeRecentDays: c.excludeRecentDays,
+  excludeRecentDays: campaign.excludeRecentDays,
   schedule: {
-    kind: c.schedule.kind,
-    at: c.schedule.at?.toISOString() ?? null,
-    timezone: c.schedule.timezone ?? 'Asia/Kolkata',
-    recurrence: c.schedule.recurrence
-      ? { ...c.schedule.recurrence, until: c.schedule.recurrence.until?.toISOString() ?? null }
+    kind: campaign.schedule.kind,
+    at: campaign.schedule.at?.toISOString() ?? null,
+    timezone: campaign.schedule.timezone ?? 'Asia/Kolkata',
+    recurrence: campaign.schedule.recurrence
+      ? {
+          ...campaign.schedule.recurrence,
+          until: campaign.schedule.recurrence.until?.toISOString() ?? null,
+        }
       : null,
   },
-  parentCampaignId: c.parentCampaignId?.toString() ?? null,
-  recurrenceEnabled: c.recurrenceEnabled ?? true,
-  headerLocation: c.headerLocation ?? null,
-  headerMedia: c.headerMedia
+  parentCampaignId: campaign.parentCampaignId?.toString() ?? null,
+  recurrenceEnabled: campaign.recurrenceEnabled ?? true,
+  headerLocation: campaign.headerLocation ?? null,
+  headerMedia: campaign.headerMedia
     ? {
-        kind: c.headerMedia.kind,
-        fileName: c.headerMedia.fileName,
-        mimeType: c.headerMedia.mimeType,
-        size: c.headerMedia.size,
+        kind: campaign.headerMedia.kind,
+        fileName: campaign.headerMedia.fileName,
+        mimeType: campaign.headerMedia.mimeType,
+        size: campaign.headerMedia.size,
       }
     : null,
-  counters: { ...emptyCounters(), ...c.counters },
-  cost: c.cost,
-  nextBatchAt: c.nextBatchAt?.toISOString() ?? null,
-  startedAt: c.startedAt?.toISOString() ?? null,
-  finishedAt: c.finishedAt?.toISOString() ?? null,
-  createdAt: c.createdAt.toISOString(),
-  updatedAt: c.updatedAt.toISOString(),
+  counters: { ...emptyCounters(), ...campaign.counters },
+  cost: campaign.cost,
+  nextBatchAt: campaign.nextBatchAt?.toISOString() ?? null,
+  startedAt: campaign.startedAt?.toISOString() ?? null,
+  finishedAt: campaign.finishedAt?.toISOString() ?? null,
+  createdAt: campaign.createdAt.toISOString(),
+  updatedAt: campaign.updatedAt.toISOString(),
 });
 export type WaCampaignView = ReturnType<typeof view>;
 
@@ -289,10 +293,16 @@ const mediaForInput = async (
   })
     .select({ components: 1 })
     .lean<{ components: Record<string, unknown>[] }[]>();
-  validateCampaignMedia(
-    media,
-    templates.map((t) => t.components),
-  );
+  try {
+    validateCampaignMedia(
+      media,
+      templates.map((t) => t.components),
+    );
+  } catch (error) {
+    if (media && storage && media.storageKey !== existing?.storageKey)
+      await releaseCampaignMedia(new Types.ObjectId(auth.accountId), media.storageKey, storage);
+    throw error;
+  }
   return media ?? null;
 };
 
@@ -304,12 +314,17 @@ export const createCampaign = async (
   const { accountId } = tenantFilter(req);
   const auth = requireAuth(req);
   await validate(accountId, input);
+  const headerMedia = await mediaForInput(req, input, null, storage);
   const c = await WhatsAppCampaignModel.create({
     accountId,
     createdBy: new Types.ObjectId(auth.userId),
     ...toDoc(input),
     headerLocation: input.headerLocation ?? null,
-    headerMedia: await mediaForInput(req, input, null, storage),
+    headerMedia,
+  }).catch(async (error: unknown) => {
+    if (headerMedia && storage)
+      await releaseCampaignMedia(accountId, headerMedia.storageKey, storage);
+    throw error;
   });
   await audit(req, c, 'whatsapp_campaign.created', {
     channelId: input.channelId,
@@ -349,6 +364,7 @@ export const updateCampaign = async (
   if (!(EDITABLE as readonly string[]).includes(c.status))
     throw new AppError('WA_CAMPAIGN_NOT_EDITABLE');
   await validate(c.accountId, input);
+  const headerMedia = await mediaForInput(req, input, c.headerMedia, storage);
   const updated = await WhatsAppCampaignModel.findOneAndUpdate(
     { _id: c._id, status: { $in: [...EDITABLE] } },
     {
@@ -356,20 +372,39 @@ export const updateCampaign = async (
         ...toDoc(input),
         headerLocation:
           input.headerLocation === undefined ? c.headerLocation : input.headerLocation,
-        headerMedia: await mediaForInput(req, input, c.headerMedia, storage),
+        headerMedia,
       },
     },
     { returnDocument: 'after' },
-  ).lean<WhatsAppCampaignDoc>();
-  if (!updated) throw new AppError('WA_CAMPAIGN_NOT_EDITABLE');
+  )
+    .lean<WhatsAppCampaignDoc>()
+    .catch(async (error: unknown) => {
+      if (headerMedia && storage && headerMedia.storageKey !== c.headerMedia?.storageKey)
+        await releaseCampaignMedia(c.accountId, headerMedia.storageKey, storage);
+      throw error;
+    });
+  if (!updated) {
+    if (headerMedia && storage && headerMedia.storageKey !== c.headerMedia?.storageKey)
+      await releaseCampaignMedia(c.accountId, headerMedia.storageKey, storage);
+    throw new AppError('WA_CAMPAIGN_NOT_EDITABLE');
+  }
+  if (c.headerMedia && storage && headerMedia?.storageKey !== c.headerMedia.storageKey)
+    await releaseCampaignMedia(c.accountId, c.headerMedia.storageKey, storage);
   return view(updated);
 };
 
-export const deleteCampaign = async (req: Request, id: string) => {
+export const deleteCampaign = async (req: Request, id: string, storage?: StorageProvider) => {
   const c = await load(req, id);
   if (c.status !== 'draft') throw new AppError('WA_CAMPAIGN_NOT_EDITABLE');
-  await WhatsAppCampaignModel.deleteOne({ _id: c._id, status: 'draft' });
+  const deleted = await WhatsAppCampaignModel.deleteOne({
+    _id: c._id,
+    accountId: c.accountId,
+    status: 'draft',
+  });
+  if (!deleted.deletedCount) throw new AppError('WA_CAMPAIGN_NOT_EDITABLE');
   await WhatsAppCampaignRecipientModel.deleteMany({ campaignId: c._id });
+  if (c.headerMedia && storage)
+    await releaseCampaignMedia(c.accountId, c.headerMedia.storageKey, storage);
 };
 
 /** Cost before sending: recipients by market × price of each variant's category; wallet check. */
@@ -528,28 +563,38 @@ export const stopCampaign = async (req: Request, id: string) => {
     { _id: rootId, accountId: updated.accountId },
     { $set: { recurrenceEnabled: false } },
   );
+  const children = await WhatsAppCampaignModel.find({
+    accountId: updated.accountId,
+    parentCampaignId: rootId,
+    status: { $in: ['scheduled', 'running', 'waiting_for_limit', 'paused'] },
+  })
+    .select({ _id: 1 })
+    .lean<{ _id: Types.ObjectId }[]>();
   await WhatsAppCampaignModel.updateMany(
     {
+      accountId: updated.accountId,
       parentCampaignId: rootId,
       status: { $in: ['scheduled', 'running', 'waiting_for_limit', 'paused'] },
     },
     { $set: { status: 'stopped', recurrenceEnabled: false, finishedAt: new Date() } },
   );
-  const rest = await WhatsAppCampaignRecipientModel.updateMany(
-    { campaignId: updated._id, status: { $in: ['pending', 'sending'] } },
-    { $set: { status: 'skipped', skipReason: 'stopped', claimedAt: null } },
-  );
-  if (rest.modifiedCount) {
-    await WhatsAppCampaignModel.updateOne(
-      { _id: updated._id },
-      {
-        $inc: {
-          'counters.skippedTotal': rest.modifiedCount,
-          'counters.skipped.stopped': rest.modifiedCount,
-        },
-        $set: { 'counters.queued': 0 },
-      },
+  for (const campaignId of [updated._id, ...children.map((c) => c._id)]) {
+    const rest = await WhatsAppCampaignRecipientModel.updateMany(
+      { accountId: updated.accountId, campaignId, status: { $in: ['pending', 'sending'] } },
+      { $set: { status: 'skipped', skipReason: 'stopped', claimedAt: null } },
     );
+    if (rest.modifiedCount) {
+      await WhatsAppCampaignModel.updateOne(
+        { _id: campaignId, accountId: updated.accountId },
+        {
+          $inc: {
+            'counters.skippedTotal': rest.modifiedCount,
+            'counters.skipped.stopped': rest.modifiedCount,
+          },
+          $set: { 'counters.queued': 0 },
+        },
+      );
+    }
   }
   return view(
     (await WhatsAppCampaignModel.findById(updated._id).lean<WhatsAppCampaignDoc>()) ?? updated,
@@ -643,7 +688,10 @@ export const exportRecipients = async (req: Request, id: string): Promise<string
   const c = await load(req, id);
   const full = requireAuth(req).permissions.has('contacts.export');
   const lines = ['Contact,Phone,Variant,Status,Skip reason,Error code,Sent at,Replied at'];
-  const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const esc = (value: string) => {
+    const v = safeCell(value);
+    return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  };
   let lastId: Types.ObjectId | null = null;
   for (;;) {
     const rows: WhatsAppCampaignRecipientDoc[] = await WhatsAppCampaignRecipientModel.find({
@@ -719,7 +767,6 @@ export const campaignReport = async (req: Request, id: string) => {
       messageId: { $ne: null },
     }),
   ]);
-  let charged = 0;
   const messages = await MessageModel.find({
     accountId: c.accountId,
     $or: [{ externalRef: `wac:${c._id.toString()}` }, { _id: { $in: messageIds } }],
@@ -730,21 +777,7 @@ export const campaignReport = async (req: Request, id: string) => {
   const ids = [
     ...new Set(messages.flatMap((m) => [m._id.toString(), ...(m.clientId ? [m.clientId] : [])])),
   ];
-  for (let i = 0; i < ids.length; i += 5_000) {
-    const rows = await LedgerEntryModel.aggregate<{ micros: number }>([
-      {
-        $match: {
-          accountId: c.accountId,
-          type: 'whatsapp_charge',
-          status: 'captured',
-          'ref.type': 'whatsapp_message',
-          'ref.id': { $in: ids.slice(i, i + 5_000) },
-        },
-      },
-      { $group: { _id: null, micros: { $sum: '$amountMicros' } } },
-    ]);
-    charged += rows[0]?.micros ?? 0;
-  }
+  const charged = await capturedWhatsAppMessageCost(c.accountId, ids);
   if (charged !== c.cost.chargedMicros) {
     await WhatsAppCampaignModel.updateOne(
       { _id: c._id },

@@ -257,6 +257,7 @@ describe('/whatsapp/templates — roles and views', () => {
     const up = await request(a)
       .post(`${base}/${media.body.data.id as string}/media`)
       .set(bearer(users.owner.token))
+      .field('channelId', t.state.channel._id.toString())
       .attach('file', mediaFixture('sample.png'), {
         filename: 'offer.png',
         contentType: 'image/png',

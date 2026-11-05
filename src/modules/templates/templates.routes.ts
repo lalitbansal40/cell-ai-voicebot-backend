@@ -71,7 +71,7 @@ const accountOf = (req: Request) => new Types.ObjectId(requireAuth(req).accountI
 const MAX_EXAMPLE = Math.max(...Object.values(TEMPLATE_LIMITS.headerExampleMaxBytes));
 const upload = multer({
   storage: memoryStorage(),
-  limits: { fileSize: MAX_EXAMPLE, files: 1, fields: 0, parts: 1 },
+  limits: { fileSize: MAX_EXAMPLE, files: 1, fields: 1, parts: 2 },
 }).single('file');
 const uploadExample: RequestHandler = (req, res, next) => {
   upload(req, res, (err: unknown) => {

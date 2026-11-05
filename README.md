@@ -583,3 +583,10 @@ The `DEMO_*` inputs are CLI-only and live in a temporary protected file, not the
 ## WhatsApp campaign throughput (Phase 19 continuation)
 
 All outbound messaging shares a Redis pacer per account and sending WhatsApp number. Business App/coexistence numbers are capped at 18 messages/sec; confirmed regular Cloud API numbers at 75. Unknown classification uses 18. These are application caps; lower provider limits and rolling daily tiers still apply. `WA_CAMPAIGN_MPS` is optional (integer 1–1000) and can only lower the derived cap. `WA_CAMPAIGN_MAX_RECIPIENTS` defaults to 100000 (range 1–100000). Inbox jobs have priority over bulk campaign/permission jobs; retries consume the same sender budget. Redis failure defers sends.
+
+### Campaign environment
+
+| Variable                     | Default and behavior                                                             |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `WA_CAMPAIGN_MPS`            | Unset: derive 18/75 per sender; an optional positive integer only lowers the cap |
+| `WA_CAMPAIGN_MAX_RECIPIENTS` | 100000, audience safety cap (1–100000)                                           |

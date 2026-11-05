@@ -78,20 +78,30 @@ the soak. The single 500 fell in the MongoDB stall.
 
 ## Phase 19 continuation sender benchmark — 5 Nov 2026
 
-`npm run perf:wa-campaign`, fake Meta, isolated cav_perf/Redis DB 9; two 500-recipient
-campaigns per sender, two independent senders running together. Real wall-clock run
-(`/tmp/cav-p19r-perf7.log`) passed after a paused/quiesced hard process restart.
+`npm run build && npm run perf:wa-campaign`, fake Meta, isolated cav_perf/Redis DB 9;
+two 500-recipient campaigns per sender, two independent senders running together.
+Latest run `/tmp/cav-p19r-perf-final3.log` passed after a paused/quiesced hard restart.
 
 | Sender classification             | Recipients | Peak attempts in rolling 1000ms | First-to-last attempt | Captured charges | Duplicate client/provider IDs |
 | --------------------------------- | ---------: | ------------------------------: | --------------------: | ---------------: | ----------------------------: |
-| Business App/coexistence (cap 18) |       1000 |                              18 |              69.070 s |             1000 |                             0 |
-| Confirmed Cloud API (cap 75)      |       1000 |                              57 |              59.940 s |             1000 |                             0 |
+| Business App/coexistence (cap 18) |       1000 |                              17 |              68.664 s |             1000 |                             0 |
+| Confirmed Cloud API (cap 75)      |       1000 |                              48 |              50.215 s |             1000 |                             0 |
 
-Overall wall-clock 72.107 s including setup/start/restart observation. This measures
-fake-provider completion on this laptop, not guaranteed Meta throughput. The application
-cap is an upper bound; database work, shared queue capacity and callbacks reduced the
-75/sec sender's observed peak. Redis controlled-clock tests independently cover 1000
-attempts/classification, multiple workers, downgrade, retries and fail-closed behavior.
-Daily tier and wallet boundaries are tested in campaign integration tests. Restart
-was a hard kill after all campaigns paused and provider callbacks quiesced; an arbitrary
-network acknowledgement-loss window is not represented by this paused restart check.
+Overall wall-clock 71.705 s including setup/start/restart observation. Both senders have
+1000 messages, recipient rows and counted sends; counters and captured charges agree.
+This measures fake-provider behavior on this laptop, not guaranteed Meta throughput.
+The cap is an upper bound; database/queue work reduces observed throughput. Redis
+controlled-clock tests independently cover 1000 attempts/classification, shared workers,
+retries, downgrade, lower ceilings and fail-closed behavior. Tier/wallet boundaries have
+separate campaign integration tests. The hard kill follows pause and callback quiescence;
+an arbitrary provider acknowledgement-loss window is not represented by that benchmark.
+
+Earlier `/tmp/cav-p19r-perf7.log` passed using the fake provider's accepted-record timestamp.
+A post-fix run found 19 records in a rolling second on the 18 sender. Investigation found
+DB guards after slot acquisition and log timestamps after asynchronous fake storage.
+Guards now execute before pacing, including after a short wait; provider invocation follows
+slot acquisition immediately. Fake logs retain acceptance `at` and add method-entry
+`attemptedAt`. The benchmark requires that entry timestamp and keeps the same 1000ms
+window, caps, uniqueness and charge assertions. Missing timestamps fail the benchmark.
+One worktree attempt also failed before startup because its build was absent; building
+resolved that setup issue. None of the failed attempts is claimed as passing evidence.

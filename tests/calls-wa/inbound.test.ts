@@ -14,6 +14,7 @@ import { AccountModel } from '../../src/db/models/account.model';
 import { CallModel, type CallDoc } from '../../src/db/models/call.model';
 import { ContactModel } from '../../src/db/models/contact.model';
 import { ConversationModel } from '../../src/db/models/conversation.model';
+import { FlowRunModel } from '../../src/db/models/flow-run.model';
 import { LedgerEntryModel } from '../../src/db/models/ledger-entry.model';
 import { MessageModel } from '../../src/db/models/message.model';
 import { NotificationModel } from '../../src/db/models/notification.model';
@@ -36,6 +37,7 @@ import { createAgentDoc } from '../helpers/flows';
 import { useInboxWorld } from '../helpers/inbox';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
 import { expectNoUdpHandles } from '../helpers/udp';
+import { publishedWhatsAppFlow, realWhatsAppFlowScript } from '../helpers/whatsapp-program';
 
 useTestDb();
 useCapturedEmail();
@@ -110,7 +112,10 @@ beforeAll(async () => {
       tts,
       storage: world.storage,
       recordingDir,
-      scriptFor: () => Promise.resolve({ script: program(), voice: 'coral', language: 'hinglish' }),
+      scriptFor: (call) =>
+        call.source.kind === 'flow'
+          ? realWhatsAppFlowScript(call, world.storage)
+          : Promise.resolve({ script: program(), voice: 'coral', language: 'hinglish' }),
       onlineUsers: () => Promise.resolve(online),
       peer: { bindAddress: '127.0.0.1' },
       tickets: {
@@ -279,6 +284,32 @@ describe('user-initiated WhatsApp calls', () => {
     expect(
       (await WalletModel.findOne({ accountId: state.acc.account._id }).lean())?.holdMicros,
     ).toBe(0);
+  });
+
+  it('executes the selected published incoming flow and persists its real flow outcome', async () => {
+    const flowId = await publishedWhatsAppFlow(state.acc.account._id);
+    await WhatsAppChannelModel.updateOne(
+      { _id: state.channel._id },
+      {
+        $set: {
+          'calling.inbound.route': 'ai',
+          'calling.inbound.aiProgram': { kind: 'flow', id: flowId },
+        },
+      },
+    );
+    const call = await incoming();
+    const done = await ended(call.id);
+    expect(done.source.flowId?.toString()).toBe(flowId);
+    expect(done).toMatchObject({
+      mode: 'ai',
+      status: 'completed',
+      disposition: 'paid',
+      endReason: 'hangup_node',
+    });
+    expect(
+      await FlowRunModel.exists({ callId: call.id, flowId, status: 'ended', mode: 'call' }),
+    ).toBeTruthy();
+    expect(done.billing.whatsapp?.status).toBe('free');
   });
 
   it('answers AI calls and transfers an AI call to a browser agent on the same recording/session', async () => {

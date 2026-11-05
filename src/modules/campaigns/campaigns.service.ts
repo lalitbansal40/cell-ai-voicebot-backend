@@ -1117,8 +1117,13 @@ export const beginRun = async (
  * gone, flow / version not loadable) — empty when it can.
  */
 export const pinnedProblems = async (campaign: CampaignDoc): Promise<ErrorDetail[]> => {
-  if (campaign.line === 'whatsapp' && campaign.program?.kind === 'agent')
-    return programProblems(campaign.accountId, campaign.program);
+  if (campaign.line === 'whatsapp') {
+    const problems = await programProblems(
+      campaign.accountId,
+      campaign.program ?? (campaign.flowId ? { kind: 'flow', id: campaign.flowId } : null),
+    );
+    if (problems.length || campaign.program?.kind === 'agent') return problems;
+  }
   try {
     const pinned = await loadFlowVersion(
       campaign.accountId,

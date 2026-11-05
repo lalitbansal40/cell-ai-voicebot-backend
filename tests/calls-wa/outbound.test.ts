@@ -20,6 +20,7 @@ import { AccountModel } from '../../src/db/models/account.model';
 import { AuditLogModel } from '../../src/db/models/audit-log.model';
 import { CallModel, type CallDoc } from '../../src/db/models/call.model';
 import { ContactModel } from '../../src/db/models/contact.model';
+import { FlowRunModel } from '../../src/db/models/flow-run.model';
 import { LedgerEntryModel } from '../../src/db/models/ledger-entry.model';
 import { MessageModel } from '../../src/db/models/message.model';
 import { WalletModel } from '../../src/db/models/wallet.model';
@@ -41,6 +42,7 @@ import { createAgentDoc } from '../helpers/flows';
 import { useInboxWorld } from '../helpers/inbox';
 import { flushPrefix, requireRedis, uniquePrefix } from '../helpers/redis';
 import { expectNoUdpHandles } from '../helpers/udp';
+import { publishedWhatsAppFlow, realWhatsAppFlowScript } from '../helpers/whatsapp-program';
 
 useTestDb();
 useCapturedEmail();
@@ -209,7 +211,9 @@ beforeAll(async () => {
       storage: world.storage,
       recordingDir,
       scriptFor: (call) =>
-        Promise.resolve({ script: script(call), voice: 'coral', language: 'hinglish' }),
+        call.source.kind === 'flow'
+          ? realWhatsAppFlowScript(call, world.storage)
+          : Promise.resolve({ script: script(call), voice: 'coral', language: 'hinglish' }),
       peer: { bindAddress: '127.0.0.1' },
       tickets: {
         issue: () => Promise.resolve({ ticket: 'wst_test', expiresAt: new Date().toISOString() }),
@@ -309,6 +313,41 @@ describe('business-initiated WhatsApp calls', () => {
     );
   const ledger = (callId: string) =>
     LedgerEntryModel.find({ 'ref.id': callId }).sort({ createdAt: 1 }).lean();
+
+  it('keeps one campaign attempt across a replay and notifies its outcome once after cancellation settles', async () => {
+    const contact = await contactFor(customer(FAKE_CALL_KNOBS.neverAnswers));
+    const agent = await createAgentDoc(state.acc.account._id, 'Campaign caller');
+    const campaignId = new Types.ObjectId().toString();
+    const campaignContactId = new Types.ObjectId().toString();
+    const notified = vi.fn(() => Promise.resolve());
+    const unsubscribe = calls().onCallEnded(notified);
+    const stopBrokenListener = calls().onCallEnded(() =>
+      Promise.reject(new Error('campaign listener unavailable')),
+    );
+    const input = {
+      channelId: state.channel._id.toString(),
+      contactId: contact._id.toString(),
+      mode: 'ai' as const,
+      program: { kind: 'agent' as const, id: agent.toString() },
+      campaign: { campaignId, campaignContactId, attempt: 1 },
+    };
+    try {
+      const first = await calls().startOutbound(actor, input);
+      const replay = await calls().startOutbound(actor, input);
+      expect(replay.callId).toBe(first.callId);
+      expect(await CallModel.countDocuments({ campaignContactId })).toBe(1);
+      expect(await calls().hangupCampaign(new Types.ObjectId().toString())).toBe(0);
+      expect(await calls().hangupCampaign(campaignId)).toBe(1);
+      await ended(first.callId);
+      await vi.waitFor(() => expect(notified).toHaveBeenCalledOnce());
+      expect((await callOf(first.callId))?.billing.whatsapp?.status).toBe('released');
+      expect(await calls().hangupCampaign(campaignId)).toBe(0);
+      expect(notified).toHaveBeenCalledOnce();
+    } finally {
+      unsubscribe();
+      stopBrokenListener();
+    }
+  });
 
   it('agent call: audio both ways through the bridge, hang up from another server, Meta duration billed in pulses', async () => {
     const contact = await contactFor(customer('00041'));
@@ -425,6 +464,26 @@ describe('business-initiated WhatsApp calls', () => {
     // a connected call resets the streak
     const perm = await WhatsAppCallPermissionModel.findOne({ contactId: contact._id }).lean();
     expect(perm?.unansweredStreak).toBe(0);
+  });
+
+  it('executes the selected published outgoing flow and settles the same WhatsApp call', async () => {
+    const flowId = await publishedWhatsAppFlow(state.acc.account._id);
+    const contact = await contactFor(customer('00041'));
+    const res = await start(contact._id, 'ai', { kind: 'flow', id: flowId });
+    const done = await ended(res.callId);
+    expect(done.source.flowId?.toString()).toBe(flowId);
+    expect(done).toMatchObject({
+      mode: 'ai',
+      status: 'completed',
+      disposition: 'paid',
+      endReason: 'hangup_node',
+    });
+    expect(
+      await FlowRunModel.exists({ callId: res.callId, flowId, status: 'ended', mode: 'call' }),
+    ).toBeTruthy();
+    await vi.waitFor(async () =>
+      expect((await callOf(res.callId))?.billing.whatsapp?.status).toBe('settled'),
+    );
   });
 
   it('AI call: the customer presses 1 (knob 00028) → Paid; the call + AI holds are both settled', async () => {

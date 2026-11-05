@@ -101,7 +101,11 @@ const main = async () => {
         const rows = await run.redis.lrange(`fake-meta-sent-${group.world.phoneNumberId}`, 0, -1);
         for (const raw of rows) {
           const attempt = JSON.parse(raw) as FakeSentMessage;
-          group.attempts.set(attempt.waMessageId, Date.parse(attempt.at));
+          assert.ok(
+            Number.isFinite(Date.parse(attempt.attemptedAt)),
+            'provider entry timestamp missing',
+          );
+          group.attempts.set(attempt.waMessageId, Date.parse(attempt.attemptedAt));
         }
       }
     };

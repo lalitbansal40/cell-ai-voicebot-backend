@@ -11,6 +11,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Phase 19 — resellers and campaign channels** — 2026-11-05
+  - Open business/reseller signup, reseller customer accounts and atomic credit transfers, audited view/act sessions with sensitive actions blocked.
+  - SIP / Normal, bulk WhatsApp templates and WhatsApp call campaigns; published flows or active agents, per-number consent, ask-first permission runs and unanswered limits.
+  - Shared Redis sender pacing: Business App/coexistence/unknown 18/sec; confirmed regular Cloud API 75/sec; lower limits, tiers and wallet guards remain.
+  - Recurrence, durable header media/location, mixed-market/category estimates, transactional counters, retry-safe reports and formula-safe CSV exports.
+  - Same-WABA template approval/media scoping and sender/contact selling-price quotes. Additive migrations 0023/0024; see Phase 19 sign-off for local evidence and live checks.
+
 - **Phase 18B — WhatsApp calling go-live** — 2026-11-04
   - Calling on / off is read back from WhatsApp; a change it didn't apply answers `CALLING_SETTINGS_NOT_APPLIED`.
   - `GET /whatsapp/channels/:id/calling/readiness`: 10 checks (Cloud API, messaging limit, verification, `calls` webhook, app permission, Meta status, restrictions, last call event, call audio, prices); blocking items stop the switch.

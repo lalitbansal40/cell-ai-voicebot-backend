@@ -8,6 +8,7 @@ import {
   type WhatsAppCampaignRecipientDoc,
 } from '../../db/models/whatsapp-campaign-recipient.model';
 import { WhatsAppCampaignModel } from '../../db/models/whatsapp-campaign.model';
+import { withTransaction } from '../../db/transaction';
 import { getLogger } from '../../shared/logger';
 
 import { maybeComplete } from './lifecycle';
@@ -65,46 +66,65 @@ export const trackCampaignMessage = async (message: {
   try {
     const next = fromMessage(message.status);
     if (!next) return;
-    const r = await WhatsAppCampaignRecipientModel.findOne({ messageId: message._id })
-      .select({ status: 1, campaignId: 1, sentCounted: 1 })
-      .lean<Pick<WhatsAppCampaignRecipientDoc, '_id' | 'status' | 'campaignId' | 'sentCounted'>>();
-    if (!r || r.status === 'skipped') return;
-    if (
-      RANK[next] <= RANK[r.status] &&
-      !(next === 'failed' && ['sending', 'sent'].includes(r.status))
-    )
-      return;
-    const code = message.error?.code ?? null;
-    const moved = await WhatsAppCampaignRecipientModel.updateOne(
-      { _id: r._id, status: r.status },
-      {
-        $set: {
-          status: next,
-          ...(next === 'failed'
-            ? { errorCode: code }
-            : { sentCounted: true, ...(!r.sentCounted ? { sentAt: new Date() } : {}) }),
+    const campaignId = await withTransaction(async (session) => {
+      const r = await WhatsAppCampaignRecipientModel.findOne({ messageId: message._id })
+        .select({ status: 1, campaignId: 1, sentCounted: 1, errorCode: 1 })
+        .session(session)
+        .lean<
+          Pick<
+            WhatsAppCampaignRecipientDoc,
+            '_id' | 'status' | 'campaignId' | 'sentCounted' | 'errorCode'
+          >
+        >();
+      if (!r || r.status === 'skipped') return null;
+      if (
+        RANK[next] <= RANK[r.status] &&
+        !(next === 'failed' && ['sending', 'sent'].includes(r.status))
+      )
+        return null;
+      const code = message.error?.code ?? null;
+      const moved = await WhatsAppCampaignRecipientModel.updateOne(
+        { _id: r._id, status: r.status },
+        {
+          $set: {
+            status: next,
+            ...(next === 'failed'
+              ? { errorCode: code }
+              : {
+                  sentCounted: true,
+                  errorCode: null,
+                  ...(!r.sentCounted ? { sentAt: new Date() } : {}),
+                }),
+          },
         },
-      },
-    );
-    if (!moved.modifiedCount) return;
-    // a status can jump (sent → read): count every step it passed
-    const inc: Record<string, number> = {};
-    const steps: WaRecipientStatus[] = ['sent', 'delivered', 'read'];
-    if (next === 'failed') {
-      inc['counters.failedTotal'] = 1;
-      inc[`counters.failed.${String(code ?? 'unknown')}`] = 1;
-      if (r.status === 'sending') inc['counters.queued'] = -1;
-    } else {
-      for (const s of steps) {
-        if (RANK[s] > RANK[r.status] && RANK[s] <= RANK[next] && (s !== 'sent' || !r.sentCounted))
-          inc[`counters.${s}`] = 1;
+        { session },
+      );
+      if (!moved.modifiedCount) return null;
+      // a status can jump (sent → read): count every step it passed
+      const inc: Record<string, number> = {};
+      const steps: WaRecipientStatus[] = ['sent', 'delivered', 'read'];
+      if (next === 'failed') {
+        inc['counters.failedTotal'] = 1;
+        inc[`counters.failed.${String(code ?? 'unknown')}`] = 1;
+        if (r.status === 'sending') inc['counters.queued'] = -1;
+      } else {
+        if (r.status === 'failed') {
+          inc['counters.failedTotal'] = -1;
+          inc[`counters.failed.${String(r.errorCode ?? 'unknown')}`] = -1;
+        }
+        for (const s of steps) {
+          if ((s === 'sent' ? !r.sentCounted : RANK[s] > RANK[r.status]) && RANK[s] <= RANK[next])
+            inc[`counters.${s}`] = 1;
+        }
+        if (r.status === 'sending') inc['counters.queued'] = -1;
       }
-      if (r.status === 'sending') inc['counters.queued'] = -1;
-    }
-    await WhatsAppCampaignModel.updateOne({ _id: r.campaignId }, { $inc: inc });
-    const campaign = await WhatsAppCampaignModel.findById(r.campaignId).lean();
+      await WhatsAppCampaignModel.updateOne({ _id: r.campaignId }, { $inc: inc }, { session });
+      return r.campaignId;
+    });
+    if (!campaignId) return;
+    const campaign = await WhatsAppCampaignModel.findById(campaignId).lean();
     if (campaign) await maybeComplete(campaign, new Date());
-    await emitProgress(r.campaignId);
+    await emitProgress(campaignId);
   } catch (err) {
     getLogger().error({ err }, 'whatsapp campaign: status tracking failed');
   }
@@ -117,23 +137,28 @@ export const trackCampaignReply = async (input: {
   at: Date;
 }): Promise<void> => {
   try {
-    const r = await WhatsAppCampaignRecipientModel.findOneAndUpdate(
-      {
-        accountId: input.accountId,
-        contactId: input.contactId,
-        repliedAt: null,
-        sentAt: { $gte: new Date(input.at.getTime() - 72 * 3_600_000), $lte: input.at },
-        status: { $in: ['sent', 'delivered', 'read'] },
-      },
-      { $set: { repliedAt: input.at } },
-      { sort: { sentAt: -1 }, projection: { campaignId: 1 } },
-    ).lean<{ campaignId: Types.ObjectId }>();
-    if (!r) return;
-    await WhatsAppCampaignModel.updateOne(
-      { _id: r.campaignId },
-      { $inc: { 'counters.replied': 1 } },
-    );
-    await emitProgress(r.campaignId);
+    const campaignId = await withTransaction(async (session) => {
+      const r = await WhatsAppCampaignRecipientModel.findOneAndUpdate(
+        {
+          accountId: input.accountId,
+          contactId: input.contactId,
+          repliedAt: null,
+          sentAt: { $gte: new Date(input.at.getTime() - 72 * 3_600_000), $lte: input.at },
+          status: { $in: ['sent', 'delivered', 'read'] },
+        },
+        { $set: { repliedAt: input.at } },
+        { sort: { sentAt: -1 }, projection: { campaignId: 1 }, session },
+      ).lean<{ campaignId: Types.ObjectId }>();
+      if (!r) return null;
+      await WhatsAppCampaignModel.updateOne(
+        { _id: r.campaignId },
+        { $inc: { 'counters.replied': 1 } },
+        { session },
+      );
+      return r.campaignId;
+    });
+    if (!campaignId) return;
+    await emitProgress(campaignId);
   } catch (err) {
     getLogger().error({ err }, 'whatsapp campaign: reply tracking failed');
   }

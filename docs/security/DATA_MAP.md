@@ -99,3 +99,5 @@ still deletes campaign recipient links. Account purge now deletes campaign and t
 header media as well as message/upload copies. No Meta tokens or SIP secrets are public.
 `messageClassificationKnown` records whether Meta explicitly reported number mode; legacy
 unknowns are conservatively paced. No new PII-bearing event or catalogue entry was added.
+
+Campaign variable eligibility and sending use the central send-purpose sensitive-field reader. Encrypted values are not copied into audience snapshots or estimates. Call quotes expose account selling prices for an owned sender/contact, with no provider cost/margin fields. Durable media is released only when no campaign references its account-owned key.

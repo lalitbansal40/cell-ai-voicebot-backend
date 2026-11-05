@@ -1,6 +1,7 @@
 # Phase 19 continuation — finish pending work + three campaign types + number-aware calling
 
-**Owner requirements updated:** 5 Nov 2026 (Asia/Kolkata). **Status: ready to run; implementation pending.**
+**Owner requirements updated:** 5 Nov 2026 (Asia/Kolkata). **Status: locally implemented and verified; live-provider/release checks remain open.**
+See [PHASE_19_SIGNOFF.md](../phases/PHASE_19_SIGNOFF.md) for results and limits.
 
 ## Paste this to start
 

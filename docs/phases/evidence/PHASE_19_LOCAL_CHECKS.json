@@ -1,0 +1,513 @@
+{
+  "status": "local verification; no production release",
+  "date": "2026-11-05",
+  "frozenCommits": {
+    "backend": "fc8db33",
+    "frontend": "c6021b3"
+  },
+  "baselines": {
+    "backend": "f043528",
+    "frontend": "96f3eff"
+  },
+  "fullRuns": {
+    "backend": {
+      "filesPassed": 375,
+      "filesFailed": 6,
+      "testsPassed": 3963,
+      "testsFailed": 7,
+      "testsSkipped": 1
+    },
+    "frontend": {
+      "filesPassed": 146,
+      "filesFailed": 2,
+      "testsPassed": 1537,
+      "testsFailed": 3
+    }
+  },
+  "coverage": {
+    "backend": {
+      "combinedMetrics": {
+        "Statements": {
+          "covered": 33696,
+          "total": 35368,
+          "percent": 95.27256276860439
+        },
+        "Branches": {
+          "covered": 19758,
+          "total": 22928,
+          "percent": 86.17411025819958
+        },
+        "Functions": {
+          "covered": 6421,
+          "total": 6757,
+          "percent": 95.02737901435549
+        },
+        "Lines": {
+          "covered": 30274,
+          "total": 31245,
+          "percent": 96.89230276844295
+        }
+      },
+      "newExecutableLines": {
+        "covered": 525,
+        "total": 549,
+        "percent": 95.62841530054645
+      },
+      "method": "Conservative combined checkpoint, not a second full-suite run. Each candidate source must match current source after Prettier normalization; changed source excludes stale reports. For each file/metric, numerator is the largest measured hit count and denominator the largest measured total across valid reports. Thresholds/exclusions/timeouts unchanged.",
+      "unchangedFunctionEvidence": [
+        {
+          "file": "src/core/meta/fake.client.ts",
+          "measured": 94,
+          "inherited": 29,
+          "covered": 123,
+          "total": 125,
+          "method": "Reuse an original covered function only when the same function identifier has exactly one TypeScript function node at its old/current LCOV start line (including leading trivia) and its full token sequence is unchanged. All other functions use current focused execution only.",
+          "proof": [
+            {
+              "name": "(anonymous_32)",
+              "oldLine": 622,
+              "currentLine": 626,
+              "tokenSha256": "bf71f100fbe5a55dc01f7b59dad2b2750ac44d97cad876f2045b9877a08d623c"
+            },
+            {
+              "name": "(anonymous_33)",
+              "oldLine": 627,
+              "currentLine": 631,
+              "tokenSha256": "dea3fbe34167195490caca98847413ddbb3bac544a427c1d30885834a12d0cc5"
+            },
+            {
+              "name": "(anonymous_34)",
+              "oldLine": 638,
+              "currentLine": 642,
+              "tokenSha256": "a5f9ce324083fae6a04c64f14d610bb7fb812c70d3f1825206f669788fddd461"
+            },
+            {
+              "name": "(anonymous_35)",
+              "oldLine": 644,
+              "currentLine": 648,
+              "tokenSha256": "cf368944885ecb08d8851cfff2a3bccafacbd80d6f7de6bd1261aef180594496"
+            },
+            {
+              "name": "(anonymous_36)",
+              "oldLine": 645,
+              "currentLine": 649,
+              "tokenSha256": "28ac4a2592cf7f2eb3909768a370973d009fc08f56feef499e05595c52a90fc0"
+            },
+            {
+              "name": "(anonymous_38)",
+              "oldLine": 654,
+              "currentLine": 658,
+              "tokenSha256": "68dbd348f720730d0b8e68bc69bcfeb337a561c9391ae89ca7a212aeac248d76"
+            },
+            {
+              "name": "(anonymous_40)",
+              "oldLine": 678,
+              "currentLine": 682,
+              "tokenSha256": "22e3c8c17ac776d759204b9ab45227832ad55002b28e1744fb156c2ca6dedf86"
+            },
+            {
+              "name": "(anonymous_41)",
+              "oldLine": 704,
+              "currentLine": 708,
+              "tokenSha256": "4a22cc4050a93c821c9078b501c3622308ee7d479f261df7427a971155c2dfc2"
+            },
+            {
+              "name": "(anonymous_44)",
+              "oldLine": 749,
+              "currentLine": 753,
+              "tokenSha256": "0461aa96fc03119a0ecad118f09b7f067771467a83c221adcad47243a953c888"
+            },
+            {
+              "name": "(anonymous_52)",
+              "oldLine": 839,
+              "currentLine": 843,
+              "tokenSha256": "95e786e7e61af70ab105d1e6ab768d49a27f05bfd0f5f0a7e4d8c61b613ea571"
+            },
+            {
+              "name": "(anonymous_55)",
+              "oldLine": 849,
+              "currentLine": 853,
+              "tokenSha256": "29d69066fb1cfe709bd8c5882f42a9b666751091982fccff135d7de3d80692b4"
+            },
+            {
+              "name": "(anonymous_56)",
+              "oldLine": 850,
+              "currentLine": 854,
+              "tokenSha256": "6d6c17ebb3a21ade51449e8048ee3d0c664106b8031d4252b1e44e2a0d5c7d74"
+            },
+            {
+              "name": "(anonymous_58)",
+              "oldLine": 854,
+              "currentLine": 858,
+              "tokenSha256": "51bead7b16b91c359c470c61b79276023d13ed9bccf7c5ccdc41ca70bb41dfbb"
+            },
+            {
+              "name": "(anonymous_59)",
+              "oldLine": 856,
+              "currentLine": 860,
+              "tokenSha256": "79207c64ddc4a8dd552c60d135ccaf9d32c0178cfe8df538631831e76f18c3d5"
+            },
+            {
+              "name": "getAppSubscriptions",
+              "oldLine": 902,
+              "currentLine": 906,
+              "tokenSha256": "c7b5d4d95d91178899e96b515d5435277ab0a5c8e8d82a4226c4e946618c11ee"
+            },
+            {
+              "name": "setAppSubscriptionFields",
+              "oldLine": 909,
+              "currentLine": 913,
+              "tokenSha256": "29ad53eb7d10a846e50edee9931215bf6150fea7df9903ee7f13b7f660ff66fb"
+            },
+            {
+              "name": "listTemplates",
+              "oldLine": 1311,
+              "currentLine": 1316,
+              "tokenSha256": "66206d2860629671dd531e29ad9b951ff7e7f4220cee754fffb57cc6081ee164"
+            },
+            {
+              "name": "(anonymous_94)",
+              "oldLine": 1319,
+              "currentLine": 1324,
+              "tokenSha256": "8e5ad19ba781997faca95b4b8a04061800e774d188a90ec43ebaf1fe294cc903"
+            },
+            {
+              "name": "(anonymous_95)",
+              "oldLine": 1322,
+              "currentLine": 1327,
+              "tokenSha256": "e3a2ff601be3fde194c2481495a1820a01f502b8ee716ca51abcd5eff9106b50"
+            },
+            {
+              "name": "editTemplate",
+              "oldLine": 1360,
+              "currentLine": 1365,
+              "tokenSha256": "7316350af07f5b0bc5e96efe1acd87c3a10f592703a9870b234190a21f01a614"
+            },
+            {
+              "name": "deleteTemplate",
+              "oldLine": 1380,
+              "currentLine": 1385,
+              "tokenSha256": "5caae68511d72ad82c397ed6376112589c46a54e81c6015242bf0135fc7c2a60"
+            },
+            {
+              "name": "(anonymous_100)",
+              "oldLine": 1383,
+              "currentLine": 1388,
+              "tokenSha256": "92d09e2da80a16b67eaf23c11ca3a76c3c0e84f85c112539053ff1f02d7d0066"
+            },
+            {
+              "name": "(anonymous_101)",
+              "oldLine": 1387,
+              "currentLine": 1392,
+              "tokenSha256": "53409e7ca4ee3d78df01d31f1955786aae6b3762127e984e1016425ca872f815"
+            },
+            {
+              "name": "uploadExample",
+              "oldLine": 1390,
+              "currentLine": 1395,
+              "tokenSha256": "a926f893a68e4a81a3dfa5b267289c6fca80453c46405bc3d8db90ff7a64be5c"
+            },
+            {
+              "name": "getPricingAnalytics",
+              "oldLine": 1400,
+              "currentLine": 1405,
+              "tokenSha256": "b3e7b005b58ebcc25cf63ff260bedaf152089091603bc5d3e15aef7e07abb066"
+            },
+            {
+              "name": "(anonymous_104)",
+              "oldLine": 1404,
+              "currentLine": 1409,
+              "tokenSha256": "f99868edda9502a322c5c2a515a7e9daf8b8fcbb5a501ae79307ddc06fca7b83"
+            },
+            {
+              "name": "(anonymous_105)",
+              "oldLine": 1418,
+              "currentLine": 1423,
+              "tokenSha256": "5615b953f29d5e6ad3adec36cb4e3e594849defe25f49b292bda21c286b0ce45"
+            },
+            {
+              "name": "templates",
+              "oldLine": 1503,
+              "currentLine": 1508,
+              "tokenSha256": "ffeadd557adee5f73a82a85f84ceaafa892dd8fdccd06fabbbff9b5313b381a0"
+            },
+            {
+              "name": "patchTemplate",
+              "oldLine": 1507,
+              "currentLine": 1512,
+              "tokenSha256": "4d9297dea9d32fca9f76229aa71dfdee4cc6907677a5a2a1b284a60d3c45f6ed"
+            }
+          ]
+        },
+        {
+          "file": "src/modules/inbox/send.job.ts",
+          "measured": 14,
+          "inherited": 1,
+          "covered": 15,
+          "total": 16,
+          "method": "Reuse an original covered function only when the same function identifier has exactly one TypeScript function node at its old/current LCOV start line (including leading trivia) and its full token sequence is unchanged. All other functions use current focused execution only.",
+          "proof": [
+            {
+              "name": "(anonymous_11)",
+              "oldLine": 265,
+              "currentLine": 265,
+              "tokenSha256": "88b06bb54d5994f55062d50572703f0e236ff978fbf11ef5260e65667e7c08f6"
+            }
+          ]
+        }
+      ]
+    },
+    "frontend": {
+      "combinedMetrics": {
+        "Statements": {
+          "covered": 15083,
+          "total": 15864,
+          "percent": 95.07690368129097
+        },
+        "Branches": {
+          "covered": 13317,
+          "total": 14656,
+          "percent": 90.86381004366812
+        },
+        "Functions": {
+          "covered": 5875,
+          "total": 6395,
+          "percent": 91.86864738076622
+        },
+        "Lines": {
+          "covered": 13580,
+          "total": 14174,
+          "percent": 95.80922816424439
+        }
+      },
+      "newExecutableLines": {
+        "covered": 624,
+        "total": 644,
+        "percent": 96.8944099378882
+      },
+      "method": "Conservative combined checkpoint, not a second full-suite run. Each candidate source must match current source after Prettier normalization; changed source excludes stale reports. For each file/metric, numerator is the largest measured hit count and denominator the largest measured total across valid reports. Thresholds/exclusions/timeouts unchanged."
+    }
+  },
+  "commands": {
+    "checks": "/tmp/cav-p19r-last-checks.sh",
+    "combinedCoverage": "/tmp/cav-p19r-combined-coverage.py",
+    "changedExecutableLines": "/tmp/cav-p19r-changed-coverage.py",
+    "matchingLines": "/tmp/cav-p19r-combine-line-evidence.py",
+    "unchangedFunctions": "/tmp/cav-p19r-reuse-unchanged-functions.cjs"
+  },
+  "browserPassingCases": {
+    "chromium e2e/admin-create-account.spec.ts a superadmin adds an account with a password and changes it; the owner signs in": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-call-now.spec.ts Call now without a connected SIP/WhatsApp calling number explains setup and makes no dial request": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-call-now.spec.ts \"Test in browser\" opens the tester with the contact selected": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-done-when.spec.ts a window without today: started, then waits for the calling window with a time": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-done-when.spec.ts editing the window to add today starts dialing": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-done-when.spec.ts pause: calls in progress drain and nothing more completes; resume continues": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-done-when.spec.ts completes: nothing pending, queued, calling or waiting; retried rows show 2 or 3 attempts": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-done-when.spec.ts export CSV: 100 rows, exact header, statuses and outcomes match the table, full phones": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-money.spec.ts ₹20 wallet: the dry run pauses before its virtual cost passes the balance; the bell says so": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-money.spec.ts adding ₹500 resumes it by itself: running again, counters move": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-money.spec.ts cancel with \"Also hang up calls in progress\": canceled, nothing left calling": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-roles.spec.ts viewer: list and detail, no New, no controls, no export": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/campaigns-roles.spec.ts agent: read-only campaigns, but Call now on a contact": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/campaigns-roles.spec.ts manager: creates and starts a campaign": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/campaigns-rules.spec.ts the preview shows the exclusions; skipped rows say why; callbacks wait for tomorrow 17:00": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/campaigns-rules.spec.ts a daily limit of 1: a second campaign over the same contacts waits \"Daily call limit reached\"": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/reseller-panel.spec.ts admin creates an approved reseller and can view or act with sensitive actions blocked": "/tmp/cav-p19r-reseller-browser-final2.log",
+    "chromium e2e/sip-line.spec.ts a superadmin gives a caller number and the phone line to an account": "/tmp/cav-p19r-final/playwright.log",
+    "chromium e2e/contacts-dnd-roles.spec.ts do-not-call: managers add, only owners remove; opt-out survives a re-import": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/contacts-dnd-roles.spec.ts an agent can read contacts but not change, import or export them": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/contacts-segment-export.spec.ts segments, bulk tagging and a safe CSV export": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/inbox-entry-points.spec.ts a new message: nav badge, dashboard card, bell → the chat": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/inbox-entry-points.spec.ts contact page: Open chat (existing) and Start chat (closed window → banner)": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/inbox-entry-points.spec.ts Settings → Inbox: read receipts on by default → off (none sent) → on; retention text": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/inbox-entry-points.spec.ts a custom opt-out keyword (\"ROKO\") opts the customer out": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/inbox-entry-points.spec.ts business profile edit in the Numbers drawer": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/phase19-continuation.spec.ts number-scoped template builder → approval → shared sender list": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/phase19-continuation.spec.ts three campaign types stay in URL; message wizard reaches an actual completed report": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/signup.spec.ts sign up without email verification → dashboard → sign out → sign in again": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-marketing-rules.spec.ts STOP puts the number on DND (no template); without the DND entry: marketing refused, utility goes": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-marketing-rules.spec.ts the customer stops marketing on WhatsApp → marketing refused": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-marketing-rules.spec.ts Meta refuses marketing (131050, 00013) → failed, and the contact is flagged": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-marketing-rules.spec.ts one marketing template per customer per 24 h": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-marketing-rules.spec.ts a paused template shows Paused and is not offered for sending": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-marketing-rules.spec.ts WhatsApp recategorises a template → Marketing chip + bell": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-roles-entry.spec.ts viewers and agents read templates without Create; the agent sends one": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-roles-entry.spec.ts an impersonating superadmin reads templates only": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-roles-entry.spec.ts Create call permission template → In review → Approved": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-roles-entry.spec.ts contact page → Send template starts the chat with the template": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-roles-entry.spec.ts dashboard spend line; Wallet → WhatsApp prices": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/templates-roles-entry.spec.ts another account never sees these templates": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/wallet-roles.spec.ts roles: managers read the wallet only, agents have none, impersonators cannot top up": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/wallet-topup.spec.ts owner adds ₹1,000 with a test payment: balance, ledger, GST invoice, PDF and receipt": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-done-when.spec.ts the owner turns calling on in the number settings": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-done-when.spec.ts Request permission → the customer allows → \"Can call until …\" live": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-done-when.spec.ts Call yourself: the phone answers, hears the agent, keys, mute; hang up → bubble, recording, pulses in the wallet": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-done-when.spec.ts Call with AI: the Loan recovery flow, the customer presses 1 → Paid": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-guards-billing.spec.ts an empty wallet refuses the call before dialing": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-guards-billing.spec.ts the customer declines → \"Can't call\"; a second request the same day is refused": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-guards-billing.spec.ts Meta has no permission (our row says yes) → WhatsApp decides: revoked, refused, nothing held": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-guards-billing.spec.ts a DND number cannot be called": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-guards-billing.spec.ts 4 calls not picked up → the permission is revoked, with a bell": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-guards-billing.spec.ts a connected call is charged; superadmin: margin rows include it, a calling rate card import changes the price": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-inbound.spec.ts two members ring; the agent accepts and talks; the manager sees who took it": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-inbound.spec.ts nobody answers → missed call bubble and a bell": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-inbound.spec.ts outside call hours: the customer gets a missed call without ringing the team": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-inbound.spec.ts the AI route answers with the flow (no team ring)": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-inbound.spec.ts AI → team: a supervisor hands the AI call to the agent on the same call": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-inbound.spec.ts callback permission: a customer who called may be called back": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-roles-settings.spec.ts a viewer reads the calling state but has no Call button and never rings": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-roles-settings.spec.ts an agent calls the customer from the chat": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-roles-settings.spec.ts an impersonating superadmin reads only: no Call button, settings locked": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-roles-settings.spec.ts the owner sets call hours and ringing; overlapping hours are refused; saved settings come back": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-roles-settings.spec.ts WhatsApp restricts calling → a warning on the number and a bell; lifted again": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-roles-settings.spec.ts a coexistence number (WhatsApp Business app) cannot call": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium-wa-calls e2e/calls-wa-roles-settings.spec.ts another account gets 404 for these calling settings, permissions and calls": "/tmp/cav-p19r-browser-fixes.log",
+    "chromium e2e/campaigns-roles.spec.ts superadmin: read-only while impersonating; \"Pause all campaigns\" → the owner cannot resume": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/phase19-continuation.spec.ts WhatsApp call campaign stores an agent, completes a dry run and stays separate from SIP rows": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/phase19-continuation.spec.ts Contact normal-call confirmation preserves the sender and refuses stale SIP readiness without fallback": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/phase19-continuation.spec.ts Contact → WhatsApp sender → AI agent uses the existing live runtime": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/templates-done-when.spec.ts builder: image header, 2 variables, footer, quick reply + URL → In review → Approved live + bell": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/templates-done-when.spec.ts closed chat → Send a template with real values + cost → Read → the wallet line equals the cost": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/templates-done-when.spec.ts a rejected template shows the reason → Edit and resubmit → approved": "/tmp/cav-p19r-browser-serial.log",
+    "chromium e2e/reseller-panel.spec.ts reseller signup → customer → credit → log in as → back → reclaim": "/tmp/cav-p19r-reseller-browser-final2.log",
+    "chromium e2e/impersonation.spec.ts superadmin views an account as its owner and stops": "/tmp/cav-p19r-impersonation-browser-final.log"
+  },
+  "performance": {
+    "log": "/tmp/cav-p19r-perf-final3.log",
+    "wallClockMs": 71705,
+    "senders": [
+      {
+        "cap": 18,
+        "recipients": 1000,
+        "peakRolling1000ms": 17,
+        "firstToLastMs": 68664,
+        "capturedCharges": 1000
+      },
+      {
+        "cap": 75,
+        "recipients": 1000,
+        "peakRolling1000ms": 48,
+        "firstToLastMs": 50215,
+        "capturedCharges": 1000
+      }
+    ],
+    "duplicateIds": 0,
+    "restart": "hard kill after paused/quiesced callbacks",
+    "timestamp": "provider method entry attemptedAt; acceptance at kept separately"
+  },
+  "credentialScan": {
+    "scope": "Added lines since continuation baselines; private key headers, provider key patterns and JWT literals. Secret env files never read. This is a focused scan, not a general DLP guarantee.",
+    "findings": []
+  },
+  "logs": [
+    {
+      "path": "/tmp/cav-p19r-final/status.tsv",
+      "sha256": "c6615845cd5932ab177ef7a3d652cf30b449d0a8d2ff99905910cb6ab10a9b41"
+    },
+    {
+      "path": "/tmp/cav-p19r-last-checks/status.tsv",
+      "sha256": "f12d212f1b528b68f11a9d25ca3ad963e5c3214e60e8be6b90304569be3824a9"
+    },
+    {
+      "path": "/tmp/cav-p19r-perf-final3.log",
+      "sha256": "9921564ea94b8f3344c0118d1878841de503f9ae8cb85595869485749231b41b"
+    },
+    {
+      "path": "/tmp/cav-p19r-be-pacing-coverage.log",
+      "sha256": "56636d2508788e7afbdb8d385d5f561ebb0923bb47c42ae140c4b320ddf2591d"
+    },
+    {
+      "path": "/tmp/cav-p19r-fe-serial-tests.log",
+      "sha256": "696ca68d24ac06973911320bec9c719f938565e1b1e98e3dae72c93fb77d0bb3"
+    },
+    {
+      "path": "/tmp/cav-p19r-fe-auth-coverage.log",
+      "sha256": "e1555edec340c0b1d791bad377fe4fe47a7bc996cdb29945eb6e6a0a8c206cf3"
+    },
+    {
+      "path": "/tmp/cav-p19r-browser-fixes.log",
+      "sha256": "1178309cfe3ac4b5bd306d2233360de4fb59f90acbf70bfb095ac7409c3ef677"
+    },
+    {
+      "path": "/tmp/cav-p19r-browser-serial.log",
+      "sha256": "db65ee4dfec83dffd1e569015a32a24171cf687621f3f98c3c182a5af7c60361"
+    },
+    {
+      "path": "/tmp/cav-p19r-reseller-browser-final2.log",
+      "sha256": "102da889fe10a885c5d6355eaa04d55aa8f9ffae47417718f50ec56b16baa964"
+    },
+    {
+      "path": "/tmp/cav-p19r-impersonation-browser-final.log",
+      "sha256": "3ff183cb636547bb2faed3390696fc676acad61554ddbae6b708c5467d8562ff"
+    },
+    {
+      "path": "/tmp/cav-p19r-complete-guards.log",
+      "sha256": "d202c08766cedf52406f9eb56fe64b955b4495f521e91044dbf8cff483e00b5b"
+    }
+  ],
+  "actualExitCodes": [
+    {
+      "check": "backend-lint",
+      "exit": 0
+    },
+    {
+      "check": "backend-typecheck",
+      "exit": 2
+    },
+    {
+      "check": "backend-build",
+      "exit": 0
+    },
+    {
+      "check": "backend-contract",
+      "exit": 0
+    },
+    {
+      "check": "frontend-lint",
+      "exit": 0
+    },
+    {
+      "check": "frontend-typecheck",
+      "exit": 0
+    },
+    {
+      "check": "frontend-build",
+      "exit": 0
+    },
+    {
+      "check": "frontend-contract",
+      "exit": 0
+    },
+    {
+      "check": "backend-audit",
+      "exit": 0
+    },
+    {
+      "check": "frontend-audit",
+      "exit": 0
+    },
+    {
+      "check": "backend-typecheck-fixed",
+      "exit": 0
+    },
+    {
+      "check": "backend-pacing-coverage",
+      "exit": 1
+    },
+    {
+      "check": "backend-last-guards",
+      "exit": 0
+    },
+    {
+      "check": "backend-complete-guards",
+      "exit": 0
+    }
+  ],
+  "notes": [
+    "Original full runs failed; affected reruns supply current checkpoint evidence.",
+    "Narrow coverage runs use whole-source denominator and exit 1 for global thresholds; individual tests pass.",
+    "A later typecheck corrected test-only mock return types.",
+    "No coverage threshold, timeout, catalogue guard or rate limit was relaxed.",
+    "Live Meta devices, real SIP carrier and production deployment were not run."
+  ]
+}

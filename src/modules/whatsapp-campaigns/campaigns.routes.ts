@@ -90,7 +90,7 @@ export const createWaCampaignsRouter = (
     '/:id',
     ...write,
     ...handle({ params: CampaignIdParams }, async ({ req, res, params }) => {
-      await deleteCampaign(req, params.id);
+      await deleteCampaign(req, params.id, deps.storage);
       noContent(res);
     }),
   );

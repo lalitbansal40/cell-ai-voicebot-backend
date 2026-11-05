@@ -23,3 +23,5 @@ WhatsApp flow/agent campaigns, scoped templates and shared call choices. Migrati
 backend-derived limits; unknown metadata uses 18 until refreshed. Preserve Redis jobs
 on restart and refresh connected numbers after migration. Account purge includes durable
 campaign/template headers. Read the Phase 19 sign-off before release; no deployment yet.
+
+Phase 19 local release: [notes](release-phase-19.md) · [sign-off](../phases/PHASE_19_SIGNOFF.md). Live Meta/SIP and production rollout require separate owner authorization.

@@ -24,8 +24,8 @@ export const RecipientsQuery = z.strictObject({
 const HeaderLocation = z.strictObject({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
-  name: z.string().max(1000).optional(),
-  address: z.string().max(1000).optional(),
+  name: z.string().max(100).optional(),
+  address: z.string().max(200).optional(),
 });
 export const CampaignBody = z.strictObject({
   name: z.string().trim().min(1).max(120),

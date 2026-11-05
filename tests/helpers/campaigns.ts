@@ -18,7 +18,7 @@ import { CallManager } from '../../src/modules/calls/call.service';
 import { createDryRunPrograms } from '../../src/modules/calls/dry-run';
 import { CallRegistry } from '../../src/modules/calls/registry';
 import { createCampaign } from '../../src/modules/campaigns/campaigns.service';
-import { CampaignDispatcher } from '../../src/modules/campaigns/dispatcher';
+import { CampaignDispatcher, type DispatcherDeps } from '../../src/modules/campaigns/dispatcher';
 import { DialRate } from '../../src/modules/campaigns/slots';
 import type { Logger } from '../../src/shared/logger';
 
@@ -39,6 +39,7 @@ export interface CampaignWorldDeps {
   logger: Logger;
   /** Phone prefix of this test file (`+91` + 5 digits) — numbers stay unique per DB. */
   phonePrefix: string;
+  whatsappCalls?: DispatcherDeps['whatsappCalls'];
 }
 
 export interface CampaignWorld {
@@ -166,6 +167,7 @@ export const campaignWorld = async (
     managers.push(calls);
     const dispatcher = new CampaignDispatcher({
       calls,
+      ...(deps.whatsappCalls ? { whatsappCalls: deps.whatsappCalls } : {}),
       rate: new DialRate(deps.redis, `${deps.prefix}${accountId}:`),
       logger: deps.logger,
       clock,

@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 
 import { UserModel } from '../../db/models/user.model';
 import { actingUserId, requireAuth } from '../../shared/auth/auth-context';
+import { tenantFilter } from '../../shared/auth/tenant';
 import { AppError, ValidationError } from '../../shared/errors/app-error';
 import { accepted, created, ok } from '../../shared/http/envelope';
 import { access } from '../../shared/middlewares/access';
@@ -22,6 +23,7 @@ import {
   BulkPermissionBody,
   BulkRunParams,
   CallingParams,
+  CallPriceQuery,
   CallHoldBody,
   CallTransferBody,
   PermissionQuery,
@@ -29,6 +31,7 @@ import {
   StartWhatsAppCallBody,
 } from './calling-api.schema';
 import { CallAvailabilityBody, CallingSettingsPatch } from './calling.schema';
+import { callPricePreview } from './price.service';
 import type { CallingRuntime } from './runtime';
 
 export interface CallingRouterDeps {
@@ -91,6 +94,16 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
       },
       ...(store ? { store } : {}),
     });
+  router.get(
+    '/whatsapp/channels/:id/calling/quote',
+    access({ permission: 'calls.trigger', scope: 'calls:write' }),
+    ...handle(
+      { params: CallingParams, query: CallPriceQuery },
+      async ({ req, res, params, query }) => {
+        ok(res, await callPricePreview(tenantFilter(req).accountId, params.id, query.contactId));
+      },
+    ),
+  );
   const settingsLimit = limiter('wa-calling-settings', 10, 60_000, stores.settings, true);
   router.get(
     '/whatsapp/channels/:id/calling',

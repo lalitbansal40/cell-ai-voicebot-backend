@@ -17,6 +17,7 @@ import type {
 } from '../../db/models/whatsapp-campaign.model';
 import { segmentQuery } from '../contacts/contacts.service';
 import { loadContactContext } from '../contacts/context';
+import { readContactVariables } from '../privacy/sensitive';
 import { suppressedPhones } from '../privacy/suppression';
 
 /** PHASE_19_PROMPT §1: env `WA_CAMPAIGN_MAX_RECIPIENTS` (default 100,000), snapshots of 1,000. */
@@ -93,11 +94,8 @@ export const variableValue = (
   if (source.kind === 'contact.name') {
     return contact.name?.trim() || contact.whatsapp?.profileName?.trim() || null;
   }
-  const vars =
-    contact.variables instanceof Map
-      ? contact.variables
-      : new Map(Object.entries(contact.variables ?? {}));
-  const raw = source.value ? vars.get(source.value) : undefined;
+  const vars = readContactVariables(contact, { purpose: 'send' });
+  const raw = source.value ? vars[source.value] : undefined;
   if (raw === undefined || raw === null || raw === '') return null;
   if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean')
     return String(raw);
@@ -275,10 +273,10 @@ export const snapshotAudience = async (
       },
     );
     await WhatsAppCampaignRecipientModel.insertMany(docs, { ordered: false }).catch(
-      (err: { code?: number; writeErrors?: { code?: number }[] }) => {
+      (err: { code?: number; writeErrors?: { code?: number; err?: { code?: number } }[] }) => {
         if (
           err.writeErrors?.length
-            ? err.writeErrors.some((e) => e.code !== 11000)
+            ? err.writeErrors.some((e) => (e.code ?? e.err?.code) !== 11000)
             : err.code !== 11000
         )
           throw err;

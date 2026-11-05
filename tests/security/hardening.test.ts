@@ -4,7 +4,7 @@ import path from 'node:path';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
-import { AUDIT_ACTIONS } from '../../src/modules/audit/audit-actions';
+import { AUDIT_ACTIONS, RETIRED_AUDIT_ACTIONS } from '../../src/modules/audit/audit-actions';
 import { AUDIT_RETENTION_DAYS } from '../../src/modules/audit/audit-purge';
 import { sanitizeMeta } from '../../src/modules/audit/audit.service';
 import { safeCell } from '../../src/modules/contact-imports/error-report';
@@ -40,7 +40,9 @@ describe('audit', () => {
     );
     // built from a template string in the code that writes them
     const dynamic = (a: string) => /^(team|whatsapp|template|campaign|call|flow|agent)\./.test(a);
-    expect(never.filter((a) => !dynamic(a))).toEqual([]);
+    const retired = new Set<string>(RETIRED_AUDIT_ACTIONS);
+    expect(never.filter((a) => !dynamic(a) && !retired.has(a))).toEqual([]);
+    expect(RETIRED_AUDIT_ACTIONS.every((a) => AUDIT_ACTIONS.includes(a))).toBe(true);
   });
 
   it('no audit call puts a phone, an e-mail or a message text in meta', () => {

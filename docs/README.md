@@ -47,3 +47,5 @@ Source of truth for plans, decisions and conventions. (PDF exports are kept outs
 - [cost/cost-model.md](cost/cost-model.md) — per-minute cost model draft
 - [compliance/compliance-notes.md](compliance/compliance-notes.md) — TRAI / RBI / DPDP research notes
 - [poc/README.md](poc/README.md) · [cost/README.md](cost/README.md) · [compliance/README.md](compliance/README.md)
+
+- [Phase 19 sign-off](phases/PHASE_19_SIGNOFF.md) — local implementation evidence, failed checkpoint/reruns, coverage and outstanding live-provider checks.

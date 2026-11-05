@@ -396,9 +396,41 @@ export const processSend = async (
             await contentOf(ix, m, token, channel.phoneNumberId, now),
             m.context?.replyToWaMessageId ?? null,
           );
-    // All message sources (campaigns, permission requests and inbox) share one sender budget.
-    let delay = await acquireMessageSlot(ix.wa.redis, channel, ix.wa.env.WA_CAMPAIGN_MPS);
-    if (delay > 0 && delay <= 100) {
+    // Validate first, then acquire immediately before entering the provider. No DB work
+    // may shift an already granted attempt into another worker's rolling window.
+    let sendingChannel = channel;
+    for (let pass = 0; pass < 2; pass++) {
+      if (m.externalRef?.startsWith('wac:')) {
+        const campaign = await WhatsAppCampaignModel.findOne({
+          _id: m.externalRef.slice(4),
+          accountId: m.accountId,
+        }).lean();
+        if (!campaign || ['stopped', 'failed'].includes(campaign.status))
+          throw new NotSendable('Campaign stopped');
+        if (['paused', 'scheduled'].includes(campaign.status))
+          return { kind: 'later', delayMs: 1000 };
+        const templateUnavailable =
+          m.template &&
+          !(await WhatsAppTemplateModel.exists({
+            _id: m.template.templateId,
+            accountId: m.accountId,
+            status: 'APPROVED',
+          }));
+        if (sendingChannel.qualityRating === 'RED' || templateUnavailable) {
+          await autoPause(
+            campaign,
+            sendingChannel.qualityRating === 'RED' ? 'quality_red' : 'template_paused',
+          );
+          return { kind: 'later', delayMs: 1000 };
+        }
+      }
+      const delay = await acquireMessageSlot(
+        ix.wa.redis,
+        sendingChannel,
+        ix.wa.env.WA_CAMPAIGN_MPS,
+      );
+      if (delay === 0) break;
+      if (pass === 1 || delay > 100) return { kind: 'later', delayMs: delay };
       await new Promise<void>((resolve) => setTimeout(resolve, delay));
       const fresh = await WhatsAppChannelModel.findOne({
         _id: channel._id,
@@ -406,32 +438,8 @@ export const processSend = async (
       }).lean<WhatsAppChannelDoc>();
       if (!fresh || !['connected', 'restricted'].includes(fresh.status))
         throw new NotSendable('The WhatsApp number is not connected');
-      delay = await acquireMessageSlot(ix.wa.redis, fresh, ix.wa.env.WA_CAMPAIGN_MPS);
-    }
-    if (delay > 0) return { kind: 'later', delayMs: delay };
-    if (m.externalRef?.startsWith('wac:')) {
-      const campaign = await WhatsAppCampaignModel.findOne({
-        _id: m.externalRef.slice(4),
-        accountId: m.accountId,
-      }).lean();
-      if (!campaign || ['stopped', 'failed'].includes(campaign.status))
-        throw new NotSendable('Campaign stopped');
-      if (['paused', 'scheduled'].includes(campaign.status))
-        return { kind: 'later', delayMs: 1000 };
-      const templateUnavailable =
-        m.template &&
-        !(await WhatsAppTemplateModel.exists({
-          _id: m.template.templateId,
-          accountId: m.accountId,
-          status: 'APPROVED',
-        }));
-      if (channel.qualityRating === 'RED' || templateUnavailable) {
-        await autoPause(
-          campaign,
-          channel.qualityRating === 'RED' ? 'quality_red' : 'template_paused',
-        );
-        return { kind: 'later', delayMs: 1000 };
-      }
+      sendingChannel = fresh;
+      // Repeat the campaign guards after sleeping, before taking the actual send slot.
     }
     const { waMessageId } = await ix.wa.meta.sendMessage(token, channel.phoneNumberId, payload);
     await update(m, 'queued', { waMessageId, error: null }, 'accepted', now);

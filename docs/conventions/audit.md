@@ -228,3 +228,9 @@ Login failures for e-mails that don't exist are not audited (there is no account
 ## API
 
 `GET /api/v1/audit-logs?limit=50&cursor=…&action=team.*&actorId=…&targetType=user&from=…&to=…` — newest first, cursor pagination (`meta: { nextCursor, hasMore }`), actor names joined. Times are UTC ISO-8601; the dashboard shows them in the account timezone.
+
+### Retired actions
+
+`auth.email_verified` is retained for historical rows after Phase 19 retired email
+verification. It has no active writer; the obsolete verification endpoints return 410.
+All other catalogue actions still require a writer. The catalogue total is unchanged.

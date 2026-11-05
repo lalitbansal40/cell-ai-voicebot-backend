@@ -12,7 +12,7 @@ Beyond the per-key defaults above, a few routes carry their own named limiter (w
 
 | Limiter key                | Window | Limit | Keyed by         | Used by                                                                  |
 | -------------------------- | ------ | ----- | ---------------- | ------------------------------------------------------------------------ |
-| `signup-ip`                | 1 h    | 5     | client IP        | `POST /auth/signup` (and `POST /auth/signup-options` reads)              |
+| `signup-ip`                | 1 h    | 5     | client IP        | `POST /auth/signup`                                                      |
 | `login-as`                 | 1 h    | 30    | account          | superadmin / reseller log-in-as                                          |
 | `reseller-customer-create` | 1 day  | 50    | reseller account | `POST /reseller/customers`                                               |
 | `reseller-credit`          | 1 h    | 60    | reseller account | `POST /reseller/customers/:id/credit` (give + reclaim share the limiter) |
@@ -26,3 +26,5 @@ pacer: known Cloud API 75/sec, Business App/coexistence or unknown 18/sec. The o
 minimum spacing and a two-second key TTL prevent process-local resets/bursts. Inbox
 priority 1 precedes bulk priority 10. Daily messaging tiers and provider backoff remain.
 Signup uses a separate `rl:signup:` store/window; it does not reuse the auth store.
+
+`GET /auth/signup-options` uses the auth limiter; it does not consume the signup allowance.

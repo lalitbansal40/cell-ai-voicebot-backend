@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 
 import type { Request } from 'express';
 import { Types } from 'mongoose';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { adjust } from '../../src/core/billing/engine';
 import { ContactModel } from '../../src/db/models/contact.model';
+import { CustomFieldModel } from '../../src/db/models/custom-field.model';
 import { InboxUploadModel } from '../../src/db/models/inbox-upload.model';
 import { MessageModel } from '../../src/db/models/message.model';
 import { WalletModel } from '../../src/db/models/wallet.model';
@@ -15,18 +16,25 @@ import { WhatsAppChannelModel } from '../../src/db/models/whatsapp-channel.model
 import { WhatsAppTemplateModel } from '../../src/db/models/whatsapp-template.model';
 import { processSend } from '../../src/modules/inbox/send.job';
 import { createUpload } from '../../src/modules/inbox/upload.service';
+import { encryptValue } from '../../src/modules/privacy/sensitive';
 import { recordingTemplateJobs } from '../../src/modules/templates/jobs';
 import { createTemplate } from '../../src/modules/templates/template.service';
 import { onMessageStatus } from '../../src/modules/whatsapp-billing/billing-hook';
-import { skipFor, variantFor } from '../../src/modules/whatsapp-campaigns/audience';
+import {
+  snapshotAudience,
+  skipFor,
+  variantFor,
+} from '../../src/modules/whatsapp-campaigns/audience';
 import {
   campaignReport,
   createCampaign,
+  deleteCampaign,
   estimateCampaign,
   exportRecipients,
   pauseCampaign,
   resumeCampaign,
   retryFailed,
+  recentSendCount,
   startCampaign,
   stopCampaign,
   updateCampaign,
@@ -39,11 +47,15 @@ import {
 } from '../../src/modules/whatsapp-campaigns/dispatch';
 import { campaignHeaderFor } from '../../src/modules/whatsapp-campaigns/media';
 import { allowedNow } from '../../src/modules/whatsapp-campaigns/pacing';
-import { scheduleRecurringRuns } from '../../src/modules/whatsapp-campaigns/recurrence';
+import {
+  prepareRecurringRun,
+  scheduleRecurringRuns,
+} from '../../src/modules/whatsapp-campaigns/recurrence';
 import {
   trackCampaignMessage,
   trackCampaignReply,
 } from '../../src/modules/whatsapp-campaigns/tracking';
+import { loadVariants } from '../../src/modules/whatsapp-campaigns/variants';
 import { useTestDb } from '../helpers/db';
 import { useCapturedEmail } from '../helpers/email';
 import { mediaFixture, useInboxWorld } from '../helpers/inbox';
@@ -534,6 +546,79 @@ describe('WhatsApp campaigns: send, pace, results (T19.10–T19.12)', () => {
 });
 
 describe('continuation: estimates, media and recurrence', () => {
+  it('atomically reconciles concurrent late statuses/replies without double counters', async () => {
+    const contactDoc = await contact();
+    const campaign = await draft([contactDoc._id]);
+    await startCampaign(req(), campaign.id);
+    await dispatchCampaign({ ix: state.ix, sleep: () => Promise.resolve() }, campaign.id);
+    const message = await MessageModel.findOne({ externalRef: `wac:${campaign.id}` }).lean();
+    await trackCampaignMessage({ _id: message!._id, status: 'failed', error: { code: 130429 } });
+    await Promise.all(
+      ['read', 'delivered', 'read'].map((status) =>
+        trackCampaignMessage({ _id: message!._id, status: status as 'read' | 'delivered' }),
+      ),
+    );
+    expect(await counters(campaign.id)).toMatchObject({
+      sent: 1,
+      delivered: 1,
+      read: 1,
+      failedTotal: 0,
+      queued: 0,
+    });
+    const reply = {
+      accountId: state.acc.account._id,
+      contactId: contactDoc._id,
+      at: new Date(Date.now() + 1000),
+    };
+    await Promise.all(Array.from({ length: 5 }, () => trackCampaignReply(reply)));
+    expect((await counters(campaign.id))?.replied).toBe(1);
+  });
+
+  it('rolls back a status transition when its paired campaign counter write fails', async () => {
+    const campaign = await draft([(await contact())._id]);
+    await startCampaign(req(), campaign.id);
+    await dispatchCampaign({ ix: state.ix, sleep: () => Promise.resolve() }, campaign.id);
+    const message = await MessageModel.findOne({ externalRef: `wac:${campaign.id}` }).lean();
+    const fail = vi
+      .spyOn(WhatsAppCampaignModel, 'updateOne')
+      .mockRejectedValueOnce(new Error('Injected counter failure'));
+    await trackCampaignMessage({ _id: message!._id, status: 'accepted' });
+    fail.mockRestore();
+    expect(
+      (await WhatsAppCampaignRecipientModel.findOne({ messageId: message!._id }).lean())?.status,
+    ).toBe('sending');
+    expect((await counters(campaign.id))?.sent).toBe(0);
+    await trackCampaignMessage({ _id: message!._id, status: 'accepted' });
+    expect((await counters(campaign.id))?.sent).toBe(1);
+  });
+
+  it('opens sensitive variables only through the send resolver and keeps estimates/snapshots clean', async () => {
+    await CustomFieldModel.create({
+      accountId: state.acc.account._id,
+      key: 'private_note',
+      label: 'Private note',
+      type: 'text',
+      sensitive: true,
+    });
+    const contactDoc = await contact({
+      variables: { private_note: encryptValue('SYNTHETIC_PRIVATE_SENTINEL') },
+    });
+    const campaign = await draft([contactDoc._id], {
+      variables: { '1': { kind: 'field', value: 'private_note' } },
+    });
+    const estimate = await estimateCampaign(req(), campaign.id);
+    expect(estimate.recipients).toBe(1);
+    expect(JSON.stringify(estimate)).not.toContain('SYNTHETIC_PRIVATE_SENTINEL');
+    await startCampaign(req(), campaign.id);
+    expect(
+      JSON.stringify(await WhatsAppCampaignRecipientModel.find({ campaignId: campaign.id }).lean()),
+    ).not.toContain('SYNTHETIC_PRIVATE_SENTINEL');
+    await run(campaign.id);
+    expect(
+      (await MessageModel.findOne({ externalRef: `wac:${campaign.id}` }).lean())?.text,
+    ).toContain('SYNTHETIC_PRIVATE_SENTINEL');
+  });
+
   it('does not complete before provider acceptance and prevents queued sends while paused or stopped', async () => {
     const d = await draft([(await contact())._id]);
     await startCampaign(req(), d.id, jobs);
@@ -615,6 +700,61 @@ describe('continuation: estimates, media and recurrence', () => {
     expect(new Set(copies.map((u) => u.storageKey)).size).toBe(2);
     expect(copies.every((u) => u.storageKey !== saved!.headerMedia!.storageKey)).toBe(true);
     expect(await world.storage.exists(saved!.headerMedia!.storageKey)).toBe(true);
+    const savedPut = world.storage.put.bind(world.storage);
+    const putFailure = vi.spyOn(world.storage, 'put');
+    const deleteFailure = vi.spyOn(world.storage, 'delete');
+    const fault = new Error('simulated campaign write failure');
+    const createFailure = vi.spyOn(WhatsAppCampaignModel, 'create').mockRejectedValueOnce(fault);
+    await expect(createCampaign(req(), input, world.storage)).rejects.toThrow(fault.message);
+    expect(deleteFailure).toHaveBeenLastCalledWith(putFailure.mock.calls.at(-1)![0]);
+    createFailure.mockRestore();
+    const updateFailure = vi
+      .spyOn(WhatsAppCampaignModel, 'findOneAndUpdate')
+      .mockReturnValueOnce({ lean: () => Promise.reject(fault) } as never);
+    await expect(updateCampaign(req(), d.id, input, world.storage)).rejects.toThrow(fault.message);
+    expect(deleteFailure).toHaveBeenLastCalledWith(putFailure.mock.calls.at(-1)![0]);
+    updateFailure.mockRestore();
+    putFailure.mockImplementationOnce(async (key, bytes, options) => {
+      const stored = await savedPut(key, bytes, options);
+      await WhatsAppCampaignModel.updateOne({ _id: d.id }, { $set: { status: 'running' } });
+      return stored;
+    });
+    await expect(updateCampaign(req(), d.id, input, world.storage)).rejects.toMatchObject({
+      code: 'WA_CAMPAIGN_NOT_EDITABLE',
+    });
+    expect(deleteFailure).toHaveBeenLastCalledWith(putFailure.mock.calls.at(-1)![0]);
+    expect(await world.storage.exists(saved!.headerMedia!.storageKey)).toBe(true);
+    await WhatsAppCampaignModel.updateOne({ _id: d.id }, { $set: { status: 'draft' } });
+    putFailure.mockRestore();
+    deleteFailure.mockRestore();
+    const originalKey = saved!.headerMedia!.storageKey;
+    const shared = await WhatsAppCampaignModel.create({
+      ...saved,
+      _id: new Types.ObjectId(),
+      name: 'Shared recurring copy',
+    });
+    await updateCampaign(req(), d.id, input, world.storage);
+    const replaced = await WhatsAppCampaignModel.findById(d.id).lean();
+    expect(replaced!.headerMedia!.storageKey).not.toBe(originalKey);
+    expect(await world.storage.exists(originalKey)).toBe(true);
+    await deleteCampaign(req(), shared._id.toString(), world.storage);
+    expect(await world.storage.exists(originalKey)).toBe(false);
+    await deleteCampaign(req(), d.id, world.storage);
+    expect(await world.storage.exists(replaced!.headerMedia!.storageKey)).toBe(false);
+    expect(await world.storage.exists(copies[0]!.storageKey)).toBe(true);
+    // Invalid header validation must release the new durable copy.
+    await WhatsAppTemplateModel.updateOne(
+      { _id: utility },
+      { $set: { components: [{ type: 'BODY', text: 'Hi {{1}}' }] } },
+    );
+    const put = vi.spyOn(world.storage, 'put');
+    const remove = vi.spyOn(world.storage, 'delete');
+    await expect(createCampaign(req(), input, world.storage)).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+    });
+    expect(remove).toHaveBeenCalledWith(put.mock.calls.at(-1)![0]);
+    put.mockRestore();
+    remove.mockRestore();
     await InboxUploadModel.updateOne(
       { _id: upload._id },
       { $set: { accountId: new Types.ObjectId() } },
@@ -648,9 +788,121 @@ describe('continuation: estimates, media and recurrence', () => {
     expect(await WhatsAppCampaignModel.countDocuments({ parentCampaignId: d.id })).toBe(1);
     const child = await WhatsAppCampaignModel.findOne({ parentCampaignId: d.id }).lean();
     expect(child?.schedule.at?.toISOString()).toBe('2026-11-05T09:00:00.000Z');
+    await WhatsAppCampaignRecipientModel.create({
+      campaignId: child!._id,
+      accountId: state.acc.account._id,
+      contactId: (await contact())._id,
+      status: 'pending',
+    });
     await stopCampaign(req(), d.id);
+    expect(
+      await WhatsAppCampaignRecipientModel.countDocuments({
+        campaignId: child!._id,
+        status: 'skipped',
+        skipReason: 'stopped',
+      }),
+    ).toBe(1);
     await scheduleRecurringRuns(now);
     expect(await WhatsAppCampaignModel.countDocuments({ parentCampaignId: d.id })).toBe(1);
     expect((await WhatsAppCampaignModel.findById(child!._id).lean())?.status).toBe('stopped');
+  });
+  it('prepares fresh recurring audiences, pauses for funds and rejects unavailable parents or senders', async () => {
+    const c = await contact();
+    const root = await draft([c._id]);
+    const rootDoc = await WhatsAppCampaignModel.findById(root.id).lean();
+    const child = await WhatsAppCampaignModel.create({
+      ...rootDoc,
+      _id: new Types.ObjectId(),
+      parentCampaignId: root.id,
+      status: 'scheduled',
+      schedule: { ...rootDoc!.schedule, at: new Date(Date.now() - 1000) },
+    });
+    const now = new Date();
+    expect(await prepareRecurringRun(rootDoc!, now)).toBe(true);
+    await WhatsAppCampaignModel.updateOne({ _id: root.id }, { $set: { status: 'paused' } });
+    expect(await prepareRecurringRun(child.toObject(), now)).toBe(false);
+    await WhatsAppCampaignModel.updateOne({ _id: root.id }, { $set: { status: 'completed' } });
+    await WhatsAppChannelModel.updateOne(
+      { _id: state.channel._id },
+      { $set: { status: 'disconnected' } },
+    );
+    expect(await prepareRecurringRun(child.toObject(), now)).toBe(false);
+    await WhatsAppChannelModel.updateOne(
+      { _id: state.channel._id },
+      { $set: { status: 'connected' } },
+    );
+    await WhatsAppTemplateModel.updateOne({ _id: utility }, { $set: { status: 'REJECTED' } });
+    expect(await prepareRecurringRun(child.toObject(), now)).toBe(false);
+    await WhatsAppTemplateModel.updateOne({ _id: utility }, { $set: { status: 'APPROVED' } });
+    await WalletModel.updateOne(
+      { accountId: state.acc.account._id },
+      { $set: { balanceMicros: 0, holdMicros: 0 } },
+    );
+    expect(await prepareRecurringRun(child.toObject(), now)).toBe(false);
+    expect((await WhatsAppCampaignModel.findById(child._id).lean())?.pauseReason).toBe(
+      'wallet_empty',
+    );
+    await adjust({
+      accountId: state.acc.account._id,
+      amountMicros: 10_000_000,
+      direction: 'credit',
+      reason: 'recurring funds',
+      createdBy: users.owner.user._id,
+      idempotencyKey: randomUUID(),
+    });
+    const resumed = await resumeCampaign(req(), child._id.toString(), jobs);
+    expect(resumed.status).toBe('running');
+    expect(resumed.counters.total).toBe(1);
+    expect(await WhatsAppCampaignRecipientModel.countDocuments({ campaignId: child._id })).toBe(1);
+    const prepared = await WhatsAppCampaignModel.findById(child._id).lean();
+    expect(await prepareRecurringRun(prepared!, now)).toBe(true);
+    expect(await WhatsAppCampaignRecipientModel.countDocuments({ campaignId: child._id })).toBe(1);
+    const empty = await WhatsAppCampaignModel.create({
+      ...rootDoc,
+      _id: new Types.ObjectId(),
+      parentCampaignId: root.id,
+      status: 'scheduled',
+      audience: { contactIds: [new Types.ObjectId()] },
+    });
+    expect(await prepareRecurringRun(empty.toObject(), now)).toBe(false);
+    expect((await WhatsAppCampaignModel.findById(empty._id).lean())?.status).toBe('failed');
+  });
+  it('rejects expired schedules and keeps a repeated audience snapshot unique without hiding database errors', async () => {
+    const c = await contact();
+    const schedules = [
+      { kind: 'at', at: '2020-01-01T00:00:00Z' },
+      {
+        kind: 'recurring',
+        timezone: 'UTC',
+        recurrence: { freq: 'weekly', days: [], time: '09:00', until: null },
+      },
+      {
+        kind: 'recurring',
+        timezone: 'UTC',
+        recurrence: { freq: 'daily', days: [], time: '09:00', until: '2020-01-01T00:00:00Z' },
+      },
+    ];
+    for (const schedule of schedules)
+      await expect(draft([c._id], { schedule })).rejects.toMatchObject({
+        code: 'VALIDATION_FAILED',
+      });
+    const d = await draft([c._id]);
+    await startCampaign(req(), d.id, jobs);
+    expect(await recentSendCount(state.acc.account._id, new Types.ObjectId(utility), 7)).toBe(0);
+    const campaign = (await WhatsAppCampaignModel.findById(d.id).lean())!;
+    const variants = await loadVariants(campaign, state.channel.wabaId);
+    await snapshotAudience(campaign, variants);
+    expect(await WhatsAppCampaignRecipientModel.countDocuments({ campaignId: d.id })).toBe(1);
+    const failure = vi
+      .spyOn(WhatsAppCampaignRecipientModel, 'insertMany')
+      .mockRejectedValueOnce({ writeErrors: [{ code: 123 }] });
+    try {
+      await expect(snapshotAudience(campaign, variants)).rejects.toMatchObject({
+        writeErrors: [{ code: 123 }],
+      });
+    } finally {
+      failure.mockRestore();
+    }
+    expect(await WhatsAppCampaignRecipientModel.countDocuments({ campaignId: d.id })).toBe(1);
   });
 });

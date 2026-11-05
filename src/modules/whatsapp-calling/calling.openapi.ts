@@ -7,6 +7,8 @@ import {
   BulkPermissionBody,
   BulkRunParams,
   CallingParams,
+  CallPriceQuery,
+  CallPriceSchema,
   CallingSettingsSchema,
   CallPermissionSchema,
   CallMediaTicketSchema,
@@ -32,6 +34,15 @@ const failures = {
 };
 const body = (schema: z.ZodType) => ({ content: { 'application/json': { schema } } });
 const settingsPath = '/api/v1/whatsapp/channels/{id}/calling';
+registry.registerPath({
+  method: 'get',
+  path: `${settingsPath}/quote`,
+  tags: publicTags,
+  security: bearerOrKey,
+  summary: 'Selling price for this owned sender/contact, no provider costs (calls.trigger)',
+  request: { params: CallingParams, query: CallPriceQuery },
+  responses: { 200: ok(CallPriceSchema), ...failures },
+});
 registry.registerPath({
   method: 'get',
   path: settingsPath,

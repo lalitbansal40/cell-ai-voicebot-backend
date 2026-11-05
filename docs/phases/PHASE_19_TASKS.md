@@ -20,10 +20,10 @@ The earlier approximate 20% remaining estimate predates the expanded scope below
 | [x] | T19.10 | Estimate + wallet                     | be   | S    | B3    |
 | [x] | T19.11 | Sender + tier pacing                  | be   | L    | B3    |
 | [x] | T19.12 | Stats, replies, retry, export, report | be   | M    | B3    |
-| [ ] | T19.13 | Campaign wizard + dashboard           | fe   | L    | B3    |
+| [x] | T19.13 | Campaign wizard + dashboard           | fe   | L    | B3    |
 | [x] | T19.14 | Roles, limits, catalogue              | both | S    | B3    |
-| [ ] | T19.15 | WhatsApp call campaigns               | both | M    | B4    |
-| [ ] | T19.16 | E2E, perf, docs, sign-off             | both | M    | B4    |
+| [x] | T19.15 | WhatsApp call campaigns               | both | M    | B4    |
+| [x] | T19.16 | E2E, perf, docs, sign-off             | both | M    | B4    |
 
 ## Continuation — owner additions and remaining acceptance gaps
 
@@ -38,10 +38,12 @@ Uncommitted frontend wizard/dashboard/tests must be completed and validated befo
 | [x] | P19R-T2 | Per-sender shared 18/75 msg/sec limiter and pacing tests                                | both | Extends T19.11/T19.14                                               |
 | [x] | P19R-T3 | Three-type campaign UI; finish message wizard, recurrence, media and accurate estimates | both | Completes T19.13 and frontend T19.14; fixes backend acceptance gaps |
 | [x] | P19R-T4 | WhatsApp call campaigns with AI flow/agent and ask-permission-first                     | both | Completes/extends T19.15                                            |
-| [ ] | P19R-T5 | Incoming/outgoing WhatsApp AI setup and runtime verification                            | both | Reuse existing Phase 12/18B features                                |
+| [x] | P19R-T5 | Incoming/outgoing WhatsApp AI setup and runtime verification                            | both | Reuse existing Phase 12/18B features                                |
 | [x] | P19R-T6 | WhatsApp number filter through template creation, approval and sending                  | both | Strengthen existing filter/WABA scoping                             |
 | [x] | P19R-T7 | Shared Normal/WhatsApp call method and sender choices at all relevant entry points      | both | New owner requirement                                               |
-| [ ] | P19R-T8 | E2E/perf, regressions, contracts/docs/catalogues and honest final sign-off              | both | Completes/extends T19.16                                            |
+| [x] | P19R-T8 | E2E/perf, regressions, contracts/docs/catalogues and honest final sign-off              | both | Completes/extends T19.16                                            |
 
 Acceptance criteria and test cases: continuation prompt §1–§3. Do not tick a row merely
 because a screen or test file exists; record passing evidence and remaining live checks.
+
+Local continuation checks completed on 5 Nov 2026. See [sign-off](PHASE_19_SIGNOFF.md) and its evidence JSON for original failures, affected reruns, coverage and 75 browser cases. T19.16/P19R-T8 ticks describe local delivery; real Meta/SIP, production and owner test-number checks remain explicitly open.

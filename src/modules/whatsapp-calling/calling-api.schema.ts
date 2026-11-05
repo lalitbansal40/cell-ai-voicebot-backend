@@ -5,6 +5,20 @@ import { ObjectIdSchema } from '../../shared/validation/schemas';
 import { CallingSettingsPatch, ProgramBody } from './calling.schema';
 
 export const CallingParams = z.object({ id: ObjectIdSchema });
+export const CallPriceQuery = z.strictObject({ contactId: ObjectIdSchema });
+export const CallPriceSchema = registry.register(
+  'WhatsAppCallPrice',
+  z.object({
+    channelId: z.string(),
+    contactId: z.string(),
+    senderLabel: z.string(),
+    senderPhone: z.string().nullable(),
+    market: z.string(),
+    callPerMinuteMicros: z.number(),
+    aiPerMinuteMicros: z.number(),
+    pulseSec: z.number(),
+  }),
+);
 export const PermissionQuery = z.object({
   channelId: ObjectIdSchema,
   contactId: ObjectIdSchema,

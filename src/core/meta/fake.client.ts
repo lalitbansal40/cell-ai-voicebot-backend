@@ -162,6 +162,8 @@ export interface FakeSentMessage {
   pricingCategory?: string;
   billable?: boolean;
   at: string;
+  /** Provider method entry, before asynchronous fake validation/storage. */
+  attemptedAt: string;
 }
 
 export interface FakeReadReceipt {
@@ -498,6 +500,7 @@ export const createFakeMetaClient = ({
     waMessageId: string,
     payload: MetaMessagePayload,
     pricing: FakePricing,
+    attemptedAt: string,
   ) => {
     const part = payload[payload.type] as Record<string, unknown> | undefined;
     const mediaId = typeof part?.id === 'string' ? part.id : null;
@@ -520,6 +523,7 @@ export const createFakeMetaClient = ({
       pricingCategory: pricing.category,
       billable: pricing.billable,
       at: new Date().toISOString(),
+      attemptedAt,
     } satisfies FakeSentMessage);
   };
 
@@ -1132,6 +1136,7 @@ export const createFakeMetaClient = ({
     },
 
     async sendMessage(token, phoneNumberId, payload) {
+      const attemptedAt = new Date().toISOString();
       track('sendMessage', phoneNumberId);
       const identity = await owned(token, phoneNumberId, 'phone');
       const to = digits(payload.to);
@@ -1172,7 +1177,7 @@ export const createFakeMetaClient = ({
       const wabaId = fakeIds(identity.businessName, identity.phone).wabaId;
       const pricing = await pricingFor(wabaId, payload, to);
       const waMessageId = `wamid.FAKE${randomBytes(12).toString('hex').toUpperCase()}`;
-      await recordSend(phoneNumberId, waMessageId, payload, pricing);
+      await recordSend(phoneNumberId, waMessageId, payload, pricing, attemptedAt);
       scheduleStatuses(
         identity,
         phoneNumberId,

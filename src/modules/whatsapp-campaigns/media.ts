@@ -6,7 +6,10 @@ import { TEMPLATE_LIMITS } from '../../config/limits';
 import type { StorageProvider } from '../../core/storage';
 import { storageKey } from '../../core/storage/keys';
 import { InboxUploadModel, type InboxUploadDoc } from '../../db/models/inbox-upload.model';
-import type { WhatsAppCampaignDoc } from '../../db/models/whatsapp-campaign.model';
+import {
+  WhatsAppCampaignModel,
+  type WhatsAppCampaignDoc,
+} from '../../db/models/whatsapp-campaign.model';
 import { ValidationError } from '../../shared/errors/app-error';
 import { headerFormat } from '../templates/components';
 
@@ -89,4 +92,16 @@ export const validateCampaignMedia = (
         message: 'Every selected template must use the same header media type',
       },
     ]);
+};
+
+/** Completed recurring runs may share a durable key; remove only unreferenced media. */
+export const releaseCampaignMedia = async (
+  accountId: Types.ObjectId,
+  key: string,
+  storage: StorageProvider,
+) => {
+  if (await WhatsAppCampaignModel.exists({ accountId, 'headerMedia.storageKey': key }))
+    return false;
+  await storage.delete(key);
+  return true;
 };
