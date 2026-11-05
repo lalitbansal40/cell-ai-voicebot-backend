@@ -25,6 +25,7 @@ import { whatsappCampaignsMigration } from './0022-whatsapp-campaigns';
 import { waCampaignRunsMigration } from './0023-wa-campaign-runs';
 import { whatsappCallCampaignsMigration } from './0024-whatsapp-call-campaigns';
 import { voiceApiMigration } from './0025-voice-api';
+import { inboundSipMigration } from './0026-inbound-sip';
 
 /** Ordered migration registry. Add new files here (no fs globbing — keeps builds simple). */
 export const MIGRATIONS: Migration[] = [
@@ -53,4 +54,5 @@ export const MIGRATIONS: Migration[] = [
   waCampaignRunsMigration,
   whatsappCallCampaignsMigration,
   voiceApiMigration,
+  inboundSipMigration,
 ];

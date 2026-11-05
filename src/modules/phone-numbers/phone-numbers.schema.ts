@@ -17,6 +17,8 @@ export const CreatePhoneNumberBody = z.strictObject({
   kind: z.enum(PHONE_NUMBER_KINDS),
   label: z.string().trim().max(60).default(''),
   dltPrincipalEntityId: z.string().trim().max(40).nullable().default(null),
+  /** `inbound` / `both` take customer calls (Phase 20). */
+  purpose: z.enum(PHONE_NUMBER_PURPOSES).default('outbound'),
 });
 
 export const UpdatePhoneNumberBody = z
@@ -25,6 +27,7 @@ export const UpdatePhoneNumberBody = z
     label: z.string().trim().max(60),
     dltPrincipalEntityId: z.string().trim().max(40).nullable(),
     status: z.enum(PHONE_NUMBER_STATUSES),
+    purpose: z.enum(PHONE_NUMBER_PURPOSES),
   })
   .partial()
   .refine((b) => Object.keys(b).length > 0, 'Nothing to change');
@@ -80,7 +83,7 @@ registry.registerPath({
   method: 'patch',
   path: '/api/v1/admin/phone-numbers/{id}',
   tags,
-  summary: 'Change label, kind, DLT id or status (superadmin)',
+  summary: 'Change label, kind, purpose, DLT id or status (superadmin)',
   security: bearer,
   request: {
     ...idPath,

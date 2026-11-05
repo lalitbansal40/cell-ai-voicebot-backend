@@ -40,6 +40,8 @@ export const RateCardValuesSchema = z.strictObject({
   sttPerMinuteMicros: rate.optional(),
   /** VAPI — optional like the AI prices. */
   voiceApiPulseMicros: rate.optional(),
+  /** Phase 20 — optional; `null` = incoming minutes cost what outgoing ones do. */
+  inboundCallPerMinuteMicros: rate.nullable().optional(),
 });
 
 /** What a request may send (AI prices optional) — completed by `completeValues`. */
@@ -127,7 +129,8 @@ const completeValues = async (
     input.aiTextPer1kTokensMicros !== undefined &&
     input.embeddingPer1kTokensMicros !== undefined &&
     input.sttPerMinuteMicros !== undefined &&
-    input.voiceApiPulseMicros !== undefined
+    input.voiceApiPulseMicros !== undefined &&
+    input.inboundCallPerMinuteMicros !== undefined
   ) {
     return input as RateCardValues;
   }
@@ -141,6 +144,10 @@ const completeValues = async (
       input.embeddingPer1kTokensMicros ?? current.embeddingPer1kTokensMicros,
     sttPerMinuteMicros: input.sttPerMinuteMicros ?? current.sttPerMinuteMicros,
     voiceApiPulseMicros: input.voiceApiPulseMicros ?? current.voiceApiPulseMicros ?? 0,
+    inboundCallPerMinuteMicros:
+      input.inboundCallPerMinuteMicros !== undefined
+        ? input.inboundCallPerMinuteMicros
+        : (current.inboundCallPerMinuteMicros ?? null),
   };
 };
 

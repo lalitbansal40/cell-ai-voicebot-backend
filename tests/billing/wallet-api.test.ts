@@ -229,6 +229,8 @@ describe('GET /wallet/rates and POST /wallet/estimate', () => {
   it('shows the effective prices (default, then the account override)', async () => {
     expect((await get('/api/v1/wallet/rates')).body.data).toMatchObject({
       ...DEFAULT_RATE_CARD,
+      // Phase 20: no incoming price of its own = the outgoing minute price
+      inboundCallPerMinuteMicros: DEFAULT_RATE_CARD.callPerMinuteMicros,
       source: 'default',
     });
     await createRateCardVersion({

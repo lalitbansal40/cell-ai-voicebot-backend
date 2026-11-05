@@ -6,7 +6,11 @@ import { getEnv } from '../../config/env';
 import { SIP_LIMITS } from '../../config/limits';
 import { isDuplicateKeyError } from '../../db/errors';
 import { AccountModel, type AccountVoiceLine } from '../../db/models/account.model';
-import { PhoneNumberModel, type PhoneNumberDoc } from '../../db/models/phone-number.model';
+import {
+  CALLER_ID_PURPOSES,
+  PhoneNumberModel,
+  type PhoneNumberDoc,
+} from '../../db/models/phone-number.model';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
 import { auditRequest } from '../audit/audit.service';
 import { effectiveLine } from '../calls/line';
@@ -82,7 +86,7 @@ export const createPhoneNumber = async (
   body: z.infer<typeof CreatePhoneNumberBody>,
 ) => {
   try {
-    const doc = (await PhoneNumberModel.create({ ...body, purpose: 'outbound' })).toObject();
+    const doc = (await PhoneNumberModel.create(body)).toObject();
     await audit(req, 'phone_number.created', doc, { kind: doc.kind });
     return view(doc);
   } catch (err) {
@@ -140,9 +144,13 @@ export const releasePhoneNumber = async (req: Request, id: string) => {
   return view(doc);
 };
 
-/** The account's active outbound numbers (Settings → Phone line, campaign form). */
+/** The account's active caller-ID numbers (`outbound` / `both`; Settings → Phone line, campaign form). */
 export const accountPhoneNumbers = async (accountId: Types.ObjectId) => {
-  const docs = await PhoneNumberModel.find({ accountId, status: 'active', purpose: 'outbound' })
+  const docs = await PhoneNumberModel.find({
+    accountId,
+    status: 'active',
+    purpose: { $in: CALLER_ID_PURPOSES },
+  })
     .sort({ createdAt: 1 })
     .lean<PhoneNumberDoc[]>();
   return docs.map((d) => view(d));
@@ -172,7 +180,7 @@ export const resolveCallerId = async (
   const base = {
     accountId: new Types.ObjectId(accountId),
     status: 'active' as const,
-    purpose: 'outbound' as const,
+    purpose: { $in: CALLER_ID_PURPOSES },
   };
   if (callerNumberId) {
     const chosen = await PhoneNumberModel.findOne({

@@ -98,6 +98,8 @@ const RateCardValuesView = {
   embeddingPer1kTokensMicros: z.number(),
   sttPerMinuteMicros: z.number(),
   voiceApiPulseMicros: z.number(),
+  /** Phase 20: `null` = same as `callPerMinuteMicros`. */
+  inboundCallPerMinuteMicros: z.number().nullable(),
 };
 
 export const RateCardVersionSchema = registry.register(

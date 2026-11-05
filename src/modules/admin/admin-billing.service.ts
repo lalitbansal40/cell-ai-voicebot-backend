@@ -67,6 +67,7 @@ const VALUE_KEYS = [
   'embeddingPer1kTokensMicros',
   'sttPerMinuteMicros',
   'voiceApiPulseMicros',
+  'inboundCallPerMinuteMicros',
 ] as const;
 
 const customerAccount = async (id: string): Promise<AccountDoc> => {
@@ -102,6 +103,7 @@ const versionView = (c: RateCardDoc) => ({
   id: c._id.toString(),
   accountId: c.accountId ? c.accountId.toString() : null,
   ...Object.fromEntries(VALUE_KEYS.map((k) => [k, c[k]])),
+  inboundCallPerMinuteMicros: c.inboundCallPerMinuteMicros ?? null,
   inheritsDefault: c.inheritsDefault,
   effectiveFrom: c.effectiveFrom.toISOString(),
   createdBy: c.createdBy ? c.createdBy.toString() : null,
@@ -113,6 +115,7 @@ const effectiveView = (c: EffectiveRateCard) => ({
   id: c.id,
   source: c.source,
   ...Object.fromEntries(VALUE_KEYS.map((k) => [k, c[k]])),
+  inboundCallPerMinuteMicros: c.inboundCallPerMinuteMicros ?? null,
   effectiveFrom: c.effectiveFrom.toISOString(),
 });
 

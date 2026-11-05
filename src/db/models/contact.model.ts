@@ -4,7 +4,14 @@ import { basePlugin } from '../plugins/base';
 import { softDeletePlugin } from '../plugins/soft-delete';
 import { tenantPlugin } from '../plugins/tenant';
 
-export const CONTACT_SOURCE_TYPES = ['manual', 'import', 'api', 'whatsapp'] as const;
+/** `inbound_call`: made when an unknown number called the account (Phase 20). */
+export const CONTACT_SOURCE_TYPES = [
+  'manual',
+  'import',
+  'api',
+  'whatsapp',
+  'inbound_call',
+] as const;
 export type ContactSourceType = (typeof CONTACT_SOURCE_TYPES)[number];
 
 /** WhatsApp profile of the contact (Phase 10 inbox). */

@@ -57,6 +57,10 @@ export const CALL_END_REASONS = [
   'outside_call_hours',
   // SIP phone calls (Phase 18)
   'machine',
+  // Incoming phone calls (Phase 20)
+  'line_busy',
+  'spam_guard',
+  'inbound_refused',
 ] as const;
 export type CallEndReason = (typeof CALL_END_REASONS)[number];
 
@@ -195,6 +199,35 @@ export interface CallInsightsState {
   at: Date;
 }
 
+/** Why an incoming phone call was missed (Phase 20). */
+export const MISSED_REASONS = [
+  'no_answer',
+  'no_agents',
+  'after_hours',
+  'line_busy',
+  'wallet_low',
+  'caller_hung_up',
+  'spam',
+] as const;
+export type MissedReason = (typeof MISSED_REASONS)[number];
+
+/** `calls.inbound` (Phase 20): an incoming phone call — which number, which route. */
+export interface CallInbound {
+  /** The number the customer dialed (E.164). */
+  did: string;
+  phoneNumberId: Types.ObjectId;
+  numberLabel: string;
+  route: 'ai' | 'team' | 'ai_then_team' | 'team_then_ai';
+  /** The caller hid their number (`from` is `anonymous`). */
+  callerHidden: boolean;
+}
+
+/** `calls.missed` (Phase 20): set when nobody (no person, no AI) took the incoming call. */
+export interface CallMissed {
+  reason: MissedReason;
+  callback: { status: 'open' | 'done'; doneBy: Types.ObjectId | null; doneAt: Date | null };
+}
+
 /** `calls.sip` (Phase 18): what the SIP line reported at the end of the call. */
 export interface CallSipFacts {
   codec: 'ulaw' | 'alaw';
@@ -268,6 +301,10 @@ export interface CallDoc {
   callerNumberId?: Types.ObjectId | null;
   /** SIP (Phase 18): line facts of the call (codec, Q.850, AMD, RTP quality). */
   sip?: CallSipFacts | null;
+  /** Incoming phone call (Phase 20). */
+  inbound?: CallInbound | null;
+  /** Incoming call nobody took (Phase 20) + its callback state. */
+  missed?: CallMissed | null;
   /** SIP (Phase 18): what the trunk cost us, for the margin report (never shown to accounts). */
   trunkCostPaise?: number | null;
   recording: CallRecording | null;
@@ -422,6 +459,37 @@ const schema = new Schema<CallDoc>(
     callerId: { type: String, default: null, maxlength: 16 },
     callerNumberId: { type: Schema.Types.ObjectId, default: null },
     sip: { type: Schema.Types.Mixed, default: null },
+    inbound: {
+      type: new Schema<CallInbound>(
+        {
+          did: { type: String, required: true, maxlength: 16 },
+          phoneNumberId: { type: Schema.Types.ObjectId, required: true },
+          numberLabel: { type: String, default: '', maxlength: 60 },
+          route: {
+            type: String,
+            enum: ['ai', 'team', 'ai_then_team', 'team_then_ai'],
+            required: true,
+          },
+          callerHidden: { type: Boolean, default: false },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
+    missed: {
+      type: new Schema<CallMissed>(
+        {
+          reason: { type: String, enum: MISSED_REASONS, required: true },
+          callback: {
+            status: { type: String, enum: ['open', 'done'], default: 'open' },
+            doneBy: { type: Schema.Types.ObjectId, default: null },
+            doneAt: { type: Date, default: null },
+          },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     trunkCostPaise: { type: Number, default: null },
     recording: { type: Schema.Types.Mixed, default: null },
     flowRunId: { type: Schema.Types.ObjectId, default: null },
@@ -468,6 +536,11 @@ schema.index(
   { partialFilterExpression: { provider: 'whatsapp' }, name: 'wa_channel_calls' },
 );
 schema.index({ createdAt: 1 });
+// Phase 20: the missed-calls list (callbacks still to make, newest first)
+schema.index(
+  { accountId: 1, 'missed.callback.status': 1, createdAt: -1 },
+  { partialFilterExpression: { missed: { $type: 'object' } }, name: 'missed_calls' },
+);
 // Phase 14 analytics sweep (changed rows by `updatedAt`)
 schema.index({ updatedAt: 1, _id: 1 }, { name: 'analytics_sweep' });
 // Phase 14 insights sweep: final calls nobody has looked at yet

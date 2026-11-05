@@ -505,6 +505,7 @@
           "embeddingPer1kTokensMicros": { "type": "number" },
           "sttPerMinuteMicros": { "type": "number" },
           "voiceApiPulseMicros": { "type": "number" },
+          "inboundCallPerMinuteMicros": { "type": "number" },
           "source": { "type": "string", "enum": ["account", "default"] },
           "effectiveFrom": { "type": "string" },
           "whatsapp": {
@@ -568,6 +569,7 @@
           "embeddingPer1kTokensMicros",
           "sttPerMinuteMicros",
           "voiceApiPulseMicros",
+          "inboundCallPerMinuteMicros",
           "source",
           "effectiveFrom",
           "whatsapp",
@@ -781,6 +783,7 @@
           "embeddingPer1kTokensMicros": { "type": "number" },
           "sttPerMinuteMicros": { "type": "number" },
           "voiceApiPulseMicros": { "type": "number" },
+          "inboundCallPerMinuteMicros": { "type": ["number", "null"] },
           "inheritsDefault": { "type": "boolean" },
           "effectiveFrom": { "type": "string" },
           "createdBy": { "type": ["string", "null"] },
@@ -800,6 +803,7 @@
           "embeddingPer1kTokensMicros",
           "sttPerMinuteMicros",
           "voiceApiPulseMicros",
+          "inboundCallPerMinuteMicros",
           "inheritsDefault",
           "effectiveFrom",
           "createdBy",
@@ -825,6 +829,7 @@
               "embeddingPer1kTokensMicros": { "type": "number" },
               "sttPerMinuteMicros": { "type": "number" },
               "voiceApiPulseMicros": { "type": "number" },
+              "inboundCallPerMinuteMicros": { "type": ["number", "null"] },
               "effectiveFrom": { "type": "string" }
             },
             "required": [
@@ -840,6 +845,7 @@
               "embeddingPer1kTokensMicros",
               "sttPerMinuteMicros",
               "voiceApiPulseMicros",
+              "inboundCallPerMinuteMicros",
               "effectiveFrom"
             ]
           },
@@ -878,6 +884,7 @@
               "embeddingPer1kTokensMicros": { "type": "number" },
               "sttPerMinuteMicros": { "type": "number" },
               "voiceApiPulseMicros": { "type": "number" },
+              "inboundCallPerMinuteMicros": { "type": ["number", "null"] },
               "effectiveFrom": { "type": "string" }
             },
             "required": [
@@ -893,6 +900,7 @@
               "embeddingPer1kTokensMicros",
               "sttPerMinuteMicros",
               "voiceApiPulseMicros",
+              "inboundCallPerMinuteMicros",
               "effectiveFrom"
             ]
           },
@@ -2770,6 +2778,9 @@
               "no_agent_available",
               "outside_call_hours",
               "machine",
+              "line_busy",
+              "spam_guard",
+              "inbound_refused",
               null
             ]
           },
@@ -4181,7 +4192,10 @@
           "source": {
             "type": "object",
             "properties": {
-              "type": { "type": "string", "enum": ["manual", "import", "api", "whatsapp"] },
+              "type": {
+                "type": "string",
+                "enum": ["manual", "import", "api", "whatsapp", "inbound_call"]
+              },
               "importJobId": { "type": ["string", "null"] }
             },
             "required": ["type", "importJobId"]
@@ -4348,7 +4362,7 @@
           "kind": { "type": "string", "enum": ["1600", "landline", "mobile", "other"] },
           "accountId": { "type": ["string", "null"] },
           "accountName": { "type": ["string", "null"] },
-          "purpose": { "type": "string", "enum": ["outbound", "inbound"] },
+          "purpose": { "type": "string", "enum": ["outbound", "inbound", "both"] },
           "label": { "type": "string" },
           "dltPrincipalEntityId": { "type": ["string", "null"] },
           "status": { "type": "string", "enum": ["active", "disabled"] },
@@ -11593,6 +11607,11 @@
                   },
                   "sttPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
                   "voiceApiPulseMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "inboundCallPerMinuteMicros": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
                   "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
                 },
                 "required": [
@@ -11789,6 +11808,11 @@
                   },
                   "sttPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
                   "voiceApiPulseMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "inboundCallPerMinuteMicros": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
                   "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
                 },
                 "required": [
@@ -21837,6 +21861,11 @@
                     "type": ["string", "null"],
                     "maxLength": 40,
                     "default": null
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": ["outbound", "inbound", "both"],
+                    "default": "outbound"
                   }
                 },
                 "required": ["number", "kind"],
@@ -21885,7 +21914,7 @@
     "/api/v1/admin/phone-numbers/{id}": {
       "patch": {
         "tags": ["Phone numbers"],
-        "summary": "Change label, kind, DLT id or status (superadmin)",
+        "summary": "Change label, kind, purpose, DLT id or status (superadmin)",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {
@@ -21904,7 +21933,8 @@
                   "kind": { "type": "string", "enum": ["1600", "landline", "mobile", "other"] },
                   "label": { "type": "string", "maxLength": 60 },
                   "dltPrincipalEntityId": { "type": ["string", "null"], "maxLength": 40 },
-                  "status": { "type": "string", "enum": ["active", "disabled"] }
+                  "status": { "type": "string", "enum": ["active", "disabled"] },
+                  "purpose": { "type": "string", "enum": ["outbound", "inbound", "both"] }
                 },
                 "additionalProperties": false
               }

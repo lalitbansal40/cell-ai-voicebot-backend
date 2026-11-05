@@ -23,6 +23,8 @@ export interface RateCardValues {
   sttPerMinuteMicros: number;
   /** VAPI: recorded voice per started 15 seconds per number (0 = not priced, no start). */
   voiceApiPulseMicros: number;
+  /** Phase 20: a minute of an incoming phone call (`null` = same as `callPerMinuteMicros`). */
+  inboundCallPerMinuteMicros: number | null;
 }
 
 export interface RateCardDoc extends RateCardValues {
@@ -52,6 +54,7 @@ export const DEFAULT_RATE_CARD: RateCardValues = {
   sttPerMinuteMicros: 500_000,
   // VAPI: 0 = recorded-voice campaigns stay unpriced until a superadmin sets a price
   voiceApiPulseMicros: 0,
+  inboundCallPerMinuteMicros: null,
 };
 
 const rate = {
@@ -75,6 +78,14 @@ const schema = new Schema<RateCardDoc>({
   embeddingPer1kTokensMicros: { ...rate, default: DEFAULT_RATE_CARD.embeddingPer1kTokensMicros },
   sttPerMinuteMicros: { ...rate, default: DEFAULT_RATE_CARD.sttPerMinuteMicros },
   voiceApiPulseMicros: { ...rate, default: DEFAULT_RATE_CARD.voiceApiPulseMicros },
+  inboundCallPerMinuteMicros: {
+    type: Number,
+    default: null,
+    validate: {
+      validator: (v: unknown) => v === null || (isMicros(v) && v >= 0),
+      message: 'Must be a whole number of micros ≥ 0',
+    },
+  },
   inheritsDefault: { type: Boolean, default: false },
   effectiveFrom: { type: Date, required: true },
   createdBy: { type: Schema.Types.ObjectId, default: null },

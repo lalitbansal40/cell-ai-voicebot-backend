@@ -81,6 +81,8 @@ export const RateCardViewSchema = registry.register(
     embeddingPer1kTokensMicros: z.number(),
     sttPerMinuteMicros: z.number(),
     voiceApiPulseMicros: z.number(),
+    /** Phase 20: a minute of an incoming phone call. */
+    inboundCallPerMinuteMicros: z.number(),
     source: z.enum(['account', 'default']),
     effectiveFrom: z.string(),
     whatsapp: z.object({
