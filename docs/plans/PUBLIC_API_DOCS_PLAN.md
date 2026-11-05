@@ -1,6 +1,6 @@
 # Public API + API docs — complete & production-ready (plan)
 
-5 Nov 2026 · Status: **plan, not started** · Product name in docs: **NotifyNow API**
+5 Nov 2026 · Status: **implemented locally (DOCS-T1…T9)** · Product name in docs: **NotifyNow API**
 
 ## 0. Aaj kya hai (code se verified)
 

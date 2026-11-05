@@ -176,3 +176,7 @@ public result webhook). `modules/campaigns/voice-api/` runs `line: 'voice_api'` 
 `settings.ts` (validation, price, ETA), `batch.ts` (hold → submit → capture under a Redis
 lock; uncertain submits are never resent), `results.ts` (webhook + polling, idempotent
 counters, call rows), `jobs.ts` (`voice.batch` / `voice.poll` / `voice.result`).
+
+## Public API docs (DOCS)
+
+`modules/docs/`: `public-spec.ts` (public routes + `documentOp` fills ids, descriptions, examples, errors; servers, tag order), `public-docs.ts` (docs of the older public routes), `sample.ts` (examples from schemas), `quality.ts` (audit rules), `postman.ts` (collection), `public-errors.ts` (errors guide table). `modules/public-api/resources.*` serves `/resources/*`. Checks: `npm run docs:audit`, `npm run docs:smoke`.

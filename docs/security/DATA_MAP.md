@@ -116,3 +116,7 @@ Campaign variable eligibility and sending use the central send-purpose sensitive
 - **Sent outside:** the 10-digit numbers (CSV per batch) and the chosen audio file go to
   Cell24x7 (processor). Their copies are not ours to delete; the privacy policy lists them.
   Logs never carry the token or a full number.
+
+## Public API resources (DOCS)
+
+`/api/v1/resources/*` returns minimal views to API keys with `resources:read`: flow / agent names and ids (never graphs, prompts or function secrets), WhatsApp number label / display number / status / quality / tier / calling readiness (never tokens or WABA ids), list and segment names with counts, caller numbers, assigned IVR names and the wallet balance. No contact personal data. WhatsApp bulk campaign recipients and exports give keys masked phones only.

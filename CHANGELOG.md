@@ -11,6 +11,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Public API docs and resources (DOCS)** — 2026-11-05
+  - `GET /resources/{flows,agents,whatsapp-numbers,contact-lists,segments,phone-line,ivrs,wallet}` with scope `resources:read`; WhatsApp bulk campaigns with API keys (`whatsapp-campaigns:read` / `:write`); `POST /campaigns/{id}/estimate` for keys. Scopes 13 → 16.
+  - Webhook events `whatsapp_campaign.completed` / `.paused` (13 events); `campaign.completed` gains `line`; webhook samples match the real payloads.
+  - Every public route (72) has an operationId, description, `x-scope`, examples and its error answers, enforced by `tests/docs/public-spec-quality.test.ts`; 16 guides (`docs/api`) with generated scope / error tables; Postman collection `GET /api/v1/postman.json`; docs page download bar; `npm run docs:audit`, `npm run docs:smoke` (every example against the app).
+  - Fixed: bulk campaign `createdBy` / audit for API keys; public spec server URL (no double `/api/v1`); route matrix covers the WhatsApp call quote.
 - **Recorded-voice / IVR campaigns (Cell24x7 Voice API, VAPI)** — 2026-11-05
   - SIP / Normal call campaigns can play one recorded audio or a Cell24x7 IVR menu: safe batches (wallet hold → submit → capture), calling-window and redial checks, Stop between batches, uncertain submits never resent (superadmin resolves), results by secret webhook + `/details` polling, call rows for contact history.
   - Superadmin: per-account enable + IVR assignment, `voiceApiPulseMicros` price, Admin → System status / webhook registration. Migration `0025-voice-api`; env `VOICE_API_*` / `CELL24X7_*` (off by default). Guide: `docs/integrations/cell24x7-voice.md`.

@@ -402,3 +402,12 @@ const contact = await Contact.findOne({ _id: id, accountId: req.body.accountId }
 ## Phase 19 continuation: message campaigns
 
 WhatsApp message campaign estimates return eligible recipients, skipped counts, shortfallMicros and per-market/category prices. Create/update accept headerMediaToken (owned composer upload; null clears) and recurring schedules (timezone + recurrence freq/days/time/until). Media is retained independently for recurring and multi-recipient sends. Completion follows provider acceptance, and paused/stopped campaigns do not send queued messages.
+
+## Public API routes (DOCS)
+
+A route an API key may call needs, in the same change:
+
+1. `access({ permission, scope })` after `authenticate({ apiKeys: true })` — exactly one scope per route.
+2. OpenAPI: `tags` include `Public API` (use `publicOp()` from `shared/openapi/responses.ts`, or an entry in `src/modules/docs/public-docs.ts`) with `operationId`, a Markdown `description` (scope, limits, idempotency, side effects, main error codes), `x-scope`, a request example and a 2xx example. Common errors are added by `buildPublicSpec`; list extra real ones (`errors: ['503']`).
+3. `tests/security/phase15-routes.test.ts`: an `idFor` record for `{id}` paths, a valid body / query when validation would answer first; update the matrix snapshot.
+4. `npm run gen:openapi` (also writes the Postman collection), `npm run docs:audit`, guides if the behaviour is new (`docs/api`, `npm run gen:guides`), and run `npm run docs:smoke` before a release.
