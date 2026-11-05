@@ -327,6 +327,17 @@ export const ERROR_CODES = {
     status: 503,
     message: 'The voice provider did not answer. Please try again later.',
   },
+  // Phase 20 — incoming phone calls
+  CALL_ALREADY_ANSWERED: { status: 409, message: 'Someone else already answered this call.' },
+  CALL_NOT_RINGING: { status: 409, message: "This call isn't ringing any more." },
+  INBOUND_PROGRAM_REQUIRED: {
+    status: 422,
+    message: 'Choose a flow or AI agent to answer calls on this number.',
+  },
+  INBOUND_PROGRAM_NOT_READY: {
+    status: 422,
+    message: 'The chosen flow is not published or the AI agent is not active.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

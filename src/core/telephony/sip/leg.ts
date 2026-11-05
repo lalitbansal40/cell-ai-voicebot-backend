@@ -116,6 +116,9 @@ export class SipCallLeg implements CallLeg {
   } | null = null;
   private transferred = false;
   private endedFns: (() => void)[] = [];
+  /** Phase 20: an incoming call's AI hands over to the team instead of dialing a number. */
+  private transferHandler:
+    ((target: TransferTarget, timeoutSec: number) => Promise<TransferResult>) | null = null;
 
   constructor(
     private readonly ari: AriClient,
@@ -361,10 +364,18 @@ export class SipCallLeg implements CallLeg {
     return played;
   }
 
+  /** Phase 20 (`ai_then_team`): a flow / agent transfer rings the team instead. */
+  setTransferHandler(
+    fn: ((target: TransferTarget, timeoutSec: number) => Promise<TransferResult>) | null,
+  ): void {
+    this.transferHandler = fn;
+  }
+
   transfer(target: TransferTarget, timeoutSec: number): Promise<TransferResult> {
     if (this.state !== 'answered' || this.transferring || this.transferred) {
       return Promise.resolve('failed');
     }
+    if (this.transferHandler) return this.transferHandler(target, timeoutSec);
     if (!/^\+[1-9]\d{7,14}$/.test(target.phone)) return Promise.resolve('failed');
     return this.startTransfer(target, timeoutSec);
   }
@@ -453,7 +464,8 @@ export class SipCallLeg implements CallLeg {
     this.ourHangup = true;
     this.askedCause = cause;
     this.pacer.clear();
-    if (this.dialedAt === null) {
+    // an incoming channel exists before we answer it: it must be hung up too
+    if (this.dialedAt === null && !this.inbound) {
       this.finish(cause);
       return;
     }

@@ -100,6 +100,7 @@ By default payloads carry ids, statuses, outcomes and amounts only. Turn on **In
 | `call.started`                                                           | a call is answered                                                          |
 | `call.completed`                                                         | a call ended (any status) and its cost is settled                           |
 | `call.insights.ready`                                                    | the post-call AI summary / outcome is ready (or skipped)                    |
+| `call.missed`                                                            | an incoming phone call nobody (person or AI) took — your callback list      |
 | `campaign.completed`                                                     | a campaign (or a recurring run) finished                                    |
 | `whatsapp.message.received`                                              | a customer message arrived                                                  |
 | `whatsapp.message.status`                                                | one of your messages was sent / delivered / read / failed                   |
@@ -126,10 +127,13 @@ The `data` of each event (made-up values). Fields marked personal — `phone`, `
   "campaignId": "6720f0a1b2c3d4e5f6a7b8cb",
   "flowId": "6720f0a1b2c3d4e5f6a7b8cc",
   "agentId": null,
+  "did": null,
   "phone": "+919876543210",
   "name": "Asha Verma"
 }
 ```
+
+`direction` is `inbound` for a call the customer made to your number (Phase 20); `did` is then that number (E.164), else `null`.
 
 ### `call.completed`
 
@@ -144,6 +148,7 @@ The `data` of each event (made-up values). Fields marked personal — `phone`, `
   "campaignId": "6720f0a1b2c3d4e5f6a7b8cb",
   "flowId": "6720f0a1b2c3d4e5f6a7b8cc",
   "agentId": null,
+  "did": null,
   "status": "completed",
   "endReason": "hangup_node",
   "durationSec": 94,
@@ -151,6 +156,24 @@ The `data` of each event (made-up values). Fields marked personal — `phone`, `
   "disposition": "promise_to_pay",
   "dispositionSource": "flow",
   "recording": true,
+  "phone": "+919876543210",
+  "name": "Asha Verma"
+}
+```
+
+### `call.missed`
+
+An incoming phone call to one of your numbers that nobody took. `reason`: `no_answer` (the team did not pick up), `no_agents` (nobody was free), `after_hours`, `line_busy`, `wallet_low`, `caller_hung_up` (gave up while it rang) or `spam` (too many calls from one number; not on the callback list). `phone` is `null` when the caller hid their number.
+
+```json
+{
+  "callId": "6720f0a1b2c3d4e5f6a7b8c9",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "contactExternalId": "CUST-1001",
+  "did": "+911600000001",
+  "numberLabel": "Support line",
+  "reason": "no_answer",
+  "at": "2026-11-06T10:15:00.000Z",
   "phone": "+919876543210",
   "name": "Asha Verma"
 }

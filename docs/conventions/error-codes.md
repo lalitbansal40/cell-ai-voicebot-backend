@@ -129,6 +129,10 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `VOICE_API_IVR_MISSING`                     | 409  | The IVR is not assigned to the account, not runnable or unknown to Cell24x7                                                                                                                                           | VAPI  |
 | `VOICE_API_AUDIO_INVALID`                   | 422  | The audio is not the account's own WAV / MP3 of at most 120 seconds and 10 MB                                                                                                                                         | VAPI  |
 | `VOICE_API_UNAVAILABLE`                     | 503  | Cell24x7 did not answer (timeout / 5xx); a submit is never repeated automatically                                                                                                                                     | VAPI  |
+| `CALL_ALREADY_ANSWERED`                     | 409  | Another team member answered the ringing phone call first                                                                                                                                                             | 20    |
+| `CALL_NOT_RINGING`                          | 409  | The incoming phone call ended or was answered before this action                                                                                                                                                      | 20    |
+| `INBOUND_PROGRAM_REQUIRED`                  | 422  | The number's route (or after-hours AI) needs a flow or AI agent                                                                                                                                                       | 20    |
+| `INBOUND_PROGRAM_NOT_READY`                 | 422  | The chosen flow is not published / the AI agent is not active                                                                                                                                                         | 20    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

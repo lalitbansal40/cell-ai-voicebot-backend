@@ -14,6 +14,8 @@ export const WEBHOOK_EVENT_TYPES = [
   'call.started',
   'call.completed',
   'call.insights.ready',
+  // Phase 20: an incoming phone call nobody (person or AI) took
+  'call.missed',
   'campaign.completed',
   'whatsapp.message.received',
   'whatsapp.message.status',

@@ -103,6 +103,7 @@ describe('call events', () => {
       campaignId: null,
       flowId: c.source.flowId?.toString(),
       agentId: null,
+      did: null,
       status: 'completed',
       endReason: 'hangup_node',
       durationSec: 61,

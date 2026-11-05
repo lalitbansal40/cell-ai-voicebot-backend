@@ -12,6 +12,8 @@ export interface CallUsage {
   telephony?: boolean;
   /** SIP line (Phase 18): the account's pulse instead of the rate card's. */
   pulseSeconds?: number;
+  /** Phase 20: a call the customer made (the card's incoming minute price). */
+  inbound?: boolean;
 }
 
 export interface ChargeBreakdown {
@@ -60,7 +62,10 @@ export const callCharge = (card: RateCardValues, usage: CallUsage): Charge => {
   const pulseSeconds = usage.pulseSeconds ?? card.pulseSeconds;
   const billableSeconds =
     billed && usage.telephony !== false ? ceilDiv(durationSec, pulseSeconds) * pulseSeconds : 0;
-  const telephonyMicros = perSecond(billableSeconds, card.callPerMinuteMicros);
+  const minutePrice = usage.inbound
+    ? (card.inboundCallPerMinuteMicros ?? card.callPerMinuteMicros)
+    : card.callPerMinuteMicros;
+  const telephonyMicros = perSecond(billableSeconds, minutePrice);
   const aiMicros = perSecond(aiSeconds, card.aiPerMinuteMicros);
   const ttsMicros = ceilDiv(ttsChars * card.ttsPer1kCharsMicros, 1000);
   const subtotal = telephonyMicros + aiMicros + ttsMicros;
@@ -88,6 +93,7 @@ export const holdEstimate = (
   minutes: number = BILLING_LIMITS.callHoldMinutes,
   telephony = true,
   ai = true,
+  inbound = false,
 ): number => {
   const seconds = count(minutes, 24 * 60, 'minutes') * 60;
   return callCharge(card, {
@@ -95,6 +101,7 @@ export const holdEstimate = (
     durationSec: seconds,
     aiSeconds: ai ? seconds : 0,
     telephony,
+    inbound,
   }).totalMicros;
 };
 

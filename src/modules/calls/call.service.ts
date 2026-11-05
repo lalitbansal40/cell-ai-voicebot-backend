@@ -34,7 +34,7 @@ import { withoutSensitive } from '../privacy/sensitive';
 import { BridgeScript } from '../whatsapp-calling/bridge';
 import type { CallControlBus, CallCommand } from '../whatsapp-calling/bus';
 
-import { CallBilling } from './billing';
+import { CallBilling, type CallBillingPort } from './billing';
 import { issueMediaTicket } from './media-tickets';
 import type { CallRegistry } from './registry';
 import type { ScriptChoice, ScriptFactory } from './scripts';
@@ -120,6 +120,32 @@ export interface OutboundCall {
   ended: Promise<CallEndedSummary>;
 }
 
+/** Phase 20: what `runInboundSipSession` needs from the incoming leg (`SipCallLeg`). */
+export type InboundSipLeg = CallLeg & {
+  dial(): Promise<void>;
+  readonly metrics: SipLegMetrics;
+  readonly ended: boolean;
+};
+
+/** Phase 20: one incoming phone call handed to the call manager by the inbound service. */
+export interface InboundSipSessionInput {
+  call: CallDoc;
+  leg: InboundSipLeg;
+  billing: CallBillingPort;
+  script: CallScript;
+  voice: string;
+  language: string;
+  maxDurationSec?: number;
+  /** Seconds the call may stay unanswered (ringing the team) before it ends. */
+  answerTimeoutSec: number;
+  /** Fixed-line calls (after hours, wallet low) are never recorded. */
+  record: boolean;
+  /** The answering team member's socket (`/ws/media`) for this call. */
+  attachAgent?: (input: MediaAttachInput, leg: CallLeg) => Promise<AttachResult>;
+  /** Answer the trunk channel at once (else the inbound service answers it later). */
+  answerNow: boolean;
+}
+
 /** May return a promise: `shutdown()` waits for it (e.g. campaign results written before Mongo closes). */
 export type CallEndedListener = (summary: CallEndedSummary) => void | Promise<unknown>;
 
@@ -187,6 +213,11 @@ export class CallManager {
   >();
   private whatsappAttach:
     ((input: MediaAttachInput, leg: CallLeg) => Promise<AttachResult>) | null = null;
+  /** Phase 20: the team member's socket of an incoming phone call → the inbound service. */
+  private readonly inboundAttach = new Map<
+    string,
+    (input: MediaAttachInput, leg: CallLeg) => Promise<AttachResult>
+  >();
 
   constructor(private readonly deps: CallManagerDeps) {
     this.clock = deps.clock ?? systemClock;
@@ -223,6 +254,7 @@ export class CallManager {
 
   private untrack(callId: string): void {
     this.sessions.delete(callId);
+    this.inboundAttach.delete(callId);
     const human = this.humanSip.get(callId);
     if (human) this.clock.clearTimeout(human.timer);
     this.humanSip.delete(callId);
@@ -679,6 +711,92 @@ export class CallManager {
     return { callId, ended };
   }
 
+  /** Phase 20: a flow / agent program for a call (a broken one ends it as an engine error). */
+  async programFor(call: CallDoc): Promise<ScriptChoice> {
+    return this.deps.scriptFor(call).catch((err: unknown) => {
+      this.deps.logger.error({ err, callId: call._id.toString() }, 'call: inbound program failed');
+      return { script: failingScript(err), voice: 'coral', language: 'hinglish' };
+    });
+  }
+
+  /** Phase 20: this process holds the SIP line and may take an incoming call now. */
+  get canTakeInbound(): boolean {
+    return Boolean(this.deps.sip?.connected) && this.load < CALL_LIMITS.concurrentPerProcess;
+  }
+
+  /**
+   * Phase 20: an incoming phone call (the inbound service made the call doc, the leg and
+   * the program): registry → session (recording, wallet checks, transcript) → answer.
+   * Billing, metrics and `onCallEnded` listeners work like an outgoing SIP call.
+   */
+  async runInboundSipSession(
+    input: InboundSipSessionInput,
+  ): Promise<{ session: CallSession; ended: Promise<CallEndedSummary> }> {
+    const { call, leg } = input;
+    const callId = call._id.toString();
+    const accountId = call.accountId.toString();
+    await this.deps.registry.register(
+      callId,
+      accountId,
+      this.clock.now(),
+      CALL_LIMITS.registryTtlSec,
+    );
+    const account = await AccountModel.findById(accountId).select({ settings: 1 }).lean();
+    const settings = { ...DEFAULT_ACCOUNT_SETTINGS, ...account?.settings };
+    let resolveEnded: (summary: CallEndedSummary) => void = () => undefined;
+    const ended = new Promise<CallEndedSummary>((resolve) => {
+      resolveEnded = resolve;
+    });
+    const session = new CallSession({
+      call,
+      leg,
+      clock: this.clock,
+      logger: this.deps.logger,
+      tts: this.deps.tts,
+      storage: this.deps.storage,
+      registry: this.deps.registry,
+      billing: input.billing,
+      script: input.script,
+      answerTimeout: { sec: input.answerTimeoutSec, reason: 'no_answer' },
+      recordingDir: this.deps.recordingDir,
+      recording: {
+        enabled: input.record && settings.recordingEnabled,
+        notice: settings.recordingNotice,
+      },
+      voice: input.voice,
+      language: input.language,
+      ...(input.maxDurationSec !== undefined ? { maxDurationSec: input.maxDurationSec } : {}),
+      onEnded: (summary) => {
+        this.untrack(callId);
+        if (summary.durationSec > 0) {
+          void this.deps.sipSpend?.guard.add(accountId, summary.durationSec).catch(() => undefined);
+        }
+        void CallModel.updateOne(
+          { _id: call._id },
+          {
+            $set: {
+              sip: leg.metrics,
+              trunkCostPaise: trunkCostPaise(
+                summary.durationSec,
+                this.deps.sipTrunkCostPaisePerMin,
+              ),
+            },
+          },
+        ).catch((err: unknown) =>
+          this.deps.logger.warn({ err, callId }, 'call: sip metrics not saved'),
+        );
+        this.emitEnded(summary);
+        resolveEnded(summary);
+      },
+    });
+    this.track(callId, session);
+    if (input.attachAgent) this.inboundAttach.set(callId, input.attachAgent);
+    notifyAccount(accountId, 'call.created', { callId, isTest: false, direction: 'inbound' });
+    await session.start();
+    if (input.answerNow) await leg.dial();
+    return { session, ended };
+  }
+
   /**
    * Toll-fraud guard (T18.14): over the account's SIP minutes this hour → no new dials
    * (campaigns wait, like a full trunk) and one bell per hour to the account's admins.
@@ -756,6 +874,12 @@ export class CallManager {
     if (call.provider === 'whatsapp') {
       return this.whatsappAttach
         ? this.whatsappAttach(input, leg)
+        : { ok: false, code: MEDIA_CLOSE.callEnded, reason: 'call not on this server' };
+    }
+    if (call.provider === 'sip' && call.direction === 'inbound') {
+      const inbound = this.inboundAttach.get(input.callId);
+      return inbound
+        ? inbound(input, leg)
         : { ok: false, code: MEDIA_CLOSE.callEnded, reason: 'call not on this server' };
     }
     if (call.startedBy?.toString() !== input.userId)

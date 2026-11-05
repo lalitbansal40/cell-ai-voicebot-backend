@@ -67,7 +67,7 @@ import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 12 catalogue', () => {
   it('has 83 error codes incl. the fourteen calling codes (exact texts and statuses)', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(123); // VAPI: 8; Phase 19: 7; Phase 18B: T18B.1 1; Phase 18: T18.7 4; Phase 16: T16.4 1, T16.5 1, T16.6 3, T16.9 2; + Phase 14: T14.3 3, T14.2 1, T14.4 1, T14.7 1, T14.8 1; Phase 15: T15.1 2, T15.3 2, T15.5 1, T15.6 1
+    expect(Object.keys(ERROR_CODES)).toHaveLength(127); // Phase 20: 4; VAPI: 8; Phase 19: 7; Phase 18B: T18B.1 1; Phase 18: T18.7 4; Phase 16: T16.4 1, T16.5 1, T16.6 3, T16.9 2; + Phase 14: T14.3 3, T14.2 1, T14.4 1, T14.7 1, T14.8 1; Phase 15: T15.1 2, T15.3 2, T15.5 1, T15.6 1
     const added = {
       WHATSAPP_CALLING_DISABLED: [409, 'Calling is turned off for this WhatsApp number.'],
       WHATSAPP_CALLING_UNAVAILABLE: [409, "WhatsApp calling isn't available for this number."],
@@ -125,7 +125,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('adds 5 notification types (26 + 5; Phase 14: 32) with titles, audiences, links and e-mail flags', () => {
-    expect(NOTIFICATION_TYPES).toHaveLength(46); // VAPI: 1; Phase 19: 6; Phase 18B: T18B.4 1; Phase 18: T18.14 1, T18.15 1; + Phase 14 analytics.reconcile_mismatch, Phase 15 webhook.endpoint_disabled
+    expect(NOTIFICATION_TYPES).toHaveLength(47); // Phase 20: 1; VAPI: 1; Phase 19: 6; Phase 18B: T18B.4 1; Phase 18: T18.14 1, T18.15 1; + Phase 14 analytics.reconcile_mismatch, Phase 15 webhook.endpoint_disabled
     const added = NOTIFICATION_TYPES.slice(26, 31);
     expect(added).toEqual([
       'call.whatsapp_missed',
@@ -252,7 +252,7 @@ describe('Phase 12 catalogue', () => {
     expect(CALL_MODES).toEqual(['ai', 'human']);
     expect(WA_CALL_DIRECTIONS).toEqual(['BUSINESS_INITIATED', 'USER_INITIATED']);
     expect(WA_CALL_BILLING_STATUSES).toEqual(['free', 'held', 'settled', 'released']);
-    expect(CALL_END_REASONS.slice(-8, -1)).toEqual([
+    expect(CALL_END_REASONS.slice(-11, -4)).toEqual([
       'rejected_by_customer',
       'not_answered',
       'meta_failed',
@@ -261,7 +261,8 @@ describe('Phase 12 catalogue', () => {
       'no_agent_available',
       'outside_call_hours',
     ]);
-    expect(CALL_END_REASONS.at(-1)).toBe('machine'); // Phase 18
+    expect(CALL_END_REASONS.at(-4)).toBe('machine'); // Phase 18
+    expect(CALL_END_REASONS.slice(-3)).toEqual(['line_busy', 'spam_guard', 'inbound_refused']); // Phase 20
     expect(LEDGER_TYPES).toContain('whatsapp_call_charge');
     expect(LEDGER_REF_TYPES).toContain('call');
     expect(LEDGER_USAGE_KINDS).toContain('whatsapp_call');

@@ -45,6 +45,8 @@ export const NOTIFICATION_TYPES = [
   // Phase 18: SIP line
   'sip.spend_guard_paused',
   'sip.trunk_down',
+  // Phase 20: an incoming phone call nobody took
+  'call.sip_missed',
   // Phase 18B
   'whatsapp.call_permission_bulk_done',
   // Phase 19

@@ -18,6 +18,7 @@ export interface WebhookEventMap {
   'call.started': CallStartedData;
   'call.completed': CallCompletedData;
   'call.insights.ready': InsightsReadyData;
+  'call.missed': CallMissedData;
   'campaign.completed': CampaignCompletedData;
   'whatsapp.message.received': MessageReceivedData;
   'whatsapp.message.status': MessageStatusData;
@@ -64,6 +65,20 @@ export interface CallStartedData extends Personal {
   campaignId: string | null;
   flowId: string | null;
   agentId: string | null;
+  /** Phase 20: the account's number an incoming phone call was dialed to; else null. */
+  did: string | null;
+}
+
+/** Phase 20: an incoming phone call nobody took (callback list). */
+export interface CallMissedData extends Personal {
+  callId: string;
+  contactId: string | null;
+  contactExternalId: string | null;
+  /** The account's number the customer dialed (E.164). */
+  did: string;
+  numberLabel: string;
+  reason: string;
+  at: string;
 }
 
 export interface CallCompletedData extends CallStartedData {
@@ -181,6 +196,7 @@ const callBase = async (call: CallDoc): Promise<CallStartedData> => {
     campaignId: idOf(call.campaignId),
     flowId: idOf(call.source.flowId),
     agentId: idOf(call.source.agentId),
+    did: call.inbound?.did ?? null,
     phone: contact?.phoneE164 ?? null,
     name: contact?.name ?? null,
   };
@@ -250,6 +266,30 @@ export const publishCallCompleted = (callId: string): Promise<void> =>
     const inbound = call.whatsapp?.direction === 'USER_INITIATED';
     const type = !answered && inbound ? 'whatsapp.call.missed' : 'whatsapp.call.ended';
     await publish(call.accountId, type, waCall(call, base), `${type}:${callId}`);
+  });
+
+/** Phase 20 `call.missed`: an incoming phone call nobody took (sent once per call). */
+export const publishCallMissed = (callId: string): Promise<void> =>
+  safely('call.missed', async () => {
+    const call = await loadCall(callId);
+    if (!call?.missed || !call.inbound) return;
+    const contact = await contactOf(call.accountId, call.contactId);
+    await publish(
+      call.accountId,
+      'call.missed',
+      {
+        callId,
+        contactId: idOf(call.contactId),
+        contactExternalId: contact?.externalId ?? null,
+        did: call.inbound.did,
+        numberLabel: call.inbound.numberLabel,
+        reason: call.missed.reason,
+        at: call.createdAt.toISOString(),
+        phone: call.inbound.callerHidden ? null : call.from,
+        name: contact?.name ?? null,
+      },
+      `call.missed:${callId}`,
+    );
   });
 
 /** `call.insights.ready`: insights done / skipped / failed for one version. */

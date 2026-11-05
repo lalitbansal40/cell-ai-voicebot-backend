@@ -55,6 +55,7 @@ import {
 } from './db/mongo';
 import { CallManager } from './modules/calls/call.service';
 import { createDryRunPrograms } from './modules/calls/dry-run';
+import { createInboundSip } from './modules/calls/inbound/inbound.service';
 import { CallRegistry } from './modules/calls/registry';
 import { createScriptFactory } from './modules/calls/scripts';
 import { authorizeTopic } from './modules/calls/topic-auth';
@@ -483,6 +484,20 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   if (sipLine) {
     sipLine.provider.setLiveCheck((callId) => callRegistry.isLive(callId));
     lifecycle.onShutdown('sip-line', () => sipLine.close(), 6);
+    // Phase 20: this process takes trunk calls (its ARI socket has the inbound app)
+    if (sipLine.inboundApp) {
+      const inbound = createInboundSip({
+        line: sipLine.provider,
+        manager: callManager,
+        bus: callBus,
+        redis,
+        logger,
+        env,
+        tickets: realtime.tickets,
+      });
+      sipLine.provider.onIncoming((call) => inbound.handleIncoming(call));
+      logger.info({ app: sipLine.inboundApp }, 'sip: taking incoming calls');
+    }
   }
   lifecycle.onShutdown(
     'ws',
