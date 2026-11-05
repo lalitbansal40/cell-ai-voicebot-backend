@@ -590,9 +590,9 @@ registry.registerPath({
 registry.registerPath({
   method: 'post',
   path: `${base}/{id}/estimate`,
-  tags,
+  tags: publicTags,
   summary: 'Cost estimate for the current settings + wallet available (campaigns.read)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: CampaignParams },
   responses: { 200: ok(CampaignEstimateSchema), ...common, 409: errors[409], 422: errors[422] },
 });

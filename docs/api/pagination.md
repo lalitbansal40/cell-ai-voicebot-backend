@@ -8,7 +8,7 @@ GET /api/v1/calls?limit=50
 GET /api/v1/calls?limit=50&cursor=eyJj…
 ```
 
-Pass `nextCursor` back as `cursor` until `hasMore` is `false`. Cursors are opaque, so don't build or change them. Smaller lists use pages (`?page=2&limit=50` → `meta.page`, `meta.total`, `meta.totalPages`).
+Pass `nextCursor` back as `cursor` until `hasMore` is `false`. Cursors are opaque, so don't build or change them. Smaller lists (contacts, WhatsApp bulk campaigns and recipients) use pages (`?page=2&limit=50` → `meta.page`, `meta.total`, `meta.totalPages`). Account resources (`/resources/*`) answer at most 200 rows, newest first, without paging.
 
 `limit` is at most 100. Unknown query parameters are refused (`422`), so typos never pass silently.
 

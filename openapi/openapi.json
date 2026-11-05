@@ -18675,9 +18675,9 @@
     },
     "/api/v1/campaigns/{id}/estimate": {
       "post": {
-        "tags": ["Campaigns"],
+        "tags": ["Campaigns", "Public API"],
         "summary": "Cost estimate for the current settings + wallet available (campaigns.read)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },

@@ -145,7 +145,7 @@ export const createCampaignsRouter = ({
   );
   router.post(
     '/:id/estimate',
-    read,
+    apiRead,
     ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
       ok(res, await estimateCampaignCost(req, params.id));
     }),

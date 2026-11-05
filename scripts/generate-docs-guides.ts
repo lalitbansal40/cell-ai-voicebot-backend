@@ -3,7 +3,38 @@ import path from 'node:path';
 
 import * as prettier from 'prettier';
 
+import { API_KEY_SCOPE_INFO } from '../src/modules/api-keys/scopes';
 import { GUIDE_ORDER } from '../src/modules/docs/guides';
+import { PUBLIC_ERRORS } from '../src/modules/docs/public-errors';
+import { ERROR_CODES } from '../src/shared/errors/error-codes';
+
+/** Tables generated from the code into `<!-- name:start -->…<!-- name:end -->` blocks. */
+const BLOCKS: Record<string, () => string> = {
+  scopes: () =>
+    [
+      '| Scope | Group | Lets the key |',
+      '| --- | --- | --- |',
+      ...Object.entries(API_KEY_SCOPE_INFO).map(
+        ([scope, info]) => `| \`${scope}\` | ${info.group} | ${info.description} |`,
+      ),
+    ].join('\n'),
+  errors: () =>
+    [
+      '| Code | Status | What to do |',
+      '| --- | --- | --- |',
+      ...Object.entries(PUBLIC_ERRORS).map(
+        ([code, todo]) =>
+          `| \`${code}\` | ${String(ERROR_CODES[code as keyof typeof ERROR_CODES]?.status ?? '')} | ${todo} |`,
+      ),
+    ].join('\n'),
+};
+
+/** A guide with its generated blocks refreshed (no-op when they are current). */
+export const renderGuideBlocks = (markdown: string): string =>
+  markdown.replace(/<!-- (\w+):start -->[\s\S]*?<!-- \1:end -->/g, (whole, name: string) => {
+    const render = BLOCKS[name];
+    return render ? `<!-- ${name}:start -->\n\n${render()}\n\n<!-- ${name}:end -->` : whole;
+  });
 
 /**
  * Copies `docs/api/*.md` into `src/modules/docs/guides.gen.ts` (committed), so the
@@ -25,6 +56,15 @@ export const renderGuidesModule = async (root: string): Promise<string> => {
 
 const main = async (): Promise<void> => {
   const root = path.resolve(__dirname, '..');
+  for (const name of GUIDE_ORDER) {
+    const file = path.join(root, 'docs', 'api', `${name}.md`);
+    const before = readFileSync(file, 'utf8');
+    const after = await prettier.format(renderGuideBlocks(before), {
+      ...((await prettier.resolveConfig(file)) ?? {}),
+      parser: 'markdown',
+    });
+    if (after !== before) writeFileSync(file, after);
+  }
   const outFile = path.join(root, 'src', 'modules', 'docs', 'guides.gen.ts');
   writeFileSync(outFile, await renderGuidesModule(root));
   console.info(`Guides written to ${path.relative(process.cwd(), outFile)}`);

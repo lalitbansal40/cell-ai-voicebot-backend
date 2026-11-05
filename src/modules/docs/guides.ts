@@ -3,11 +3,20 @@ import { GUIDE_FILES } from './guides.gen';
 /** The hand-written guides (`docs/api/*.md`), in reading order — `npm run gen:guides` copies them. */
 export const GUIDE_ORDER = [
   'getting-started',
+  'authentication',
+  'conventions',
   'errors',
   'idempotency',
   'rate-limits',
   'pagination',
+  'whatsapp-messages',
+  'calls',
+  'whatsapp-calls',
+  'campaigns',
+  'reports-exports',
   'webhooks',
+  'versioning',
+  'troubleshooting',
   'changelog',
 ] as const;
 

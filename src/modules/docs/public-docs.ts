@@ -245,6 +245,12 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
     scope: 'campaigns:read',
     description: `One campaign: settings, status / pause reason, live stats (pending, calling, completed, failed, answered, dispositions, skipped by reason, spend in micros), the last estimate, \`waitingUntil\` when outside the window, and for recorded voice the batches sent to the provider. ${READ}`,
   },
+  'POST /api/v1/campaigns/{id}/estimate': {
+    operationId: 'estimateCampaign',
+    area: 'Campaigns',
+    scope: 'campaigns:read',
+    description: `Cost estimate of a draft for its current settings, next to the wallet's available money. Phone / WhatsApp calls: contacts × expected attempts × an average call (range \`minMicros\`–\`maxMicros\`). Recorded voice: eligible numbers × 15 s pulses × price (\`voice\`: pulses, price per number, \`notPriced\`, numbers skipped as not Indian mobiles, ETA). Nothing is charged. ${READ}`,
+  },
   'POST /api/v1/campaigns/{id}/start': {
     operationId: 'startCampaign',
     area: 'Campaigns',
