@@ -304,7 +304,7 @@ Route permissions per §1 (agent / viewer read-only UI), limiter `wa-campaign-cr
 
 ## P19-DONE — sign-off run → `docs: mark phase 19 complete [P19-DONE]` (both)
 
-1. One background script, `caffeinate -dims`, real exit codes: backend coverage (report on failure), backend build, `openapi:check`, frontend coverage (report on failure), frontend build, Playwright (new + affected specs, §2 rule 5) with `E2E_BACKEND_LOGS=1` → grep the clean log for `cav_(live|test)_[0-9A-Za-z]{32}`, `whsec_`, `v1=[0-9a-f]{64}`, `\+91[0-9]{10}`, `Bearer [A-Za-z0-9._-]{20,}`, `"password"`, `otpauth`, `\$enc`, `mongodb(\+srv)?://[^ ]*@`, `AKIA[0-9A-Z]{16}`, `Basic [A-Za-z0-9+/=]{16,}`, `EAA[A-Za-z0-9]{20,}`, `rzp_live_` → all 0.
+1. One background script, `caffeinate -dims`, real exit codes: backend coverage (report on failure), backend build, `openapi:check`, frontend coverage (report on failure), frontend build, Playwright (new + affected specs, §2 rule 5) with `E2E_BACKEND_LOGS=1` → grep the clean log for `cav_(live|test)_[0-9A-Za-z]{32}`, `whsec_`, `v1=[0-9a-f]{64}`, `\+91[0-9]{10}`, `Bearer [A-Za-z0-9._-]{20,}`, `"password"`, `otpauth`, `\$enc`, `mongodb(\+srv)?://[^ ]*@`, `AKIA[0-9A-Z]{16}`, `Basic [A-Za-z0-9+/=]{16,}`, `EAA[A-Za-z0-9]{20,}`, `rzp[_]live_` → all 0.
 2. `npm audit --omit=dev` both; secret scan of `git diff main...HEAD` both (patterns above + `(ARI|SIP)_PASSWORD=` with a literal value, `ownerPassword":"` with a value); `git status` clean; `git log --oneline main..HEAD` in the report.
 3. Fill the numbers in the sign-off (a flake is a flake; a run with timeouts is not "green").
 4. Final report (Hinglish).
