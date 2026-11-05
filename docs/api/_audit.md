@@ -8,7 +8,7 @@ Operations: 72 · with problems: 0
 | ------ | ---------------------------------------------- | -------------------------------- | ------------------------ | ---- | ------ | ------ | --------------------------- | -------- |
 | GET    | `/api/v1/api-keys/whoami`                      | whoAmI                           | —                        | 280  | —      | ✓      | 401 403 422 429             | —        |
 | GET    | `/api/v1/calls`                                | listCalls                        | calls:read               | 370  | —      | ✓      | 401 403 422 429             | —        |
-| POST   | `/api/v1/calls`                                | startCall                        | calls:write              | 651  | ✓      | ✓      | 401 403 404 422 429         | —        |
+| POST   | `/api/v1/calls`                                | startCall                        | calls:write              | 651  | ✓      | ✓      | 401 403 404 422 429 503     | —        |
 | GET    | `/api/v1/calls/{id}`                           | getCall                          | calls:read               | 291  | —      | ✓      | 401 403 404 422 429         | —        |
 | GET    | `/api/v1/calls/{id}/transcript`                | getCallTranscript                | calls:read               | 211  | —      | ✓      | 401 403 404 422 429         | —        |
 | GET    | `/api/v1/campaigns`                            | listCampaigns                    | campaigns:read           | 367  | —      | ✓      | 401 403 404 422 429         | —        |
@@ -28,8 +28,8 @@ Operations: 72 · with problems: 0
 | POST   | `/api/v1/contacts/bulk-upsert`                 | bulkUpsertContacts               | contacts:write           | 306  | ✓      | ✓      | 401 403 422 429             | —        |
 | GET    | `/api/v1/calls/{id}/insights`                  | getCallInsights                  | calls:read               | 358  | —      | ✓      | 401 403 404 422 429         | —        |
 | GET    | `/api/v1/calls/{id}/after-call`                | getCallAfterCallMessages         | calls:read               | 253  | —      | ✓      | 401 403 404 422 429         | —        |
-| POST   | `/api/v1/messages/template`                    | sendTemplateMessage              | messages:write           | 696  | ✓      | ✓      | 401 403 404 409 422 429     | —        |
-| POST   | `/api/v1/messages/text`                        | sendTextMessage                  | messages:write           | 382  | ✓      | ✓      | 401 403 404 409 422 429     | —        |
+| POST   | `/api/v1/messages/template`                    | sendTemplateMessage              | messages:write           | 696  | ✓      | ✓      | 401 403 404 409 422 429 503 | —        |
+| POST   | `/api/v1/messages/text`                        | sendTextMessage                  | messages:write           | 382  | ✓      | ✓      | 401 403 404 409 422 429 503 | —        |
 | GET    | `/api/v1/messages/{id}`                        | getMessage                       | messages:read            | 259  | —      | ✓      | 401 403 404 422 429         | —        |
 | GET    | `/api/v1/resources/flows`                      | listFlows                        | resources:read           | 330  | —      | ✓      | 401 403 422 429             | —        |
 | GET    | `/api/v1/resources/agents`                     | listAgents                       | resources:read           | 322  | —      | ✓      | 401 403 422 429             | —        |

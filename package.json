@@ -73,6 +73,7 @@
     "build:ops": "tsc -p tsconfig.ops.json",
     "gen:guides": "tsx scripts/generate-docs-guides.ts",
     "docs:audit": "tsx scripts/docs-audit.ts",
+    "docs:smoke": "vitest run --config vitest.smoke.config.mts",
     "perf:inbox": "tsx --env-file-if-exists=.env scripts/perf-inbox.ts",
     "perf:api": "tsx --env-file-if-exists=.env scripts/perf-api.ts",
     "perf:ws": "tsx --env-file-if-exists=.env scripts/perf-ws.ts",

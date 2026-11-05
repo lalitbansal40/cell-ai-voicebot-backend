@@ -42,6 +42,8 @@ const ERROR_TEXT: Record<string, string> = {
   '404': "Not found in this account (RESOURCE_NOT_FOUND) — other accounts' ids always answer 404",
   '422': 'Validation failed (VALIDATION_FAILED); `details` lists each field path and message',
   '429': 'Rate limited (RATE_LIMITED) — wait `Retry-After` seconds',
+  '503':
+    'Busy or a provider is down (CALL_CAPACITY, PROVIDER_UNAVAILABLE) — retry later with the same Idempotency-Key',
 };
 const errorResponse = (code: string) => ({
   description: ERROR_TEXT[code] ?? 'Error',
@@ -99,7 +101,14 @@ const documentOp = (
     }
     responses[code] = { ...response, content };
   }
-  for (const code of ['401', '403', '422', '429', ...(path.includes('{') ? ['404'] : [])]) {
+  for (const code of [
+    '401',
+    '403',
+    '422',
+    '429',
+    ...(path.includes('{') ? ['404'] : []),
+    ...(docs?.errors ?? []),
+  ]) {
     responses[code] ??= errorResponse(code);
   }
   next.responses = responses;

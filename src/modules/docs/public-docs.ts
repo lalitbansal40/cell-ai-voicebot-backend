@@ -14,6 +14,8 @@ export interface PublicOpDocs {
   request?: unknown;
   /** Named request examples (OpenAPI `examples`) when one body has several shapes. */
   requestExamples?: Record<string, { summary: string; value: unknown }>;
+  /** Extra error answers this route really gives (e.g. `503` when busy or a provider is down). */
+  errors?: string[];
 }
 
 const ID = SAMPLE.id;
@@ -88,6 +90,7 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
     description: `Calls of the account, newest first: phone (SIP / test line), WhatsApp and recorded-voice calls. Filters: status, provider, direction, mode, campaign, flow, agent, contact, disposition, sentiment, date range. Phones are masked to the last 4 digits. ${CURSOR} ${READ}`,
   },
   'POST /api/v1/calls': {
+    errors: ['503'],
     operationId: 'startCall',
     area: 'Calls',
     scope: 'calls:write',
@@ -124,6 +127,7 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
     description: `WhatsApp templates sent after this call by after-call rules or the flow's Send WhatsApp steps: \`sent\`, \`scheduled\` (with the time) or \`skipped\` with the exact reason (no WhatsApp number, outside window, opted out…). ${READ}`,
   },
   'POST /api/v1/messages/template': {
+    errors: ['503'],
     operationId: 'sendTemplateMessage',
     area: 'WhatsApp messages',
     scope: 'messages:write',
@@ -137,6 +141,7 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
     },
   },
   'POST /api/v1/messages/text': {
+    errors: ['503'],
     operationId: 'sendTextMessage',
     area: 'WhatsApp messages',
     scope: 'messages:write',
@@ -160,6 +165,7 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
     description: `Templates of the account with status (\`APPROVED\`, \`PENDING\`, \`REJECTED\`…), category, language, the WhatsApp number(s) that can send them (\`channelId\` filter) and the variables they need. List rows carry no bodies. Only \`APPROVED\` templates can be sent. ${READ}`,
   },
   'POST /api/v1/whatsapp/calls': {
+    errors: ['503'],
     operationId: 'startWhatsAppCall',
     area: 'WhatsApp calls',
     scope: 'whatsapp-calls:write',
