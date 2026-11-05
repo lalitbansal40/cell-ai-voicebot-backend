@@ -5,7 +5,7 @@ import { auditPublicSpec, PUBLIC_TAG_ORDER } from '../../src/modules/docs/qualit
 import { buildOpenApiDocument } from '../../src/openapi';
 
 /** Flipped to true once every public route is documented (DOCS-T4). */
-const QUALITY_ENFORCED = false;
+const QUALITY_ENFORCED = true;
 
 const spec = buildPublicSpec(buildOpenApiDocument() as unknown as OpenApiDoc);
 
