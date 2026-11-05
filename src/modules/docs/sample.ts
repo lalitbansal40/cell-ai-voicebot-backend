@@ -17,7 +17,7 @@ export const SAMPLE = {
 
 const stringFor = (key: string, schema: Schema): string => {
   const k = key.toLowerCase();
-  if (schema.format === 'date-time' || /at$|time$/.test(key)) return SAMPLE.at;
+  if (schema.format === 'date-time' || /at$|time$|until$/.test(k)) return SAMPLE.at;
   if (schema.format === 'date' || /date$/.test(k)) return SAMPLE.date;
   if (k === 'id' || /id$/.test(k)) return SAMPLE.id;
   if (k.includes('phone') || k === 'to' || k === 'from') return SAMPLE.phone;

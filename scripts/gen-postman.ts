@@ -15,7 +15,11 @@ const main = async () => {
     ),
   );
   const out = path.resolve(__dirname, '..', 'openapi', 'postman.json');
-  writeFileSync(out, await prettier.format(JSON.stringify(collection), { parser: 'json' }));
+  const options = (await prettier.resolveConfig(out)) ?? {};
+  writeFileSync(
+    out,
+    await prettier.format(JSON.stringify(collection), { ...options, parser: 'json' }),
+  );
   console.info(`Postman collection written to ${out}`);
 };
 
