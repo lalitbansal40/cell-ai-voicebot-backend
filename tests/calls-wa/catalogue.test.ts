@@ -187,7 +187,7 @@ describe('Phase 12 catalogue', () => {
   it('Phase 19: catalogue counts at the P19-DONE targets', () => {
     // prompt §1 literals: errors 115, audit 194, notifications 45, permissions 49, ledger 12, WS 41
     expect(PERMISSIONS).toHaveLength(49);
-    expect(LEDGER_TYPES).toHaveLength(12);
+    expect(LEDGER_TYPES).toHaveLength(13); // VAPI: voice_broadcast_charge
     expect(WS_EVENT_TYPES).toHaveLength(41);
     expect(PERMISSIONS).toEqual(
       expect.arrayContaining([

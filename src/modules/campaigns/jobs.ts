@@ -24,6 +24,10 @@ import { runCampaignExport, type CampaignExportJobs } from './export';
 import { cronOf } from './recurrence';
 import { runDue, runSchedulerId } from './runs';
 import { sweepCampaigns } from './sweep';
+import { runVoiceBatch, setVoiceStorage } from './voice-api/batch';
+import type { VoiceJobData } from './voice-api/jobs';
+import { applyVoiceResult, pollVoiceCampaign } from './voice-api/results';
+import { voiceRunProblems, voicePrice } from './voice-api/settings';
 
 /** Campaign jobs (PHASE_8_PROMPT §1 "Queue + jobs"); job data = ids only. */
 export interface CampaignJobData {
@@ -35,6 +39,10 @@ export interface CampaignJobData {
   /** Results export (CSV / XLSX) of a campaign. */
   'campaign.export': { accountId: string; exportJobId: string };
   'campaigns.sweep': Record<string, never>;
+  /** VAPI: recorded-voice batch tick, results poll, one number's result. */
+  'voice.batch': VoiceJobData['voice.batch'];
+  'voice.poll': VoiceJobData['voice.poll'];
+  'voice.result': VoiceJobData['voice.result'];
 }
 export type CampaignJobName = keyof CampaignJobData;
 
@@ -45,6 +53,9 @@ export const CAMPAIGN_JOB_NAMES = [
   'campaign.run',
   'campaign.export',
   'campaigns.sweep',
+  'voice.batch',
+  'voice.poll',
+  'voice.result',
 ] as const satisfies readonly CampaignJobName[];
 
 export const CAMPAIGN_SCHEDULES = [
@@ -166,6 +177,15 @@ export const processCampaignJob =
         return null;
       case 'campaigns.sweep':
         return sweepCampaigns({ dispatcher: ctx.dispatcher, logger: ctx.logger });
+      case 'voice.batch':
+        setVoiceStorage(ctx.storage);
+        return runVoiceBatch((job.data as CampaignJobData['voice.batch']).campaignId, {
+          storage: ctx.storage,
+        });
+      case 'voice.poll':
+        return pollVoiceCampaign((job.data as CampaignJobData['voice.poll']).campaignId);
+      case 'voice.result':
+        return applyVoiceResult(job.data as CampaignJobData['voice.result']);
       default:
         throw new Error(`Unknown campaign job "${job.name}"`);
     }
@@ -173,6 +193,15 @@ export const processCampaignJob =
 
 /** Why a paused campaign can't resume yet (PHASE_8_PLAN §1j), or `null`. */
 export const resumeBlocker = async (campaign: CampaignDoc): Promise<string | null> => {
+  if (campaign.pauseReason === 'provider_uncertain') {
+    return 'Support must first check whether the last recorded-voice batch was sent.';
+  }
+  if (campaign.pauseReason === 'provider_error') {
+    const problems = await voiceRunProblems(campaign);
+    if (problems.length) return problems[0]?.message ?? 'Recorded voice cannot run yet.';
+    const price = await voicePrice(campaign.accountId, campaign.voiceApi?.audioSec ?? 0);
+    return price.notPriced ? 'Recorded voice has no price yet — ask support.' : null;
+  }
   if (campaign.pauseReason === 'flow_not_runnable') {
     const problems = await pinnedProblems(campaign);
     return problems.length ? `The flow can't run yet: ${problems[0]?.message ?? ''}` : null;

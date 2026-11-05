@@ -62,6 +62,9 @@ import { CampaignDispatcher } from './modules/campaigns/dispatcher';
 import { queueCampaignExports, queueCampaignJobs, wireCampaigns } from './modules/campaigns/jobs';
 import { resetProgressThrottle } from './modules/campaigns/progress';
 import { DialRate } from './modules/campaigns/slots';
+import { setVoiceStorage } from './modules/campaigns/voice-api/batch';
+import { queueVoiceJobs, setVoiceJobs } from './modules/campaigns/voice-api/jobs';
+import { acceptVoiceResult } from './modules/campaigns/voice-api/results';
 import { queueContactJobs } from './modules/contacts/jobs';
 import { queueInboxJobs } from './modules/inbox/jobs';
 import { queuePostCallJobs, setPostCallJobs } from './modules/post-call/jobs';
@@ -180,12 +183,20 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   // VAPI: recorded-voice / IVR campaigns over the Cell24x7 Voice API (null when off)
   const voiceApi = createVoiceApiClient(env, { redis });
   setVoiceApiClient(voiceApi);
-  if (voiceApi) logger.info({ provider: voiceApi.provider }, 'voice api: provider ready');
+  if (voiceApi) {
+    logger.info({ provider: voiceApi.provider }, 'voice api: provider ready');
+    // any process may queue batch ticks, polls and results on the `campaigns` queue
+    setVoiceJobs(queueVoiceJobs(createQueue(QUEUES.campaigns, queueDeps)));
+    setVoiceStorage(storage);
+    // fake provider: results come through the same handler as the real webhook
+    if (voiceApi instanceof FakeVoiceClient) voiceApi.onResult((event) => acceptVoiceResult(event));
+  }
   lifecycle.onShutdown(
     'voice-api',
     () => {
       if (voiceApi instanceof FakeVoiceClient) voiceApi.stop();
       setVoiceApiClient(null);
+      setVoiceJobs(null);
     },
     5,
   );

@@ -1,3 +1,5 @@
+import type { Types } from 'mongoose';
+
 import { CAMPAIGN_LIMITS } from '../../config/limits';
 import { CallModel, LIVE_CALL_STATUSES, type CallDoc } from '../../db/models/call.model';
 import { CampaignContactModel } from '../../db/models/campaign-contact.model';
@@ -8,6 +10,7 @@ import { loadCampaignProgram, resumeCampaignDoc, startScheduled } from './campai
 import { applyResult, completeCampaign, moveStats, type CampaignDispatcher } from './dispatcher';
 import { dueParents, runDue } from './runs';
 import { contactCounts, countsToStats, takeSnapshot } from './snapshot';
+import { getVoiceJobs } from './voice-api/jobs';
 
 export interface SweepResult {
   started: number;
@@ -18,6 +21,8 @@ export interface SweepResult {
   applied: number;
   recounted: number;
   resumed: number;
+  /** VAPI: batch ticks + polls queued. */
+  voice: number;
 }
 
 const COUNTED = [
@@ -54,6 +59,7 @@ export const sweepCampaigns = async (deps: {
     applied: 0,
     recounted: 0,
     resumed: 0,
+    voice: 0,
   };
 
   const due = await CampaignModel.find({
@@ -96,8 +102,10 @@ export const sweepCampaigns = async (deps: {
   }
 
   // claims that never became a call (a crash between claim and dial)
+  // (recorded-voice numbers are never released here: a sent batch must not be sent again)
   const stale = await CampaignContactModel.find({
     status: 'queued',
+    voiceApi: null,
     claimedAt: { $lt: new Date(now.getTime() - CAMPAIGN_LIMITS.claimLeaseMs) },
   }).lean();
   for (const cc of stale) {
@@ -117,6 +125,7 @@ export const sweepCampaigns = async (deps: {
   // contacts on a call that ended without its result applied (the process died)
   const calling = await CampaignContactModel.find({
     status: 'calling',
+    voiceApi: null,
     lastAttemptAt: { $lt: new Date(now.getTime() - CAMPAIGN_LIMITS.claimLeaseMs) },
   }).lean();
   for (const cc of calling) {
@@ -168,8 +177,26 @@ export const sweepCampaigns = async (deps: {
       .catch(() => undefined);
   }
 
+  // VAPI: running voice campaigns get a batch tick; open batches get polled
+  const jobs = getVoiceJobs();
+  if (jobs) {
+    const voice = await CampaignModel.find(
+      { line: 'voice_api', 'voiceApi.batches.state': 'open' },
+      { _id: 1 },
+    ).lean<{ _id: Types.ObjectId }[]>();
+    for (const c of voice) await jobs.poll(c._id.toString());
+    const runningVoice = await CampaignModel.find(
+      { line: 'voice_api', status: 'running', 'snapshot.done': true },
+      { _id: 1 },
+    ).lean<{ _id: Types.ObjectId }[]>();
+    for (const c of runningVoice) await jobs.batch(c._id.toString());
+    result.voice = voice.length + runningVoice.length;
+  }
+
   const accounts = new Set(
-    (await CampaignModel.distinct('accountId', { status: 'running' })).map((id) => id.toString()),
+    (
+      await CampaignModel.distinct('accountId', { status: 'running', line: { $ne: 'voice_api' } })
+    ).map((id) => id.toString()),
   );
   for (const accountId of accounts) deps.dispatcher.ensureAccount(accountId);
   return result;
