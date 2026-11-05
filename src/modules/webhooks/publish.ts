@@ -5,6 +5,7 @@ import { CallModel, type CallDoc } from '../../db/models/call.model';
 import type { CampaignDoc } from '../../db/models/campaign.model';
 import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import type { MessageDoc } from '../../db/models/message.model';
+import type { WhatsAppCampaignDoc } from '../../db/models/whatsapp-campaign.model';
 import { getLogger } from '../../shared/logger';
 
 import { emitAccountEvent, type WebhookEventType } from './events';
@@ -25,6 +26,27 @@ export interface WebhookEventMap {
   'whatsapp.call.missed': WhatsAppCallData;
   'contact.opted_out': ContactOptData;
   'contact.opted_in': ContactOptData;
+  'whatsapp_campaign.completed': WhatsAppCampaignEventData;
+  'whatsapp_campaign.paused': WhatsAppCampaignEventData;
+}
+
+/** WhatsApp bulk campaign finished or paused (no personal data). */
+export interface WhatsAppCampaignEventData {
+  campaignId: string;
+  name: string;
+  channelId: string;
+  status: string;
+  pauseReason: string | null;
+  counts: {
+    recipients: number;
+    sent: number;
+    delivered: number;
+    read: number;
+    replied: number;
+    failed: number;
+    skipped: number;
+  };
+  chargedMicros: number;
 }
 
 interface Personal {
@@ -72,6 +94,8 @@ export interface InsightsReadyData {
 
 export interface CampaignCompletedData {
   campaignId: string;
+  /** `phone` (SIP / test line), `whatsapp` (WhatsApp calls) or `voice_api` (recorded voice). */
+  line: string;
   parentId: string | null;
   counts: {
     contacts: number;
@@ -270,6 +294,7 @@ export const publishCampaignCompleted = (campaign: CampaignDoc): Promise<void> =
       'campaign.completed',
       {
         campaignId: campaign._id.toString(),
+        line: campaign.line ?? 'phone',
         parentId: idOf(campaign.parentId),
         counts: {
           contacts: s.total,
@@ -372,4 +397,34 @@ export const publishPhoneOpt = (
       .limit(20)
       .lean<Pick<ContactDoc, '_id' | 'accountId' | 'externalId' | 'phoneE164'>[]>();
     for (const c of contacts) await publishContactOpt(c, kind, 'calls', source, at);
+  });
+
+/** `whatsapp_campaign.completed` / `.paused`: a bulk template campaign finished or paused. */
+export const publishWhatsAppCampaignEvent = (
+  type: 'whatsapp_campaign.completed' | 'whatsapp_campaign.paused',
+  c: WhatsAppCampaignDoc,
+): Promise<void> =>
+  safely(type, async () => {
+    await publish(
+      c.accountId,
+      type,
+      {
+        campaignId: c._id.toString(),
+        name: c.name,
+        channelId: c.channelId.toString(),
+        status: c.status,
+        pauseReason: c.pauseReason ?? null,
+        counts: {
+          recipients: c.counters.total,
+          sent: c.counters.sent,
+          delivered: c.counters.delivered,
+          read: c.counters.read,
+          replied: c.counters.replied,
+          failed: c.counters.failedTotal,
+          skipped: c.counters.skippedTotal,
+        },
+        chargedMicros: c.cost.chargedMicros,
+      },
+      `${type}:${c._id.toString()}:${c.status === 'paused' ? String(Date.now()) : 'done'}`,
+    );
   });

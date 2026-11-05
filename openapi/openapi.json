@@ -15969,6 +15969,8 @@
                         "reports:read",
                         "exports:write",
                         "webhooks:manage",
+                        "whatsapp-campaigns:read",
+                        "whatsapp-campaigns:write",
                         "resources:read"
                       ]
                     },
@@ -16063,6 +16065,8 @@
                         "reports:read",
                         "exports:write",
                         "webhooks:manage",
+                        "whatsapp-campaigns:read",
+                        "whatsapp-campaigns:write",
                         "resources:read"
                       ]
                     },
@@ -33389,9 +33393,12 @@
     },
     "/api/v1/whatsapp-campaigns": {
       "get": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "WhatsApp campaigns (whatsapp.campaigns.read)",
+        "operationId": "listWhatsAppCampaigns",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "WhatsApp bulk campaigns",
+        "description": "Bulk template campaigns of the account, newest first, with live counters. Offset pagination (`page`, `limit`). Read limit class.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:read",
         "parameters": [
           {
             "schema": { "type": "integer", "minimum": 1, "default": 1 },
@@ -33429,6 +33436,36 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                      "name": "November EMI reminder",
+                      "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                      "status": "running",
+                      "pauseReason": null,
+                      "variants": [
+                        { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                      ],
+                      "abWinner": null,
+                      "counters": {
+                        "total": 1250,
+                        "queued": 0,
+                        "sent": 1200,
+                        "delivered": 1180,
+                        "read": 910,
+                        "replied": 64,
+                        "failedTotal": 20,
+                        "skippedTotal": 30,
+                        "skipped": { "opted_out": 18, "dnd": 12 },
+                        "failed": { "131026": 20 }
+                      },
+                      "createdAt": "2026-11-05T09:30:00.000Z"
+                    }
+                  ],
+                  "meta": { "page": 1, "limit": 25, "total": 1 }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -33444,8 +33481,26 @@
               }
             }
           },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
@@ -33453,12 +33508,34 @@
         }
       },
       "post": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Create a draft campaign (whatsapp.campaigns.write; 30 / h)",
+        "operationId": "createWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Create a draft bulk campaign",
+        "description": "A draft that sends **approved templates only** from one WhatsApp number (`channelId` from `GET /resources/whatsapp-numbers`). `variants` = 1–3 templates (A/B split in whole percent, sum 100). `variables` map each template placeholder to `contact.name`, `contact.phone`, a contact `field` (custom field key) or `static` text. `audience`: lists, segment, tags, contacts or an uploaded CSV. Nothing is sent until `start`. 30 creates / hour per account; write limit class.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:write",
         "requestBody": {
           "content": {
             "application/json": {
+              "example": {
+                "name": "November EMI reminder",
+                "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                "variants": [
+                  { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                ],
+                "variables": {
+                  "1": { "kind": "contact.name" },
+                  "2": { "kind": "field", "value": "amount_due" },
+                  "3": { "kind": "static", "value": "NotifyNow Finance" }
+                },
+                "audience": { "listIds": ["6720f0a1b2c3d4e5f6a7b8d3"] },
+                "excludeRecentDays": 3,
+                "schedule": {
+                  "kind": "at",
+                  "at": "2026-11-06T04:30:00.000Z",
+                  "timezone": "Asia/Kolkata"
+                }
+              },
               "schema": {
                 "type": "object",
                 "properties": {
@@ -33586,9 +33663,36 @@
         },
         "responses": {
           "201": {
-            "description": "OK",
+            "description": "Created",
             "content": {
               "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                    "name": "November EMI reminder",
+                    "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                    "status": "draft",
+                    "pauseReason": null,
+                    "variants": [
+                      { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                    ],
+                    "abWinner": null,
+                    "counters": {
+                      "total": 1250,
+                      "queued": 0,
+                      "sent": 1200,
+                      "delivered": 1180,
+                      "read": 910,
+                      "replied": 64,
+                      "failedTotal": 20,
+                      "skippedTotal": 30,
+                      "skipped": { "opted_out": 18, "dnd": 12 },
+                      "failed": { "131026": 20 }
+                    },
+                    "createdAt": "2026-11-05T09:30:00.000Z"
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -33598,6 +33702,12 @@
                   "required": ["success", "data"]
                 }
               }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           },
           "403": {
@@ -33611,15 +33721,24 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           }
         }
       }
     },
     "/api/v1/whatsapp-campaigns/{id}": {
       "get": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "One campaign with live counters",
+        "operationId": "getWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "One bulk campaign with live counters",
+        "description": "Status, pause reason, variants and counters (sent / delivered / read / replied / failed / skipped by reason). Counters keep moving after the last send while delivery and replies arrive.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:read",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -33633,6 +33752,33 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                    "name": "November EMI reminder",
+                    "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                    "status": "running",
+                    "pauseReason": null,
+                    "variants": [
+                      { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                    ],
+                    "abWinner": null,
+                    "counters": {
+                      "total": 1250,
+                      "queued": 0,
+                      "sent": 1200,
+                      "delivered": 1180,
+                      "read": 910,
+                      "replied": 64,
+                      "failedTotal": 20,
+                      "skippedTotal": 30,
+                      "skipped": { "opted_out": 18, "dnd": 12 },
+                      "failed": { "131026": 20 }
+                    },
+                    "createdAt": "2026-11-05T09:30:00.000Z"
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -33642,6 +33788,12 @@
                   "required": ["success", "data"]
                 }
               }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           },
           "403": {
@@ -33655,13 +33807,28 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           }
         }
       },
       "patch": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Edit a draft or scheduled campaign (409 WA_CAMPAIGN_NOT_EDITABLE after start)",
+        "operationId": "updateWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Edit a draft or scheduled bulk campaign",
+        "description": "Replaces the settings of a draft or scheduled campaign (same body as create). `409 WA_CAMPAIGN_NOT_EDITABLE` / `CONFLICT_INVALID_STATE` when the status does not allow it.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:write",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -33673,6 +33840,25 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "example": {
+                "name": "November EMI reminder",
+                "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                "variants": [
+                  { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                ],
+                "variables": {
+                  "1": { "kind": "contact.name" },
+                  "2": { "kind": "field", "value": "amount_due" },
+                  "3": { "kind": "static", "value": "NotifyNow Finance" }
+                },
+                "audience": { "listIds": ["6720f0a1b2c3d4e5f6a7b8d3"] },
+                "excludeRecentDays": 3,
+                "schedule": {
+                  "kind": "at",
+                  "at": "2026-11-06T04:30:00.000Z",
+                  "timezone": "Asia/Kolkata"
+                }
+              },
               "schema": {
                 "type": "object",
                 "properties": {
@@ -33803,6 +33989,33 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                    "name": "November EMI reminder",
+                    "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                    "status": "draft",
+                    "pauseReason": null,
+                    "variants": [
+                      { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                    ],
+                    "abWinner": null,
+                    "counters": {
+                      "total": 1250,
+                      "queued": 0,
+                      "sent": 1200,
+                      "delivered": 1180,
+                      "read": 910,
+                      "replied": 64,
+                      "failedTotal": 20,
+                      "skippedTotal": 30,
+                      "skipped": { "opted_out": 18, "dnd": 12 },
+                      "failed": { "131026": 20 }
+                    },
+                    "createdAt": "2026-11-05T09:30:00.000Z"
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -33812,6 +34025,12 @@
                   "required": ["success", "data"]
                 }
               }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           },
           "403": {
@@ -33837,13 +34056,22 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           }
         }
       },
       "delete": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Delete a draft",
+        "operationId": "deleteWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Delete a draft bulk campaign",
+        "description": "Deletes a draft (its uploaded header media is released). `409 WA_CAMPAIGN_NOT_EDITABLE` / `CONFLICT_INVALID_STATE` when the status does not allow it.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:write",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -33854,6 +34082,12 @@
         ],
         "responses": {
           "204": { "description": "No content" },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
@@ -33871,15 +34105,30 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           }
         }
       }
     },
     "/api/v1/whatsapp-campaigns/{id}/estimate": {
       "post": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Cost by market × template price, and the wallet check",
+        "operationId": "estimateWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Cost and wallet check of a bulk campaign",
+        "description": "Eligible recipients after skips (opted out, DND, no WhatsApp, recent sends), cost per template category × destination market at the account’s selling prices, and whether the wallet covers it. Nothing is written or charged.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:read",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -33904,6 +34153,12 @@
               }
             }
           },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
@@ -33912,6 +34167,18 @@
           },
           "404": {
             "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
@@ -33921,9 +34188,12 @@
     },
     "/api/v1/whatsapp-campaigns/{id}/start": {
       "post": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Snapshot the audience, check the wallet, send now or at the scheduled time (Idempotency-Key)",
+        "operationId": "startWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Start (or schedule) a bulk campaign",
+        "description": "**`Idempotency-Key` required** — a retry with the same key returns the first answer and never starts twice. Takes the audience snapshot, checks the wallet and sends now or at `schedule.at`. Each message is charged when Meta bills it. Sending is paced per WhatsApp number (Business App 18 / Cloud API 75 messages per second) and by the number’s daily tier. Errors: `WA_CAMPAIGN_AUDIENCE_EMPTY`, `WALLET_INSUFFICIENT_BALANCE`, `409` when not a draft.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:write",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -33937,6 +34207,33 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                    "name": "November EMI reminder",
+                    "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                    "status": "running",
+                    "pauseReason": null,
+                    "variants": [
+                      { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                    ],
+                    "abWinner": null,
+                    "counters": {
+                      "total": 1250,
+                      "queued": 0,
+                      "sent": 1200,
+                      "delivered": 1180,
+                      "read": 910,
+                      "replied": 64,
+                      "failedTotal": 20,
+                      "skippedTotal": 30,
+                      "skipped": { "opted_out": 18, "dnd": 12 },
+                      "failed": { "131026": 20 }
+                    },
+                    "createdAt": "2026-11-05T09:30:00.000Z"
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -33946,6 +34243,12 @@
                   "required": ["success", "data"]
                 }
               }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           },
           "403": {
@@ -33968,6 +34271,12 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
@@ -33977,9 +34286,12 @@
     },
     "/api/v1/whatsapp-campaigns/{id}/pause": {
       "post": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Pause (sends stop between batches)",
+        "operationId": "pauseWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Pause a bulk campaign",
+        "description": "Sends stop between batches; messages already handed to Meta still deliver. Resume continues with the rest.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:write",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -33993,6 +34305,33 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                    "name": "November EMI reminder",
+                    "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                    "status": "running",
+                    "pauseReason": null,
+                    "variants": [
+                      { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                    ],
+                    "abWinner": null,
+                    "counters": {
+                      "total": 1250,
+                      "queued": 0,
+                      "sent": 1200,
+                      "delivered": 1180,
+                      "read": 910,
+                      "replied": 64,
+                      "failedTotal": 20,
+                      "skippedTotal": 30,
+                      "skipped": { "opted_out": 18, "dnd": 12 },
+                      "failed": { "131026": 20 }
+                    },
+                    "createdAt": "2026-11-05T09:30:00.000Z"
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -34002,6 +34341,12 @@
                   "required": ["success", "data"]
                 }
               }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           },
           "403": {
@@ -34024,6 +34369,12 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
@@ -34033,9 +34384,12 @@
     },
     "/api/v1/whatsapp-campaigns/{id}/resume": {
       "post": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Resume a paused campaign",
+        "operationId": "resumeWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Resume a paused bulk campaign",
+        "description": "Continues sending. Refused (`409`) while the pause cause holds (e.g. the wallet is still empty).",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:write",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -34049,6 +34403,33 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                    "name": "November EMI reminder",
+                    "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                    "status": "running",
+                    "pauseReason": null,
+                    "variants": [
+                      { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                    ],
+                    "abWinner": null,
+                    "counters": {
+                      "total": 1250,
+                      "queued": 0,
+                      "sent": 1200,
+                      "delivered": 1180,
+                      "read": 910,
+                      "replied": 64,
+                      "failedTotal": 20,
+                      "skippedTotal": 30,
+                      "skipped": { "opted_out": 18, "dnd": 12 },
+                      "failed": { "131026": 20 }
+                    },
+                    "createdAt": "2026-11-05T09:30:00.000Z"
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -34058,6 +34439,12 @@
                   "required": ["success", "data"]
                 }
               }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           },
           "403": {
@@ -34080,6 +34467,12 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
@@ -34089,9 +34482,12 @@
     },
     "/api/v1/whatsapp-campaigns/{id}/stop": {
       "post": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Stop for good: the rest are skipped `stopped`",
+        "operationId": "stopWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Stop a bulk campaign for good",
+        "description": "Recipients not sent yet are skipped as `stopped`; results of sent messages keep arriving. Cannot be undone.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:write",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -34105,6 +34501,33 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                    "name": "November EMI reminder",
+                    "channelId": "6720f0a1b2c3d4e5f6a7b8d1",
+                    "status": "running",
+                    "pauseReason": null,
+                    "variants": [
+                      { "key": "A", "templateId": "6720f0a1b2c3d4e5f6a7b8d2", "splitPct": 100 }
+                    ],
+                    "abWinner": null,
+                    "counters": {
+                      "total": 1250,
+                      "queued": 0,
+                      "sent": 1200,
+                      "delivered": 1180,
+                      "read": 910,
+                      "replied": 64,
+                      "failedTotal": 20,
+                      "skippedTotal": 30,
+                      "skipped": { "opted_out": 18, "dnd": 12 },
+                      "failed": { "131026": 20 }
+                    },
+                    "createdAt": "2026-11-05T09:30:00.000Z"
+                  }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -34114,6 +34537,12 @@
                   "required": ["success", "data"]
                 }
               }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           },
           "403": {
@@ -34139,15 +34568,24 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           }
         }
       }
     },
     "/api/v1/whatsapp-campaigns/{id}/retry-failed": {
       "post": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Send again to failed recipients with a retryable error",
+        "operationId": "retryFailedWhatsAppCampaign",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Send again to recipients that failed with a retryable error",
+        "description": "Queues the recipients whose last error is retryable (rate limits, temporary Meta errors) once more. Returns how many were queued. Permanent errors (invalid number, opted out) are never retried.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:write",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -34161,6 +34599,7 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "example": { "success": true, "data": { "retried": 20 } },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -34176,6 +34615,12 @@
               }
             }
           },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
@@ -34193,15 +34638,30 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           }
         }
       }
     },
     "/api/v1/whatsapp-campaigns/{id}/recipients": {
       "get": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Recipients with status (phones masked)",
+        "operationId": "listWhatsAppCampaignRecipients",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Recipients of a bulk campaign with their status",
+        "description": "One row per recipient: status (pending / sending / sent / delivered / read / failed / skipped), variant, error code. Phones are masked to the last 4 digits for API keys. Offset pagination; filter by `status`.",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:read",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -34236,6 +34696,17 @@
             "description": "OK",
             "content": {
               "application/json": {
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": "6720f0a1b2c3d4e5f6a7b8c9",
+                      "status": "delivered",
+                      "phoneLast4": "0001"
+                    }
+                  ],
+                  "meta": { "page": 1, "limit": 25, "total": 1 }
+                },
                 "schema": {
                   "type": "object",
                   "properties": {
@@ -34251,6 +34722,12 @@
               }
             }
           },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
@@ -34262,15 +34739,30 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           }
         }
       }
     },
     "/api/v1/whatsapp-campaigns/{id}/export": {
       "get": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "CSV of every recipient (phones only with contacts.export)",
+        "operationId": "exportWhatsAppCampaignRecipients",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "CSV of every recipient",
+        "description": "All recipients as CSV (UTF-8, formula cells escaped). API keys always get masked phones (keys never have `contacts.export`).",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:read",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -34282,7 +34774,18 @@
         "responses": {
           "200": {
             "description": "CSV",
-            "content": { "text/csv": { "schema": { "type": "string" } } }
+            "content": {
+              "text/csv": {
+                "example": "name,phone,status\nAsha Verma,******0001,delivered\n",
+                "schema": { "type": "string" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
@@ -34295,15 +34798,30 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           }
         }
       }
     },
     "/api/v1/whatsapp-campaigns/{id}/report": {
       "get": {
-        "tags": ["WhatsApp campaigns"],
-        "security": [{ "bearerAuth": [] }],
-        "summary": "Funnel, cost, errors, per day, variants",
+        "operationId": "getWhatsAppCampaignReport",
+        "tags": ["Public API", "WhatsApp bulk campaigns"],
+        "summary": "Funnel, cost, errors, per day and per variant",
+        "description": "Sent → delivered → read → replied funnel, money charged, top error codes, a per-day series and the A/B variant comparison (with the decided winner when `abWinner` is set).",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "x-scope": "whatsapp-campaigns:read",
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -34328,6 +34846,12 @@
               }
             }
           },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
@@ -34336,6 +34860,18 @@
           },
           "404": {
             "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
@@ -35148,6 +35684,8 @@
                         "whatsapp.call.missed",
                         "contact.opted_out",
                         "contact.opted_in",
+                        "whatsapp_campaign.completed",
+                        "whatsapp_campaign.paused",
                         "*"
                       ]
                     },
@@ -35278,6 +35816,8 @@
                         "whatsapp.call.missed",
                         "contact.opted_out",
                         "contact.opted_in",
+                        "whatsapp_campaign.completed",
+                        "whatsapp_campaign.paused",
                         "*"
                       ]
                     },
@@ -35390,7 +35930,9 @@
                       "whatsapp.call.ended",
                       "whatsapp.call.missed",
                       "contact.opted_out",
-                      "contact.opted_in"
+                      "contact.opted_in",
+                      "whatsapp_campaign.completed",
+                      "whatsapp_campaign.paused"
                     ]
                   }
                 },
@@ -35558,7 +36100,9 @@
                 "whatsapp.call.ended",
                 "whatsapp.call.missed",
                 "contact.opted_out",
-                "contact.opted_in"
+                "contact.opted_in",
+                "whatsapp_campaign.completed",
+                "whatsapp_campaign.paused"
               ]
             },
             "required": false,

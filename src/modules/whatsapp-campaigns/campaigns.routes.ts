@@ -4,13 +4,11 @@ import type { Store } from 'express-rate-limit';
 import type { StorageProvider } from '../../core/storage';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { created, noContent, ok } from '../../shared/http/envelope';
+import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { idempotency } from '../../shared/middlewares/idempotency';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
-import {
-  blockWhenImpersonating,
-  requirePermission,
-} from '../../shared/middlewares/require-permission';
+import { blockWhenImpersonating } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
 import {
@@ -42,9 +40,13 @@ export const createWaCampaignsRouter = (
   deps: { jobs?: WaCampaignJobs; createStore?: Store; storage?: StorageProvider } = {},
 ): Router => {
   const router = Router();
-  router.use(authenticate());
-  const read = requirePermission('whatsapp.campaigns.read');
-  const write = [requirePermission('whatsapp.campaigns.write'), blockWhenImpersonating()];
+  // DOCS-T3: a dashboard session needs the permission, an API key the scope
+  router.use(authenticate({ apiKeys: true }));
+  const read = access({ permission: 'whatsapp.campaigns.read', scope: 'whatsapp-campaigns:read' });
+  const write = [
+    access({ permission: 'whatsapp.campaigns.write', scope: 'whatsapp-campaigns:write' }),
+    blockWhenImpersonating(),
+  ];
   const scope = (req: { auth?: { accountId: string } }) => req.auth?.accountId;
   const createLimit = createRateLimiter({
     windowMs: 3_600_000,

@@ -95,16 +95,17 @@ By default payloads carry ids, statuses, outcomes and amounts only. Turn on **In
 
 ## Events
 
-| Event                                                                    | When                                                      |
-| ------------------------------------------------------------------------ | --------------------------------------------------------- |
-| `call.started`                                                           | a call is answered                                        |
-| `call.completed`                                                         | a call ended (any status) and its cost is settled         |
-| `call.insights.ready`                                                    | the post-call AI summary / outcome is ready (or skipped)  |
-| `campaign.completed`                                                     | a campaign (or a recurring run) finished                  |
-| `whatsapp.message.received`                                              | a customer message arrived                                |
-| `whatsapp.message.status`                                                | one of your messages was sent / delivered / read / failed |
-| `whatsapp.call.started` · `whatsapp.call.ended` · `whatsapp.call.missed` | WhatsApp calls                                            |
-| `contact.opted_out` · `contact.opted_in`                                 | STOP / START or a do-not-call change                      |
+| Event                                                                    | When                                                                        |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `call.started`                                                           | a call is answered                                                          |
+| `call.completed`                                                         | a call ended (any status) and its cost is settled                           |
+| `call.insights.ready`                                                    | the post-call AI summary / outcome is ready (or skipped)                    |
+| `campaign.completed`                                                     | a campaign (or a recurring run) finished                                    |
+| `whatsapp.message.received`                                              | a customer message arrived                                                  |
+| `whatsapp.message.status`                                                | one of your messages was sent / delivered / read / failed                   |
+| `whatsapp.call.started` · `whatsapp.call.ended` · `whatsapp.call.missed` | WhatsApp calls                                                              |
+| `contact.opted_out` · `contact.opted_in`                                 | STOP / START or a do-not-call change                                        |
+| `whatsapp_campaign.completed` · `whatsapp_campaign.paused`               | a WhatsApp bulk campaign finished, or paused (by a person or automatically) |
 
 The `data` of each event, with samples, is listed in [Event payloads](#event-payloads).
 
@@ -175,22 +176,28 @@ The `data` of each event (made-up values). Fields marked personal — `phone`, `
 
 ### `campaign.completed`
 
+`line` is `phone` (SIP / test line), `whatsapp` (WhatsApp call campaign) or `voice_api` (recorded voice / IVR).
+
 ```json
 {
   "campaignId": "6720f0a1b2c3d4e5f6a7b8cb",
-  "runLabel": null,
+  "line": "phone",
+  "parentId": null,
   "counts": {
     "contacts": 120,
     "calls": 168,
     "answered": 92,
     "completed": 115,
-    "failed": 5
+    "failed": 5,
+    "skipped": 0,
+    "canceled": 0
   },
   "outcomes": {
     "promise_to_pay": 31,
     "callback": 12
   },
-  "costMicros": 412500000
+  "costMicros": 412500000,
+  "dryRun": false
 }
 ```
 
@@ -285,5 +292,53 @@ The `data` of each event (made-up values). Fields marked personal — `phone`, `
   "channel": "whatsapp",
   "source": "start_keyword",
   "phone": "+919876543210"
+}
+```
+
+### `whatsapp_campaign.completed`
+
+A WhatsApp bulk campaign sent to everyone it could. Counters keep moving afterwards (late delivery / read / reply); read them with `GET /whatsapp-campaigns/{id}`.
+
+```json
+{
+  "campaignId": "6720f0a1b2c3d4e5f6a7b8cb",
+  "name": "November EMI reminder",
+  "channelId": "6720f0a1b2c3d4e5f6a7b8cf",
+  "status": "completed",
+  "pauseReason": null,
+  "counts": {
+    "recipients": 1250,
+    "sent": 1200,
+    "delivered": 1180,
+    "read": 910,
+    "replied": 64,
+    "failed": 20,
+    "skipped": 30
+  },
+  "chargedMicros": 138000000
+}
+```
+
+### `whatsapp_campaign.paused`
+
+Paused by a person (`pauseReason: user`) or automatically: `wallet_empty`, `template_paused`, `quality_red`, `channel_down`.
+
+```json
+{
+  "campaignId": "6720f0a1b2c3d4e5f6a7b8cb",
+  "name": "November EMI reminder",
+  "channelId": "6720f0a1b2c3d4e5f6a7b8cf",
+  "status": "paused",
+  "pauseReason": "wallet_empty",
+  "counts": {
+    "recipients": 1250,
+    "sent": 640,
+    "delivered": 610,
+    "read": 402,
+    "replied": 21,
+    "failed": 4,
+    "skipped": 30
+  },
+  "chargedMicros": 73600000
 }
 ```

@@ -20,7 +20,7 @@ import {
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
 import { WhatsAppTemplateModel } from '../../db/models/whatsapp-template.model';
-import { requireAuth } from '../../shared/auth/auth-context';
+import { actingUserId, requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter } from '../../shared/auth/tenant';
 import {
   AppError,
@@ -29,9 +29,10 @@ import {
   ValidationError,
 } from '../../shared/errors/app-error';
 import type { AuditAction } from '../audit/audit-actions';
-import { recordAudit } from '../audit/audit.service';
+import { actorFromRequest, recordAudit } from '../audit/audit.service';
 import { nextOccurrence } from '../campaigns/recurrence';
 import { safeCell } from '../contact-imports/error-report';
+import { publishWhatsAppCampaignEvent } from '../webhooks/publish';
 
 import { snapshotAudience, toObjectIds } from './audience';
 import { estimateCampaignDoc } from './estimate';
@@ -144,10 +145,9 @@ const audit = async (
   action: AuditAction,
   meta: Record<string, unknown> = {},
 ) => {
-  const auth = requireAuth(req);
   await recordAudit({
     accountId: c.accountId,
-    actor: { type: 'user', id: auth.userId ?? null, impersonatorId: auth.impersonatorId ?? null },
+    actor: actorFromRequest(req),
     action,
     target: { type: 'whatsapp_campaign', id: c._id.toString() },
     meta,
@@ -283,7 +283,7 @@ const mediaForInput = async (
         ? await saveCampaignMedia({
             token: input.headerMediaToken,
             accountId: new Types.ObjectId(auth.accountId),
-            userId: new Types.ObjectId(auth.userId),
+            userId: new Types.ObjectId(actingUserId(auth)),
             ...(storage ? { storage } : {}),
           })
         : existing;
@@ -317,7 +317,7 @@ export const createCampaign = async (
   const headerMedia = await mediaForInput(req, input, null, storage);
   const c = await WhatsAppCampaignModel.create({
     accountId,
-    createdBy: new Types.ObjectId(auth.userId),
+    createdBy: new Types.ObjectId(actingUserId(auth)),
     ...toDoc(input),
     headerLocation: input.headerLocation ?? null,
     headerMedia,
@@ -517,16 +517,17 @@ const move = async (
   return updated;
 };
 
-export const pauseCampaign = async (req: Request, id: string) =>
-  view(
-    await move(
-      req,
-      id,
-      ['running', 'waiting_for_limit', 'scheduled'],
-      { status: 'paused', pauseReason: 'user' },
-      'whatsapp_campaign.paused',
-    ),
+export const pauseCampaign = async (req: Request, id: string) => {
+  const paused = await move(
+    req,
+    id,
+    ['running', 'waiting_for_limit', 'scheduled'],
+    { status: 'paused', pauseReason: 'user' },
+    'whatsapp_campaign.paused',
   );
+  await publishWhatsAppCampaignEvent('whatsapp_campaign.paused', paused);
+  return view(paused);
+};
 
 export const resumeCampaign = async (req: Request, id: string, jobs?: WaCampaignJobs) => {
   const c = await load(req, id);

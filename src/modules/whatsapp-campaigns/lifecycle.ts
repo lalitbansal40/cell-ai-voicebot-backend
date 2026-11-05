@@ -10,6 +10,7 @@ import {
 import { getLogger } from '../../shared/logger';
 import { recordAudit } from '../audit/audit.service';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
+import { publishWhatsAppCampaignEvent } from '../webhooks/publish';
 
 export const bellCreator = async (
   campaign: WhatsAppCampaignDoc,
@@ -77,6 +78,7 @@ export const maybeComplete = async (campaign: WhatsAppCampaignDoc, now: Date) =>
       failed: done.counters.failedTotal,
       chargedMicros: done.cost.chargedMicros,
     });
+    await publishWhatsAppCampaignEvent('whatsapp_campaign.completed', done);
     await bellCreator(
       done,
       'whatsapp_campaign.completed',
@@ -103,6 +105,7 @@ export const autoPause = async (campaign: WhatsAppCampaignDoc, reason: WaCampaig
   };
   await bellCreator(campaign, 'whatsapp_campaign.paused', `${campaign.name}: ${text[reason]}`);
   const latest = await WhatsAppCampaignModel.findById(campaign._id).lean<WhatsAppCampaignDoc>();
+  if (latest) await publishWhatsAppCampaignEvent('whatsapp_campaign.paused', latest);
   if (latest)
     notifyAccount(latest.accountId.toString(), 'whatsapp_campaign.progress', {
       campaignId: latest._id.toString(),

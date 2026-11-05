@@ -6,7 +6,14 @@ import {
 } from '../../db/models/whatsapp-campaign.model';
 import { OffsetPageMetaSchema } from '../../shared/openapi/common.schemas';
 import { registry } from '../../shared/openapi/registry';
-import { bearer, errors, noContentResponse, ok } from '../../shared/openapi/responses';
+import {
+  errors,
+  noContentResponse,
+  ok,
+  okWith,
+  publicErrors,
+  publicOp,
+} from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema, PaginationQuerySchema } from '../../shared/validation/schemas';
 import { TimezoneSchema } from '../auth/auth.schema';
@@ -220,26 +227,27 @@ const ReportSchema = registry.register(
   }),
 );
 
-const tags = ['WhatsApp campaigns'];
-const json = <T extends z.ZodType>(schema: T) => ({
-  body: { content: { 'application/json': { schema } } },
+const json = <T extends z.ZodType>(schema: T, example: unknown) => ({
+  body: { content: { 'application/json': { schema, example } } },
 });
 type Extra = Pick<Parameters<typeof registry.registerPath>[0], 'request' | 'responses'>;
+const AREA = 'WhatsApp bulk campaigns';
+const READ = 'whatsapp-campaigns:read';
+const WRITE = 'whatsapp-campaigns:write';
+/** Every route is public (DOCS-T3): session permission or key scope (`access()`). */
 const path = (
   method: 'get' | 'post' | 'patch' | 'delete',
   p: string,
-  summary: string,
+  op: { operationId: string; scope: string; summary: string; description: string },
   extra: Extra,
 ) =>
   registry.registerPath({
     method,
     path: `/api/v1/whatsapp-campaigns${p}`,
-    tags,
-    security: bearer,
-    summary,
+    ...publicOp({ ...op, area: AREA }),
     ...extra,
   });
-const page = <T extends z.ZodType>(item: T) => ({
+const page = <T extends z.ZodType>(item: T, example: unknown) => ({
   description: 'OK',
   content: {
     'application/json': {
@@ -248,70 +256,254 @@ const page = <T extends z.ZodType>(item: T) => ({
         data: z.array(item),
         meta: OffsetPageMetaSchema,
       }),
+      example: { success: true, data: [example], meta: { page: 1, limit: 25, total: 1 } },
     },
   },
 });
-const fail = { 403: errors[403], 404: errors[404] };
+const ID = '6720f0a1b2c3d4e5f6a7b8c9';
+const CHANNEL = '6720f0a1b2c3d4e5f6a7b8d1';
+const TEMPLATE = '6720f0a1b2c3d4e5f6a7b8d2';
+const LIST = '6720f0a1b2c3d4e5f6a7b8d3';
+const AT = '2026-11-05T09:30:00.000Z';
+const BODY_EXAMPLE = {
+  name: 'November EMI reminder',
+  channelId: CHANNEL,
+  variants: [{ key: 'A', templateId: TEMPLATE, splitPct: 100 }],
+  variables: {
+    '1': { kind: 'contact.name' },
+    '2': { kind: 'field', value: 'amount_due' },
+    '3': { kind: 'static', value: 'NotifyNow Finance' },
+  },
+  audience: { listIds: [LIST] },
+  excludeRecentDays: 3,
+  schedule: { kind: 'at', at: '2026-11-06T04:30:00.000Z', timezone: 'Asia/Kolkata' },
+};
+const COUNTERS = {
+  total: 1250,
+  queued: 0,
+  sent: 1200,
+  delivered: 1180,
+  read: 910,
+  replied: 64,
+  failedTotal: 20,
+  skippedTotal: 30,
+  skipped: { opted_out: 18, dnd: 12 },
+  failed: { '131026': 20 },
+};
+const CAMPAIGN_EXAMPLE = {
+  id: ID,
+  name: 'November EMI reminder',
+  channelId: CHANNEL,
+  status: 'running',
+  pauseReason: null,
+  variants: [{ key: 'A', templateId: TEMPLATE, splitPct: 100 }],
+  abWinner: null,
+  counters: COUNTERS,
+  createdAt: AT,
+};
+const ERR_STATE = `\`409 WA_CAMPAIGN_NOT_EDITABLE\` / \`CONFLICT_INVALID_STATE\` when the status does not allow it.`;
+const fail = publicErrors(true);
 
-path('get', '', 'WhatsApp campaigns (whatsapp.campaigns.read)', {
-  request: { query: ListCampaignsQuery },
-  responses: { 200: page(WaCampaignSchema), 403: errors[403] },
-});
-path('post', '', 'Create a draft campaign (whatsapp.campaigns.write; 30 / h)', {
-  request: json(CampaignBody),
-  responses: { 201: ok(WaCampaignSchema), 403: errors[403], 422: errors[422] },
-});
-path('get', '/{id}', 'One campaign with live counters', {
-  request: { params: CampaignIdParams },
-  responses: { 200: ok(WaCampaignSchema), ...fail },
-});
+path(
+  'get',
+  '',
+  {
+    operationId: 'listWhatsAppCampaigns',
+    scope: READ,
+    summary: 'WhatsApp bulk campaigns',
+    description:
+      'Bulk template campaigns of the account, newest first, with live counters. Offset pagination (`page`, `limit`). Read limit class.',
+  },
+  {
+    request: { query: ListCampaignsQuery },
+    responses: { 200: page(WaCampaignSchema, CAMPAIGN_EXAMPLE), ...publicErrors() },
+  },
+);
+path(
+  'post',
+  '',
+  {
+    operationId: 'createWhatsAppCampaign',
+    scope: WRITE,
+    summary: 'Create a draft bulk campaign',
+    description:
+      'A draft that sends **approved templates only** from one WhatsApp number (`channelId` from `GET /resources/whatsapp-numbers`). `variants` = 1–3 templates (A/B split in whole percent, sum 100). `variables` map each template placeholder to `contact.name`, `contact.phone`, a contact `field` (custom field key) or `static` text. `audience`: lists, segment, tags, contacts or an uploaded CSV. Nothing is sent until `start`. 30 creates / hour per account; write limit class.',
+  },
+  {
+    request: json(CampaignBody, BODY_EXAMPLE),
+    responses: {
+      201: okWith(WaCampaignSchema, { ...CAMPAIGN_EXAMPLE, status: 'draft' }, 'Created'),
+      ...publicErrors(),
+    },
+  },
+);
+path(
+  'get',
+  '/{id}',
+  {
+    operationId: 'getWhatsAppCampaign',
+    scope: READ,
+    summary: 'One bulk campaign with live counters',
+    description:
+      'Status, pause reason, variants and counters (sent / delivered / read / replied / failed / skipped by reason). Counters keep moving after the last send while delivery and replies arrive.',
+  },
+  {
+    request: { params: CampaignIdParams },
+    responses: { 200: okWith(WaCampaignSchema, CAMPAIGN_EXAMPLE), ...fail },
+  },
+);
 path(
   'patch',
   '/{id}',
-  'Edit a draft or scheduled campaign (409 WA_CAMPAIGN_NOT_EDITABLE after start)',
   {
-    request: { params: CampaignIdParams, ...json(CampaignBody) },
-    responses: { 200: ok(WaCampaignSchema), ...fail, 409: errors[409], 422: errors[422] },
+    operationId: 'updateWhatsAppCampaign',
+    scope: WRITE,
+    summary: 'Edit a draft or scheduled bulk campaign',
+    description: `Replaces the settings of a draft or scheduled campaign (same body as create). ${ERR_STATE}`,
+  },
+  {
+    request: { params: CampaignIdParams, ...json(CampaignBody, BODY_EXAMPLE) },
+    responses: {
+      200: okWith(WaCampaignSchema, { ...CAMPAIGN_EXAMPLE, status: 'draft' }),
+      ...fail,
+      409: errors[409],
+    },
   },
 );
-path('delete', '/{id}', 'Delete a draft', {
-  request: { params: CampaignIdParams },
-  responses: { 204: noContentResponse, ...fail, 409: errors[409] },
-});
-path('post', '/{id}/estimate', 'Cost by market × template price, and the wallet check', {
-  request: { params: CampaignIdParams },
-  responses: { 200: ok(EstimateSchema), ...fail },
-});
-for (const [p, summary] of [
+path(
+  'delete',
+  '/{id}',
+  {
+    operationId: 'deleteWhatsAppCampaign',
+    scope: WRITE,
+    summary: 'Delete a draft bulk campaign',
+    description: `Deletes a draft (its uploaded header media is released). ${ERR_STATE}`,
+  },
+  {
+    request: { params: CampaignIdParams },
+    responses: { 204: noContentResponse, ...fail, 409: errors[409] },
+  },
+);
+path(
+  'post',
+  '/{id}/estimate',
+  {
+    operationId: 'estimateWhatsAppCampaign',
+    scope: READ,
+    summary: 'Cost and wallet check of a bulk campaign',
+    description:
+      'Eligible recipients after skips (opted out, DND, no WhatsApp, recent sends), cost per template category × destination market at the account’s selling prices, and whether the wallet covers it. Nothing is written or charged.',
+  },
+  { request: { params: CampaignIdParams }, responses: { 200: ok(EstimateSchema), ...fail } },
+);
+for (const [p, operationId, summary, description] of [
   [
     '/start',
-    'Snapshot the audience, check the wallet, send now or at the scheduled time (Idempotency-Key)',
+    'startWhatsAppCampaign',
+    'Start (or schedule) a bulk campaign',
+    '**`Idempotency-Key` required** — a retry with the same key returns the first answer and never starts twice. Takes the audience snapshot, checks the wallet and sends now or at `schedule.at`. Each message is charged when Meta bills it. Sending is paced per WhatsApp number (Business App 18 / Cloud API 75 messages per second) and by the number’s daily tier. Errors: `WA_CAMPAIGN_AUDIENCE_EMPTY`, `WALLET_INSUFFICIENT_BALANCE`, `409` when not a draft.',
   ],
-  ['/pause', 'Pause (sends stop between batches)'],
-  ['/resume', 'Resume a paused campaign'],
-  ['/stop', 'Stop for good: the rest are skipped `stopped`'],
+  [
+    '/pause',
+    'pauseWhatsAppCampaign',
+    'Pause a bulk campaign',
+    'Sends stop between batches; messages already handed to Meta still deliver. Resume continues with the rest.',
+  ],
+  [
+    '/resume',
+    'resumeWhatsAppCampaign',
+    'Resume a paused bulk campaign',
+    'Continues sending. Refused (`409`) while the pause cause holds (e.g. the wallet is still empty).',
+  ],
+  [
+    '/stop',
+    'stopWhatsAppCampaign',
+    'Stop a bulk campaign for good',
+    'Recipients not sent yet are skipped as `stopped`; results of sent messages keep arriving. Cannot be undone.',
+  ],
 ] as const) {
-  path('post', `/{id}${p}`, summary, {
-    request: { params: CampaignIdParams },
-    responses: { 200: ok(WaCampaignSchema), ...fail, 409: errors[409], 422: errors[422] },
-  });
+  path(
+    'post',
+    `/{id}${p}`,
+    { operationId, scope: WRITE, summary, description },
+    {
+      request: { params: CampaignIdParams },
+      responses: { 200: okWith(WaCampaignSchema, CAMPAIGN_EXAMPLE), ...fail, 409: errors[409] },
+    },
+  );
 }
-path('post', '/{id}/retry-failed', 'Send again to failed recipients with a retryable error', {
-  request: { params: CampaignIdParams },
-  responses: { 200: ok(z.object({ retried: z.number() })), ...fail, 409: errors[409] },
-});
-path('get', '/{id}/recipients', 'Recipients with status (phones masked)', {
-  request: { params: CampaignIdParams, query: RecipientsQuery },
-  responses: { 200: page(RecipientSchema), ...fail },
-});
-path('get', '/{id}/export', 'CSV of every recipient (phones only with contacts.export)', {
-  request: { params: CampaignIdParams },
-  responses: {
-    200: { description: 'CSV', content: { 'text/csv': { schema: z.string() } } },
-    ...fail,
+path(
+  'post',
+  '/{id}/retry-failed',
+  {
+    operationId: 'retryFailedWhatsAppCampaign',
+    scope: WRITE,
+    summary: 'Send again to recipients that failed with a retryable error',
+    description:
+      'Queues the recipients whose last error is retryable (rate limits, temporary Meta errors) once more. Returns how many were queued. Permanent errors (invalid number, opted out) are never retried.',
   },
-});
-path('get', '/{id}/report', 'Funnel, cost, errors, per day, variants', {
-  request: { params: CampaignIdParams },
-  responses: { 200: ok(ReportSchema), ...fail },
-});
+  {
+    request: { params: CampaignIdParams },
+    responses: {
+      200: okWith(z.object({ retried: z.number() }), { retried: 20 }),
+      ...fail,
+      409: errors[409],
+    },
+  },
+);
+path(
+  'get',
+  '/{id}/recipients',
+  {
+    operationId: 'listWhatsAppCampaignRecipients',
+    scope: READ,
+    summary: 'Recipients of a bulk campaign with their status',
+    description:
+      'One row per recipient: status (pending / sending / sent / delivered / read / failed / skipped), variant, error code. Phones are masked to the last 4 digits for API keys. Offset pagination; filter by `status`.',
+  },
+  {
+    request: { params: CampaignIdParams, query: RecipientsQuery },
+    responses: {
+      200: page(RecipientSchema, { id: ID, status: 'delivered', phoneLast4: '0001' }),
+      ...fail,
+    },
+  },
+);
+path(
+  'get',
+  '/{id}/export',
+  {
+    operationId: 'exportWhatsAppCampaignRecipients',
+    scope: READ,
+    summary: 'CSV of every recipient',
+    description:
+      'All recipients as CSV (UTF-8, formula cells escaped). API keys always get masked phones (keys never have `contacts.export`).',
+  },
+  {
+    request: { params: CampaignIdParams },
+    responses: {
+      200: {
+        description: 'CSV',
+        content: {
+          'text/csv': {
+            schema: z.string(),
+            example: 'name,phone,status\nAsha Verma,******0001,delivered\n',
+          },
+        },
+      },
+      ...fail,
+    },
+  },
+);
+path(
+  'get',
+  '/{id}/report',
+  {
+    operationId: 'getWhatsAppCampaignReport',
+    scope: READ,
+    summary: 'Funnel, cost, errors, per day and per variant',
+    description:
+      'Sent → delivered → read → replied funnel, money charged, top error codes, a per-day series and the A/B variant comparison (with the decided winner when `abWinner` is set).',
+  },
+  { request: { params: CampaignIdParams }, responses: { 200: ok(ReportSchema), ...fail } },
+);

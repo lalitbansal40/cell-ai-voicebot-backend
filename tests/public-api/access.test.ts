@@ -122,8 +122,8 @@ const send = (route: (typeof ROUTES)[number], headers: Record<string, string>) =
 };
 
 describe('scopes', () => {
-  it('has 14 scopes in 7 groups, each mapped to real permissions', () => {
-    expect(API_KEY_SCOPES).toHaveLength(14);
+  it('has 16 scopes in 7 groups, each mapped to real permissions', () => {
+    expect(API_KEY_SCOPES).toHaveLength(16);
     expect(API_KEY_SCOPES).toEqual(
       expect.arrayContaining([
         'messages:read',

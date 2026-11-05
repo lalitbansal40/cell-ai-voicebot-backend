@@ -22,6 +22,9 @@ export const WEBHOOK_EVENT_TYPES = [
   'whatsapp.call.missed',
   'contact.opted_out',
   'contact.opted_in',
+  // DOCS-T3: WhatsApp bulk campaigns
+  'whatsapp_campaign.completed',
+  'whatsapp_campaign.paused',
 ] as const;
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
 

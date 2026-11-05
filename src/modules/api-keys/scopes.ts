@@ -18,6 +18,14 @@ export const API_KEY_SCOPE_INFO = {
   'reports:read': { group: 'Reports', description: 'Read report numbers' },
   'exports:write': { group: 'Reports', description: 'Create and download exports' },
   'webhooks:manage': { group: 'Webhooks', description: 'Manage outbound webhooks' },
+  'whatsapp-campaigns:read': {
+    group: 'WhatsApp',
+    description: 'Read WhatsApp bulk campaigns, recipients and reports',
+  },
+  'whatsapp-campaigns:write': {
+    group: 'WhatsApp',
+    description: 'Create, start and control WhatsApp bulk campaigns',
+  },
   'resources:read': {
     group: 'Account',
     description:
@@ -50,6 +58,8 @@ export const SCOPE_PERMISSIONS: Record<ApiKeyScope, readonly Permission[]> = {
   'reports:read': ['reports.read'],
   'exports:write': ['calls.export', 'reports.export'],
   'webhooks:manage': ['integrations.manage'],
+  'whatsapp-campaigns:read': ['whatsapp.campaigns.read'],
+  'whatsapp-campaigns:write': ['whatsapp.campaigns.read', 'whatsapp.campaigns.write'],
   'resources:read': [
     'flows.read',
     'agents.read',
