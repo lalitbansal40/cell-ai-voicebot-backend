@@ -26,6 +26,8 @@ export class FakeAri {
   private server!: Server;
   private wss!: WebSocketServer;
   url = '';
+  /** Query of the last event socket upgrade (which apps the client subscribed). */
+  lastUpgradeQuery: URLSearchParams | null = null;
   /** Rejects event socket upgrades while true (ARI down). */
   refuse = false;
 
@@ -46,6 +48,7 @@ export class FakeAri {
         socket.destroy();
         return;
       }
+      this.lastUpgradeQuery = new URL(req.url, 'http://x').searchParams;
       this.wss.handleUpgrade(req, socket, head, (ws) => {
         this.sockets.add(ws);
         ws.on('close', () => this.sockets.delete(ws));

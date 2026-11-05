@@ -1,9 +1,9 @@
 import type { Clock } from '../../voice/clock';
 import type { StartCallRequest, TelephonyProvider } from '../types';
 
-import type { AriClient, AriEvent } from './ari-client';
+import type { AriChannel, AriClient, AriEvent } from './ari-client';
 import type { SipCapacity } from './capacity';
-import { SipCallLeg, type SipLegOptions } from './leg';
+import { SipCallLeg, type InboundReject, type SipLegOptions } from './leg';
 import type { PortPool } from './port-pool';
 import { RtpSession, type G711 } from './rtp-session';
 
@@ -41,6 +41,21 @@ export class SipLineBusyError extends Error {
   }
 }
 
+/** A trunk call that reached our inbound app (Phase 20): who called which number. */
+export interface IncomingSipCall {
+  /** Asterisk's channel id (not ours: the trunk created it). */
+  channelId: string;
+  /** Digits as the dialplan passed them (`CAV_DID`); normalised by the caller. */
+  did: string;
+  /** Caller number as the trunk sent it (may be empty / `anonymous`). */
+  caller: string;
+}
+
+export type IncomingSipHandler = (call: IncomingSipCall) => void | Promise<void>;
+
+/** Channels in the inbound app with no call this long are hung up as orphans. */
+const INBOUND_ORPHAN_MS = 60_000;
+
 /** `cav-<callId>`, `cav-<callId>-em`, `cav-<callId>-xfer` → `<callId>`. */
 export const callIdOfChannel = (channelId: string): string | null => {
   const m = /^cav-([^-]+)(?:-(?:em|xfer))?$/.exec(channelId);
@@ -61,6 +76,11 @@ export class SipTelephonyProvider implements TelephonyProvider {
   /** Channel leases of this process (call ids and `<callId>:xfer`). */
   private readonly leases = new Set<string>();
   private refreshTimer: unknown = null;
+  /** Phase 20: Asterisk channel id of an incoming call → our call id. */
+  private readonly inboundChannels = new Map<string, string>();
+  /** Incoming channels not taken yet (StasisStart seen, no leg): id → first seen. */
+  private readonly pendingInbound = new Map<string, number>();
+  private incomingHandler: IncomingSipHandler | null = null;
 
   constructor(
     private readonly ari: AriClient,
@@ -102,7 +122,19 @@ export class SipTelephonyProvider implements TelephonyProvider {
     }
     let ended = 0;
     for (const { id } of channels) {
-      const callId = callIdOfChannel(id);
+      // Phase 20: incoming channels — ours while a leg has them, else after a minute
+      if (this.inboundChannels.has(id)) continue;
+      const seen = this.pendingInbound.get(id);
+      if (seen !== undefined) {
+        if (this.clock.now() - seen > INBOUND_ORPHAN_MS) {
+          this.pendingInbound.delete(id);
+          ended += 1;
+          await this.ari.hangup(id).catch(() => undefined);
+        }
+        continue;
+      }
+      const owner = await this.ari.getVar(id, 'CAV_CALL_ID').catch(() => null);
+      const callId = callIdOfChannel(id) ?? (owner && /^[a-f0-9]{24}$/.test(owner) ? owner : null);
       if (!callId || this.legs.has(callId)) continue;
       if (await check(callId).catch(() => true)) continue;
       ended += 1;
@@ -133,9 +165,9 @@ export class SipTelephonyProvider implements TelephonyProvider {
     return ended;
   }
 
-  private async lease(id: string): Promise<boolean> {
+  private async lease(id: string, kind: 'outbound' | 'inbound' = 'outbound'): Promise<boolean> {
     if (!this.capacity) return true;
-    if (!(await this.capacity.acquire(id))) return false;
+    if (!(await this.capacity.acquire(id, kind))) return false;
     this.leases.add(id);
     if (this.refreshTimer === null) {
       this.refreshTimer = this.clock.setInterval(() => {
@@ -210,6 +242,88 @@ export class SipTelephonyProvider implements TelephonyProvider {
     return leg;
   }
 
+  /** Phase 20: who takes trunk calls that reach the inbound app (one handler per process). */
+  onIncoming(handler: IncomingSipHandler): void {
+    this.incomingHandler = handler;
+  }
+
+  /**
+   * Takes an incoming call (Phase 20): a trunk channel (any free channel; no calls-per-second
+   * slot) and an RTP port; the leg rings until `dial()` answers it.
+   * Throws `SipLineBusyError` / `SipNoMediaPortError` like `startCall`.
+   */
+  async acceptInbound(input: {
+    callId: string;
+    channelId: string;
+    did: string;
+  }): Promise<SipCallLeg> {
+    this.pendingInbound.delete(input.channelId);
+    if (!(await this.lease(input.callId, 'inbound'))) throw new SipLineBusyError();
+    const rtp = await RtpSession.open(this.pool, input.callId, {
+      format: this.config.format,
+      bindHost: this.config.rtpBindHost,
+      now: () => this.clock.now(),
+    });
+    if (!rtp) {
+      this.unlease(input.callId);
+      throw new SipNoMediaPortError();
+    }
+    const leg = new SipCallLeg(this.ari, rtp, this.clock, {
+      callId: input.callId,
+      to: input.did,
+      // a transfer from this call shows the dialed number (the account's own)
+      callerId: input.did,
+      trunk: this.config.trunk,
+      format: this.config.format,
+      ringTimeoutSec: this.config.ringTimeoutSec,
+      mediaTimeoutSec: this.config.mediaTimeoutSec,
+      advertiseHost: this.config.advertiseHost,
+      asteriskRtpHost: this.config.asteriskRtpHost,
+      amd: false,
+      hangupOnMachine: false,
+      app: this.config.app ?? 'cav',
+      channels: {
+        acquire: (id) => this.lease(id),
+        release: (id) => this.unlease(id),
+      },
+      inbound: { channelId: input.channelId },
+    });
+    this.legs.set(input.callId, leg);
+    this.inboundChannels.set(input.channelId, input.callId);
+    leg.onEnded(() => {
+      this.legs.delete(input.callId);
+      this.inboundChannels.delete(input.channelId);
+      this.unlease(input.callId);
+      this.unlease(`${input.callId}:xfer`);
+    });
+    return leg;
+  }
+
+  /** Refuses an incoming channel no leg was made for (unknown number, line full…). */
+  async rejectInbound(channelId: string, reason: InboundReject): Promise<void> {
+    this.pendingInbound.delete(channelId);
+    const raw = reason === 'busy' ? 'busy' : reason === 'unavailable' ? 'congestion' : 'rejected';
+    await this.ari.hangup(channelId, raw).catch(() => undefined);
+  }
+
+  private incoming(channel: AriChannel, args: string[]): void {
+    if (this.pendingInbound.has(channel.id)) return;
+    this.pendingInbound.set(channel.id, this.clock.now());
+    const handler = this.incomingHandler;
+    if (!handler) {
+      void this.rejectInbound(channel.id, 'unavailable');
+      return;
+    }
+    const call: IncomingSipCall = {
+      channelId: channel.id,
+      did: args[0] ?? '',
+      caller: args[1] ?? channel.caller?.number ?? '',
+    };
+    void Promise.resolve()
+      .then(() => handler(call))
+      .catch(() => this.rejectInbound(channel.id, 'unavailable'));
+  }
+
   private route(event: AriEvent): void {
     const id =
       event.type === 'Dial'
@@ -218,8 +332,19 @@ export class SipTelephonyProvider implements TelephonyProvider {
           ? null
           : (event.channel?.id ?? null);
     if (!id) return;
+    const inboundCall = this.inboundChannels.get(id);
+    if (inboundCall) {
+      this.legs.get(inboundCall)?.handle(event);
+      return;
+    }
     const callId = callIdOfChannel(id);
-    if (!callId) return;
+    if (!callId) {
+      // Phase 20: a trunk channel entering the inbound app (args = did, caller)
+      if (event.type === 'StasisStart' && !id.startsWith('cav-'))
+        this.incoming(event.channel, event.args);
+      else if (event.type === 'ChannelDestroyed') this.pendingInbound.delete(id);
+      return;
+    }
     this.legs.get(callId)?.handle(event);
   }
 

@@ -86,6 +86,7 @@ export const createSipLine = (
       redis: options.redis,
       maxChannels: env.SIP_MAX_CHANNELS,
       maxCps: env.SIP_MAX_CPS,
+      reservedInbound: env.SIP_INBOUND_RESERVED_CHANNELS,
     }),
   );
   ari.on('state', (up) => {

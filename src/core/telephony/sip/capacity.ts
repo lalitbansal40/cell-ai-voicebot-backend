@@ -29,6 +29,8 @@ export interface SipCapacityOptions {
   prefix?: string;
   maxChannels: number;
   maxCps: number;
+  /** Phase 20: channels outgoing calls leave free for incoming ones (default 0). */
+  reservedInbound?: number;
   /** A lease lives this long without a refresh (the owner refreshes every third of it). */
   leaseMs?: number;
   now?: () => number;
@@ -53,9 +55,16 @@ export class SipCapacity {
     return Math.floor(this.leaseMs / 3);
   }
 
-  /** A channel for `id` (call id, or `<callId>:xfer`); false when the trunk is full. */
-  async acquire(id: string): Promise<boolean> {
+  /**
+   * A channel for `id` (call id, or `<callId>:xfer`); false when the trunk is full.
+   * Outgoing calls stop at `maxChannels - reservedInbound`; incoming ones may use all.
+   */
+  async acquire(id: string, kind: 'outbound' | 'inbound' = 'outbound'): Promise<boolean> {
     const now = this.now();
+    const max =
+      kind === 'inbound'
+        ? this.options.maxChannels
+        : Math.max(1, this.options.maxChannels - (this.options.reservedInbound ?? 0));
     const got = await this.options.redis.eval(
       ACQUIRE,
       1,
@@ -63,7 +72,7 @@ export class SipCapacity {
       String(now),
       String(now + this.leaseMs),
       id,
-      String(this.options.maxChannels),
+      String(max),
       String(this.leaseMs * 4),
     );
     return got === 1;
