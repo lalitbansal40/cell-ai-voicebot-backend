@@ -23,7 +23,9 @@ import {
 } from './calls.schema';
 import {
   activeCalls,
+  answerIncomingCall,
   controlHumanCall,
+  markCallbackDone,
   callEvents,
   callTranscript,
   getCall,
@@ -86,6 +88,24 @@ export const createCallsRouter = (deps: CallsRouterDeps): Router => {
         ok(res, await controlHumanCall(req, params.id, deps, body.on));
       },
     ),
+  );
+  // Phase 20: a team member answers / declines a ringing incoming phone call
+  for (const action of ['answer', 'decline'] as const) {
+    router.post(
+      `/:id/${action}`,
+      requirePermission('calls.answer'),
+      blockWhenImpersonating(),
+      ...handle({ params: CallParams }, async ({ params, req, res }) => {
+        ok(res, await answerIncomingCall(req, params.id, deps, action));
+      }),
+    );
+  }
+  router.post(
+    '/:id/callback-done',
+    ...trigger,
+    ...handle({ params: CallParams }, async ({ params, req, res }) => {
+      ok(res, await markCallbackDone(req, params.id));
+    }),
   );
   router.post(
     '/web',

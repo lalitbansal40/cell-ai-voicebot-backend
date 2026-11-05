@@ -74,6 +74,9 @@ export const AUDIT_ACTIONS = [
   'call.test_started',
   'call.recording_accessed',
   'call.hung_up_remotely',
+  // Phase 20: incoming phone calls
+  'call.answered',
+  'call.callback_done',
   'call.triggered',
   'campaign.created',
   'campaign.updated',

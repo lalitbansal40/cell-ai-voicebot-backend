@@ -136,6 +136,25 @@ export const toCallView = (c: CallDoc, names: Names) => {
     status: c.status,
     endReason: c.endReason,
     callerId: c.callerId ?? null,
+    inbound: c.inbound
+      ? {
+          did: c.inbound.did,
+          phoneNumberId: c.inbound.phoneNumberId.toString(),
+          numberLabel: c.inbound.numberLabel,
+          route: c.inbound.route,
+          callerHidden: c.inbound.callerHidden,
+        }
+      : null,
+    missed: c.missed
+      ? {
+          reason: c.missed.reason,
+          callback: {
+            status: c.missed.callback.status,
+            doneBy: c.missed.callback.doneBy?.toString() ?? null,
+            doneAt: c.missed.callback.doneAt?.toISOString() ?? null,
+          },
+        }
+      : null,
     sip: c.sip ?? null,
     source: {
       kind: c.source.kind,
@@ -294,6 +313,9 @@ export const callsFilter = async (
   if (query.provider) filter.provider = query.provider;
   if (query.direction) filter.direction = query.direction;
   if (query.mode) filter.mode = query.mode;
+  // Phase 20: the missed-calls list (`open` = callbacks still to make)
+  if (query.missed === 'open') filter['missed.callback.status'] = 'open';
+  if (query.missed === 'all') filter.missed = { $type: 'object' };
   // Phase 14 record filters
   if (query.disposition) filter.disposition = { $in: query.disposition };
   if (query.externalRef) filter.externalRef = stringEq(query.externalRef);
@@ -428,12 +450,98 @@ export const hangupCall = async (req: Request, id: string, deps: Pick<CallsDeps,
   return { call: await viewOne(await findCall(accountId, id)), forwarded: where === 'forwarded' };
 };
 
+/**
+ * Phase 20: answer / decline a ringing incoming phone call (first answer wins — 409
+ * `CALL_ALREADY_ANSWERED` / `CALL_NOT_RINGING`). Answer returns the media ticket.
+ */
+export const answerIncomingCall = async (
+  req: Request,
+  id: string,
+  deps: CallsDeps,
+  action: 'answer' | 'decline',
+) => {
+  const auth = requireAuth(req);
+  if (auth.kind !== 'user' || !auth.userId) throw new ForbiddenError();
+  const { accountId } = tenantFilter(req);
+  const call = await findCall(accountId, id);
+  if (call.provider !== 'sip' || call.direction !== 'inbound' || call.timestamps.endedAt)
+    throw new AppError('CALL_NOT_RINGING');
+  const result = await deps.manager.callCommand({
+    callId: id,
+    accountId: accountId.toString(),
+    userId: auth.userId,
+    action,
+  });
+  if (action === 'answer')
+    await auditRequest(req, 'call.answered', { target: { type: 'call', id } });
+  return result;
+};
+
+/** Phase 20: a new call to the customer closes their open missed calls of the last 24 h. */
+export const closeCallbacksFor = async (
+  accountId: Types.ObjectId,
+  contactId: Types.ObjectId,
+  userId: string | null,
+): Promise<void> => {
+  await CallModel.updateMany(
+    {
+      accountId,
+      contactId,
+      'missed.callback.status': 'open',
+      createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+    },
+    {
+      $set: {
+        'missed.callback': {
+          status: 'done',
+          doneBy: userId ? new Types.ObjectId(userId) : null,
+          doneAt: new Date(),
+        },
+      },
+    },
+  );
+};
+
+/** Phase 20: a missed call was called back (or needs nothing more) — off the callback list. */
+export const markCallbackDone = async (req: Request, id: string) => {
+  const auth = requireAuth(req);
+  const { accountId } = tenantFilter(req);
+  const call = await findCall(accountId, id);
+  if (!call.missed) throw new AppError('CONFLICT_INVALID_STATE', 'This call was not missed.');
+  if (call.missed.callback.status === 'open') {
+    await CallModel.updateOne(
+      { _id: call._id, accountId, 'missed.callback.status': 'open' },
+      {
+        $set: {
+          'missed.callback': {
+            status: 'done',
+            doneBy: auth.userId ? new Types.ObjectId(auth.userId) : null,
+            doneAt: new Date(),
+          },
+        },
+      },
+    );
+    await auditRequest(req, 'call.callback_done', { target: { type: 'call', id } });
+  }
+  return viewOne(await findCall(accountId, id));
+};
+
 /** Human SIP controls: never issue a browser ticket for another user or an AI call. */
 export const controlHumanCall = async (req: Request, id: string, deps: CallsDeps, on?: boolean) => {
   const auth = requireAuth(req);
   if (auth.kind !== 'user' || !auth.userId) throw new ForbiddenError();
   const { accountId } = tenantFilter(req);
   const call = await findCall(accountId, id);
+  // Phase 20: an incoming call — the inbound service (on its process) checks who answered
+  if (call.provider === 'sip' && call.direction === 'inbound') {
+    return deps.manager.callCommand({
+      callId: id,
+      accountId: accountId.toString(),
+      userId: auth.userId,
+      action: on === undefined ? 'media_ticket' : 'hold',
+      ...(on === undefined ? {} : { on }),
+    });
+  }
   if (call.provider !== 'sip' || call.mode !== 'human') throw new AppError('CALL_NOT_ACTIVE');
   if (call.startedBy?.toString() !== auth.userId) throw new ForbiddenError();
   return deps.manager.controlHumanSip({

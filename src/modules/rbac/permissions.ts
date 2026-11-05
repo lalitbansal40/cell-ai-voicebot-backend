@@ -35,7 +35,7 @@ export const PERMISSION_INFO = {
   'calls.trigger': { group: 'Calls', description: 'Start single calls' },
   'calls.listen': { group: 'Calls', description: 'Play call recordings' },
   'calls.export': { group: 'Calls', description: 'Export call records' },
-  'calls.answer': { group: 'Calls', description: 'Answer incoming WhatsApp calls' },
+  'calls.answer': { group: 'Calls', description: 'Answer incoming WhatsApp and phone calls' },
   'campaigns.read': { group: 'Campaigns', description: 'View campaigns' },
   'campaigns.write': { group: 'Campaigns', description: 'Create and edit campaigns' },
   'campaigns.run': { group: 'Campaigns', description: 'Start, pause and stop campaigns' },

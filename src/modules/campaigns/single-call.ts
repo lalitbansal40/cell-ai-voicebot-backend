@@ -19,7 +19,7 @@ import { contactVariables } from '../ai-agents/variables';
 import { auditRequest } from '../audit/audit.service';
 import type { CallManager } from '../calls/call.service';
 import type { StartCallBody } from '../calls/calls.schema';
-import { findCall, viewOne } from '../calls/calls.service';
+import { closeCallbacksFor, findCall, viewOne } from '../calls/calls.service';
 import { findFlow, type FlowsDeps } from '../flows/flows.service';
 import { resolveStartValues, resolveVersion } from '../flows/run-values';
 import { resolveCallerId } from '../phone-numbers/phone-numbers.service';
@@ -189,6 +189,8 @@ export const startSingleCall = async (
             speed: 1,
           },
         });
+  // Phase 20: calling the customer back clears their missed calls of the last day
+  await closeCallbacksFor(accountId, contact._id, requireAuth(req).userId ?? null);
   await auditRequest(req, 'call.triggered', {
     target: { type: 'call', id: out.callId },
     meta: {

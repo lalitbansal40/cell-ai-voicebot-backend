@@ -1183,6 +1183,8 @@
               "call.test_started",
               "call.recording_accessed",
               "call.hung_up_remotely",
+              "call.answered",
+              "call.callback_done",
               "call.triggered",
               "campaign.created",
               "campaign.updated",
@@ -2785,6 +2787,44 @@
             ]
           },
           "callerId": { "type": ["string", "null"] },
+          "inbound": {
+            "type": ["object", "null"],
+            "properties": {
+              "did": { "type": "string" },
+              "phoneNumberId": { "type": "string" },
+              "numberLabel": { "type": "string" },
+              "route": { "type": "string", "enum": ["ai", "team", "ai_then_team", "team_then_ai"] },
+              "callerHidden": { "type": "boolean" }
+            },
+            "required": ["did", "phoneNumberId", "numberLabel", "route", "callerHidden"]
+          },
+          "missed": {
+            "type": ["object", "null"],
+            "properties": {
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "no_answer",
+                  "no_agents",
+                  "after_hours",
+                  "line_busy",
+                  "wallet_low",
+                  "caller_hung_up",
+                  "spam"
+                ]
+              },
+              "callback": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string", "enum": ["open", "done"] },
+                  "doneBy": { "type": ["string", "null"] },
+                  "doneAt": { "type": ["string", "null"] }
+                },
+                "required": ["status", "doneBy", "doneAt"]
+              }
+            },
+            "required": ["reason", "callback"]
+          },
           "sip": {
             "type": ["object", "null"],
             "properties": {
@@ -2976,6 +3016,8 @@
           "status",
           "endReason",
           "callerId",
+          "inbound",
+          "missed",
           "sip",
           "source",
           "contact",
@@ -16752,6 +16794,17 @@
             "in": "query"
           },
           {
+            "schema": {
+              "type": "string",
+              "enum": ["open", "all"],
+              "description": "Phase 20: incoming calls nobody took — `open` = still to call back, `all` = every missed call"
+            },
+            "required": false,
+            "description": "Phase 20: incoming calls nobody took — `open` = still to call back, `all` = every missed call",
+            "name": "missed",
+            "in": "query"
+          },
+          {
             "schema": { "type": "string", "enum": ["true", "false"] },
             "required": false,
             "name": "isTest",
@@ -17254,6 +17307,187 @@
             }
           },
           "202": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/Call" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/answer": {
+      "post": {
+        "tags": ["Calls"],
+        "summary": "Answer a ringing incoming phone call (calls.answer; Phase 20) — first answer wins: 409 CALL_ALREADY_ANSWERED / CALL_NOT_RINGING; returns the media ticket for the browser",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "callId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "mediaTicket": { "type": "string" },
+                        "expiresAt": { "type": "string", "format": "date-time" },
+                        "wsPath": { "type": "string" }
+                      },
+                      "required": ["callId", "mediaTicket", "expiresAt", "wsPath"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/decline": {
+      "post": {
+        "tags": ["Calls"],
+        "summary": "Decline a ringing incoming phone call for yourself (calls.answer; Phase 20)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "declined": { "type": "boolean" } },
+                      "required": ["declined"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/calls/{id}/callback-done": {
+      "post": {
+        "tags": ["Calls"],
+        "summary": "Take a missed incoming call off the callback list (calls.trigger; Phase 20) — 409 when the call was not missed",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
             "description": "OK",
             "content": {
               "application/json": {

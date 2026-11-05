@@ -857,6 +857,12 @@ export class CallManager {
     throw new AppError('CALL_NOT_ACTIVE');
   }
 
+  /** Phase 20: a control for a live call, wherever it runs (answer / decline / hold / ticket). */
+  async callCommand(command: CallCommand): Promise<unknown> {
+    if (!this.bus) throw new AppError('CALL_NOT_ACTIVE');
+    return this.bus.command(command);
+  }
+
   /** Phase 12: who takes the agent's socket of a WhatsApp call. */
   setWhatsAppAttach(fn: (input: MediaAttachInput, leg: CallLeg) => Promise<AttachResult>): void {
     this.whatsappAttach = fn;

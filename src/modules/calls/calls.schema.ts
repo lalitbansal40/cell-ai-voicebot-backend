@@ -7,6 +7,7 @@ import {
   DISPOSITION_SOURCES,
   INSIGHT_STATUSES,
   SENTIMENTS,
+  MISSED_REASONS,
 } from '../../db/models/call.model';
 import { TRANSCRIPT_SOURCES, TRANSCRIPT_SPEAKERS } from '../../db/models/transcript-turn.model';
 import { CursorPageMetaSchema } from '../../shared/openapi/common.schemas';
@@ -143,6 +144,10 @@ export const ListCallsQuery = z
     provider: z.enum(CALL_PROVIDERS).optional(),
     direction: z.enum(['inbound', 'outbound']).optional(),
     mode: z.enum(['human', 'ai']).optional(),
+    missed: z.enum(['open', 'all']).optional().openapi({
+      description:
+        'Phase 20: incoming calls nobody took — `open` = still to call back, `all` = every missed call',
+    }),
     isTest: z
       .enum(['true', 'false'])
       .transform((v) => v === 'true')
@@ -213,6 +218,27 @@ export const CallSchema = registry.register(
     endReason: z.enum(CALL_END_REASONS).nullable(),
     /** Phase 18: the number the customer saw (SIP calls). */
     callerId: z.string().nullable(),
+    /** Phase 20: an incoming phone call — the number dialed and its route. */
+    inbound: z
+      .object({
+        did: z.string(),
+        phoneNumberId: z.string(),
+        numberLabel: z.string(),
+        route: z.enum(['ai', 'team', 'ai_then_team', 'team_then_ai']),
+        callerHidden: z.boolean(),
+      })
+      .nullable(),
+    /** Phase 20: an incoming call nobody took, and its callback state. */
+    missed: z
+      .object({
+        reason: z.enum(MISSED_REASONS),
+        callback: z.object({
+          status: z.enum(['open', 'done']),
+          doneBy: z.string().nullable(),
+          doneAt: z.string().nullable(),
+        }),
+      })
+      .nullable(),
     /** Phase 18: line facts of a SIP call (codec, Q.850 cause, answering machine check, RTP quality). */
     sip: z
       .object({
@@ -468,6 +494,36 @@ registry.registerPath({
     422: errors[422],
     429: errors[429],
   },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/answer`,
+  tags,
+  summary:
+    'Answer a ringing incoming phone call (calls.answer; Phase 20) — first answer wins: 409 CALL_ALREADY_ANSWERED / CALL_NOT_RINGING; returns the media ticket for the browser',
+  security: bearer,
+  request: { params: CallParams },
+  responses: { 200: ok(HumanCallMediaSchema), ...read, 409: errors[409] },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/decline`,
+  tags,
+  summary: 'Decline a ringing incoming phone call for yourself (calls.answer; Phase 20)',
+  security: bearer,
+  request: { params: CallParams },
+  responses: { 200: ok(z.object({ declined: z.boolean() })), ...read, 409: errors[409] },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/callback-done`,
+  tags,
+  summary:
+    'Take a missed incoming call off the callback list (calls.trigger; Phase 20) — 409 when the call was not missed',
+  security: bearer,
+  request: { params: CallParams },
+  responses: { 200: ok(CallSchema), ...read, 409: errors[409] },
 });
 
 for (const action of ['media-ticket', 'hold'] as const) {
