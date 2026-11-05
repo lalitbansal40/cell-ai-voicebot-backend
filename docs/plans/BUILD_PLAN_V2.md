@@ -293,7 +293,9 @@ Client se chahiye: 🔴 SIP host / port / auth, DID / caller ID (1600-series), c
 
 See [PHASE_19_PLAN.md](../phases/PHASE_19_PLAN.md). Moved up by the owner (2026-11-04); inbound phone calls became Phase 20.
 
-### Phase 20 — Inbound phone calls (M) 🔴
+### Phase 20 — Inbound phone calls (M) 🟡 built locally, live check open
+
+Plan: [INBOUND_SIP_PLAN.md](INBOUND_SIP_PLAN.md) · Sign-off: [PHASE_20_SIGNOFF.md](../phases/PHASE_20_SIGNOFF.md).
 
 (Pehle wala Phase 14.) DID → flow / agent mapping, greeting, contact match, business hours, missed calls + callback list, human transfer / queue, Phone numbers page. (WhatsApp inbound calls Phase 12 me already.)
 
@@ -405,3 +407,7 @@ Bulk WhatsApp calling (client promise "Bulk calling"):
   18/75 sender pacing, WhatsApp flow/agent call campaigns, scoped templates and call choices.
   Local verification and live-provider limits are recorded in [Phase 19 sign-off](../phases/PHASE_19_SIGNOFF.md). Next planned feature: Phase 20
   inbound SIP. White-label, commissions and click tracking remain separate scope.
+- 2026-11-06: **Phase 20 built, live check open** ([sign-off](../phases/PHASE_20_SIGNOFF.md)) — incoming phone
+  calls: dialplan → inbound ARI app, per-number routes (AI / team / both), call hours, spam and line guards,
+  incoming minute price, missed calls + callback list, `call.missed` webhook, Settings → Phone numbers.
+  Real calls wait for the client's DID.

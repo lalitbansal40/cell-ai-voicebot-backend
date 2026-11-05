@@ -207,7 +207,7 @@ describe('POST /exports/calls', () => {
     const masked = await post(callsOnly, 'calls', { from: '2026-09-01', to: '2026-09-01' });
     expect(masked.status).toBe(202);
     const { rows } = await runAndRead(masked.body.data.id as string);
-    expect(rows[1]?.[5]).toBe('+91******5678');
+    expect(rows[1]?.[7]).toBe('+91******5678'); // Phase 20: + number called, missed reason
   });
 
   it('exports the filtered days in the account timezone with masked phones and safe cells', async () => {
@@ -228,9 +228,11 @@ describe('POST /exports/calls', () => {
     expect(job).toMatchObject({ status: 'ready', rowCount: 2, scope: 'records' });
     expect(rows[0]).toEqual([...CALL_HEADERS]);
     const [first, second] = [rows[1] ?? [], rows[2] ?? []];
-    expect(first.slice(1, 9)).toEqual([
+    expect(first.slice(1, 11)).toEqual([
       'outbound',
       'sip',
+      '',
+      '',
       '',
       '\'=HYPERLINK("x")',
       '+91******5678',
@@ -238,10 +240,10 @@ describe('POST /exports/calls', () => {
       '30',
       'promised_to_pay',
     ]);
-    expect(first.slice(9, 13)).toEqual(['ai', 'positive', '2026-09-05', '₹5,000.00']);
-    expect(first[16]).toBe('₹1.25');
+    expect(first.slice(11, 15)).toEqual(['ai', 'positive', '2026-09-05', '₹5,000.00']);
+    expect(first[18]).toBe('₹1.25');
     expect(second[3]).toBe('Support line');
-    expect(second[15]).toBe(owner.user.name);
+    expect(second[17]).toBe(owner.user.name);
     expect(rows).toHaveLength(3); // the 00:30-on-3-Sep call stays out
   });
 
@@ -255,7 +257,7 @@ describe('POST /exports/calls', () => {
     });
     const { rows } = await runAndRead(res.body.data.id as string);
     expect(rows[0]?.at(-1)).toBe('AI summary');
-    expect(rows[1]?.[5]).toBe('+919812345678');
+    expect(rows[1]?.[7]).toBe('+919812345678');
     expect(rows[1]?.at(-1)).toBe('Customer agreed to pay on Friday.');
     const id = res.body.data.id as string;
     expect((await request(app).get(`/api/v1/exports/${id}`).set(auth(callsOnly))).status).toBe(404);

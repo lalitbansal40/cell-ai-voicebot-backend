@@ -11,6 +11,11 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Incoming phone calls (Phase 20)** — 2026-11-06
+  - Trunk calls reach the API process's inbound ARI app (`SIP_INBOUND_ENABLED`); per-number routes: AI (flow / agent), team in the browser (first answer wins), AI then team, team then AI; greeting, ring list and time, call hours with after-hours message / AI / no answer.
+  - Checks before the answer: number and account, spam guard per caller, trunk channels (optionally reserved for incoming calls), wallet hold at the incoming minute price (`inboundCallPerMinuteMicros`); the caller becomes a contact.
+  - Missed calls: `calls.missed` (reason, callback), Calls → Missed, bell `call.sip_missed`, webhook `call.missed`; calling the customer back closes them.
+  - API: `GET /phone-numbers/inbound`, `PATCH /phone-numbers/:id/inbound`, `POST /calls/:id/answer|decline|callback-done`, `GET /calls?missed=`; public `/resources/phone-line` → `inboundNumbers`; `call.*` webhooks carry `did`; calls export adds "Number called" and "Missed reason". Migration `0026-inbound-sip`; ADR 0051; lab caller `deploy/asterisk/lab/call-in.sh`.
 - **Public API docs and resources (DOCS)** — 2026-11-05
   - `GET /resources/{flows,agents,whatsapp-numbers,contact-lists,segments,phone-line,ivrs,wallet}` with scope `resources:read`; WhatsApp bulk campaigns with API keys (`whatsapp-campaigns:read` / `:write`); `POST /campaigns/{id}/estimate` for keys. Scopes 13 → 16.
   - Webhook events `whatsapp_campaign.completed` / `.paused` (13 events); `campaign.completed` gains `line`; webhook samples match the real payloads.

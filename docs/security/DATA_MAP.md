@@ -111,6 +111,10 @@ Campaign variable eligibility and sending use the central send-purpose sensitive
   Contact erasure overwrites `receiver10` and `dtmf`; later results for that number are ignored.
 - `calls` with `provider: 'voice_api'`: one row per final result (no media, transcript or
   recording); scrubbed like other calls.
+- Incoming phone calls (Phase 20): `calls.from` is the caller's number (`anonymous` when hidden),
+  `calls.inbound` holds the account's own number and route, `calls.missed` the callback state —
+  scrubbed with the call like `to` / `from`. Unknown callers become contacts with source
+  `inbound_call` (erased like any contact). Logs show numbers masked only.
 - `accounts.voiceApi` (enabled, assigned IVR ids, IVR estimate seconds) and
   `flowAudio.providerFiles.cell24x7.audioFileId` (provider audio id, hidden from the API).
 - **Sent outside:** the 10-digit numbers (CSV per batch) and the chosen audio file go to

@@ -22,7 +22,7 @@ Phone calls go out over the client's SIP trunk. Asterisk ([ADR 0022](0022-sip-me
 
 These don't overlap WhatsApp's 40000–40999. The Asterisk RTP range must hold at least 4 × `SIP_MAX_CHANNELS` ports (even ports only, two per call, two more per transfer): Asterisk 22 crashes when it cannot get one (T18.19). The server audit confirms they are free; fallback ranges are 22000–22999 / 23000–23999.
 
-**Trunk auth.** Both modes are in the template: registration (username + password) or IP `identify` on the trunk's addresses. No anonymous endpoint, no guest calls, unknown sources get no dialplan. Inbound context answers nothing until Phase 19.
+**Trunk auth.** Both modes are in the template: registration (username + password) or IP `identify` on the trunk's addresses. No anonymous endpoint, no guest calls, unknown sources get no dialplan. Inbound context answered nothing until Phase 20 ([ADR 0051](0051-inbound-sip.md)), which hands trunk calls to the inbound app.
 
 **Who owns calls.** The **worker** (`WORKERS_ENABLED=true`) holds the one ARI connection (app `cav`) and the RTP ports, like WhatsApp AI calls today. The API never talks to Asterisk; it queues calls. Channel ids are `cav-<callId>` so a retried job can't create a second call.
 

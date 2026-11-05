@@ -306,6 +306,9 @@ export const CALL_HEADERS = [
   'Direction',
   'Line',
   'WhatsApp number',
+  // Phase 20: incoming phone calls
+  'Number called',
+  'Missed reason',
   'Contact',
   'Phone',
   'Status',
@@ -419,6 +422,8 @@ const callRowsOf = async (
       c.direction,
       c.provider,
       c.whatsapp ? (channels.get(c.whatsapp.channelId.toString()) ?? '') : '',
+      c.inbound ? safeCell(c.inbound.numberLabel || c.inbound.did) : '',
+      c.missed?.reason ?? '',
       safeCell(contact?.name ?? ''),
       phone ? (options.includePhone ? phone : maskPhone(phone)) : '',
       c.status,

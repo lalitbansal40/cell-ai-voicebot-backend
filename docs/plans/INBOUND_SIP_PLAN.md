@@ -1,6 +1,6 @@
 # Phase 20 — Incoming phone calls on the SIP line (plan)
 
-6 Nov 2026 · Roadmap: [BUILD_PLAN_V2.md](BUILD_PLAN_V2.md) Phase 20 · Status: **plan, not started**
+6 Nov 2026 · Roadmap: [BUILD_PLAN_V2.md](BUILD_PLAN_V2.md) Phase 20 · Status: **implemented locally (P20-T1…T9); live check pending the client's DID**
 
 Goal: koi customer hamare DID (phone number) par call kare → call sahi account tak pahunche →
 AI flow / AI agent jawab de, ya team browser se uthaye, ya dono (AI → team). Business hours,

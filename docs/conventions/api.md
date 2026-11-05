@@ -215,21 +215,21 @@ Both use the **same `/api/v1/...` paths, services and envelopes** (ADR 0045 — 
 
 **Scopes** (`src/modules/api-keys/scopes.ts`, 13):
 
-| Group     | Scope                  | Opens                                                                                               |
-| --------- | ---------------------- | --------------------------------------------------------------------------------------------------- |
-| Calls     | `calls:read`           | `GET /calls`, `/calls/:id`, `/calls/:id/transcript`, `/calls/:id/insights`, `/calls/:id/after-call` |
-| Calls     | `calls:write`          | `POST /calls` (one call to a contact; `variables`, `externalRef`)                                   |
-| Calls     | `whatsapp-calls:write` | `POST /whatsapp/calls` (AI calls only — `mode: 'ai'`)                                               |
-| Contacts  | `contacts:read`        | `GET /contacts`, `/contacts/:id`                                                                    |
-| Contacts  | `contacts:write`       | `POST /contacts` (`?upsert=phone\|externalId`), `PATCH /contacts/:id`, `POST /contacts/bulk-upsert` |
-| Campaigns | `campaigns:read`       | `GET /campaigns`, `/campaigns/:id`, `/campaigns/:id/contacts`, `/campaigns/:id/runs`                |
-| Campaigns | `campaigns:write`      | `POST /campaigns`, `/campaigns/:id/start\|pause\|resume\|cancel`                                    |
-| WhatsApp  | `messages:read`        | `GET /messages/:id`                                                                                 |
-| WhatsApp  | `messages:write`       | `POST /messages/template`, `POST /messages/text`                                                    |
-| WhatsApp  | `templates:read`       | `GET /whatsapp/templates` (approved only for keys)                                                  |
-| Reports   | `reports:read`         | `GET /reports/:tab`                                                                                 |
-| Reports   | `exports:write`        | `POST /exports/calls\|messages\|report`, `GET /exports/:id` (never phone numbers)                   |
-| Webhooks  | `webhooks:manage`      | `/webhook-endpoints/*`, `POST /webhook-deliveries/:id/replay`                                       |
+| Group     | Scope                  | Opens                                                                                                                                          |
+| --------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Calls     | `calls:read`           | `GET /calls` (incl. `direction=inbound`, `missed=open`), `/calls/:id`, `/calls/:id/transcript`, `/calls/:id/insights`, `/calls/:id/after-call` |
+| Calls     | `calls:write`          | `POST /calls` (one call to a contact; `variables`, `externalRef`)                                                                              |
+| Calls     | `whatsapp-calls:write` | `POST /whatsapp/calls` (AI calls only — `mode: 'ai'`)                                                                                          |
+| Contacts  | `contacts:read`        | `GET /contacts`, `/contacts/:id`                                                                                                               |
+| Contacts  | `contacts:write`       | `POST /contacts` (`?upsert=phone\|externalId`), `PATCH /contacts/:id`, `POST /contacts/bulk-upsert`                                            |
+| Campaigns | `campaigns:read`       | `GET /campaigns`, `/campaigns/:id`, `/campaigns/:id/contacts`, `/campaigns/:id/runs`                                                           |
+| Campaigns | `campaigns:write`      | `POST /campaigns`, `/campaigns/:id/start\|pause\|resume\|cancel`                                                                               |
+| WhatsApp  | `messages:read`        | `GET /messages/:id`                                                                                                                            |
+| WhatsApp  | `messages:write`       | `POST /messages/template`, `POST /messages/text`                                                                                               |
+| WhatsApp  | `templates:read`       | `GET /whatsapp/templates` (approved only for keys)                                                                                             |
+| Reports   | `reports:read`         | `GET /reports/:tab`                                                                                                                            |
+| Reports   | `exports:write`        | `POST /exports/calls\|messages\|report`, `GET /exports/:id` (never phone numbers)                                                              |
+| Webhooks  | `webhooks:manage`      | `/webhook-endpoints/*`, `POST /webhook-deliveries/:id/replay`                                                                                  |
 
 Inside the services a key acts with the permissions its scopes imply (`SCOPE_PERMISSIONS`, e.g. `calls:write` → `calls.trigger` + `flows.read` + `agents.read`); keys never get `contacts.export`. Records a key creates name the **key's creator** where a user is stored (`createdBy`, `startedBy`); the audit actor is `{ type: 'api_key', id }`. Missing scope → 403 `AUTH_FORBIDDEN` with `details: [{ path: 'scope', message: '<scope> is required' }]`.
 
