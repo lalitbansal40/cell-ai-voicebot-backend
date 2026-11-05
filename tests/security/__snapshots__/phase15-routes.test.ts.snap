@@ -92,6 +92,9 @@ exports[`Phase 15 public API routes (security) > scope × route matrix (each rou
   "GET /api/v1/webhook-endpoints/{id}/deliveries": [
     "webhooks:manage",
   ],
+  "GET /api/v1/whatsapp/channels/{id}/calling/quote": [
+    "calls:write",
+  ],
   "GET /api/v1/whatsapp/templates": [
     "templates:read",
   ],
