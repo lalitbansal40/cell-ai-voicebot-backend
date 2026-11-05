@@ -3,6 +3,7 @@ import type { Types } from 'mongoose';
 import { AiAgentModel } from '../../db/models/ai-agent.model';
 import type { CampaignContactDoc } from '../../db/models/campaign-contact.model';
 import type { CampaignDoc, CampaignStats } from '../../db/models/campaign.model';
+import { FlowAudioModel } from '../../db/models/flow-audio.model';
 import { FlowModel } from '../../db/models/flow.model';
 import { UserModel } from '../../db/models/user.model';
 
@@ -10,6 +11,8 @@ export interface CampaignNames {
   flows: Map<string, string>;
   users: Map<string, string>;
   agents?: Map<string, string>;
+  /** VAPI: names of recorded-voice audio. */
+  audio?: Map<string, string>;
 }
 
 const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString() : null);
@@ -26,7 +29,10 @@ export const loadNames = async (
       if (id) userIds.add(id.toString());
     }
   }
-  const [agents, flows, users] = await Promise.all([
+  const audioIds = campaigns.flatMap((c) =>
+    c.voiceApi?.content?.kind === 'audio' ? [c.voiceApi.content.flowAudioId] : [],
+  );
+  const [agents, flows, users, audio] = await Promise.all([
     AiAgentModel.find({
       accountId,
       _id: { $in: campaigns.flatMap((c) => (c.program?.kind === 'agent' ? [c.program.id] : [])) },
@@ -41,8 +47,14 @@ export const loadNames = async (
           .select({ name: 1 })
           .lean<{ _id: Types.ObjectId; name: string }[]>()
       : Promise.resolve([]),
+    audioIds.length
+      ? FlowAudioModel.find({ _id: { $in: audioIds }, accountId }, null, { withDeleted: true })
+          .select({ name: 1 })
+          .lean<{ _id: Types.ObjectId; name: string }[]>()
+      : Promise.resolve([]),
   ]);
   return {
+    audio: new Map(audio.map((a) => [a._id.toString(), a.name])),
     agents: new Map(agents.map((a) => [a._id.toString(), a.name])),
     flows: new Map(flows.map((f) => [f._id.toString(), f.name])),
     users: new Map(users.map((u) => [u._id.toString(), u.name])),
@@ -52,6 +64,15 @@ export const loadNames = async (
 /** Done share of the audience (completed + failed + skipped + canceled), whole percent. */
 export const progressPct = (s: CampaignStats): number =>
   s.total ? Math.floor(((s.completed + s.failed + s.skipped + s.canceled) * 100) / s.total) : 0;
+
+/** VAPI: what a recorded-voice campaign plays (audio name or IVR name). */
+const voiceLabel = (c: CampaignDoc, names: CampaignNames) => {
+  const content = c.voiceApi?.content;
+  if (!content) return null;
+  return content.kind === 'audio'
+    ? { kind: 'audio' as const, name: names.audio?.get(content.flowAudioId.toString()) ?? '' }
+    : { kind: 'ivr' as const, name: content.ivrName };
+};
 
 const userRef = (id: Types.ObjectId | null, names: CampaignNames) =>
   id ? { id: id.toString(), name: names.users.get(id.toString()) ?? '' } : null;
@@ -64,6 +85,7 @@ export const toCampaignListItem = (
   id: c._id.toString(),
   name: c.name,
   line: c.line ?? 'phone',
+  voice: c.line === 'voice_api' ? voiceLabel(c, names) : null,
   channelId: c.channelId?.toString() ?? null,
   program: c.program
     ? {
@@ -153,6 +175,39 @@ export const toCampaignView = (
   canceledAt: iso(c.canceledAt),
   pausedAt: iso(c.pausedAt),
   walletAvailableMicros,
+  voiceApi:
+    c.line === 'voice_api' && c.voiceApi
+      ? {
+          content: c.voiceApi.content
+            ? {
+                kind: c.voiceApi.content.kind,
+                flowAudioId:
+                  c.voiceApi.content.kind === 'audio'
+                    ? c.voiceApi.content.flowAudioId.toString()
+                    : null,
+                ivrId: c.voiceApi.content.kind === 'ivr' ? c.voiceApi.content.ivrId : null,
+                name: voiceLabel(c, names)?.name ?? '',
+              }
+            : null,
+          audioSec: c.voiceApi.audioSec,
+          retries: c.voiceApi.retries,
+          retryIntervalMin: c.voiceApi.retryIntervalMin,
+          batches: c.voiceApi.batches.map((b) => ({
+            no: b.no,
+            state: b.state,
+            requestId: b.requestId,
+            count: b.count,
+            amountMicros: b.amountMicros,
+            createdAt: b.createdAt.toISOString(),
+            submittedAt: iso(b.submittedAt),
+            doneAt: iso(b.doneAt),
+            error: b.error,
+          })),
+          lastError: c.voiceApi.lastError
+            ? { code: c.voiceApi.lastError.code, at: c.voiceApi.lastError.at.toISOString() }
+            : null,
+        }
+      : null,
 });
 
 /** One audience row — names + last 4 digits only (full phones go to exports only). */
@@ -172,4 +227,14 @@ export const toContactRow = (cc: CampaignContactDoc) => ({
   lastCallId: cc.lastCallId ? cc.lastCallId.toString() : null,
   lastAttemptAt: iso(cc.lastAttemptAt),
   costMicros: cc.costMicros,
+  voice: cc.voiceApi
+    ? {
+        batchNo: cc.voiceApi.batchNo,
+        providerStatus: cc.voiceApi.providerStatus,
+        durationSec: cc.voiceApi.durationSec,
+        retryCount: cc.voiceApi.retryCount,
+        dtmf: cc.voiceApi.dtmf,
+        ivrDisposition: cc.voiceApi.ivrDisposition,
+      }
+    : null,
 });

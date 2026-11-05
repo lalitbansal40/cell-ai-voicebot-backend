@@ -73,6 +73,16 @@ import { canMoveCampaign, DELETABLE, editRule, LIVE_EDITABLE } from './lifecycle
 import { notifyCampaignStatus } from './notifications';
 import { firstRunAt } from './recurrence';
 import { takeSnapshot } from './snapshot';
+import { getVoiceJobs } from './voice-api/jobs';
+import {
+  assertVoicePriced,
+  emptyVoiceApi,
+  freshVoiceApi,
+  voiceEtaSec,
+  voicePrice,
+  voiceRunProblems,
+  voiceSettingsProblems,
+} from './voice-api/settings';
 import { validateWhatsAppLine } from './whatsapp-line';
 import { intersect } from './window';
 
@@ -197,6 +207,10 @@ export const loadFlowVersion = async (
 export const loadCampaignProgram = async (
   campaign: Pick<CampaignDoc, 'accountId' | 'flowId' | 'chosenVersion' | 'line' | 'program'>,
 ) => {
+  if (campaign.line === 'voice_api') {
+    // Cell24x7 plays the audio itself: no flow, no AI, no contact fields
+    return { pinned: null, hasAi: false, used: await usedFields(campaign.accountId, {}, []) };
+  }
   if (campaign.line === 'whatsapp' && campaign.program?.kind === 'agent') {
     const problems = await programProblems(campaign.accountId, campaign.program);
     if (problems.length) throw new ValidationError(problems);
@@ -284,7 +298,12 @@ type CampaignSettings = Pick<
   | 'autoResume'
   | 'phoneLine'
   | 'dryRun'
+  | 'voiceApi'
 >;
+
+/** Phone campaigns on the real line need the SIP trunk (WhatsApp / recorded voice do not). */
+const needsSipLine = (s: Pick<CampaignDoc, 'mode' | 'line'>) =>
+  s.mode === 'live' && (s.line ?? 'phone') === 'phone';
 
 /** New-campaign defaults (PHASE_8_PROMPT §1 "Limits"), bounded by the account limits. */
 export const defaultSettings = (
@@ -331,7 +350,37 @@ export const defaultSettings = (
   autoResume: true,
   phoneLine: defaultPhoneLine(),
   dryRun: base.mode === 'dry_run' ? defaultDryRun() : null,
+  voiceApi: null,
 });
+
+/** VAPI: the voice settings sent merged into the current ones (only for `voice_api`). */
+const mergeVoiceApi = (
+  current: CampaignDoc['voiceApi'],
+  input: SettingsInput['voiceApi'],
+): NonNullable<CampaignDoc['voiceApi']> => {
+  const base = current ?? emptyVoiceApi();
+  if (!input) return base;
+  return {
+    ...base,
+    content:
+      input.content === undefined
+        ? base.content
+        : input.content === null
+          ? null
+          : input.content.kind === 'audio'
+            ? { kind: 'audio', flowAudioId: new Types.ObjectId(input.content.flowAudioId) }
+            : {
+                kind: 'ivr',
+                ivrId: input.content.ivrId,
+                ivrName:
+                  base.content?.kind === 'ivr' && base.content.ivrId === input.content.ivrId
+                    ? base.content.ivrName
+                    : '',
+              },
+    retries: input.retries ?? base.retries,
+    retryIntervalMin: input.retryIntervalMin ?? base.retryIntervalMin,
+  };
+};
 
 const mergePhoneLine = (
   current: CampaignPhoneLine,
@@ -358,33 +407,41 @@ export const mergeSettings = (
   current: CampaignSettings,
   input: SettingsInput,
 ): CampaignSettings => {
-  const mode = input.mode ?? current.mode;
+  const line = input.line ?? current.line ?? 'phone';
+  const voice = line === 'voice_api';
+  // recorded voice always calls real phones (Cell24x7); there is no dry run of it
+  const mode = voice ? 'live' : (input.mode ?? current.mode);
   const dryRunBase = current.dryRun ?? defaultDryRun();
   return {
     name: input.name ?? current.name,
     mode,
-    line: input.line ?? current.line ?? 'phone',
-    channelId:
-      input.channelId === undefined
+    line,
+    voiceApi: voice ? mergeVoiceApi(current.voiceApi, input.voiceApi) : null,
+    channelId: voice
+      ? null
+      : input.channelId === undefined
         ? current.channelId
         : input.channelId
           ? new Types.ObjectId(input.channelId)
           : null,
-    program:
-      input.program === undefined
+    program: voice
+      ? null
+      : input.program === undefined
         ? current.program
         : input.program
           ? { kind: input.program.kind, id: new Types.ObjectId(input.program.id) }
           : null,
-    askPermissionFirst:
-      input.askPermissionFirst === undefined
+    askPermissionFirst: voice
+      ? null
+      : input.askPermissionFirst === undefined
         ? current.askPermissionFirst
         : input.askPermissionFirst
           ? { templateId: new Types.ObjectId(input.askPermissionFirst.templateId) }
           : null,
-    flowId:
-      (input.line ?? current.line) === 'whatsapp' &&
-      (input.program ?? current.program)?.kind === 'agent'
+    flowId: voice
+      ? null
+      : (input.line ?? current.line) === 'whatsapp' &&
+          (input.program ?? current.program)?.kind === 'agent'
         ? null
         : input.program?.kind === 'flow'
           ? new Types.ObjectId(input.program.id)
@@ -423,7 +480,7 @@ export const mergeSettings = (
     autoResume: input.autoResume ?? current.autoResume,
     phoneLine: mergePhoneLine(current.phoneLine ?? defaultPhoneLine(), input.phoneLine),
     dryRun:
-      mode !== 'dry_run'
+      mode !== 'dry_run' || voice
         ? null
         : input.dryRun === null
           ? defaultDryRun()
@@ -443,8 +500,11 @@ export const validateSettings = async (
   account: AccountFacts,
   now: Date,
 ): Promise<void> => {
-  if (s.mode === 'live' && s.line !== 'whatsapp' && account.line !== 'sip') throw liveRefused();
-  if (s.line === 'whatsapp') {
+  if (needsSipLine(s) && account.line !== 'sip') throw liveRefused();
+  const voiceDetails: ErrorDetail[] = [];
+  if (s.line === 'voice_api') {
+    voiceDetails.push(...(await voiceSettingsProblems(accountId, s, account.window)));
+  } else if (s.line === 'whatsapp') {
     const channel = await validateWhatsAppLine(accountId, s.channelId);
     if (
       s.askPermissionFirst &&
@@ -469,7 +529,7 @@ export const validateSettings = async (
     if (problems.length) throw new ValidationError(problems);
   } else if (!s.flowId)
     throw new ValidationError([{ path: 'flowId', message: 'Choose a published call flow' }]);
-  const details: ErrorDetail[] = [];
+  const details: ErrorDetail[] = [...voiceDetails];
   if (!intersect(s.window, account.window)) {
     details.push({
       path: 'window',
@@ -665,7 +725,8 @@ export const listCampaigns = async (req: Request, query: z.infer<typeof ListCamp
   const filter: Record<string, unknown> = { accountId };
   if (query.status) filter.status = { $in: query.status };
   if (query.mode) filter.mode = query.mode;
-  if (query.line) filter.line = query.line === 'phone' ? { $ne: 'whatsapp' } : 'whatsapp';
+  // the SIP / Normal call tab lists phone and recorded-voice campaigns
+  if (query.line) filter.line = query.line === 'phone' ? { $ne: 'whatsapp' } : query.line;
   if (query.flowId) filter.flowId = new Types.ObjectId(query.flowId);
   if (query.parentId) filter.parentId = new Types.ObjectId(query.parentId);
   if (query.q) filter.name = { $regex: escapeRegex(query.q), $options: 'i' };
@@ -814,6 +875,7 @@ export const duplicateCampaign = async (req: Request, id: string) => {
       autoResume: source.autoResume,
       phoneLine: source.phoneLine ?? defaultPhoneLine(),
       dryRun: source.dryRun,
+      voiceApi: freshVoiceApi(source.voiceApi),
       status: 'draft',
       stats: emptyCampaignStats(),
       createdBy: by,
@@ -897,6 +959,9 @@ export const listCampaignContacts = async (
 
 // ── preview / estimate ───────────────────────────────────────────────────────
 
+/** Contacts of the audience the voice provider can't call (not a 10-digit Indian mobile). */
+const NOT_INDIAN_MOBILE = { $not: /^\+91[6-9]\d{9}$/ };
+
 export const previewCampaignAudience = async (
   req: Request,
   body: z.infer<typeof AudiencePreviewBody>,
@@ -929,7 +994,7 @@ export const previewCampaignAudience = async (
           body.channelId ? new Types.ObjectId(body.channelId) : null,
         )
       : null;
-  return previewAudience({
+  const preview = await previewAudience({
     accountId,
     audience,
     used,
@@ -937,11 +1002,92 @@ export const previewCampaignAudience = async (
       ? { callPermission: { channelId: channel._id, askFirst: body.askPermissionFirst === true } }
       : {}),
   });
+  if (body.line !== 'voice_api') return preview;
+  // VAPI: Cell24x7 calls 10-digit Indian mobiles only
+  const query = await audienceQuery(accountId, audience);
+  const notIndianMobile = query
+    ? await ContactModel.countDocuments({ ...query, phoneE164: NOT_INDIAN_MOBILE })
+    : 0;
+  return {
+    ...preview,
+    willCall: Math.max(0, preview.willCall - notIndianMobile),
+    excluded: { ...preview.excluded, not_indian_mobile: notIndianMobile },
+  };
+};
+
+/** VAPI: numbers × 15 s pulses × the account's price; charged per batch at submit. */
+const estimateVoiceCost = async (campaign: CampaignDoc) => {
+  const { accountId } = campaign;
+  const audioSec = campaign.voiceApi?.audioSec ?? 0;
+  let eligible: number;
+  let notIndianMobile: number;
+  if (campaign.snapshot.done) {
+    eligible = campaign.stats.total - campaign.stats.skipped;
+    notIndianMobile = campaign.stats.skippedBy.not_indian_mobile ?? 0;
+  } else {
+    const preview = await previewAudience({
+      accountId,
+      audience: campaign.audience,
+      used: [],
+      campaignId: campaign._id,
+    });
+    const query = await audienceQuery(accountId, campaign.audience);
+    notIndianMobile = query
+      ? await ContactModel.countDocuments({ ...query, phoneE164: NOT_INDIAN_MOBILE })
+      : 0;
+    eligible = Math.max(0, preview.willCall - notIndianMobile);
+  }
+  const price = await voicePrice(accountId, audioSec);
+  const totalMicros = eligible * price.perNumberMicros;
+  const estimate = {
+    contacts: eligible,
+    calls: eligible,
+    perCallMicros: price.perNumberMicros,
+    totalMicros,
+    minMicros: totalMicros,
+    maxMicros: totalMicros,
+    assumptions: {
+      avgDurationSec: audioSec,
+      answerRateBps: 0,
+      aiShareBps: 0,
+      expectedAttempts: 1,
+    },
+  };
+  await CampaignModel.updateOne(
+    { _id: campaign._id },
+    {
+      $set: {
+        estimate: {
+          contacts: eligible,
+          calls: eligible,
+          perCallMicros: price.perNumberMicros,
+          totalMicros,
+          minMicros: totalMicros,
+          maxMicros: totalMicros,
+          at: new Date(),
+        },
+      },
+    },
+  );
+  return {
+    ...estimate,
+    walletAvailableMicros: await walletAvailable(accountId),
+    transportNote:
+      'Recorded voice: each number is charged when its batch is sent to the provider, answered or not.',
+    voice: {
+      pulsesPerNumber: price.pulsesPerNumber,
+      perNumberMicros: price.perNumberMicros,
+      notPriced: price.notPriced,
+      notIndianMobile,
+      etaSec: voiceEtaSec(eligible, audioSec),
+    },
+  };
 };
 
 export const estimateCampaignCost = async (req: Request, id: string) => {
   const { accountId } = tenantFilter(req);
   const campaign = await findCampaign(accountId, id);
+  if (campaign.line === 'voice_api') return estimateVoiceCost(campaign);
   const facts = await loadCampaignProgram(campaign);
   const used = facts.used;
   const contacts = campaign.snapshot.done
@@ -1091,6 +1237,13 @@ export const beginRun = async (
   const facts = await loadCampaignProgram(campaign);
   const pinned = facts.pinned;
   const problems = pinned ? await runnableProblems(pinned) : [];
+  if (campaign.line === 'voice_api') {
+    problems.push(...(await voiceRunProblems(campaign)));
+    const price = await voicePrice(campaign.accountId, campaign.voiceApi?.audioSec ?? 0);
+    if (price.notPriced) {
+      problems.push({ path: 'voiceApi', message: 'Recorded voice has no price yet — ask support' });
+    }
+  }
   if (problems.length) throw notRunnable(problems);
   const now = new Date();
   const running = await setStatus(campaign, 'running', {
@@ -1109,6 +1262,8 @@ export const beginRun = async (
     return setStatus(fresh, 'completed', { by, set: { completedAt: new Date() } });
   }
   await hooks.running(fresh);
+  // VAPI: the batch loop sends the numbers (any process may queue its first tick)
+  if (fresh.line === 'voice_api') await getVoiceJobs()?.batch(fresh._id.toString());
   return fresh;
 };
 
@@ -1117,6 +1272,7 @@ export const beginRun = async (
  * gone, flow / version not loadable) — empty when it can.
  */
 export const pinnedProblems = async (campaign: CampaignDoc): Promise<ErrorDetail[]> => {
+  if (campaign.line === 'voice_api') return voiceRunProblems(campaign);
   if (campaign.line === 'whatsapp') {
     const problems = await programProblems(
       campaign.accountId,
@@ -1148,14 +1304,21 @@ export const startCampaign = async (req: Request, id: string) => {
     );
   }
   const account = await accountFacts(accountId);
-  if (campaign.mode === 'live' && campaign.line !== 'whatsapp' && account.line !== 'sip')
-    throw liveRefused();
+  if (needsSipLine(campaign) && account.line !== 'sip') throw liveRefused();
   if (account.status === 'suspended') {
     throw notRunnable([{ path: 'account', message: 'The account is suspended' }]);
   }
   await validateSettings(accountId, campaign, account, new Date());
   if (!(await audienceQuery(accountId, campaign.audience))) {
     throw notRunnable([{ path: 'audience', message: 'Choose who to call' }]);
+  }
+  if (campaign.line === 'voice_api') {
+    const price = await voicePrice(accountId, campaign.voiceApi?.audioSec ?? 0);
+    assertVoicePriced(price);
+    // at least one number must be payable (each batch is held before it is sent)
+    if ((await walletAvailable(accountId)) < price.perNumberMicros) {
+      throw new AppError('WALLET_INSUFFICIENT_BALANCE');
+    }
   }
   const facts = await loadCampaignProgram(campaign);
   const pinned = facts.pinned;
@@ -1254,6 +1417,12 @@ export const resumeCampaignDoc = async (
   if (account.status === 'suspended') {
     throw new ConflictError('CONFLICT_INVALID_STATE', 'The account is suspended.');
   }
+  if (campaign.voiceApi?.batches.some((b) => b.state === 'uncertain')) {
+    throw new ConflictError(
+      'CONFLICT_INVALID_STATE',
+      'Support must first check whether the last recorded-voice batch was sent.',
+    );
+  }
   const blocker = await hooks.resumeBlocker(campaign);
   if (blocker) throw new ConflictError('CONFLICT_INVALID_STATE', blocker);
   if (!campaign.startedAt) {
@@ -1269,6 +1438,7 @@ export const resumeCampaignDoc = async (
   }
   const running = await setStatus(campaign, 'running', { by });
   await hooks.running(running);
+  if (running.line === 'voice_api') await getVoiceJobs()?.batch(running._id.toString());
   return running;
 };
 
@@ -1321,6 +1491,8 @@ export const cancelCampaign = async (req: Request, id: string, hangUpLive: boole
   }
   await hooks.unscheduled(canceled);
   if (hangUpLive) await hooks.hangUpLive(canceled);
+  // VAPI: a batch held but not yet sent gives its money and numbers back
+  if (canceled.line === 'voice_api') await getVoiceJobs()?.batch(canceled._id.toString());
   await auditRequest(req, 'campaign.canceled', { target: target(canceled), meta: { hangUpLive } });
   return view(await findCampaign(accountId, id));
 };

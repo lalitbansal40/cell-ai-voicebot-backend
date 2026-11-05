@@ -163,13 +163,19 @@ export class CampaignDispatcher {
 
   private async pass(accountId: string): Promise<boolean> {
     const now = new Date(this.clock.now());
-    const running = (
-      await CampaignModel.find({ accountId, status: 'running' }).lean<CampaignDoc[]>()
-    ).sort(
-      (a, b) =>
-        PRIORITY_RANK[a.pacing.priority] - PRIORITY_RANK[b.pacing.priority] ||
-        (a.startedAt?.getTime() ?? 0) - (b.startedAt?.getTime() ?? 0),
-    );
+    const running =
+      // recorded-voice campaigns are sent in batches by their own job (VAPI), never dialed here
+      (
+        await CampaignModel.find({
+          accountId,
+          status: 'running',
+          line: { $ne: 'voice_api' },
+        }).lean<CampaignDoc[]>()
+      ).sort(
+        (a, b) =>
+          PRIORITY_RANK[a.pacing.priority] - PRIORITY_RANK[b.pacing.priority] ||
+          (a.startedAt?.getTime() ?? 0) - (b.startedAt?.getTime() ?? 0),
+      );
     if (!running.length) return false;
     const account = await accountFacts(new Types.ObjectId(accountId));
     if (account.status === 'suspended') {

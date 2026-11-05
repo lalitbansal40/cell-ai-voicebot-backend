@@ -11,6 +11,7 @@ import type { Logger } from '../../shared/logger';
 import { beginRun, isNotRunnableError, nameTaken, setStatus } from './campaigns.service';
 import { notifyRunSkipped } from './notifications';
 import { nextOccurrence, runLabel } from './recurrence';
+import { freshVoiceApi } from './voice-api/settings';
 
 /** BullMQ job scheduler id of a recurring parent (ids use '-', never ':'). */
 export const runSchedulerId = (campaignId: string) => `runs-${campaignId}`;
@@ -62,6 +63,7 @@ const createRunDoc = async (parent: CampaignDoc, at: Date): Promise<CampaignDoc>
     autoResume: parent.autoResume,
     phoneLine: parent.phoneLine,
     dryRun: parent.dryRun,
+    voiceApi: freshVoiceApi(parent.voiceApi),
     status: 'draft',
     stats: emptyCampaignStats(),
     parentId: parent._id,

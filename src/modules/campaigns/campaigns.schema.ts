@@ -1,4 +1,5 @@
 import { CAMPAIGN_LIMITS } from '../../config/limits';
+import { VOICE_API_RETRY_INTERVALS } from '../../core/voice-api/types';
 import { DISPOSITIONS } from '../../db/models/ai-agent.model';
 import {
   CALL_RESULTS,
@@ -7,6 +8,7 @@ import {
 } from '../../db/models/campaign-contact.model';
 import {
   CAMPAIGN_AMD_MODES,
+  CAMPAIGN_LINES,
   CAMPAIGN_MODES,
   CAMPAIGN_PRIORITIES,
   CAMPAIGN_STATUSES,
@@ -17,6 +19,7 @@ import {
   SCENARIO_KEYS,
   SKIP_REASONS,
   VERSION_POLICIES,
+  VOICE_BATCH_STATES,
 } from '../../db/models/campaign.model';
 import { EXPORT_FORMATS } from '../../db/models/export-job.model';
 import { CursorPageMetaSchema } from '../../shared/openapi/common.schemas';
@@ -124,8 +127,31 @@ const PhoneLineInput = z.strictObject({
 });
 
 const ProgramInput = z.strictObject({ kind: z.enum(['flow', 'agent']), id: ObjectIdSchema });
+
+/** VAPI: recorded voice (account audio) or an assigned Cell24x7 IVR. */
+const VoiceContentInput = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('audio'), flowAudioId: ObjectIdSchema }),
+  z.strictObject({ kind: z.literal('ivr'), ivrId: z.number().int().positive().max(2_147_483_647) }),
+]);
+const VoiceApiInput = z.strictObject({
+  content: VoiceContentInput.nullable().optional(),
+  retries: int(0, 3).optional(),
+  retryIntervalMin: z
+    .union(
+      VOICE_API_RETRY_INTERVALS.map((m) => z.literal(m)) as unknown as [
+        z.ZodLiteral<5>,
+        z.ZodLiteral<10>,
+        z.ZodLiteral<30>,
+        z.ZodLiteral<60>,
+        z.ZodLiteral<180>,
+        z.ZodLiteral<300>,
+      ],
+    )
+    .optional(),
+});
 const settings = {
-  line: z.enum(['phone', 'whatsapp']).optional(),
+  line: z.enum(CAMPAIGN_LINES).optional(),
+  voiceApi: VoiceApiInput.nullable().optional(),
   channelId: ObjectIdSchema.nullable().optional(),
   program: ProgramInput.nullable().optional(),
   askPermissionFirst: z.strictObject({ templateId: ObjectIdSchema }).nullable().optional(),
@@ -164,7 +190,7 @@ export const ExportCampaignBody = z.strictObject({ format: z.enum(EXPORT_FORMATS
 export const AudiencePreviewBody = z.strictObject({
   channelId: ObjectIdSchema.nullable().optional(),
   askPermissionFirst: z.boolean().optional(),
-  line: z.enum(['phone', 'whatsapp']).optional(),
+  line: z.enum(CAMPAIGN_LINES).optional(),
   program: ProgramInput.nullable().optional(),
   flowId: ObjectIdSchema.optional(),
   chosenVersion: z.number().int().min(1).nullable().optional(),
@@ -172,7 +198,8 @@ export const AudiencePreviewBody = z.strictObject({
 });
 
 export const ListCampaignsQuery = z.strictObject({
-  line: z.enum(['phone', 'whatsapp']).optional(),
+  /** `phone` lists SIP / test-line and recorded-voice campaigns (the SIP / Normal call tab). */
+  line: z.enum(CAMPAIGN_LINES).optional(),
   ...CursorQuerySchema.shape,
   status: z
     .union([z.enum(CAMPAIGN_STATUSES), z.array(z.enum(CAMPAIGN_STATUSES))])
@@ -230,7 +257,12 @@ export const CampaignListItemSchema = registry.register(
     status: z.enum(CAMPAIGN_STATUSES),
     pauseReason: z.enum(PAUSE_REASONS).nullable(),
     waitingUntil: z.string().nullable(),
-    line: z.enum(['phone', 'whatsapp']).optional(),
+    line: z.enum(CAMPAIGN_LINES).optional(),
+    /** VAPI: what a recorded-voice campaign plays (list label). */
+    voice: z
+      .object({ kind: z.enum(['audio', 'ivr']), name: z.string() })
+      .nullable()
+      .optional(),
     channelId: z.string().nullable().optional(),
     program: ProgramInput.extend({ name: z.string().optional() }).nullable().optional(),
     askPermissionFirst: z.object({ templateId: z.string() }).nullable().optional(),
@@ -331,6 +363,37 @@ export const CampaignSchema = registry.register(
     canceledAt: z.string().nullable(),
     pausedAt: z.string().nullable(),
     walletAvailableMicros: z.number(),
+    voiceApi: z
+      .object({
+        content: z
+          .object({
+            kind: z.enum(['audio', 'ivr']),
+            flowAudioId: z.string().nullable(),
+            ivrId: z.number().int().nullable(),
+            name: z.string(),
+          })
+          .nullable(),
+        audioSec: z.number(),
+        retries: z.number().int(),
+        retryIntervalMin: z.number().int(),
+        batches: z.array(
+          z.object({
+            no: z.number().int(),
+            state: z.enum(VOICE_BATCH_STATES),
+            requestId: z.string().nullable(),
+            count: z.number().int(),
+            amountMicros: z.number(),
+            createdAt: z.string(),
+            submittedAt: z.string().nullable(),
+            doneAt: z.string().nullable(),
+            error: z.string().nullable(),
+          }),
+        ),
+        lastError: z.object({ code: z.string(), at: z.string() }).nullable(),
+      })
+      .nullable()
+      .optional()
+      .openapi({ description: 'VAPI: recorded-voice / IVR settings and Cell24x7 batches' }),
   }),
 );
 
@@ -354,6 +417,18 @@ export const CampaignContactRowSchema = registry.register(
     lastCallId: z.string().nullable(),
     lastAttemptAt: z.string().nullable(),
     costMicros: z.number(),
+    /** VAPI: Cell24x7's view of this number. */
+    voice: z
+      .object({
+        batchNo: z.number().int(),
+        providerStatus: z.string().nullable(),
+        durationSec: z.number(),
+        retryCount: z.number().int(),
+        dtmf: z.string().nullable(),
+        ivrDisposition: z.string().nullable(),
+      })
+      .nullable()
+      .optional(),
   }),
 );
 
@@ -386,6 +461,16 @@ export const CampaignEstimateSchema = registry.register(
     }),
     walletAvailableMicros: z.number(),
     transportNote: z.string().optional(),
+    /** VAPI: per-number price of a recorded-voice campaign (charged at submit). */
+    voice: z
+      .object({
+        pulsesPerNumber: z.number().int(),
+        perNumberMicros: z.number(),
+        notPriced: z.boolean(),
+        notIndianMobile: z.number().int(),
+        etaSec: z.number().int(),
+      })
+      .optional(),
   }),
 );
 

@@ -22,6 +22,7 @@ import {
   type ClassifyContext,
   type UsedField,
 } from './audience';
+import { voiceSkipReason } from './voice-api/settings';
 import { allowedCallContacts } from './whatsapp-line';
 
 /** Where each campaign-contact status is counted in `campaign.stats`. */
@@ -140,6 +141,7 @@ export const takeSnapshot = async (
         const base = classifyRow(row, ctx);
         const skip =
           base.skip ??
+          (campaign.line === 'voice_api' ? voiceSkipReason(row.phoneE164) : null) ??
           (allowed && !allowed.has(row._id.toString()) && !campaign.askPermissionFirst
             ? 'no_call_permission'
             : null);

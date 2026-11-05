@@ -504,6 +504,7 @@
           "aiTextPer1kTokensMicros": { "type": "number" },
           "embeddingPer1kTokensMicros": { "type": "number" },
           "sttPerMinuteMicros": { "type": "number" },
+          "voiceApiPulseMicros": { "type": "number" },
           "source": { "type": "string", "enum": ["account", "default"] },
           "effectiveFrom": { "type": "string" },
           "whatsapp": {
@@ -566,6 +567,7 @@
           "aiTextPer1kTokensMicros",
           "embeddingPer1kTokensMicros",
           "sttPerMinuteMicros",
+          "voiceApiPulseMicros",
           "source",
           "effectiveFrom",
           "whatsapp",
@@ -609,7 +611,8 @@
               "whatsapp_charge",
               "whatsapp_call_charge",
               "credit_transfer_out",
-              "credit_transfer_in"
+              "credit_transfer_in",
+              "voice_broadcast_charge"
             ]
           },
           "direction": { "type": "string", "enum": ["credit", "debit"] },
@@ -646,7 +649,8 @@
                   "whatsapp_call",
                   "insights",
                   "stt",
-                  "chat_summary"
+                  "chat_summary",
+                  "voice_broadcast"
                 ]
               },
               "waCategory": { "type": "string" },
@@ -776,6 +780,7 @@
           "aiTextPer1kTokensMicros": { "type": "number" },
           "embeddingPer1kTokensMicros": { "type": "number" },
           "sttPerMinuteMicros": { "type": "number" },
+          "voiceApiPulseMicros": { "type": "number" },
           "inheritsDefault": { "type": "boolean" },
           "effectiveFrom": { "type": "string" },
           "createdBy": { "type": ["string", "null"] },
@@ -794,6 +799,7 @@
           "aiTextPer1kTokensMicros",
           "embeddingPer1kTokensMicros",
           "sttPerMinuteMicros",
+          "voiceApiPulseMicros",
           "inheritsDefault",
           "effectiveFrom",
           "createdBy",
@@ -818,6 +824,7 @@
               "aiTextPer1kTokensMicros": { "type": "number" },
               "embeddingPer1kTokensMicros": { "type": "number" },
               "sttPerMinuteMicros": { "type": "number" },
+              "voiceApiPulseMicros": { "type": "number" },
               "effectiveFrom": { "type": "string" }
             },
             "required": [
@@ -832,6 +839,7 @@
               "aiTextPer1kTokensMicros",
               "embeddingPer1kTokensMicros",
               "sttPerMinuteMicros",
+              "voiceApiPulseMicros",
               "effectiveFrom"
             ]
           },
@@ -869,6 +877,7 @@
               "aiTextPer1kTokensMicros": { "type": "number" },
               "embeddingPer1kTokensMicros": { "type": "number" },
               "sttPerMinuteMicros": { "type": "number" },
+              "voiceApiPulseMicros": { "type": "number" },
               "effectiveFrom": { "type": "string" }
             },
             "required": [
@@ -883,6 +892,7 @@
               "aiTextPer1kTokensMicros",
               "embeddingPer1kTokensMicros",
               "sttPerMinuteMicros",
+              "voiceApiPulseMicros",
               "effectiveFrom"
             ]
           },
@@ -948,7 +958,8 @@
                         "whatsapp_charge",
                         "whatsapp_call_charge",
                         "credit_transfer_out",
-                        "credit_transfer_in"
+                        "credit_transfer_in",
+                        "voice_broadcast_charge"
                       ]
                     },
                     "amountMicros": { "type": "number" }
@@ -1286,7 +1297,10 @@
               "whatsapp_campaign.resumed",
               "whatsapp_campaign.stopped",
               "whatsapp_campaign.completed",
-              "whatsapp_campaign.retried"
+              "whatsapp_campaign.retried",
+              "account.voice_api_changed",
+              "voice_api.webhook_registered",
+              "voice_api.batch_resolved"
             ]
           },
           "actor": {
@@ -1446,6 +1460,16 @@
             "required": ["pulseSec", "spendMinutesPerHour"],
             "additionalProperties": false
           },
+          "voiceApi": {
+            "type": "object",
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "ivrIds": { "type": "array", "items": { "type": "integer" } },
+              "ivrEstimateSec": { "type": "integer" }
+            },
+            "required": ["enabled", "ivrIds", "ivrEstimateSec"],
+            "description": "VAPI: recorded-voice / IVR campaigns over Cell24x7"
+          },
           "usersByStatus": {
             "type": "object",
             "properties": {
@@ -1537,6 +1561,7 @@
           "apiLimits",
           "voiceLine",
           "sipSettings",
+          "voiceApi",
           "usersByStatus",
           "limits",
           "retention",
@@ -2656,7 +2681,7 @@
           "direction": { "type": "string", "enum": ["outbound", "inbound"] },
           "provider": {
             "type": "string",
-            "enum": ["webcall", "sip", "notifynow", "dryrun", "whatsapp"]
+            "enum": ["webcall", "sip", "notifynow", "dryrun", "whatsapp", "voice_api"]
           },
           "mode": { "type": "string", "enum": ["human", "ai"] },
           "agentUserId": { "type": ["string", "null"] },
@@ -3213,11 +3238,21 @@
               "too_many_failures",
               "admin",
               "flow_not_runnable",
+              "provider_error",
+              "provider_uncertain",
               null
             ]
           },
           "waitingUntil": { "type": ["string", "null"] },
-          "line": { "type": "string", "enum": ["phone", "whatsapp"] },
+          "line": { "type": "string", "enum": ["phone", "whatsapp", "voice_api"] },
+          "voice": {
+            "type": ["object", "null"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["audio", "ivr"] },
+              "name": { "type": "string" }
+            },
+            "required": ["kind", "name"]
+          },
           "channelId": { "type": ["string", "null"] },
           "program": {
             "type": ["object", "null"],
@@ -3486,6 +3521,8 @@
                         "too_many_failures",
                         "admin",
                         "flow_not_runnable",
+                        "provider_error",
+                        "provider_uncertain",
                         null
                       ]
                     },
@@ -3515,7 +3552,70 @@
               },
               "canceledAt": { "type": ["string", "null"] },
               "pausedAt": { "type": ["string", "null"] },
-              "walletAvailableMicros": { "type": "number" }
+              "walletAvailableMicros": { "type": "number" },
+              "voiceApi": {
+                "type": ["object", "null"],
+                "properties": {
+                  "content": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "kind": { "type": "string", "enum": ["audio", "ivr"] },
+                      "flowAudioId": { "type": ["string", "null"] },
+                      "ivrId": { "type": ["integer", "null"] },
+                      "name": { "type": "string" }
+                    },
+                    "required": ["kind", "flowAudioId", "ivrId", "name"]
+                  },
+                  "audioSec": { "type": "number" },
+                  "retries": { "type": "integer" },
+                  "retryIntervalMin": { "type": "integer" },
+                  "batches": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "no": { "type": "integer" },
+                        "state": {
+                          "type": "string",
+                          "enum": ["holding", "submitting", "open", "done", "uncertain", "failed"]
+                        },
+                        "requestId": { "type": ["string", "null"] },
+                        "count": { "type": "integer" },
+                        "amountMicros": { "type": "number" },
+                        "createdAt": { "type": "string" },
+                        "submittedAt": { "type": ["string", "null"] },
+                        "doneAt": { "type": ["string", "null"] },
+                        "error": { "type": ["string", "null"] }
+                      },
+                      "required": [
+                        "no",
+                        "state",
+                        "requestId",
+                        "count",
+                        "amountMicros",
+                        "createdAt",
+                        "submittedAt",
+                        "doneAt",
+                        "error"
+                      ]
+                    }
+                  },
+                  "lastError": {
+                    "type": ["object", "null"],
+                    "properties": { "code": { "type": "string" }, "at": { "type": "string" } },
+                    "required": ["code", "at"]
+                  }
+                },
+                "required": [
+                  "content",
+                  "audioSec",
+                  "retries",
+                  "retryIntervalMin",
+                  "batches",
+                  "lastError"
+                ],
+                "description": "VAPI: recorded-voice / IVR settings and Cell24x7 batches"
+              }
             },
             "required": [
               "revision",
@@ -3602,6 +3702,7 @@
               "number_not_allowed",
               "no_call_permission",
               "unanswered_limit",
+              "not_indian_mobile",
               null
             ]
           },
@@ -3613,7 +3714,26 @@
           "nextAttemptAt": { "type": ["string", "null"] },
           "lastCallId": { "type": ["string", "null"] },
           "lastAttemptAt": { "type": ["string", "null"] },
-          "costMicros": { "type": "number" }
+          "costMicros": { "type": "number" },
+          "voice": {
+            "type": ["object", "null"],
+            "properties": {
+              "batchNo": { "type": "integer" },
+              "providerStatus": { "type": ["string", "null"] },
+              "durationSec": { "type": "number" },
+              "retryCount": { "type": "integer" },
+              "dtmf": { "type": ["string", "null"] },
+              "ivrDisposition": { "type": ["string", "null"] }
+            },
+            "required": [
+              "batchNo",
+              "providerStatus",
+              "durationSec",
+              "retryCount",
+              "dtmf",
+              "ivrDisposition"
+            ]
+          }
         },
         "required": [
           "id",
@@ -3686,7 +3806,24 @@
             "required": ["avgDurationSec", "answerRateBps", "aiShareBps", "expectedAttempts"]
           },
           "walletAvailableMicros": { "type": "number" },
-          "transportNote": { "type": "string" }
+          "transportNote": { "type": "string" },
+          "voice": {
+            "type": "object",
+            "properties": {
+              "pulsesPerNumber": { "type": "integer" },
+              "perNumberMicros": { "type": "number" },
+              "notPriced": { "type": "boolean" },
+              "notIndianMobile": { "type": "integer" },
+              "etaSec": { "type": "integer" }
+            },
+            "required": [
+              "pulsesPerNumber",
+              "perNumberMicros",
+              "notPriced",
+              "notIndianMobile",
+              "etaSec"
+            ]
+          }
         },
         "required": [
           "contacts",
@@ -4236,9 +4373,14 @@
         "type": "object",
         "properties": {
           "line": { "type": "string", "enum": ["sip", "dryrun"] },
-          "numbers": { "type": "array", "items": { "$ref": "#/components/schemas/PhoneNumber" } }
+          "numbers": { "type": "array", "items": { "$ref": "#/components/schemas/PhoneNumber" } },
+          "voiceApi": {
+            "type": "object",
+            "properties": { "enabled": { "type": "boolean" } },
+            "required": ["enabled"]
+          }
         },
-        "required": ["line", "numbers"]
+        "required": ["line", "numbers", "voiceApi"]
       },
       "DndEntry": {
         "type": "object",
@@ -6775,7 +6917,8 @@
               "wallet.credit_received",
               "wallet.customer_low_balance",
               "whatsapp_campaign.completed",
-              "whatsapp_campaign.paused"
+              "whatsapp_campaign.paused",
+              "voice_api.provider_error"
             ]
           },
           "title": { "type": "string" },
@@ -7492,6 +7635,88 @@
           "creditGivenThisMonthMicros",
           "customersSpend30d",
           "lowBalanceCustomers"
+        ]
+      },
+      "AccountVoiceApi": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "ivrIds": { "type": "array", "items": { "type": "integer" } },
+          "ivrEstimateSec": { "type": "integer" }
+        },
+        "required": ["enabled", "ivrIds", "ivrEstimateSec"]
+      },
+      "VoiceIvr": {
+        "type": "object",
+        "properties": { "id": { "type": "integer" }, "name": { "type": "string" } },
+        "required": ["id", "name"]
+      },
+      "AdminVoiceIvr": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "runnable": { "type": "boolean" }
+        },
+        "required": ["id", "name", "runnable"]
+      },
+      "AdminVoiceStatus": {
+        "type": "object",
+        "properties": {
+          "provider": { "type": "string", "enum": ["off", "fake", "cell24x7"] },
+          "tokenConfigured": { "type": "boolean" },
+          "webhook": {
+            "type": "object",
+            "properties": {
+              "registered": { "type": "boolean" },
+              "matches": { "type": "boolean", "description": "Cell24x7 posts to this server" },
+              "error": { "type": ["string", "null"] }
+            },
+            "required": ["registered", "matches", "error"]
+          },
+          "lastWebhookAt": { "type": ["string", "null"] },
+          "lastError": {
+            "type": ["object", "null"],
+            "properties": { "code": { "type": "string" }, "at": { "type": "string" } },
+            "required": ["code", "at"]
+          },
+          "uncertainBatches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "campaignId": { "type": "string" },
+                "campaignName": { "type": "string" },
+                "accountId": { "type": "string" },
+                "batchNo": { "type": "integer" },
+                "count": { "type": "integer" },
+                "broadcastName": {
+                  "type": "string",
+                  "description": "Name in the Cell24x7 dashboard"
+                },
+                "error": { "type": ["string", "null"] },
+                "createdAt": { "type": "string" }
+              },
+              "required": [
+                "campaignId",
+                "campaignName",
+                "accountId",
+                "batchNo",
+                "count",
+                "broadcastName",
+                "error",
+                "createdAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "provider",
+          "tokenConfigured",
+          "webhook",
+          "lastWebhookAt",
+          "lastError",
+          "uncertainBatches"
         ]
       },
       "WhatsAppCampaign": {
@@ -11236,6 +11461,7 @@
                     "maximum": 1000000000
                   },
                   "sttPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "voiceApiPulseMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
                   "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
                 },
                 "required": [
@@ -11431,6 +11657,7 @@
                     "maximum": 1000000000
                   },
                   "sttPerMinuteMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+                  "voiceApiPulseMicros": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
                   "note": { "type": ["string", "null"], "minLength": 3, "maxLength": 300 }
                 },
                 "required": [
@@ -16344,7 +16571,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["webcall", "sip", "notifynow", "dryrun", "whatsapp"]
+              "enum": ["webcall", "sip", "notifynow", "dryrun", "whatsapp", "voice_api"]
             },
             "required": false,
             "name": "provider",
@@ -17225,7 +17452,7 @@
         "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
-            "schema": { "type": "string", "enum": ["phone", "whatsapp"] },
+            "schema": { "type": "string", "enum": ["phone", "whatsapp", "voice_api"] },
             "required": false,
             "name": "line",
             "in": "query"
@@ -17368,7 +17595,51 @@
                   "name": { "type": "string", "minLength": 1, "maxLength": 120 },
                   "mode": { "type": "string", "enum": ["dry_run", "live"], "default": "dry_run" },
                   "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-                  "line": { "type": "string", "enum": ["phone", "whatsapp"] },
+                  "line": { "type": "string", "enum": ["phone", "whatsapp", "voice_api"] },
+                  "voiceApi": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "content": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["audio"] },
+                              "flowAudioId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                            },
+                            "required": ["kind", "flowAudioId"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["ivr"] },
+                              "ivrId": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 2147483647
+                              }
+                            },
+                            "required": ["kind", "ivrId"],
+                            "additionalProperties": false
+                          },
+                          { "type": "null" }
+                        ]
+                      },
+                      "retries": { "type": "integer", "minimum": 0, "maximum": 3 },
+                      "retryIntervalMin": {
+                        "anyOf": [
+                          { "type": "number", "enum": [5] },
+                          { "type": "number", "enum": [10] },
+                          { "type": "number", "enum": [30] },
+                          { "type": "number", "enum": [60] },
+                          { "type": "number", "enum": [180] },
+                          { "type": "number", "enum": [300] }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
                   "channelId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
                   "program": {
                     "type": ["object", "null"],
@@ -17681,7 +17952,7 @@
                 "properties": {
                   "channelId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
                   "askPermissionFirst": { "type": "boolean" },
-                  "line": { "type": "string", "enum": ["phone", "whatsapp"] },
+                  "line": { "type": "string", "enum": ["phone", "whatsapp", "voice_api"] },
                   "program": {
                     "type": ["object", "null"],
                     "properties": {
@@ -17843,7 +18114,51 @@
                   "name": { "type": "string", "minLength": 1, "maxLength": 120 },
                   "mode": { "type": "string", "enum": ["dry_run", "live"] },
                   "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
-                  "line": { "type": "string", "enum": ["phone", "whatsapp"] },
+                  "line": { "type": "string", "enum": ["phone", "whatsapp", "voice_api"] },
+                  "voiceApi": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "content": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["audio"] },
+                              "flowAudioId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                            },
+                            "required": ["kind", "flowAudioId"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["ivr"] },
+                              "ivrId": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0,
+                                "maximum": 2147483647
+                              }
+                            },
+                            "required": ["kind", "ivrId"],
+                            "additionalProperties": false
+                          },
+                          { "type": "null" }
+                        ]
+                      },
+                      "retries": { "type": "integer", "minimum": 0, "maximum": 3 },
+                      "retryIntervalMin": {
+                        "anyOf": [
+                          { "type": "number", "enum": [5] },
+                          { "type": "number", "enum": [10] },
+                          { "type": "number", "enum": [30] },
+                          { "type": "number", "enum": [60] },
+                          { "type": "number", "enum": [180] },
+                          { "type": "number", "enum": [300] }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
                   "channelId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
                   "program": {
                     "type": ["object", "null"],
@@ -18752,7 +19067,8 @@
                 "rejected",
                 "number_not_allowed",
                 "no_call_permission",
-                "unanswered_limit"
+                "unanswered_limit",
+                "not_indian_mobile"
               ]
             },
             "required": false,
@@ -29630,7 +29946,7 @@
                   "contactId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "provider": {
                     "type": "string",
-                    "enum": ["webcall", "sip", "notifynow", "dryrun", "whatsapp"]
+                    "enum": ["webcall", "sip", "notifynow", "dryrun", "whatsapp", "voice_api"]
                   },
                   "direction": { "type": "string", "enum": ["inbound", "outbound"] },
                   "mode": { "type": "string", "enum": ["human", "ai"] },
@@ -32008,6 +32324,390 @@
             "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/voice-api": {
+      "patch": {
+        "tags": ["Admin"],
+        "summary": "Turn recorded-voice campaigns on / off, assign Cell24x7 IVRs (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "ivrIds": {
+                    "type": "array",
+                    "items": { "type": "integer", "exclusiveMinimum": 0, "maximum": 2147483647 },
+                    "maxItems": 50
+                  },
+                  "ivrEstimateSec": { "type": "integer", "minimum": 15, "maximum": 120 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AccountVoiceApi" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/voice-api/status": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Cell24x7 status: token set, webhook registered, last result and error (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AdminVoiceStatus" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/voice-api/webhook": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Register this server's result webhook with Cell24x7 (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "registered": { "type": "boolean" },
+                        "matches": { "type": "boolean" }
+                      },
+                      "required": ["registered", "matches"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/voice-api/ivrs": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Every IVR on the platform's Cell24x7 account (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AdminVoiceIvr" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/campaigns/{id}/voice-batches/{no}/resolve": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Decide an uncertain Cell24x7 submit: it reached Cell24x7, or it did not (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+            "required": true,
+            "name": "no",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "outcome": { "type": "string", "enum": ["submitted"] },
+                      "requestId": { "type": "string", "minLength": 1, "maxLength": 100 }
+                    },
+                    "required": ["outcome", "requestId"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "outcome": { "type": "string", "enum": ["not_submitted"] } },
+                    "required": ["outcome"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "batchNo": { "type": "integer" },
+                        "state": { "type": "string" }
+                      },
+                      "required": ["batchNo", "state"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice-api/ivrs": {
+      "get": {
+        "tags": ["Voice API"],
+        "summary": "IVR menus this account may use in a recorded-voice campaign",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/VoiceIvr" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/voice-api/{secret}": {
+      "post": {
+        "tags": ["Voice API"],
+        "summary": "Cell24x7 call results (secret path; answered at once, processed in the background)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "required": true,
+            "name": "secret",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "event": { "type": "string", "maxLength": 60 },
+                  "request_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "receiver": {
+                    "anyOf": [{ "type": "string", "maxLength": 20 }, { "type": "number" }]
+                  },
+                  "status": { "type": "string", "minLength": 1, "maxLength": 40 },
+                  "duration": {
+                    "anyOf": [
+                      { "type": "number" },
+                      { "type": "string", "maxLength": 10 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "retry_count": {
+                    "anyOf": [
+                      { "type": "number" },
+                      { "type": "string", "maxLength": 5 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "ivr": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "digits_pressed": { "type": ["string", "null"], "maxLength": 64 },
+                      "disposition": { "type": ["string", "null"], "maxLength": 100 }
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["request_id", "receiver", "status"],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "received": { "type": "boolean" } },
+                      "required": ["received"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
             }
           },
           "404": {
