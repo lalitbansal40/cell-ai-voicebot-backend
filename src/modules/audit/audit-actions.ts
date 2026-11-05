@@ -204,6 +204,10 @@ export const AUDIT_ACTIONS = [
   'whatsapp_campaign.stopped',
   'whatsapp_campaign.completed',
   'whatsapp_campaign.retried',
+  // VAPI: recorded-voice / IVR campaigns over Cell24x7
+  'account.voice_api_changed',
+  'voice_api.webhook_registered',
+  'voice_api.batch_resolved',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

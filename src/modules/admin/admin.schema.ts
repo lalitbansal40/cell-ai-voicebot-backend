@@ -120,6 +120,13 @@ export const AdminAccountDetailSchema = registry.register(
     apiLimits: z.object({ readsPerMinute: z.number(), writesPerMinute: z.number() }).nullable(),
     voiceLine: z.enum(ACCOUNT_VOICE_LINES),
     sipSettings: SipSettingsBody,
+    voiceApi: z
+      .object({
+        enabled: z.boolean(),
+        ivrIds: z.array(z.number().int()),
+        ivrEstimateSec: z.number().int(),
+      })
+      .openapi({ description: 'VAPI: recorded-voice / IVR campaigns over Cell24x7' }),
     usersByStatus: z.object({ invited: z.number(), active: z.number(), disabled: z.number() }),
     limits: AccountLimitsSchema,
     retention: RetentionSchema,

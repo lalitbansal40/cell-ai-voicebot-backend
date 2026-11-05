@@ -54,6 +54,8 @@ export const NOTIFICATION_TYPES = [
   'wallet.customer_low_balance',
   'whatsapp_campaign.completed',
   'whatsapp_campaign.paused',
+  // VAPI: Cell24x7 refused our token / credits / a batch (superadmins)
+  'voice_api.provider_error',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

@@ -111,7 +111,12 @@ registry.registerPath({
 });
 export const PhoneLineSchema = registry.register(
   'PhoneLine',
-  z.object({ line: z.enum(['sip', 'dryrun']), numbers: z.array(PhoneNumberSchema) }),
+  z.object({
+    line: z.enum(['sip', 'dryrun']),
+    numbers: z.array(PhoneNumberSchema),
+    /** VAPI: recorded-voice / IVR campaigns over Cell24x7 (IVRs: `GET /voice-api/ivrs`). */
+    voiceApi: z.object({ enabled: z.boolean() }),
+  }),
 );
 
 registry.registerPath({

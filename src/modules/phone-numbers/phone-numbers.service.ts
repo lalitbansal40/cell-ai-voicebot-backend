@@ -10,6 +10,7 @@ import { PhoneNumberModel, type PhoneNumberDoc } from '../../db/models/phone-num
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
 import { auditRequest } from '../audit/audit.service';
 import { effectiveLine } from '../calls/line';
+import { accountVoiceApi } from '../voice-api/voice-api.service';
 
 import type {
   CreatePhoneNumberBody,
@@ -155,6 +156,7 @@ export const accountPhoneLine = async (accountId: Types.ObjectId) => {
   return {
     line: effectiveLine(account, getEnv()),
     numbers: await accountPhoneNumbers(accountId),
+    voiceApi: { enabled: (await accountVoiceApi(accountId)).enabled },
   };
 };
 
