@@ -31,6 +31,9 @@ const HOST = /^[A-Za-z0-9.:-]{1,253}$/;
 export const META_GRAPH_DEFAULT_URL = 'https://graph.facebook.com';
 const DEV_META_VERIFY_TOKEN = 'dev-meta-verify-token';
 const DEV_FAKE_META_APP_SECRET = 'dev-fake-meta-app-secret';
+/** Cell24x7 Voice API (partner endpoints). */
+export const CELL24X7_VOICE_DEFAULT_URL = 'https://voice.truebeeps.com/api/v1/voice/partner';
+const DEV_VOICE_API_WEBHOOK_SECRET = 'dev-voice-api-webhook-secret-not-for-production';
 
 const RawEnvSchema = z.object({
   NODE_ENV: NodeEnvSchema.default('development'),
@@ -260,6 +263,23 @@ const RawEnvSchema = z.object({
   SIP_TRUNK_COST_PAISE_PER_MIN: z.coerce.number().int().min(0).max(10_000).optional(),
   SIP_SPEND_MINUTES_PER_HOUR: z.coerce.number().int().min(1).max(100_000).default(600),
 
+  // Recorded-voice / IVR campaigns over the Cell24x7 Voice API (VAPI); `off` hides the feature
+  VOICE_API_PROVIDER: z.enum(['off', 'fake', 'cell24x7']).default('off'),
+  CELL24X7_VOICE_BASE_URL: z
+    .string()
+    .url({ message: 'must be a URL' })
+    .default(CELL24X7_VOICE_DEFAULT_URL),
+  CELL24X7_VOICE_API_TOKEN: optionalString,
+  CELL24X7_VOICE_CALLER_ID: z
+    .string()
+    .regex(/^\d{10}$/, { message: 'must be 10 digits' })
+    .default('9999999999'),
+  CELL24X7_WEBHOOK_SECRET: optionalString,
+  VOICE_API_BATCH_SIZE: z.coerce.number().int().min(1).max(5000).default(200),
+  VOICE_API_LINES: z.coerce.number().int().min(1).max(500).default(4),
+  VOICE_API_POLL_SEC: z.coerce.number().int().min(15).max(3600).default(120),
+  VOICE_API_FAKE_DELAY_MS: z.coerce.number().int().min(0).max(600_000).default(2000),
+
   CLIENT_SSH_KEY_PATH: optionalString,
 });
 
@@ -314,6 +334,7 @@ export type Env = Readonly<
     | 'WA_STUN_URLS'
     | 'FAKE_META_CALL_DELAYS_MS'
     | 'WA_CALL_WINDOW_IGNORED'
+    | 'CELL24X7_WEBHOOK_SECRET'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -361,6 +382,8 @@ export type Env = Readonly<
     FAKE_META_CALL_DELAYS_MS: readonly [number, number, number] | null;
     /** True only with the fake Meta outside production (E2E at night). */
     WA_CALL_WINDOW_IGNORED: boolean;
+    /** Resolved (dev default with the fake voice provider; '' when off). */
+    CELL24X7_WEBHOOK_SECRET: string;
   }
 >;
 
@@ -772,6 +795,35 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     });
   }
 
+  if (raw.VOICE_API_PROVIDER === 'cell24x7') {
+    check(
+      'CELL24X7_VOICE_API_TOKEN',
+      'required when VOICE_API_PROVIDER=cell24x7',
+      (raw.CELL24X7_VOICE_API_TOKEN ?? '').length >= 16,
+    );
+    check(
+      'CELL24X7_VOICE_BASE_URL',
+      'must be an https URL',
+      raw.CELL24X7_VOICE_BASE_URL.startsWith('https://'),
+    );
+  }
+  if (raw.VOICE_API_PROVIDER !== 'off' && (production || raw.VOICE_API_PROVIDER === 'cell24x7')) {
+    check(
+      'CELL24X7_WEBHOOK_SECRET',
+      'required with the Cell24x7 provider, min 32 chars, not a placeholder',
+      raw.CELL24X7_WEBHOOK_SECRET !== undefined &&
+        raw.CELL24X7_WEBHOOK_SECRET.length >= 32 &&
+        !PLACEHOLDER.test(raw.CELL24X7_WEBHOOK_SECRET),
+    );
+  }
+  if (production) {
+    check(
+      'VOICE_API_PROVIDER',
+      'must be off or cell24x7 in production',
+      raw.VOICE_API_PROVIDER !== 'fake',
+    );
+  }
+
   if (issues.length) throw new EnvValidationError(issues);
 
   const defaultLogLevel: Record<NodeEnv, LogLevel> = {
@@ -834,6 +886,10 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     FAKE_META_CALL_DELAYS_MS: metaProvider === 'fake' && !production ? (callDelays ?? null) : null,
     WA_CALL_WINDOW_IGNORED:
       raw.WA_CALL_WINDOW_IGNORED === 'true' && metaProvider === 'fake' && !production,
+    CELL24X7_WEBHOOK_SECRET:
+      raw.VOICE_API_PROVIDER === 'off'
+        ? ''
+        : (raw.CELL24X7_WEBHOOK_SECRET ?? DEV_VOICE_API_WEBHOOK_SECRET),
   });
 };
 

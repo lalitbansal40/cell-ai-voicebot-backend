@@ -45,6 +45,7 @@ import { SipSpendGuard } from './core/telephony/sip/guard';
 import { AiVoiceController } from './core/voice/ai-session';
 import { createVoiceProviders } from './core/voice/providers';
 import { TtsCache } from './core/voice/tts-cache';
+import { createVoiceApiClient, FakeVoiceClient, setVoiceApiClient } from './core/voice-api';
 import {
   connectMongo,
   disconnectMongo,
@@ -176,6 +177,18 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   }
 
   const storage = createStorage(env, logger);
+  // VAPI: recorded-voice / IVR campaigns over the Cell24x7 Voice API (null when off)
+  const voiceApi = createVoiceApiClient(env, { redis });
+  setVoiceApiClient(voiceApi);
+  if (voiceApi) logger.info({ provider: voiceApi.provider }, 'voice api: provider ready');
+  lifecycle.onShutdown(
+    'voice-api',
+    () => {
+      if (voiceApi instanceof FakeVoiceClient) voiceApi.stop();
+      setVoiceApiClient(null);
+    },
+    5,
+  );
   const contactJobs = queueContactJobs(createQueue(QUEUES.contacts, queueDeps));
   // Phase 15: every account event fans out to webhook deliveries on the `webhooks` queue
   setWebhookJobs(queueWebhookJobs(createQueue(QUEUES.webhooks, queueDeps)));

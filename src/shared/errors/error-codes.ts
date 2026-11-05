@@ -303,6 +303,30 @@ export const ERROR_CODES = {
     status: 422,
     message: 'Nobody in this audience can get the message.',
   },
+  // Recorded-voice / IVR campaigns over the Cell24x7 Voice API (VAPI)
+  VOICE_API_NOT_ENABLED: {
+    status: 403,
+    message: 'Recorded voice calls are not turned on for this account.',
+  },
+  VOICE_API_NOT_PRICED: {
+    status: 409,
+    message: 'Recorded voice calls have no price yet. Ask support to set one.',
+  },
+  VOICE_API_REJECTED: { status: 502, message: 'The voice provider refused this batch.' },
+  VOICE_API_AUTH: { status: 502, message: 'The voice provider refused our login.' },
+  VOICE_API_NO_CREDITS: { status: 502, message: 'The voice provider is out of credits.' },
+  VOICE_API_IVR_MISSING: {
+    status: 409,
+    message: 'This IVR menu is not available for this account.',
+  },
+  VOICE_API_AUDIO_INVALID: {
+    status: 422,
+    message: 'This audio cannot be used: it must be your own WAV or MP3, at most 120 seconds.',
+  },
+  VOICE_API_UNAVAILABLE: {
+    status: 503,
+    message: 'The voice provider did not answer. Please try again later.',
+  },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;
