@@ -123,6 +123,22 @@ const rank = (method: string, p: string) =>
         ? 0
         : 1;
 
+/** Nullable forms of the generated spec (`nullable: true`, nullable `$ref`) as JSON Schema 2020 for ajv. */
+const nullableToAnyOf = (node: unknown): unknown => {
+  if (Array.isArray(node)) return node.map(nullableToAnyOf);
+  if (!node || typeof node !== 'object') return node;
+  const obj = node as Record<string, unknown>;
+  // zod-to-openapi writes a nullable $ref as `allOf: [$ref, { type: [..., 'null'] }]`
+  const all = obj.allOf as Record<string, unknown>[] | undefined;
+  if (Array.isArray(all) && all.length === 2 && Array.isArray(all[1]?.type)) {
+    const types = all[1]?.type as string[];
+    if (types.includes('null')) return { anyOf: [nullableToAnyOf(all[0]), { type: 'null' }] };
+  }
+  const { nullable, ...rest } = obj;
+  const out = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, nullableToAnyOf(v)]));
+  return nullable === true ? { anyOf: [out, { type: 'null' }] } : out;
+};
+
 const rows: string[] = [];
 
 beforeAll(async () => {
@@ -140,6 +156,9 @@ beforeAll(async () => {
           recording: null,
           flowRunId: null,
           error: null,
+          // a real call row always has these (the raw insert skips model defaults)
+          charged: true,
+          endReason: null,
           languageDetected: null,
           insights: null,
           dispositionSource: null,
@@ -254,7 +273,10 @@ describe('every documented example (DOCS-T7)', () => {
         const schema = op.responses[status]?.content?.['application/json']?.schema;
         if (schema) {
           // `#/components/...` refs resolve against this root
-          const valid = ajv.validate({ ...schema, components: spec.components }, res.body);
+          const valid = ajv.validate(
+            nullableToAnyOf({ ...schema, components: spec.components }) as object,
+            res.body,
+          );
           if (!valid) note = `schema: ${ajv.errorsText(ajv.errors).slice(0, 200)}`;
         }
         // remember created ids for later routes
