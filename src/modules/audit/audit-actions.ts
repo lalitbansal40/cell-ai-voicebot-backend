@@ -74,9 +74,6 @@ export const AUDIT_ACTIONS = [
   'call.test_started',
   'call.recording_accessed',
   'call.hung_up_remotely',
-  // Phase 20: incoming phone calls
-  'call.answered',
-  'call.callback_done',
   'call.triggered',
   'campaign.created',
   'campaign.updated',
@@ -184,8 +181,6 @@ export const AUDIT_ACTIONS = [
   'phone_number.updated',
   'phone_number.assigned',
   'phone_number.released',
-  // Phase 20: who answers calls to the number
-  'phone_number.inbound_updated',
   // Phase 18B: WhatsApp calling go-live
   'whatsapp.call_permission_bulk_requested',
   // Phase 19: open signup, resellers, WhatsApp campaigns
@@ -213,6 +208,10 @@ export const AUDIT_ACTIONS = [
   'account.voice_api_changed',
   'voice_api.webhook_registered',
   'voice_api.batch_resolved',
+  // Phase 20: incoming phone calls
+  'call.answered',
+  'call.callback_done',
+  'phone_number.inbound_updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

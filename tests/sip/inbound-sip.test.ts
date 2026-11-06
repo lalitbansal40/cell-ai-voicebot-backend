@@ -299,9 +299,16 @@ describe('incoming phone calls (P20-T4)', () => {
     expect(
       await LedgerEntryModel.countDocuments({ 'ref.id': call._id.toString(), type: 'call_charge' }),
     ).toBe(0);
-    expect(
-      await NotificationModel.countDocuments({ accountId: t.account._id, type: 'call.sip_missed' }),
-    ).toBeGreaterThan(0);
+    // the bell is written right after the missed entry
+    let bells = 0;
+    for (let i = 0; i < 100 && bells === 0; i += 1) {
+      bells = await NotificationModel.countDocuments({
+        accountId: t.account._id,
+        type: 'call.sip_missed',
+      });
+      if (!bells) await new Promise((r) => setTimeout(r, 25));
+    }
+    expect(bells).toBeGreaterThan(0);
   });
 
   it('after hours (hang up) and too many calls from one caller: refused, recorded', async () => {
@@ -391,12 +398,15 @@ describe('ringing the team (P20-T5)', () => {
     await destroyedAfterHangup(channelId);
     const done = await final(call._id, true);
     expect(done.missed).toMatchObject({ reason: 'no_answer', callback: { status: 'open' } });
-    expect(
-      await NotificationModel.countDocuments({
+    let bells = 0;
+    for (let i = 0; i < 100 && bells === 0; i += 1) {
+      bells = await NotificationModel.countDocuments({
         type: 'call.sip_missed',
         userId: new Types.ObjectId(agentA),
-      }),
-    ).toBeGreaterThan(0);
+      });
+      if (!bells) await new Promise((r) => setTimeout(r, 25));
+    }
+    expect(bells).toBeGreaterThan(0);
   });
 
   it('team then AI with nobody online: the AI takes it (not a missed call)', async () => {
