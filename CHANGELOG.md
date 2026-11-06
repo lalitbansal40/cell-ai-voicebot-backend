@@ -11,6 +11,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Cell24x7 login per account** — 2026-11-06
+  - Recorded-voice campaigns can run on an account's own Cell24x7 token (checked, sealed, last 4 shown) with its own caller ID, IVRs and result webhook (`/webhooks/voice-api/a/:account/:key`); `PUT /admin/accounts/:id/voice-api/credentials`, `POST /admin/accounts/:id/voice-api/webhook`. Login / credit errors pause only that account and ring its owners. Results of one login never settle another login's batch.
 - **Incoming phone calls (Phase 20)** — 2026-11-06
   - Trunk calls reach the API process's inbound ARI app (`SIP_INBOUND_ENABLED`); per-number routes: AI (flow / agent), team in the browser (first answer wins), AI then team, team then AI; greeting, ring list and time, call hours with after-hours message / AI / no answer.
   - Checks before the answer: number and account, spam guard per caller, trunk channels (optionally reserved for incoming calls), wallet hold at the incoming minute price (`inboundCallPerMinuteMicros`); the caller becomes a contact.

@@ -45,7 +45,7 @@ import {
   retentionViewOf,
   type RetentionView,
 } from '../retention/retention.service';
-import { voiceSettingsOf } from '../voice-api/voice-api.service';
+import { voiceCredentialsView, voiceSettingsOf } from '../voice-api/voice-api.service';
 import { accountWhatsApp } from '../whatsapp/whatsapp-admin.service';
 
 import type { AccountLimitsBody, CreateAccountBody, ListAccountsQuery } from './admin.schema';
@@ -275,7 +275,7 @@ export const accountDetail = async (id: string) => {
     apiLimits: account.apiLimits ?? null,
     voiceLine: account.voiceLine ?? 'dryrun',
     sipSettings: { ...DEFAULT_SIP_SETTINGS, ...account.sipSettings },
-    voiceApi: voiceSettingsOf(account),
+    voiceApi: { ...voiceSettingsOf(account), credentials: voiceCredentialsView(account) },
     owner: owner ? toPublicUser(owner) : null,
     usersCount: usersByStatus.invited + usersByStatus.active + usersByStatus.disabled,
     usersByStatus,

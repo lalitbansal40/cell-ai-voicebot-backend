@@ -1183,8 +1183,6 @@
               "call.test_started",
               "call.recording_accessed",
               "call.hung_up_remotely",
-              "call.answered",
-              "call.callback_done",
               "call.triggered",
               "campaign.created",
               "campaign.updated",
@@ -1287,7 +1285,6 @@
               "phone_number.updated",
               "phone_number.assigned",
               "phone_number.released",
-              "phone_number.inbound_updated",
               "whatsapp.call_permission_bulk_requested",
               "account.signed_up",
               "account.reseller_changed",
@@ -1311,7 +1308,12 @@
               "whatsapp_campaign.retried",
               "account.voice_api_changed",
               "voice_api.webhook_registered",
-              "voice_api.batch_resolved"
+              "voice_api.batch_resolved",
+              "call.answered",
+              "call.callback_done",
+              "phone_number.inbound_updated",
+              "voice_api.credentials_changed",
+              "voice_api.account_webhook_registered"
             ]
           },
           "actor": {
@@ -1397,6 +1399,99 @@
         },
         "required": ["settings", "effective", "platform", "cap", "bounds"]
       },
+      "AccountVoiceApi": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "ivrIds": { "type": "array", "items": { "type": "integer" } },
+          "ivrEstimateSec": { "type": "integer" }
+        },
+        "required": ["enabled", "ivrIds", "ivrEstimateSec"]
+      },
+      "VoiceCredentials": {
+        "type": "object",
+        "properties": {
+          "mode": { "type": "string", "enum": ["platform", "own"] },
+          "tokenHint": { "type": ["string", "null"] },
+          "callerId": { "type": ["string", "null"] },
+          "verifiedAt": { "type": ["string", "null"] },
+          "webhookRegisteredAt": { "type": ["string", "null"] }
+        },
+        "required": ["mode", "tokenHint", "callerId", "verifiedAt", "webhookRegisteredAt"]
+      },
+      "VoiceIvr": {
+        "type": "object",
+        "properties": { "id": { "type": "integer" }, "name": { "type": "string" } },
+        "required": ["id", "name"]
+      },
+      "AdminVoiceIvr": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "runnable": { "type": "boolean" }
+        },
+        "required": ["id", "name", "runnable"]
+      },
+      "AdminVoiceStatus": {
+        "type": "object",
+        "properties": {
+          "provider": { "type": "string", "enum": ["off", "fake", "cell24x7"] },
+          "tokenConfigured": { "type": "boolean" },
+          "webhook": {
+            "type": "object",
+            "properties": {
+              "registered": { "type": "boolean" },
+              "matches": { "type": "boolean", "description": "Cell24x7 posts to this server" },
+              "error": { "type": ["string", "null"] }
+            },
+            "required": ["registered", "matches", "error"]
+          },
+          "lastWebhookAt": { "type": ["string", "null"] },
+          "lastError": {
+            "type": ["object", "null"],
+            "properties": { "code": { "type": "string" }, "at": { "type": "string" } },
+            "required": ["code", "at"]
+          },
+          "uncertainBatches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "campaignId": { "type": "string" },
+                "campaignName": { "type": "string" },
+                "accountId": { "type": "string" },
+                "batchNo": { "type": "integer" },
+                "count": { "type": "integer" },
+                "broadcastName": {
+                  "type": "string",
+                  "description": "Name in the Cell24x7 dashboard"
+                },
+                "error": { "type": ["string", "null"] },
+                "createdAt": { "type": "string" }
+              },
+              "required": [
+                "campaignId",
+                "campaignName",
+                "accountId",
+                "batchNo",
+                "count",
+                "broadcastName",
+                "error",
+                "createdAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "provider",
+          "tokenConfigured",
+          "webhook",
+          "lastWebhookAt",
+          "lastError",
+          "uncertainBatches"
+        ]
+      },
       "AccountLimits": {
         "type": "object",
         "properties": {
@@ -1476,9 +1571,10 @@
             "properties": {
               "enabled": { "type": "boolean" },
               "ivrIds": { "type": "array", "items": { "type": "integer" } },
-              "ivrEstimateSec": { "type": "integer" }
+              "ivrEstimateSec": { "type": "integer" },
+              "credentials": { "$ref": "#/components/schemas/VoiceCredentials" }
             },
-            "required": ["enabled", "ivrIds", "ivrEstimateSec"],
+            "required": ["enabled", "ivrIds", "ivrEstimateSec", "credentials"],
             "description": "VAPI: recorded-voice / IVR campaigns over Cell24x7"
           },
           "usersByStatus": {
@@ -7948,88 +8044,6 @@
           "lowBalanceCustomers"
         ]
       },
-      "AccountVoiceApi": {
-        "type": "object",
-        "properties": {
-          "enabled": { "type": "boolean" },
-          "ivrIds": { "type": "array", "items": { "type": "integer" } },
-          "ivrEstimateSec": { "type": "integer" }
-        },
-        "required": ["enabled", "ivrIds", "ivrEstimateSec"]
-      },
-      "VoiceIvr": {
-        "type": "object",
-        "properties": { "id": { "type": "integer" }, "name": { "type": "string" } },
-        "required": ["id", "name"]
-      },
-      "AdminVoiceIvr": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "integer" },
-          "name": { "type": "string" },
-          "runnable": { "type": "boolean" }
-        },
-        "required": ["id", "name", "runnable"]
-      },
-      "AdminVoiceStatus": {
-        "type": "object",
-        "properties": {
-          "provider": { "type": "string", "enum": ["off", "fake", "cell24x7"] },
-          "tokenConfigured": { "type": "boolean" },
-          "webhook": {
-            "type": "object",
-            "properties": {
-              "registered": { "type": "boolean" },
-              "matches": { "type": "boolean", "description": "Cell24x7 posts to this server" },
-              "error": { "type": ["string", "null"] }
-            },
-            "required": ["registered", "matches", "error"]
-          },
-          "lastWebhookAt": { "type": ["string", "null"] },
-          "lastError": {
-            "type": ["object", "null"],
-            "properties": { "code": { "type": "string" }, "at": { "type": "string" } },
-            "required": ["code", "at"]
-          },
-          "uncertainBatches": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "campaignId": { "type": "string" },
-                "campaignName": { "type": "string" },
-                "accountId": { "type": "string" },
-                "batchNo": { "type": "integer" },
-                "count": { "type": "integer" },
-                "broadcastName": {
-                  "type": "string",
-                  "description": "Name in the Cell24x7 dashboard"
-                },
-                "error": { "type": ["string", "null"] },
-                "createdAt": { "type": "string" }
-              },
-              "required": [
-                "campaignId",
-                "campaignName",
-                "accountId",
-                "batchNo",
-                "count",
-                "broadcastName",
-                "error",
-                "createdAt"
-              ]
-            }
-          }
-        },
-        "required": [
-          "provider",
-          "tokenConfigured",
-          "webhook",
-          "lastWebhookAt",
-          "lastError",
-          "uncertainBatches"
-        ]
-      },
       "WhatsAppCampaign": {
         "type": "object",
         "properties": {
@@ -9079,6 +9093,26 @@
           "channelId",
           "receivedAt",
           "processedAt"
+        ]
+      },
+      "VoiceCredentialsBody": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": { "mode": { "type": "string", "enum": ["platform"] } },
+            "required": ["mode"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "mode": { "type": "string", "enum": ["own"] },
+              "token": { "type": "string", "minLength": 8, "maxLength": 500 },
+              "callerId": { "type": ["string", "null"], "pattern": "^\\d{10}$" }
+            },
+            "required": ["mode"],
+            "additionalProperties": false
+          }
         ]
       },
       "InboundSettingsBody": {
@@ -13089,6 +13123,591 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/voice-api": {
+      "patch": {
+        "tags": ["Admin"],
+        "summary": "Turn recorded-voice campaigns on / off, assign Cell24x7 IVRs (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "ivrIds": {
+                    "type": "array",
+                    "items": { "type": "integer", "exclusiveMinimum": 0, "maximum": 2147483647 },
+                    "maxItems": 50
+                  },
+                  "ivrEstimateSec": { "type": "integer", "minimum": 15, "maximum": 120 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AccountVoiceApi" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/voice-api/credentials": {
+      "put": {
+        "tags": ["Admin"],
+        "summary": "The account's Cell24x7 login: the platform token, or its own token + caller ID (checked with Cell24x7 first, sealed; superadmin) — a refused token answers VOICE_API_AUTH",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VoiceCredentialsBody" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/VoiceCredentials" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/voice-api/webhook": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Register the account's own result webhook with its Cell24x7 login (one URL per token; superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/VoiceCredentials" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/voice-api/status": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Cell24x7 status: token set, webhook registered, last result and error (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AdminVoiceStatus" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/voice-api/webhook": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Register this server's result webhook with Cell24x7 (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "registered": { "type": "boolean" },
+                        "matches": { "type": "boolean" }
+                      },
+                      "required": ["registered", "matches"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/voice-api/ivrs": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Every IVR on the platform's Cell24x7 account (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AdminVoiceIvr" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/campaigns/{id}/voice-batches/{no}/resolve": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Decide an uncertain Cell24x7 submit: it reached Cell24x7, or it did not (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+            "required": true,
+            "name": "no",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "outcome": { "type": "string", "enum": ["submitted"] },
+                      "requestId": { "type": "string", "minLength": 1, "maxLength": 100 }
+                    },
+                    "required": ["outcome", "requestId"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "outcome": { "type": "string", "enum": ["not_submitted"] } },
+                    "required": ["outcome"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "batchNo": { "type": "integer" },
+                        "state": { "type": "string" }
+                      },
+                      "required": ["batchNo", "state"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice-api/ivrs": {
+      "get": {
+        "tags": ["Voice API"],
+        "summary": "IVR menus this account may use in a recorded-voice campaign",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/VoiceIvr" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/voice-api/a/{account}/{key}": {
+      "post": {
+        "tags": ["Voice API"],
+        "summary": "Cell24x7 call results from an account's own login (secret path per account; answered at once)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "account",
+            "in": "path"
+          },
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "event": { "type": "string", "maxLength": 60 },
+                  "request_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "receiver": {
+                    "anyOf": [{ "type": "string", "maxLength": 20 }, { "type": "number" }]
+                  },
+                  "status": { "type": "string", "minLength": 1, "maxLength": 40 },
+                  "duration": {
+                    "anyOf": [
+                      { "type": "number" },
+                      { "type": "string", "maxLength": 10 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "retry_count": {
+                    "anyOf": [
+                      { "type": "number" },
+                      { "type": "string", "maxLength": 5 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "ivr": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "digits_pressed": { "type": ["string", "null"], "maxLength": 64 },
+                      "disposition": { "type": ["string", "null"], "maxLength": 100 }
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["request_id", "receiver", "status"],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "received": { "type": "boolean" } },
+                      "required": ["received"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/voice-api/{secret}": {
+      "post": {
+        "tags": ["Voice API"],
+        "summary": "Cell24x7 call results (secret path; answered at once, processed in the background)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "required": true,
+            "name": "secret",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "event": { "type": "string", "maxLength": 60 },
+                  "request_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "receiver": {
+                    "anyOf": [{ "type": "string", "maxLength": 20 }, { "type": "number" }]
+                  },
+                  "status": { "type": "string", "minLength": 1, "maxLength": 40 },
+                  "duration": {
+                    "anyOf": [
+                      { "type": "number" },
+                      { "type": "string", "maxLength": 10 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "retry_count": {
+                    "anyOf": [
+                      { "type": "number" },
+                      { "type": "string", "maxLength": 5 },
+                      { "type": "null" }
+                    ]
+                  },
+                  "ivr": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "digits_pressed": { "type": ["string", "null"], "maxLength": 64 },
+                      "disposition": { "type": ["string", "null"], "maxLength": 100 }
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["request_id", "receiver", "status"],
+                "additionalProperties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "received": { "type": "boolean" } },
+                      "required": ["received"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
@@ -33568,390 +34187,6 @@
             "description": "Missing permission, disabled user, suspended account or impersonation block",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "404": {
-            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/accounts/{id}/voice-api": {
-      "patch": {
-        "tags": ["Admin"],
-        "summary": "Turn recorded-voice campaigns on / off, assign Cell24x7 IVRs (superadmin)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "enabled": { "type": "boolean" },
-                  "ivrIds": {
-                    "type": "array",
-                    "items": { "type": "integer", "exclusiveMinimum": 0, "maximum": 2147483647 },
-                    "maxItems": 50
-                  },
-                  "ivrEstimateSec": { "type": "integer", "minimum": 15, "maximum": 120 }
-                },
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": { "$ref": "#/components/schemas/AccountVoiceApi" }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "404": {
-            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "422": {
-            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/voice-api/status": {
-      "get": {
-        "tags": ["Admin"],
-        "summary": "Cell24x7 status: token set, webhook registered, last result and error (superadmin)",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": { "$ref": "#/components/schemas/AdminVoiceStatus" }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/voice-api/webhook": {
-      "post": {
-        "tags": ["Admin"],
-        "summary": "Register this server's result webhook with Cell24x7 (superadmin)",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "registered": { "type": "boolean" },
-                        "matches": { "type": "boolean" }
-                      },
-                      "required": ["registered", "matches"]
-                    }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "409": {
-            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/voice-api/ivrs": {
-      "get": {
-        "tags": ["Admin"],
-        "summary": "Every IVR on the platform's Cell24x7 account (superadmin)",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": {
-                      "type": "array",
-                      "items": { "$ref": "#/components/schemas/AdminVoiceIvr" }
-                    }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/campaigns/{id}/voice-batches/{no}/resolve": {
-      "post": {
-        "tags": ["Admin"],
-        "summary": "Decide an uncertain Cell24x7 submit: it reached Cell24x7, or it did not (superadmin)",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          },
-          {
-            "schema": { "type": "integer", "minimum": 1, "maximum": 1000000 },
-            "required": true,
-            "name": "no",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "outcome": { "type": "string", "enum": ["submitted"] },
-                      "requestId": { "type": "string", "minLength": 1, "maxLength": 100 }
-                    },
-                    "required": ["outcome", "requestId"],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": { "outcome": { "type": "string", "enum": ["not_submitted"] } },
-                    "required": ["outcome"],
-                    "additionalProperties": false
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "batchNo": { "type": "integer" },
-                        "state": { "type": "string" }
-                      },
-                      "required": ["batchNo", "state"]
-                    }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "404": {
-            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "409": {
-            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          },
-          "422": {
-            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/voice-api/ivrs": {
-      "get": {
-        "tags": ["Voice API"],
-        "summary": "IVR menus this account may use in a recorded-voice campaign",
-        "security": [{ "bearerAuth": [] }],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": {
-                      "type": "array",
-                      "items": { "$ref": "#/components/schemas/VoiceIvr" }
-                    }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing permission, disabled user, suspended account or impersonation block",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/webhooks/voice-api/{secret}": {
-      "post": {
-        "tags": ["Voice API"],
-        "summary": "Cell24x7 call results (secret path; answered at once, processed in the background)",
-        "parameters": [
-          {
-            "schema": { "type": "string", "minLength": 1, "maxLength": 200 },
-            "required": true,
-            "name": "secret",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "event": { "type": "string", "maxLength": 60 },
-                  "request_id": { "type": "string", "minLength": 1, "maxLength": 100 },
-                  "receiver": {
-                    "anyOf": [{ "type": "string", "maxLength": 20 }, { "type": "number" }]
-                  },
-                  "status": { "type": "string", "minLength": 1, "maxLength": 40 },
-                  "duration": {
-                    "anyOf": [
-                      { "type": "number" },
-                      { "type": "string", "maxLength": 10 },
-                      { "type": "null" }
-                    ]
-                  },
-                  "retry_count": {
-                    "anyOf": [
-                      { "type": "number" },
-                      { "type": "string", "maxLength": 5 },
-                      { "type": "null" }
-                    ]
-                  },
-                  "ivr": {
-                    "type": ["object", "null"],
-                    "properties": {
-                      "digits_pressed": { "type": ["string", "null"], "maxLength": 64 },
-                      "disposition": { "type": ["string", "null"], "maxLength": 100 }
-                    },
-                    "additionalProperties": {}
-                  }
-                },
-                "required": ["request_id", "receiver", "status"],
-                "additionalProperties": {}
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "enum": [true] },
-                    "data": {
-                      "type": "object",
-                      "properties": { "received": { "type": "boolean" } },
-                      "required": ["received"]
-                    }
-                  },
-                  "required": ["success", "data"]
-                }
-              }
             }
           },
           "404": {

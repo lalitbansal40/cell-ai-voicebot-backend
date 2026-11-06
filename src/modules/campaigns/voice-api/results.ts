@@ -3,7 +3,6 @@ import { timingSafeEqual } from 'node:crypto';
 import { Types } from 'mongoose';
 
 import { getEnv } from '../../../config/env';
-import { getVoiceApiClient } from '../../../core/voice-api';
 import {
   VOICE_API_FINAL_STATUSES,
   VoiceApiError,
@@ -21,7 +20,17 @@ import {
 import { CampaignModel, type CampaignDoc } from '../../../db/models/campaign.model';
 import { ContactModel } from '../../../db/models/contact.model';
 import { getLogger } from '../../../shared/logger';
-import { recordProviderError, recordWebhookSeen } from '../../voice-api/status';
+import {
+  accountUsesOwnToken,
+  accountWebhookMatches,
+  ownTokenAccountIds,
+  voiceClientFor,
+} from '../../voice-api/clients';
+import {
+  notifyAccountProviderError,
+  recordProviderError,
+  recordWebhookSeen,
+} from '../../voice-api/status';
 import { VoiceWebhookBody } from '../../voice-api/voice-api.schema';
 import { completeIfDone, moveStats } from '../dispatcher';
 import { publishProgress } from '../progress';
@@ -148,10 +157,18 @@ const recordCall = async (
 /** Applies one number's result (webhook or poll). Never throws for unknown data. */
 export const applyVoiceResult = async (event: VoiceResultEvent): Promise<ApplyOutcome> => {
   const receiver = event.receiver.replace(/\D/g, '').slice(-10);
-  const cc = await CampaignContactModel.findOne({
+  const matches = await CampaignContactModel.find({
     'voiceApi.requestId': event.requestId,
     'voiceApi.receiver10': receiver,
-  }).lean<CampaignContactDoc>();
+    ...(event.accountId ? { accountId: new Types.ObjectId(event.accountId) } : {}),
+  })
+    .limit(5)
+    .lean<CampaignContactDoc[]>();
+  // the platform login's rows: never a batch of an account on its own token
+  const own = event.accountId
+    ? new Set<string>()
+    : await ownTokenAccountIds(matches.map((m) => m.accountId));
+  const cc = matches.find((m) => !own.has(m.accountId.toString()));
   if (!cc?.voiceApi) return 'ignored';
   const status = event.status.trim().toUpperCase();
   const campaignId = cc.campaignId.toString();
@@ -268,11 +285,14 @@ export const pollVoiceCampaign = async (
   campaignId: string,
   deps: { client?: VoiceApiClient | null } = {},
 ): Promise<{ batches: number; rows: number }> => {
-  const client = deps.client === undefined ? getVoiceApiClient() : deps.client;
   const campaign = Types.ObjectId.isValid(campaignId)
     ? await CampaignModel.findById(campaignId).lean<CampaignDoc>()
     : null;
-  if (!client || !campaign?.voiceApi) return { batches: 0, rows: 0 };
+  if (!campaign?.voiceApi) return { batches: 0, rows: 0 };
+  const client = deps.client === undefined ? await voiceClientFor(campaign.accountId) : deps.client;
+  if (!client) return { batches: 0, rows: 0 };
+  const own = await accountUsesOwnToken(campaign.accountId);
+  const accountId = own ? { accountId: campaign.accountId.toString() } : {};
   let rows = 0;
   const open = campaign.voiceApi.batches.filter((b) => b.state === 'open' && b.requestId);
   for (const batch of open) {
@@ -283,17 +303,22 @@ export const pollVoiceCampaign = async (
         for (const row of result.rows) {
           rows += 1;
           // one bad row must not hold back the others
-          await applyVoiceResult({ ...row, requestId: batch.requestId as string }).catch(
-            (err: unknown) =>
-              getLogger().error({ err, campaignId, batchNo: batch.no }, 'voice api: result failed'),
+          await applyVoiceResult({
+            ...row,
+            requestId: batch.requestId as string,
+            ...accountId,
+          }).catch((err: unknown) =>
+            getLogger().error({ err, campaignId, batchNo: batch.no }, 'voice api: result failed'),
           );
         }
         if (!result.hasMore) break;
       }
     } catch (err) {
       const code = err instanceof VoiceApiError ? err.code : 'unknown';
-      if (code === 'VOICE_API_AUTH' || code === 'VOICE_API_NO_CREDITS')
-        await recordProviderError(code);
+      if (code === 'VOICE_API_AUTH' || code === 'VOICE_API_NO_CREDITS') {
+        if (own) await notifyAccountProviderError(campaign.accountId, code);
+        else await recordProviderError(code);
+      }
       getLogger().warn({ campaignId, batchNo: batch.no, code }, 'voice api: poll failed');
     }
     await CampaignModel.updateOne(
@@ -356,5 +381,20 @@ export const handleVoiceWebhook = async (secret: string, body: unknown): Promise
   await recordWebhookSeen();
   const event = toVoiceEvent(body);
   if (event) await acceptVoiceResult(event);
+  return true;
+};
+
+/**
+ * `POST /webhooks/voice-api/a/:accountId/:key`: results from an account's own Cell24x7
+ * login (one webhook URL per token). Wrong account / key → `false` (404).
+ */
+export const handleAccountVoiceWebhook = async (
+  accountId: string,
+  key: string,
+  body: unknown,
+): Promise<boolean> => {
+  if (!(await accountWebhookMatches(accountId, key))) return false;
+  const event = toVoiceEvent(body);
+  if (event) await acceptVoiceResult({ ...event, accountId });
   return true;
 };

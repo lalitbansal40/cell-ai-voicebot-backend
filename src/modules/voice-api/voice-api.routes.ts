@@ -12,10 +12,12 @@ import {
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 import { resolveVoiceBatch } from '../campaigns/voice-api/batch';
-import { handleVoiceWebhook } from '../campaigns/voice-api/results';
+import { handleAccountVoiceWebhook, handleVoiceWebhook } from '../campaigns/voice-api/results';
 
 import {
   AccountVoiceApiBody,
+  AccountVoiceWebhookParams,
+  VoiceCredentialsBody,
   ResolveVoiceBatchBody,
   VoiceAccountParams,
   VoiceBatchParams,
@@ -25,8 +27,10 @@ import {
   accountIvrs,
   adminVoiceStatus,
   providerIvrs,
+  registerAccountVoiceWebhook,
   registerVoiceWebhook,
   setAccountVoiceApi,
+  setVoiceCredentials,
   voicePlatformAudit,
 } from './voice-api.service';
 
@@ -43,6 +47,24 @@ export const createVoiceApiAdminRouter = (): Router => {
         ok(res, await setAccountVoiceApi(req, params.id, body));
       },
     ),
+  );
+  // per-account Cell24x7 login (own token, caller ID) and its result webhook
+  router.put(
+    '/accounts/:id/voice-api/credentials',
+    ...guard,
+    ...handle(
+      { params: VoiceAccountParams, body: VoiceCredentialsBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await setVoiceCredentials(req, params.id, body));
+      },
+    ),
+  );
+  router.post(
+    '/accounts/:id/voice-api/webhook',
+    ...guard,
+    ...handle({ params: VoiceAccountParams }, async ({ params, req, res }) => {
+      ok(res, await registerAccountVoiceWebhook(req, params.id));
+    }),
   );
   router.get('/voice-api/status', ...guard, async (_req, res) => {
     ok(res, await adminVoiceStatus());
@@ -80,6 +102,15 @@ export const createVoiceApiAdminRouter = (): Router => {
  */
 export const createVoiceWebhookRouter = (): Router => {
   const router = Router();
+  router.post(
+    '/webhooks/voice-api/a/:account/:key',
+    createRateLimiter({ windowMs: 60_000, limit: 600 }),
+    ...handle({ params: AccountVoiceWebhookParams }, async ({ params, req, res }) => {
+      if (!(await handleAccountVoiceWebhook(params.account, params.key, req.body)))
+        throw new NotFoundError();
+      ok(res, { received: true });
+    }),
+  );
   router.post(
     '/webhooks/voice-api/:secret',
     createRateLimiter({ windowMs: 60_000, limit: 600 }),

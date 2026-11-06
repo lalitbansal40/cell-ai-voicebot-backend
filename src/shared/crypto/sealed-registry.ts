@@ -1,5 +1,6 @@
 import type { Collection, Document } from 'mongodb';
 
+import { AccountModel } from '../../db/models/account.model';
 import { AiAgentModel } from '../../db/models/ai-agent.model';
 import { ContactModel } from '../../db/models/contact.model';
 import { FlowVersionModel } from '../../db/models/flow-version.model';
@@ -25,6 +26,12 @@ const raw = (model: { collection: unknown }) => () => model.collection as Collec
 const flowHeaders = 'nodes.*.config.headers.*.sealed';
 
 export const SEALED_FIELDS: SealedField[] = [
+  {
+    // the account's own Cell24x7 Voice API token
+    name: 'accounts.voiceApi.credentials.tokenSealed',
+    collection: raw(AccountModel),
+    path: 'voiceApi.credentials.tokenSealed',
+  },
   {
     name: 'whatsappChannels.tokenSealed',
     collection: raw(WhatsAppChannelModel),

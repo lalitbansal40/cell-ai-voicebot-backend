@@ -7,27 +7,67 @@ import type { VoiceIvr } from '../../core/voice-api/types';
 import {
   AccountModel,
   DEFAULT_ACCOUNT_VOICE_API,
+  DEFAULT_VOICE_CREDENTIALS,
   type AccountDoc,
   type AccountVoiceApi,
+  type AccountVoiceCredentials,
 } from '../../db/models/account.model';
 import { CampaignModel } from '../../db/models/campaign.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { toObjectId } from '../../shared/auth/tenant';
-import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
+import { seal, secretBoxKey } from '../../shared/crypto/secret-box';
+import {
+  AppError,
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from '../../shared/errors/app-error';
 import { recordAudit } from '../audit/audit.service';
 
-import { readProviderStatus, recordProviderError, toAppError, voiceWebhookUrl } from './status';
+import {
+  accountUsesOwnToken,
+  accountWebhookUrl,
+  clientForToken,
+  credentialsOf,
+  forgetVoiceClient,
+  newWebhookKey,
+  usesOwnToken,
+  voiceClientFor,
+} from './clients';
+import {
+  notifyAccountProviderError,
+  readProviderStatus,
+  recordProviderError,
+  toAppError,
+  voiceWebhookUrl,
+} from './status';
 
 /** The install has a voice provider (`VOICE_API_PROVIDER` not `off`). */
 export const voiceProviderOn = (): boolean => getVoiceApiClient() !== null;
 
+/** The account's recorded-voice switches (never its credentials). */
 export const voiceSettingsOf = (
   account: { voiceApi?: Partial<AccountVoiceApi> | null } | null,
 ) => ({
-  ...DEFAULT_ACCOUNT_VOICE_API,
-  ...account?.voiceApi,
+  enabled: account?.voiceApi?.enabled ?? DEFAULT_ACCOUNT_VOICE_API.enabled,
   ivrIds: [...(account?.voiceApi?.ivrIds ?? [])],
+  ivrEstimateSec: account?.voiceApi?.ivrEstimateSec ?? DEFAULT_ACCOUNT_VOICE_API.ivrEstimateSec,
 });
+
+/** Which Cell24x7 login the account uses — safe to show (token: last 4 only). */
+export const voiceCredentialsView = (
+  account: { voiceApi?: Partial<AccountVoiceApi> | null } | null,
+) => {
+  const c = credentialsOf(account?.voiceApi);
+  const own = usesOwnToken(c);
+  return {
+    mode: own ? ('own' as const) : ('platform' as const),
+    tokenHint: own ? c.tokenHint : null,
+    callerId: own ? c.callerId : null,
+    verifiedAt: own ? (c.verifiedAt?.toISOString() ?? null) : null,
+    webhookRegisteredAt: own ? (c.webhookRegisteredAt?.toISOString() ?? null) : null,
+  };
+};
 
 /** The account's recorded-voice settings; `enabled` only when the install has a provider too. */
 export const accountVoiceApi = async (accountId: Types.ObjectId | string) => {
@@ -70,10 +110,35 @@ export const resetIvrCache = (): void => {
   ivrCache = null;
 };
 
-/** IVRs this account may use: assigned by a superadmin and runnable at Cell24x7. */
+const ownIvrCache = new Map<string, { at: number; list: VoiceIvr[] }>();
+
+/**
+ * IVRs this account may use: on its own Cell24x7 token every runnable IVR of that login;
+ * on the platform token those a superadmin assigned (and runnable).
+ */
 export const accountIvrs = async (accountId: Types.ObjectId | string) => {
   const settings = await accountVoiceApi(accountId);
-  if (!settings.enabled || settings.ivrIds.length === 0) return [];
+  if (!settings.enabled) return [];
+  if (await accountUsesOwnToken(accountId)) {
+    const key = accountId.toString();
+    const hit = ownIvrCache.get(key);
+    let list = hit && Date.now() - hit.at < IVR_CACHE_MS ? hit.list : null;
+    if (!list) {
+      const client = await voiceClientFor(accountId);
+      if (!client) return [];
+      try {
+        list = await client.ivrs();
+      } catch (err) {
+        const app = toAppError(err);
+        if (app.code === 'VOICE_API_AUTH' || app.code === 'VOICE_API_NO_CREDITS')
+          await notifyAccountProviderError(accountId, app.code);
+        throw app;
+      }
+      ownIvrCache.set(key, { at: Date.now(), list });
+    }
+    return list.filter((i) => i.runnable).map((i) => ({ id: i.id, name: i.name }));
+  }
+  if (settings.ivrIds.length === 0) return [];
   const assigned = new Set(settings.ivrIds);
   return (await providerIvrs())
     .filter((i) => i.runnable && assigned.has(i.id))
@@ -123,7 +188,17 @@ export const setAccountVoiceApi = async (
   const account = await customerAccount(id);
   const next = voiceSettingsOf({ voiceApi: { ...voiceSettingsOf(account), ...body } });
   next.ivrIds = [...new Set(next.ivrIds)].sort((a, b) => a - b);
-  await AccountModel.updateOne({ _id: account._id }, { $set: { voiceApi: next } });
+  // only the switches: the account's own Cell24x7 credentials stay as they are
+  await AccountModel.updateOne(
+    { _id: account._id },
+    {
+      $set: {
+        'voiceApi.enabled': next.enabled,
+        'voiceApi.ivrIds': next.ivrIds,
+        'voiceApi.ivrEstimateSec': next.ivrEstimateSec,
+      },
+    },
+  );
   await platformAudit(
     req,
     'account.voice_api_changed',
@@ -198,4 +273,118 @@ export const registerVoiceWebhook = async (req: Request) => {
     { matches: true },
   );
   return { registered: true, matches: true };
+};
+
+/* ── per-account Cell24x7 login (own token, caller ID, webhook) ── */
+
+type CredentialsAction = 'voice_api.credentials_changed' | 'voice_api.account_webhook_registered';
+
+const credentialsAudit = async (
+  req: Request,
+  action: CredentialsAction,
+  accountId: Types.ObjectId,
+  meta: Record<string, unknown>,
+) => {
+  const auth = requireAuth(req);
+  const base = {
+    actor: { type: 'user' as const, id: auth.userId ?? null, platform: true },
+    action,
+    target: { type: 'account', id: accountId.toString() },
+    meta,
+    ip: req.ip ?? null,
+  };
+  await recordAudit({ ...base, accountId });
+  await recordAudit({ ...base, accountId: auth.accountId });
+};
+
+/**
+ * Superadmin: the account's own Cell24x7 token + caller ID (checked against Cell24x7 before
+ * it is saved, sealed at rest), or back to the platform token. A new token needs its
+ * webhook registered again.
+ */
+export const setVoiceCredentials = async (
+  req: Request,
+  id: string,
+  body:
+    | { mode: 'platform' }
+    | { mode: 'own'; token?: string | undefined; callerId?: string | null | undefined },
+) => {
+  const account = await customerAccount(id);
+  if (!voiceProviderOn())
+    throw new AppError('VOICE_API_NOT_ENABLED', 'No voice provider on this server.');
+  const before = credentialsOf(account.voiceApi);
+  if (body.mode === 'platform') {
+    await AccountModel.updateOne(
+      { _id: account._id },
+      { $set: { 'voiceApi.credentials': { ...DEFAULT_VOICE_CREDENTIALS } } },
+    );
+    forgetVoiceClient(account._id);
+    await credentialsAudit(req, 'voice_api.credentials_changed', account._id, { mode: 'platform' });
+    return voiceCredentialsView(await AccountModel.findById(account._id).lean<AccountDoc>());
+  }
+  const token = body.token?.trim();
+  if (!token && !before.tokenSealed)
+    throw new ValidationError([{ path: 'token', message: 'Enter the Cell24x7 API token' }]);
+  let next: AccountVoiceCredentials = {
+    ...before,
+    mode: 'own',
+    ...(body.callerId !== undefined ? { callerId: body.callerId } : {}),
+  };
+  if (token) {
+    // the token must work before it is saved (Cell24x7 lists the account's IVRs)
+    const client = clientForToken(token);
+    if (!client) throw new AppError('VOICE_API_NOT_ENABLED');
+    try {
+      await client.ivrs();
+    } catch (err) {
+      throw toAppError(err);
+    }
+    next = {
+      ...next,
+      tokenSealed: seal(secretBoxKey(getEnv()), token),
+      tokenHint: token.slice(-4),
+      verifiedAt: new Date(),
+      // the old webhook belongs to the old token
+      ...(before.tokenSealed ? { webhookKeyHash: null, webhookRegisteredAt: null } : {}),
+    };
+  }
+  await AccountModel.updateOne({ _id: account._id }, { $set: { 'voiceApi.credentials': next } });
+  forgetVoiceClient(account._id);
+  ownIvrCache.delete(account._id.toString());
+  await credentialsAudit(req, 'voice_api.credentials_changed', account._id, {
+    mode: 'own',
+    tokenChanged: Boolean(token),
+    tokenHint: next.tokenHint,
+    callerIdSet: Boolean(next.callerId),
+  });
+  return voiceCredentialsView(await AccountModel.findById(account._id).lean<AccountDoc>());
+};
+
+/** Superadmin: points the account's own Cell24x7 login at its own result URL. */
+export const registerAccountVoiceWebhook = async (req: Request, id: string) => {
+  const account = await customerAccount(id);
+  if (!usesOwnToken(credentialsOf(account.voiceApi)))
+    throw new ConflictError(
+      'CONFLICT_INVALID_STATE',
+      'This account uses the platform token; register the platform webhook in Admin → System.',
+    );
+  const client = await voiceClientFor(account._id);
+  if (!client) throw new AppError('VOICE_API_NOT_ENABLED');
+  const { key, hash } = newWebhookKey();
+  try {
+    await client.setWebhook(accountWebhookUrl(account._id.toString(), key));
+  } catch (err) {
+    throw toAppError(err);
+  }
+  await AccountModel.updateOne(
+    { _id: account._id },
+    {
+      $set: {
+        'voiceApi.credentials.webhookKeyHash': hash,
+        'voiceApi.credentials.webhookRegisteredAt': new Date(),
+      },
+    },
+  );
+  await credentialsAudit(req, 'voice_api.account_webhook_registered', account._id, {});
+  return voiceCredentialsView(await AccountModel.findById(account._id).lean<AccountDoc>());
 };

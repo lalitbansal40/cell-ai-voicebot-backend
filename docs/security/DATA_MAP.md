@@ -124,3 +124,7 @@ Campaign variable eligibility and sending use the central send-purpose sensitive
 ## Public API resources (DOCS)
 
 `/api/v1/resources/*` returns minimal views to API keys with `resources:read`: flow / agent names and ids (never graphs, prompts or function secrets), WhatsApp number label / display number / status / quality / tier / calling readiness (never tokens or WABA ids), list and segment names with counts, caller numbers, assigned IVR names and the wallet balance. No contact personal data. WhatsApp bulk campaign recipients and exports give keys masked phones only.
+
+- `accounts.voiceApi.credentials.tokenSealed`: an account's own Cell24x7 API token, sealed with the
+  secret box (in the sealed-field registry); API views show only the last 4 characters. The
+  account webhook secret is stored as a SHA-256 hash.

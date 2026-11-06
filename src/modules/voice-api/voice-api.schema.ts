@@ -26,6 +26,42 @@ export const AccountVoiceApiSchema = registry.register(
   }),
 );
 
+/** Per-account Cell24x7 login: the platform token, or the account's own (checked, sealed). */
+export const VoiceCredentialsBody = z
+  .discriminatedUnion('mode', [
+    z.strictObject({ mode: z.literal('platform') }),
+    z.strictObject({
+      mode: z.literal('own'),
+      /** Omit to keep the saved token (e.g. only the caller ID changes). */
+      token: z.string().trim().min(8).max(500).optional(),
+      callerId: z
+        .string()
+        .trim()
+        .regex(/^\d{10}$/, 'Use the 10-digit caller ID Cell24x7 gave this account')
+        .nullable()
+        .optional(),
+    }),
+  ])
+  .openapi('VoiceCredentialsBody');
+
+export const VoiceCredentialsSchema = registry.register(
+  'VoiceCredentials',
+  z.object({
+    mode: z.enum(['platform', 'own']),
+    /** Last 4 characters of the account's token (never the token). */
+    tokenHint: z.string().nullable(),
+    callerId: z.string().nullable(),
+    verifiedAt: z.string().nullable(),
+    webhookRegisteredAt: z.string().nullable(),
+  }),
+);
+
+/** `account` (not `accountId`): ids from a URL never pick a tenant — the key decides. */
+export const AccountVoiceWebhookParams = z.strictObject({
+  account: objectId,
+  key: z.string().min(1).max(200),
+});
+
 export const VoiceIvrSchema = registry.register(
   'VoiceIvr',
   z.object({ id: z.number().int(), name: z.string() }),
@@ -125,6 +161,42 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: 'put',
+  path: '/api/v1/admin/accounts/{id}/voice-api/credentials',
+  tags: adminTags,
+  summary:
+    "The account's Cell24x7 login: the platform token, or its own token + caller ID (checked with Cell24x7 first, sealed; superadmin) — a refused token answers VOICE_API_AUTH",
+  security: bearer,
+  request: {
+    params: VoiceAccountParams,
+    body: { content: { 'application/json': { schema: VoiceCredentialsBody } } },
+  },
+  responses: {
+    200: ok(VoiceCredentialsSchema),
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
+    422: errors[422],
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/voice-api/webhook',
+  tags: adminTags,
+  summary:
+    "Register the account's own result webhook with its Cell24x7 login (one URL per token; superadmin)",
+  security: bearer,
+  request: { params: VoiceAccountParams },
+  responses: {
+    200: ok(VoiceCredentialsSchema),
+    403: errors[403],
+    404: errors[404],
+    409: errors[409],
+  },
+});
+
+registry.registerPath({
   method: 'get',
   path: '/api/v1/admin/voice-api/status',
   tags: adminTags,
@@ -181,6 +253,19 @@ registry.registerPath({
   summary: 'IVR menus this account may use in a recorded-voice campaign',
   security: bearer,
   responses: { 200: ok(z.array(VoiceIvrSchema)), 403: errors[403] },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/webhooks/voice-api/a/{account}/{key}',
+  tags,
+  summary:
+    "Cell24x7 call results from an account's own login (secret path per account; answered at once)",
+  request: {
+    params: AccountVoiceWebhookParams,
+    body: { content: { 'application/json': { schema: VoiceWebhookBody } } },
+  },
+  responses: { 200: ok(z.object({ received: z.boolean() })), 404: errors[404] },
 });
 
 registry.registerPath({

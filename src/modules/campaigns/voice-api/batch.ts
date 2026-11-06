@@ -7,7 +7,6 @@ import { getEnv } from '../../../config/env';
 import { captureVoiceApi, holdForVoiceApi, releaseVoiceApi } from '../../../core/billing/engine';
 import { getAppRedis } from '../../../core/queues/redis';
 import type { StorageProvider } from '../../../core/storage';
-import { getVoiceApiClient } from '../../../core/voice-api';
 import {
   VoiceApiError,
   type VoiceApiAudio,
@@ -26,7 +25,13 @@ import {
 import { FlowAudioModel, type FlowAudioDoc } from '../../../db/models/flow-audio.model';
 import { AppError } from '../../../shared/errors/app-error';
 import { getLogger } from '../../../shared/logger';
-import { recordProviderError } from '../../voice-api/status';
+import {
+  accountUsesOwnToken,
+  ownTokenAccountIds,
+  voiceCallerIdFor,
+  voiceClientFor,
+} from '../../voice-api/clients';
+import { notifyAccountProviderError, recordProviderError } from '../../voice-api/status';
 import { accountFacts, pauseCampaignDoc } from '../campaigns.service';
 import { completeIfDone } from '../dispatcher';
 import { publishProgress } from '../progress';
@@ -104,6 +109,7 @@ const audioFor = async (
   campaign: CampaignDoc,
   storage: StorageProvider | undefined,
   useCache: boolean,
+  ownToken: boolean,
 ): Promise<{ audio: VoiceApiAudio; audioDoc: FlowAudioDoc | null }> => {
   const content = campaign.voiceApi?.content;
   if (!content) throw new AppError('VOICE_API_AUDIO_INVALID');
@@ -113,7 +119,12 @@ const audioFor = async (
     accountId: campaign.accountId,
   }).lean<FlowAudioDoc>();
   if (!audioDoc) throw new AppError('VOICE_API_AUDIO_INVALID');
-  const cached = audioDoc.providerFiles?.cell24x7?.audioFileId;
+  // an uploaded id belongs to one Cell24x7 login: the platform's or the account's own
+  const file = audioDoc.providerFiles?.cell24x7;
+  const cached =
+    file && (file.source ?? 'platform') === (ownToken ? 'own' : 'platform')
+      ? file.audioFileId
+      : undefined;
   if (useCache && cached) return { audio: { kind: 'audio_id', id: cached }, audioDoc };
   if (!storage) throw new AppError('VOICE_API_AUDIO_INVALID', 'Audio storage is not available.');
   const data = await bufferOf(await storage.get(audioDoc.fileKey));
@@ -199,13 +210,26 @@ const pauseFor = async (
     await pauseCampaignDoc(fresh, reason, null).catch(() => undefined);
 };
 
-/** Cell24x7 refused our login / credits: every running voice campaign pauses. */
-const pauseAllVoice = async (code: string): Promise<void> => {
-  await recordProviderError(code);
-  const running = await CampaignModel.find({ line: 'voice_api', status: 'running' }).lean<
-    CampaignDoc[]
-  >();
-  for (const c of running) await pauseFor(c, 'provider_error', code);
+/**
+ * Cell24x7 refused a login / its credits ran out: every running voice campaign on that
+ * login pauses — the platform token's accounts, or only the one account with its own token
+ * (its owners hear about it instead of the superadmins).
+ */
+const pauseAllVoice = async (code: string, campaign: CampaignDoc): Promise<void> => {
+  const own = await accountUsesOwnToken(campaign.accountId);
+  const running = await CampaignModel.find({
+    line: 'voice_api',
+    status: 'running',
+    ...(own ? { accountId: campaign.accountId } : {}),
+  }).lean<CampaignDoc[]>();
+  const ownIds = own
+    ? new Set<string>()
+    : await ownTokenAccountIds(running.map((c) => c.accountId));
+  if (own) await notifyAccountProviderError(campaign.accountId, code);
+  else await recordProviderError(code);
+  for (const c of running) {
+    if (!ownIds.has(c.accountId.toString())) await pauseFor(c, 'provider_error', code);
+  }
 };
 
 /** Window + redials must end inside the effective window (TRAI 09:00–21:00 included). */
@@ -254,9 +278,11 @@ export const runVoiceBatch = async (
 
 const tick = async (campaignId: string, deps: BatchDeps): Promise<BatchTick> => {
   const now = deps.now?.() ?? new Date();
-  const client = deps.client === undefined ? getVoiceApiClient() : deps.client;
   let campaign = await CampaignModel.findById(campaignId).lean<CampaignDoc>();
   if (!campaign || campaign.line !== 'voice_api' || !campaign.voiceApi) return 'not_running';
+  // the account's own Cell24x7 token when it has one, else the platform's
+  const client = deps.client === undefined ? await voiceClientFor(campaign.accountId) : deps.client;
+  const ownToken = await accountUsesOwnToken(campaign.accountId);
   const batches = campaign.voiceApi.batches;
   // a batch held but never submitted (crash, pause, stop): give it back first
   const holding = batches.find((b) => b.state === 'holding');
@@ -480,10 +506,10 @@ const tick = async (campaignId: string, deps: BatchDeps): Promise<BatchTick> => 
   );
   if (!marked.modifiedCount) return 'busy';
   const submit = async (useCache: boolean) => {
-    const { audio, audioDoc } = await audioFor(campaign, storage, useCache);
+    const { audio, audioDoc } = await audioFor(campaign, storage, useCache, ownToken);
     const answer = await client.submit({
       broadcastName: `cav-${campaignId}-${String(batch.no)}`,
-      callerId: getEnv().CELL24X7_VOICE_CALLER_ID,
+      callerId: await voiceCallerIdFor(campaign.accountId),
       numbers: unique,
       audio,
       retries: v.retries,
@@ -494,7 +520,11 @@ const tick = async (campaignId: string, deps: BatchDeps): Promise<BatchTick> => 
         { _id: audioDoc._id, accountId: campaign?.accountId },
         {
           $set: {
-            'providerFiles.cell24x7': { audioFileId: answer.audioFileId, uploadedAt: new Date() },
+            'providerFiles.cell24x7': {
+              audioFileId: answer.audioFileId,
+              uploadedAt: new Date(),
+              source: ownToken ? 'own' : 'platform',
+            },
           },
         },
       );
@@ -595,7 +625,7 @@ const submitFailed = async (
   const code = voiceErr.code === 'VOICE_API_NOT_FOUND' ? 'VOICE_API_IVR_MISSING' : voiceErr.code;
   await dropBatch(campaign, batch, code, 'pending');
   if (code === 'VOICE_API_AUTH' || code === 'VOICE_API_NO_CREDITS') {
-    await pauseAllVoice(code);
+    await pauseAllVoice(code, campaign);
   } else {
     if (code === 'VOICE_API_REJECTED') await recordProviderError(code);
     await pauseFor(campaign, 'provider_error', code);

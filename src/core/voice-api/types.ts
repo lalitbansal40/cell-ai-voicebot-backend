@@ -77,6 +77,12 @@ export interface VoiceIvr {
 /** One number's result, from the webhook or the details poller. */
 export interface VoiceResultEvent extends VoiceResultRow {
   requestId: string;
+  /**
+   * The account whose own Cell24x7 login reported it (its webhook / its poll). Missing =
+   * the platform login: rows of accounts on their own token never match then (request ids
+   * of two Cell24x7 logins may repeat).
+   */
+  accountId?: string;
 }
 
 export interface VoiceApiClient {

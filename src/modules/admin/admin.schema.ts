@@ -19,6 +19,7 @@ import {
   TimezoneSchema,
 } from '../auth/auth.schema';
 import { RetentionCapBody, RetentionSchema } from '../retention/retention.schema';
+import { VoiceCredentialsSchema } from '../voice-api/voice-api.schema';
 
 export const ListAccountsQuery = z.strictObject({
   ...PaginationQuerySchema.shape,
@@ -125,6 +126,8 @@ export const AdminAccountDetailSchema = registry.register(
         enabled: z.boolean(),
         ivrIds: z.array(z.number().int()),
         ivrEstimateSec: z.number().int(),
+        /** Which Cell24x7 login the account uses (never the token). */
+        credentials: VoiceCredentialsSchema,
       })
       .openapi({ description: 'VAPI: recorded-voice / IVR campaigns over Cell24x7' }),
     usersByStatus: z.object({ invited: z.number(), active: z.number(), disabled: z.number() }),

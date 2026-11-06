@@ -1,11 +1,12 @@
 import type { Redis } from 'ioredis';
+import { Types } from 'mongoose';
 
 import { getEnv } from '../../config/env';
 import { getAppRedis } from '../../core/queues/redis';
 import { VoiceApiError } from '../../core/voice-api/types';
 import { AppError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
-import { notifyPlatform } from '../notifications/notifications.service';
+import { notify, notifyPlatform } from '../notifications/notifications.service';
 
 /**
  * Health of the Cell24x7 connection for Admin → System (VAPI): last webhook seen and the
@@ -52,6 +53,36 @@ export const recordProviderError = async (code: string): Promise<void> => {
     title: 'Recorded-voice provider problem',
     body: ERROR_TEXT[code] ?? 'Cell24x7 returned an error. Check Admin → System.',
     link: '/admin/system',
+  }).catch(() => 0);
+};
+
+const ACCOUNT_ERROR_TEXT: Record<string, string> = {
+  VOICE_API_AUTH:
+    "Cell24x7 refused your account's API token. Recorded-voice campaigns are paused — ask support to update the token.",
+  VOICE_API_NO_CREDITS:
+    'Your Cell24x7 credits are too low. Recorded-voice campaigns are paused — recharge Cell24x7, then resume.',
+};
+
+/**
+ * An account on its own Cell24x7 token: its owners / admins hear about a login or credit
+ * problem (once an hour per code), not the superadmins.
+ */
+export const notifyAccountProviderError = async (
+  accountId: Types.ObjectId | string,
+  code: string,
+): Promise<void> => {
+  const id = accountId.toString();
+  const first = await redisOf()
+    .set(`vapi:alert:${id}:${code}`, '1', 'EX', 3600, 'NX')
+    .catch(() => null);
+  if (first !== 'OK') return;
+  await notify({
+    accountId: new Types.ObjectId(id),
+    permission: 'campaigns.run',
+    type: 'voice_api.provider_error',
+    title: 'Recorded-voice campaigns paused',
+    body: ACCOUNT_ERROR_TEXT[code] ?? 'Cell24x7 returned an error for your account.',
+    link: '/campaigns',
   }).catch(() => 0);
 };
 

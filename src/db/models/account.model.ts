@@ -226,12 +226,41 @@ export interface AccountDoc {
   updatedAt: Date;
 }
 
+/**
+ * Which Cell24x7 login an account's recorded-voice campaigns use: the platform's token
+ * (env) or the account's own (its own Cell24x7 credits, audios, IVRs and webhook).
+ * The token is sealed; only its last 4 characters are ever shown.
+ */
+export interface AccountVoiceCredentials {
+  mode: 'platform' | 'own';
+  tokenSealed: string | null;
+  tokenHint: string | null;
+  /** Caller ID for this account's broadcasts (`null` = `CELL24X7_VOICE_CALLER_ID`). */
+  callerId: string | null;
+  /** SHA-256 of the secret in this account's webhook URL (the URL is shown once). */
+  webhookKeyHash: string | null;
+  webhookRegisteredAt: Date | null;
+  /** Last successful check of the token against Cell24x7. */
+  verifiedAt: Date | null;
+}
+
+export const DEFAULT_VOICE_CREDENTIALS: AccountVoiceCredentials = {
+  mode: 'platform',
+  tokenSealed: null,
+  tokenHint: null,
+  callerId: null,
+  webhookKeyHash: null,
+  webhookRegisteredAt: null,
+  verifiedAt: null,
+};
+
 export interface AccountVoiceApi {
   enabled: boolean;
-  /** Cell24x7 IVR menus this account may use (the token is shared by every account). */
+  /** Platform token: IVR menus a superadmin gave this account (own token: all of its IVRs). */
   ivrIds: number[];
   /** Seconds billed per number for an IVR campaign (an IVR's length is not known up front). */
   ivrEstimateSec: number;
+  credentials?: AccountVoiceCredentials;
 }
 
 export const DEFAULT_ACCOUNT_VOICE_API: AccountVoiceApi = {

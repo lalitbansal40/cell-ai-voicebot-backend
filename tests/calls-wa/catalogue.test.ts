@@ -109,7 +109,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('has 127 audit actions incl. the nine Phase 12 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(200); // Phase 20: 3; VAPI: 3; Phase 19: 20; Phase 18B: T18B.4 1; Phase 18: T18.6 2, T18.7 4; + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2; Phase 16: T16.3 1, T16.4 1, T16.5 2, T16.6 5, T16.7 2, T16.9 4; Phase 17: T17.6 2
+    expect(AUDIT_ACTIONS).toHaveLength(202); // per-account Cell24x7: 2; Phase 20: 3; VAPI: 3; Phase 19: 20; Phase 18B: T18B.4 1; Phase 18: T18.6 2, T18.7 4; + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2; Phase 16: T16.3 1, T16.4 1, T16.5 2, T16.6 5, T16.7 2, T16.9 4; Phase 17: T17.6 2
     expect(AUDIT_ACTIONS.slice(118, 127)).toEqual([
       'whatsapp.calling_settings_updated',
       'whatsapp.call_permission_requested',

@@ -59,6 +59,28 @@ Status map: `PP1` / `CALLING` / `Submitted` → dialing; `ANSWERED` → complete
   IVR lists — only their own audio and IVRs a superadmin assigned.
 - Numbers (10 digits) and the audio file are sent to Cell24x7 (processor). See DATA_MAP.
 
+## One Cell24x7 login per account
+
+Every account can use **the platform's token** (env `CELL24X7_VOICE_API_TOKEN`, default) or **its own Cell24x7 token** — its own credits, audios, IVRs, caller ID and webhook (the PDF allows one webhook URL per token).
+
+Superadmin, **Admin → Accounts → account → Recorded voice → Cell24x7 login**:
+
+1. Choose **Account's own token**, paste the token from that account's Cell24x7 dashboard (_Settings → API_), and the 10-digit caller ID Cell24x7 gave it (empty = `CELL24X7_VOICE_CALLER_ID`). Save: the token is checked with Cell24x7 first (`GET /ivrs`), then sealed (only the last 4 characters are ever shown; `keys:reseal` covers it).
+2. **Register webhook**: points that token's webhook at `/api/v1/webhooks/voice-api/a/<account>/<secret>` (a new secret each time; only its hash is stored). Changing the token clears the webhook — register again.
+3. IVRs: an own-token account sees every runnable IVR of its Cell24x7 login (no superadmin assignment). Audio uploads are cached per login.
+
+What changes for an own-token account:
+
+| Topic                   | Platform token                                      | Own token                                                    |
+| ----------------------- | --------------------------------------------------- | ------------------------------------------------------------ |
+| Cell24x7 credits        | platform's                                          | the account's own                                            |
+| Wallet charge           | rate card `voiceApiPulseMicros`                     | same (set 0 on the account's rate card for no markup)        |
+| Caller ID               | `CELL24X7_VOICE_CALLER_ID`                          | the account's, else the env one                              |
+| 401 / 402 from Cell24x7 | all platform-token campaigns pause, superadmin bell | only this account's campaigns pause, its owners get the bell |
+| Results                 | platform webhook + polling                          | the account's webhook + polling with its token               |
+
+Back to **Platform token** removes the account's token. Audit: `voice_api.credentials_changed`, `voice_api.account_webhook_registered`.
+
 ## Going live (owner approval and a test number required)
 
 1. Server env: `VOICE_API_PROVIDER=cell24x7`, `CELL24X7_VOICE_API_TOKEN`,

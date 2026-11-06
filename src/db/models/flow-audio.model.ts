@@ -21,7 +21,14 @@ export interface FlowAudioDoc {
   channels: number;
   uploadedBy: Types.ObjectId | null;
   /** VAPI: the provider's copy of this audio (uploaded once, reused by id). */
-  providerFiles?: { cell24x7?: { audioFileId: number; uploadedAt: Date } | null };
+  providerFiles?: {
+    cell24x7?: {
+      audioFileId: number;
+      uploadedAt: Date;
+      /** Which Cell24x7 login uploaded it (missing = the platform's). */
+      source?: 'platform' | 'own';
+    } | null;
+  };
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;

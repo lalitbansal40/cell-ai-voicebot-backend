@@ -15,6 +15,8 @@ Every request also passes the global limit of 1,200 a minute per IP. API keys ha
 - `POST /api/v1/auth/verify-email/resend`: own limiter
 - `POST /api/v1/auth/forgot-password`: own limiter
 - `POST /api/v1/auth/reset-password`: own limiter
+- `POST /api/v1/webhooks/voice-api/a/{account}/{key}`: own limiter
+- `POST /api/v1/webhooks/voice-api/{secret}`: own limiter
 - `GET /api/v1/api-keys/whoami`: no limiter. Needs an API key, so the per-key limit applies
 - `GET /health`: no limiter. Health check; cheap, no data
 - `GET /ready`: no limiter. Blocked at nginx; internal only
@@ -23,7 +25,6 @@ Every request also passes the global limit of 1,200 a minute per IP. API keys ha
 - `GET /api/v1/system/info`: no limiter. Static build info
 - `GET /api/v1/auth/invite-info`: own limiter
 - `POST /api/v1/auth/accept-invite`: own limiter
-- `POST /api/v1/webhooks/voice-api/{secret}`: own limiter
 
 ## Signed-in routes with their own limiter
 
