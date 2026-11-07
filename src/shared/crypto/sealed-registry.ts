@@ -27,6 +27,12 @@ const flowHeaders = 'nodes.*.config.headers.*.sealed';
 
 export const SEALED_FIELDS: SealedField[] = [
   {
+    // the password of an account's own SIP trunk
+    name: 'accounts.sipTrunk.passwordSealed',
+    collection: raw(AccountModel),
+    path: 'sipTrunk.passwordSealed',
+  },
+  {
     // the account's own Cell24x7 Voice API token
     name: 'accounts.voiceApi.credentials.tokenSealed',
     collection: raw(AccountModel),

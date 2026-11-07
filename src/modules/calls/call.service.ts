@@ -31,6 +31,7 @@ import type { Logger } from '../../shared/logger';
 import { DialSlots, type SlotLease } from '../campaigns/slots';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { withoutSensitive } from '../privacy/sensitive';
+import { accountTrunkEndpoint } from '../sip-trunks/sip-trunks.service';
 import { BridgeScript } from '../whatsapp-calling/bridge';
 import type { CallControlBus, CallCommand } from '../whatsapp-calling/bus';
 
@@ -612,6 +613,8 @@ export class CallManager {
         to: input.to,
         callerId: input.callerId ?? null,
         amd: input.amd ?? 'off',
+        // the account's own SIP trunk when it has one
+        trunk: await accountTrunkEndpoint(input.accountId),
       });
     } catch (err) {
       await billing.release('no_media_port');

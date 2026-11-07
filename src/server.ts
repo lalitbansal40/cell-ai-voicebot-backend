@@ -70,6 +70,7 @@ import { queueContactJobs } from './modules/contacts/jobs';
 import { queueInboxJobs } from './modules/inbox/jobs';
 import { queuePostCallJobs, setPostCallJobs } from './modules/post-call/jobs';
 import { flushApiKeyUsage } from './modules/public-api/request-log';
+import { setTrunkLine, syncAllTrunks } from './modules/sip-trunks/sip-trunks.service';
 import { queueTemplateJobs } from './modules/templates/jobs';
 import { webhookRuntime } from './modules/webhooks/deliver.job';
 import { queueWebhookJobs, setWebhookJobs } from './modules/webhooks/jobs';
@@ -483,6 +484,16 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   );
   if (sipLine) {
     sipLine.provider.setLiveCheck((callId) => callRegistry.isLive(callId));
+    // accounts' own trunks live in Asterisk's memory: push them on every (re)connect
+    setTrunkLine(sipLine.ari);
+    sipLine.ari.on('state', (up) => {
+      if (up)
+        void syncAllTrunks(sipLine.ari)
+          .then((n) => {
+            if (n) logger.info({ trunks: n }, 'sip: account trunks pushed');
+          })
+          .catch((err: unknown) => logger.warn({ err }, 'sip: account trunks not pushed'));
+    });
     lifecycle.onShutdown('sip-line', () => sipLine.close(), 6);
     // Phase 20: this process takes trunk calls (its ARI socket has the inbound app)
     if (sipLine.inboundApp) {

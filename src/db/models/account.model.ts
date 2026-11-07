@@ -220,6 +220,8 @@ export interface AccountDoc {
   voiceLine: AccountVoiceLine;
   /** Superadmin overrides of the SIP env defaults; `null` = the env value. */
   sipSettings: AccountSipSettings;
+  /** The account's own SIP trunk (added to Asterisk at run time); `null` = the server trunk. */
+  sipTrunk?: AccountSipTrunk | null;
   /** VAPI: recorded-voice / IVR campaigns over Cell24x7 (superadmin-only settings). */
   voiceApi?: AccountVoiceApi;
   createdAt: Date;
@@ -242,6 +244,27 @@ export interface AccountVoiceCredentials {
   webhookRegisteredAt: Date | null;
   /** Last successful check of the token against Cell24x7. */
   verifiedAt: Date | null;
+}
+
+/**
+ * An account's own SIP trunk (its carrier login), entered in the app and pushed to Asterisk
+ * over ARI — no env change. The password is sealed; only its last 2 characters are shown.
+ */
+export interface AccountSipTrunk {
+  host: string;
+  port: number;
+  transport: 'udp' | 'tcp';
+  /** `ip`: the carrier accepts our server's address; `register`: username + password. */
+  auth: 'ip' | 'register';
+  username: string | null;
+  passwordSealed: string | null;
+  /** Addresses the carrier calls us from (incoming calls); empty = the host. */
+  trunkIps: string[];
+  /** The number customers see (E.164). */
+  callerId: string;
+  codecs: ('ulaw' | 'alaw')[];
+  updatedAt: Date;
+  updatedBy: Types.ObjectId | null;
 }
 
 export const DEFAULT_VOICE_CREDENTIALS: AccountVoiceCredentials = {
@@ -410,6 +433,7 @@ const schema = new Schema<AccountDoc>({
   deletion: { type: Schema.Types.Mixed, default: null },
   apiLimits: { type: Schema.Types.Mixed, default: null },
   voiceLine: { type: String, enum: ACCOUNT_VOICE_LINES, default: 'dryrun' },
+  sipTrunk: { type: Schema.Types.Mixed, default: null },
   sipSettings: {
     type: Schema.Types.Mixed,
     default: () => ({ ...DEFAULT_SIP_SETTINGS }),

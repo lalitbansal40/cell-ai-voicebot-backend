@@ -83,6 +83,7 @@ const seed = async (keys = OLD) => {
   await AccountModel.collection.insertOne({
     name: 'Sealed Co',
     voiceApi: { credentials: { mode: 'own', tokenSealed: v('cell24x7') } },
+    sipTrunk: { host: 'sip.carrier.in', passwordSealed: v('trunk') },
   });
 };
 
@@ -258,6 +259,7 @@ describe('sealed registry is complete', () => {
       'modules/auth/mfa.service.ts',
       'modules/flows/flows.service.ts',
       'modules/privacy/sensitive.ts',
+      'modules/sip-trunks/sip-trunks.service.ts',
       'modules/voice-api/voice-api.service.ts',
       'modules/webhooks/endpoints.service.ts',
       'modules/whatsapp/context.ts',

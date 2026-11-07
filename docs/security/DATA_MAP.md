@@ -128,3 +128,5 @@ Campaign variable eligibility and sending use the central send-purpose sensitive
 - `accounts.voiceApi.credentials.tokenSealed`: an account's own Cell24x7 API token, sealed with the
   secret box (in the sealed-field registry); API views show only the last 4 characters. The
   account webhook secret is stored as a SHA-256 hash.
+- `accounts.sipTrunk.passwordSealed`: an account's own SIP trunk password, sealed (sealed-field
+  registry); API views show only whether it is set. It is sent only to our Asterisk over ARI.

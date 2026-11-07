@@ -81,6 +81,7 @@ import { createResellerRouter } from './modules/resellers/resellers.routes';
 import { createRetentionRouter } from './modules/retention/retention.routes';
 import { createSegmentsRouter } from './modules/segments/segments.routes';
 import { createSheetImportsRouter } from './modules/sheet-imports/sheet-imports.routes';
+import { createSipTrunksRouter } from './modules/sip-trunks/sip-trunks.routes';
 import { createCspReportRouter } from './modules/system/csp-report';
 import { createSystemRouter } from './modules/system/system.routes';
 import { createTeamRouter } from './modules/team/team.routes';
@@ -263,6 +264,8 @@ export const createApiRouter = ({
   router.use('/', createPhoneNumbersRouter());
   // VAPI: recorded-voice / IVR campaigns over Cell24x7
   router.use('/admin', createVoiceApiAdminRouter());
+  // accounts' own SIP trunks (no env change)
+  router.use('/admin', createSipTrunksRouter());
   router.use('/', createVoiceApiRouter());
   router.use('/', createVoiceWebhookRouter());
   // DOCS-T2: read-only ids and balances for API clients

@@ -20,29 +20,6 @@ external_media_address=${SIP_EXTERNAL_ADDRESS}
 external_signaling_address=${SIP_EXTERNAL_ADDRESS}
 local_net=${SIP_LOCAL_NET}
 
-; The client's trunk: the only endpoint. There is no anonymous endpoint, so unknown sources get nothing.
-[trunk]
-type=endpoint
-transport=transport-${SIP_TRANSPORT}
-context=cav-in
-disallow=all
-allow=${SIP_CODECS}
-dtmf_mode=${SIP_DTMF}
-direct_media=no
-rtp_symmetric=yes
-force_rport=yes
-rewrite_contact=yes
-send_pai=yes
-; no re-INVITE / UPDATE just to tell the trunk a new connected-line name
-send_connected_line=no
-trust_id_outbound=yes
-aors=trunk
-outbound_auth=${SIP_OUTBOUND_AUTH}
-
-[trunk]
-type=aor
-contact=sip:${SIP_HOST}:${SIP_PORT}
-qualify_frequency=${SIP_QUALIFY_SEC}
-
-#include pjsip_identify.conf
-#include pjsip_register.conf
+; The server-wide trunk (only when SIP_HOST is set in asterisk.env). Accounts can also have
+; their own trunk, added at run time over ARI (sorcery memory, see sorcery.conf).
+#include pjsip_trunk.conf

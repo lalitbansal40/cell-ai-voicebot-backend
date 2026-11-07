@@ -60,3 +60,20 @@ Each check on 10 calls to the owner's phones on two networks. Numbers are shown 
 ## 3. Incoming calls (Phase 20)
 
 Trunk calls to the account's DIDs are handled by the inbound app — setup, provider questions and what callers hear: [sip-inbound.md](sip-inbound.md).
+
+## 4. An account's own trunk (no env change)
+
+Each account can have its own SIP carrier login, entered in the app — nothing in `backend.env` or `asterisk.env` changes per account.
+
+**Admin → Accounts → account → SIP trunk (normal calls):**
+
+1. **How the carrier knows us:** _Username + password_ (registration) or _Our server IP_ (the carrier whitelists our IP).
+2. **SIP server (host)** and **Port** (usually 5060), **Transport** (UDP / TCP) — from the carrier.
+3. Username / password (registration only; the password is sealed and never shown again).
+4. **Caller ID** (E.164) — added to the account's numbers (outgoing + incoming).
+5. Optional: the carrier's **IPs for incoming calls** (empty = the host).
+6. **Save and connect.** The trunk is pushed to Asterisk over ARI at once (and again after every Asterisk restart); the account moves to the phone line. The chip shows _Connected_ once Asterisk's check reaches the carrier.
+
+Then the account's calls (Call now, campaigns, incoming calls to its numbers) use that trunk. **Remove trunk** sends them back to the server trunk.
+
+Needed once per server (deploy, not per account): the Asterisk container running with `TELEPHONY_PROVIDER=sip` and `ARI_PASSWORD`; `SIP_HOST` in `asterisk.env` is now optional (only for a server-wide trunk). The host firewall must let the carriers' IPs reach SIP 5060 and RTP 20000–20999.

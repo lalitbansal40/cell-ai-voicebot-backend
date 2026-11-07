@@ -1313,7 +1313,8 @@
               "call.callback_done",
               "phone_number.inbound_updated",
               "voice_api.credentials_changed",
-              "voice_api.account_webhook_registered"
+              "voice_api.account_webhook_registered",
+              "account.sip_trunk_changed"
             ]
           },
           "actor": {
@@ -8044,6 +8045,45 @@
           "lowBalanceCustomers"
         ]
       },
+      "SipTrunk": {
+        "type": "object",
+        "properties": {
+          "configured": { "type": "boolean" },
+          "trunk": {
+            "type": ["object", "null"],
+            "properties": {
+              "host": { "type": "string" },
+              "port": { "type": "number" },
+              "transport": { "type": "string", "enum": ["udp", "tcp"] },
+              "auth": { "type": "string", "enum": ["ip", "register"] },
+              "username": { "type": ["string", "null"] },
+              "passwordSet": { "type": "boolean" },
+              "trunkIps": { "type": "array", "items": { "type": "string" } },
+              "callerId": { "type": "string" },
+              "codecs": {
+                "type": "array",
+                "items": { "type": "string", "enum": ["ulaw", "alaw"] }
+              },
+              "updatedAt": { "type": "string" }
+            },
+            "required": [
+              "host",
+              "port",
+              "transport",
+              "auth",
+              "username",
+              "passwordSet",
+              "trunkIps",
+              "callerId",
+              "codecs",
+              "updatedAt"
+            ]
+          },
+          "state": { "type": ["string", "null"] },
+          "lineConnected": { "type": "boolean" }
+        },
+        "required": ["configured", "trunk", "state", "lineConnected"]
+      },
       "WhatsAppCampaign": {
         "type": "object",
         "properties": {
@@ -9544,6 +9584,36 @@
             "required": ["clientId", "type", "body"]
           }
         ]
+      },
+      "SipTrunkBody": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string",
+            "pattern": "^(?=.{1,253}$)([a-zA-Z0-9-]{1,63}\\.)*[a-zA-Z0-9-]{1,63}$|^(\\d{1,3}\\.){3}\\d{1,3}$"
+          },
+          "port": { "type": "integer", "minimum": 1, "maximum": 65535, "default": 5060 },
+          "transport": { "type": "string", "enum": ["udp", "tcp"], "default": "udp" },
+          "auth": { "type": "string", "enum": ["ip", "register"] },
+          "username": { "type": ["string", "null"], "minLength": 1, "maxLength": 80 },
+          "password": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "trunkIps": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}(\\/\\d{1,2})?$" },
+            "maxItems": 20,
+            "default": []
+          },
+          "callerId": { "type": "string", "pattern": "^\\+[1-9]\\d{7,14}$" },
+          "codecs": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["ulaw", "alaw"] },
+            "minItems": 1,
+            "maxItems": 2,
+            "default": ["ulaw", "alaw"]
+          }
+        },
+        "required": ["host", "auth", "callerId"],
+        "additionalProperties": false
       },
       "WhatsAppTemplateListItem": {
         "type": "object",
@@ -34177,6 +34247,151 @@
                       "required": ["customersCanTopUp"],
                       "additionalProperties": false
                     }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/sip-trunk": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "The account's own SIP trunk and whether it is reachable (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/SipTrunk" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Admin"],
+        "summary": "Save the account's own SIP trunk and connect it — no env change; puts the account on the phone line and gives it the caller ID (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/SipTrunkBody" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/SipTrunk" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Remove the account's own SIP trunk (calls use the server trunk again; superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/SipTrunk" }
                   },
                   "required": ["success", "data"]
                 }

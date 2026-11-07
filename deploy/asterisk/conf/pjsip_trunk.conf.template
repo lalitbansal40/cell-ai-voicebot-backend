@@ -1,0 +1,27 @@
+; Rendered by render.sh only when SIP_HOST is set (ADR 0050).
+; The client's trunk: the only endpoint. There is no anonymous endpoint, so unknown sources get nothing.
+[trunk]
+type=endpoint
+transport=transport-${SIP_TRANSPORT}
+context=cav-in
+disallow=all
+allow=${SIP_CODECS}
+dtmf_mode=${SIP_DTMF}
+direct_media=no
+rtp_symmetric=yes
+force_rport=yes
+rewrite_contact=yes
+send_pai=yes
+; no re-INVITE / UPDATE just to tell the trunk a new connected-line name
+send_connected_line=no
+trust_id_outbound=yes
+aors=trunk
+outbound_auth=${SIP_OUTBOUND_AUTH}
+
+[trunk]
+type=aor
+contact=sip:${SIP_HOST}:${SIP_PORT}
+qualify_frequency=${SIP_QUALIFY_SEC}
+
+#include pjsip_identify.conf
+#include pjsip_register.conf

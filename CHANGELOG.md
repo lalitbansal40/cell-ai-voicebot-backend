@@ -11,6 +11,10 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **An account's own SIP trunk (no env change)** — 2026-11-07
+  - Admin → account → **SIP trunk**: host, port, transport, username + password or IP, caller ID, carrier IPs; saved (password sealed), pushed to Asterisk over ARI at once and after every restart (sorcery memory), status from Asterisk's check. The account moves to the phone line and gets the caller ID as a number; its calls dial `PJSIP/<number>@acc-<accountId>`. `SIP_HOST` in `asterisk.env` is optional now. `GET/PUT/DELETE /admin/accounts/:id/sip-trunk`; audit `account.sip_trunk_changed`.
+- **AI agents speak the customer's language** — 2026-11-07
+  - "Follow the customer" now replies in whatever language the customer speaks (Hindi, English, Hinglish, Marathi, Gujarati, Bengali, Punjabi, Tamil, Telugu, Kannada, Malayalam, Odia, Urdu…) on SIP and WhatsApp calls; the voice follows the reply's language.
 - **Cell24x7 login per account** — 2026-11-06
   - Recorded-voice campaigns can run on an account's own Cell24x7 token (checked, sealed, last 4 shown) with its own caller ID, IVRs and result webhook (`/webhooks/voice-api/a/:account/:key`); `PUT /admin/accounts/:id/voice-api/credentials`, `POST /admin/accounts/:id/voice-api/webhook`. Login / credit errors pause only that account and ring its owners. Results of one login never settle another login's batch.
 - **Incoming phone calls (Phase 20)** — 2026-11-06

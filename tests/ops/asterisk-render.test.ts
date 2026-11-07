@@ -33,7 +33,7 @@ describe('asterisk config render (ADR 0050)', () => {
   it('renders IP auth: the trunk is the only endpoint, matched by address', () => {
     const r = render({ ...BASE, SIP_TRUNK_IPS: '203.0.113.10,203.0.113.11' });
     expect(r.status).toBe(0);
-    const pjsip = r.files['pjsip.conf']!;
+    const pjsip = r.files['pjsip_trunk.conf']!;
     expect(pjsip).toContain('contact=sip:sip.example.net:5060');
     expect(pjsip).toContain('dtmf_mode=rfc4733');
     expect(pjsip).toContain('allow=ulaw,alaw');
@@ -53,7 +53,7 @@ describe('asterisk config render (ADR 0050)', () => {
       SIP_PASSWORD: 'trunk-secret-1',
     });
     expect(r.status).toBe(0);
-    expect(r.files['pjsip.conf']).toContain('outbound_auth=trunk-auth');
+    expect(r.files['pjsip_trunk.conf']).toContain('outbound_auth=trunk-auth');
     expect(r.files['pjsip_register.conf']).toContain('password=trunk-secret-1');
     expect(r.files['pjsip_register.conf']).toContain('server_uri=sip:sip.example.net:5060');
     expect(r.files['pjsip_identify.conf']).toBe('');
@@ -81,6 +81,17 @@ describe('asterisk config render (ADR 0050)', () => {
     expect(r.files['pjsip.conf']).not.toMatch(/^local_net=$/m);
     const comments = all.split('\n').filter((line) => line.startsWith(';'));
     expect(comments.join('\n')).not.toContain(ARI);
+  });
+
+  it('without SIP_HOST: no server trunk; accounts add theirs over ARI (sorcery memory)', () => {
+    const { SIP_HOST: _host, ...noTrunk } = BASE;
+    const r = render(noTrunk);
+    expect(r.status).toBe(0);
+    expect(r.files['pjsip_trunk.conf']).toBe('');
+    expect(r.files['pjsip_identify.conf']).toBe('');
+    expect(r.files['pjsip.conf']).toContain('[transport-udp]');
+    expect(r.files['sorcery.conf']).toContain('endpoint=memory');
+    expect(r.files['sorcery.conf']).toContain('registration=memory');
   });
 
   it('refuses unsafe or incomplete settings', () => {

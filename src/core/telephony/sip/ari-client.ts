@@ -182,7 +182,7 @@ export class AriClient extends TypedEmitter<AriEvents> {
 
   private async request<T>(
     op: string,
-    method: 'GET' | 'POST' | 'DELETE',
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
     path: string,
     query: Record<string, string | number | undefined> = {},
     body?: unknown,
@@ -305,6 +305,54 @@ export class AriClient extends TypedEmitter<AriEvents> {
         { variable },
       );
       return res.value;
+    } catch (err) {
+      if (err instanceof AriError && err.status === 404) return null;
+      throw err;
+    }
+  }
+
+  /**
+   * Creates or replaces a config object at run time (sorcery memory wizard), e.g.
+   * `res_pjsip` / `endpoint` / `cav-acc-<id>` — an account's own trunk.
+   */
+  async putConfig(
+    configClass: string,
+    objectType: string,
+    id: string,
+    fields: { attribute: string; value: string }[],
+  ): Promise<void> {
+    await this.request(
+      'putConfig',
+      'PUT',
+      `/asterisk/config/dynamic/${encodeURIComponent(configClass)}/${encodeURIComponent(objectType)}/${encodeURIComponent(id)}`,
+      {},
+      { fields },
+    );
+  }
+
+  /** Removes a run-time config object; a missing one is not an error. */
+  async deleteConfig(configClass: string, objectType: string, id: string): Promise<void> {
+    try {
+      await this.request(
+        'deleteConfig',
+        'DELETE',
+        `/asterisk/config/dynamic/${encodeURIComponent(configClass)}/${encodeURIComponent(objectType)}/${encodeURIComponent(id)}`,
+      );
+    } catch (err) {
+      if (err instanceof AriError && err.status === 404) return;
+      throw err;
+    }
+  }
+
+  /** `online` / `offline` / `unknown` of a PJSIP endpoint (its qualify). */
+  async endpointState(resource: string): Promise<string | null> {
+    try {
+      const res = await this.request<{ state?: string }>(
+        'endpointState',
+        'GET',
+        `/endpoints/PJSIP/${encodeURIComponent(resource)}`,
+      );
+      return res.state ?? null;
     } catch (err) {
       if (err instanceof AriError && err.status === 404) return null;
       throw err;

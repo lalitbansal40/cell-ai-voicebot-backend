@@ -54,6 +54,7 @@ import './modules/system/system.schema';
 import './modules/team/team.schema';
 import './modules/resellers/resellers.schema';
 import './modules/voice-api/voice-api.schema';
+import './modules/sip-trunks/sip-trunks.schema';
 import './modules/whatsapp-campaigns/campaigns.schema';
 import './modules/templates/templates.openapi';
 import './modules/wallet/topups.schema';

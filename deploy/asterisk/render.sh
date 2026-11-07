@@ -12,7 +12,9 @@ fail() {
   exit 1
 }
 
-: "${SIP_HOST:?}" "${ARI_PASSWORD:?}"
+: "${ARI_PASSWORD:?}"
+# SIP_HOST is optional: without it there is no server-wide trunk (accounts add their own over ARI)
+export SIP_HOST="${SIP_HOST:-}"
 export SIP_PORT="${SIP_PORT:-5060}"
 export SIP_TRANSPORT="${SIP_TRANSPORT:-udp}"
 export SIP_AUTH="${SIP_AUTH:-ip}"
@@ -43,9 +45,9 @@ case "${SIP_DTMF}" in rfc4733 | info | inband | auto) ;; *) fail "SIP_DTMF is no
 [[ "${SIP_RTP_START}" =~ ^[0-9]+$ && "${SIP_RTP_END}" =~ ^[0-9]+$ ]] || fail "SIP_RTP_START / SIP_RTP_END must be numbers"
 ((SIP_RTP_START < SIP_RTP_END)) || fail "SIP_RTP_START must be below SIP_RTP_END"
 case "${SIP_AUTH}" in
-  ip) [[ -n "${SIP_TRUNK_IPS}" ]] || fail "SIP_AUTH=ip needs SIP_TRUNK_IPS" ;;
+  ip) [[ -z "${SIP_HOST}" || -n "${SIP_TRUNK_IPS}" ]] || fail "SIP_AUTH=ip needs SIP_TRUNK_IPS" ;;
   register)
-    [[ -n "${SIP_USERNAME}" && -n "${SIP_PASSWORD}" ]] || fail "SIP_AUTH=register needs SIP_USERNAME and SIP_PASSWORD"
+    [[ -z "${SIP_HOST}" || (-n "${SIP_USERNAME}" && -n "${SIP_PASSWORD}") ]] || fail "SIP_AUTH=register needs SIP_USERNAME and SIP_PASSWORD"
     SIP_OUTBOUND_AUTH="trunk-auth"
     ;;
   *) fail "SIP_AUTH must be ip or register" ;;
@@ -76,9 +78,14 @@ for t in "${src}"/*.template; do
 done
 [[ -n "${SIP_TRUNK_IPS}" ]] || : >"${out}/pjsip_identify.conf"
 [[ "${SIP_AUTH}" == register ]] || : >"${out}/pjsip_register.conf"
+if [[ -z "${SIP_HOST}" ]]; then
+  : >"${out}/pjsip_trunk.conf"
+  : >"${out}/pjsip_identify.conf"
+  : >"${out}/pjsip_register.conf"
+fi
 for f in "${src}"/*.conf; do cp "${f}" "${out}/"; done
 
 if grep -l '\${SIP_\|\${ARI_' "${out}"/*.conf >/dev/null 2>&1; then
   fail "a placeholder was left in the rendered config"
 fi
-echo "render: ok (${SIP_AUTH}, ${SIP_TRANSPORT}, rtp ${SIP_RTP_START}-${SIP_RTP_END})"
+echo "render: ok (${SIP_HOST:+trunk }${SIP_AUTH}, ${SIP_TRANSPORT}, rtp ${SIP_RTP_START}-${SIP_RTP_END})"

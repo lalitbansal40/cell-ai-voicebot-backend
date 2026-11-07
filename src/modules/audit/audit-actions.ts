@@ -215,6 +215,8 @@ export const AUDIT_ACTIONS = [
   // a superadmin set an account's own Cell24x7 login / its result webhook
   'voice_api.credentials_changed',
   'voice_api.account_webhook_registered',
+  // a superadmin set / removed an account's own SIP trunk
+  'account.sip_trunk_changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

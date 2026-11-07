@@ -22,6 +22,8 @@ export interface SipLineConfig {
 
 export interface SipCallRequest extends StartCallRequest {
   callerId?: string | null;
+  /** The account's own trunk endpoint (`acc-<id>`); default the server trunk. */
+  trunk?: string | null;
   amd?: 'off' | 'hangup' | 'leave_message';
 }
 
@@ -218,7 +220,7 @@ export class SipTelephonyProvider implements TelephonyProvider {
       callId: request.callId,
       to: request.to,
       callerId: request.callerId ?? this.config.defaultCallerId,
-      trunk: this.config.trunk,
+      trunk: request.trunk ?? this.config.trunk,
       format: this.config.format,
       ringTimeoutSec: this.config.ringTimeoutSec,
       mediaTimeoutSec: this.config.mediaTimeoutSec,
