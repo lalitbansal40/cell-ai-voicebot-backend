@@ -57,7 +57,7 @@ describe('account SIP trunks', () => {
     expect(objects.map((o) => `${o.configClass}/${o.type}/${o.id}`)).toEqual([
       `res_pjsip/aor/acc-${ACC}`,
       `res_pjsip/endpoint/acc-${ACC}`,
-      `res_pjsip_endpoint_identifier_ip/identify/acc-${ACC}-identify`,
+      `res_pjsip/identify/acc-${ACC}-identify`,
     ]);
     const [aor, endpoint, identify] = objects;
     expect(field(aor!, 'contact')).toBe('sip:203.0.113.20:5060');
@@ -95,8 +95,8 @@ describe('account SIP trunks', () => {
       `/asterisk/config/dynamic/res_pjsip/auth/acc-${ACC}-auth`,
       `/asterisk/config/dynamic/res_pjsip/aor/acc-${ACC}`,
       `/asterisk/config/dynamic/res_pjsip/endpoint/acc-${ACC}`,
-      `/asterisk/config/dynamic/res_pjsip_endpoint_identifier_ip/identify/acc-${ACC}-identify`,
-      `/asterisk/config/dynamic/res_pjsip_outbound_registration/registration/acc-${ACC}-reg`,
+      `/asterisk/config/dynamic/res_pjsip/identify/acc-${ACC}-identify`,
+      `/asterisk/config/dynamic/res_pjsip/registration/acc-${ACC}-reg`,
     ]);
     expect(ari.calls.filter((c) => c.method === 'DELETE')).toHaveLength(5);
     // removal tolerates objects Asterisk does not have

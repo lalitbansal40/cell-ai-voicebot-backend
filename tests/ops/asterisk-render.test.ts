@@ -92,6 +92,9 @@ describe('asterisk config render (ADR 0050)', () => {
     expect(r.files['pjsip.conf']).toContain('[transport-udp]');
     expect(r.files['sorcery.conf']).toContain('endpoint=memory');
     expect(r.files['sorcery.conf']).toContain('registration=memory');
+    expect(r.files['sorcery.conf']).toContain('identify=memory');
+    // identify / registration in their own sections, or their modules do not load
+    expect(r.files['sorcery.conf']).toContain('[res_pjsip_outbound_registration]');
   });
 
   it('refuses unsafe or incomplete settings', () => {

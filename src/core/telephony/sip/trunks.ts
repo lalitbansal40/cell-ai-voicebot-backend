@@ -83,14 +83,14 @@ export const trunkObjects = (accountId: string, t: TrunkSpec): TrunkObject[] => 
     ],
   });
   out.push({
-    configClass: 'res_pjsip_endpoint_identifier_ip',
+    configClass: 'res_pjsip',
     type: 'identify',
     id: `${id}-identify`,
     fields: [f('endpoint', id), f('match', (t.trunkIps.length ? t.trunkIps : [t.host]).join(','))],
   });
   if (register) {
     out.push({
-      configClass: 'res_pjsip_outbound_registration',
+      configClass: 'res_pjsip',
       type: 'registration',
       id: `${id}-reg`,
       fields: [
@@ -112,8 +112,8 @@ export const trunkObjects = (accountId: string, t: TrunkSpec): TrunkObject[] => 
 const ALL_TYPES = (accountId: string) => {
   const id = trunkEndpointOf(accountId);
   return [
-    { configClass: 'res_pjsip_outbound_registration', type: 'registration', id: `${id}-reg` },
-    { configClass: 'res_pjsip_endpoint_identifier_ip', type: 'identify', id: `${id}-identify` },
+    { configClass: 'res_pjsip', type: 'registration', id: `${id}-reg` },
+    { configClass: 'res_pjsip', type: 'identify', id: `${id}-identify` },
     { configClass: 'res_pjsip', type: 'endpoint', id },
     { configClass: 'res_pjsip', type: 'aor', id },
     { configClass: 'res_pjsip', type: 'auth', id: `${id}-auth` },
