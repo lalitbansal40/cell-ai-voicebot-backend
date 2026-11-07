@@ -100,7 +100,7 @@ export const compileAgent = (agent: AiAgentDoc, options: CompileOptions): Compil
   const languageBlock =
     agent.languageMode === 'fixed'
       ? `Always reply in ${LANGUAGE_NAMES[agent.language]}, even if the customer uses another language.`
-      : `Reply in the language the customer uses: Hindi (Devanagari script), English, or Hinglish (Hindi in Roman script). Start in ${LANGUAGE_NAMES[agent.language]} and switch when the customer switches.`;
+      : `Start in ${LANGUAGE_NAMES[agent.language]}. Then always reply in the language the customer is speaking — whatever it is: Hindi, English, Hinglish (Hindi in Roman script), Marathi, Gujarati, Bengali, Punjabi, Tamil, Telugu, Kannada, Malayalam, Odia, Urdu or any other. If the customer switches language, switch with them in your very next reply; if they mix languages, mix the same way. Keep names, amounts and dates correct in that language. If you cannot tell the language, keep the current one and ask which language they prefer.`;
   const styleBlock =
     options.channel === 'voice'
       ? 'This is a phone call. Keep each reply short (1–2 sentences) and conversational. No lists, symbols or emojis. Read amounts and dates naturally.'

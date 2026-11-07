@@ -8,6 +8,8 @@ const LANGUAGE_NOTE: Record<string, string> = {
   hi: 'Speak in natural Hindi.',
   en: 'Speak in clear Indian English.',
   hinglish: 'Speak in natural Hinglish (Hindi and English mixed), Indian accent.',
+  // agents in auto language mode: the text may be in any Indian (or other) language
+  auto: 'Speak naturally in the language the text is written in, with a native Indian accent for Indian languages.',
 };
 
 export class TtsError extends Error {

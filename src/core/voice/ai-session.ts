@@ -178,7 +178,8 @@ class LiveAiSession {
         bargeIn: agent.callBehaviour.bargeIn,
         rate: io.leg.rate,
         language: agent.languageMode === 'auto' ? null : (STT_LANG[agent.language] ?? null),
-        speechLanguage: compiled.language,
+        // auto: the voice follows whatever language the reply is in
+        speechLanguage: agent.languageMode === 'auto' ? 'auto' : compiled.language,
         ...(realtime ? {} : { turn: (text: string) => this.chatTurn(text) }),
       });
     } catch (err) {
