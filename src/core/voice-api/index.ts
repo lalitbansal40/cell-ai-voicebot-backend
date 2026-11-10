@@ -19,7 +19,7 @@ export type VoiceApiEnv = Pick<
   | 'VOICE_API_FAKE_DELAY_MS'
 >;
 
-/** The voice broadcast client of this install; `null` when `VOICE_API_PROVIDER=off`. */
+/** Optional shared platform login; account API keys work independently when this is `null`. */
 export const createVoiceApiClient = (
   env: VoiceApiEnv,
   deps: { redis: Redis; prefix?: string },
@@ -40,7 +40,7 @@ export const createVoiceApiClient = (
 
 let current: VoiceApiClient | null = null;
 
-/** Process-wide client (set by the server; tests set their own). */
+/** Process-wide shared platform client (set by the server; tests set their own). */
 export const setVoiceApiClient = (client: VoiceApiClient | null): void => {
   current = client;
 };

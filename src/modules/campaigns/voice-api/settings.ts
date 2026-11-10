@@ -79,9 +79,7 @@ export const voiceSettingsProblems = async (
     } else v.audioSec = Math.max(1, Math.ceil(audio.durationMs / 1000));
   } else {
     const ivrId = v.content.ivrId;
-    const ivr = settings.ivrIds.includes(ivrId)
-      ? (await accountIvrs(accountId)).find((i) => i.id === ivrId)
-      : undefined;
+    const ivr = (await accountIvrs(accountId)).find((i) => i.id === ivrId);
     if (!ivr) {
       details.push({
         path: 'voiceApi.content.ivrId',
@@ -132,7 +130,7 @@ export const voiceRunProblems = async (campaign: CampaignDoc): Promise<ErrorDeta
       ? []
       : [{ path: 'voiceApi.content.flowAudioId', message: 'The audio was deleted' }];
   }
-  return settings.ivrIds.includes(content.ivrId)
+  return (await accountIvrs(campaign.accountId)).some((i) => i.id === content.ivrId)
     ? []
     : [
         {

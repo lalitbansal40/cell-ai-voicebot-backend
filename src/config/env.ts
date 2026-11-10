@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { isGstStateCode } from '../shared/gst-states';
 import { isValidGstin } from '../shared/gstin';
 
+import { VOICE_API_CONFIG } from './voice-api';
+
 /**
  * Environment configuration (ADR 0006, docs/conventions/secrets.md).
  * The ONLY place that reads `process.env`. Invalid or missing variables stop
@@ -32,7 +34,7 @@ export const META_GRAPH_DEFAULT_URL = 'https://graph.facebook.com';
 const DEV_META_VERIFY_TOKEN = 'dev-meta-verify-token';
 const DEV_FAKE_META_APP_SECRET = 'dev-fake-meta-app-secret';
 /** Cell24x7 Voice API (partner endpoints). */
-export const CELL24X7_VOICE_DEFAULT_URL = 'https://voice.truebeeps.com/api/v1/voice/partner';
+export const CELL24X7_VOICE_DEFAULT_URL = VOICE_API_CONFIG.baseUrl;
 const DEV_VOICE_API_WEBHOOK_SECRET = 'dev-voice-api-webhook-secret-not-for-production';
 
 const RawEnvSchema = z.object({
@@ -268,7 +270,7 @@ const RawEnvSchema = z.object({
   SIP_INBOUND_RESERVED_CHANNELS: z.coerce.number().int().min(0).max(499).default(0),
   SIP_INBOUND_RING_MAX_SEC: z.coerce.number().int().min(10).max(300).default(120),
 
-  // Recorded-voice / IVR campaigns over the Cell24x7 Voice API (VAPI); `off` hides the feature
+  // Optional shared platform login. Accounts' own logins use config/voice-api.ts without env setup.
   VOICE_API_PROVIDER: z.enum(['off', 'fake', 'cell24x7']).default('off'),
   CELL24X7_VOICE_BASE_URL: z
     .string()
@@ -278,12 +280,22 @@ const RawEnvSchema = z.object({
   CELL24X7_VOICE_CALLER_ID: z
     .string()
     .regex(/^\d{10}$/, { message: 'must be 10 digits' })
-    .default('9999999999'),
+    .default(VOICE_API_CONFIG.callerId),
   CELL24X7_WEBHOOK_SECRET: optionalString,
-  VOICE_API_BATCH_SIZE: z.coerce.number().int().min(1).max(5000).default(200),
-  VOICE_API_LINES: z.coerce.number().int().min(1).max(500).default(4),
-  VOICE_API_POLL_SEC: z.coerce.number().int().min(15).max(3600).default(120),
-  VOICE_API_FAKE_DELAY_MS: z.coerce.number().int().min(0).max(600_000).default(2000),
+  VOICE_API_BATCH_SIZE: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(5000)
+    .default(VOICE_API_CONFIG.batchSize),
+  VOICE_API_LINES: z.coerce.number().int().min(1).max(500).default(VOICE_API_CONFIG.lines),
+  VOICE_API_POLL_SEC: z.coerce.number().int().min(15).max(3600).default(VOICE_API_CONFIG.pollSec),
+  VOICE_API_FAKE_DELAY_MS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(600_000)
+    .default(VOICE_API_CONFIG.fakeDelayMs),
 
   CLIENT_SSH_KEY_PATH: optionalString,
 });

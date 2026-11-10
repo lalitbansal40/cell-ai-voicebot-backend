@@ -7,6 +7,8 @@ import { WebSocket } from 'ws';
 import { getEmail, MemoryEmailProvider } from '../../src/core/email';
 import { getRealtime, WsTicketService } from '../../src/core/realtime';
 import { notifyUser } from '../../src/core/realtime/notify';
+import { getVoiceApiClient } from '../../src/core/voice-api';
+import { getVoiceJobs } from '../../src/modules/campaigns/voice-api/jobs';
 import { startServer, type RunningServer } from '../../src/server';
 import { createLogger } from '../../src/shared/logger';
 import { createTestAccount } from '../helpers/auth';
@@ -78,6 +80,11 @@ describe('startServer (e2e)', () => {
   it('listens on a random port, on the HOST address only', () => {
     expect(running.port).toBeGreaterThan(0);
     expect(running.server.address()).toMatchObject({ address: '127.0.0.1' });
+  });
+
+  it('starts voice jobs without a shared platform login so dashboard API keys can run campaigns', () => {
+    expect(getVoiceApiClient()).toBeNull();
+    expect(getVoiceJobs()).not.toBeNull();
   });
 
   it('serves /health and /ready with real dependencies', async () => {

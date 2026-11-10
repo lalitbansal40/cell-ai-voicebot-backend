@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import type { Types } from 'mongoose';
 
 import { getEnv } from '../../config/env';
+import { VOICE_API_CONFIG } from '../../config/voice-api';
 import { getVoiceApiClient } from '../../core/voice-api';
 import type { VoiceIvr } from '../../core/voice-api/types';
 import {
@@ -42,8 +43,8 @@ import {
   voiceWebhookUrl,
 } from './status';
 
-/** The install has a voice provider (`VOICE_API_PROVIDER` not `off`). */
-export const voiceProviderOn = (): boolean => getVoiceApiClient() !== null;
+/** Provider support ships with the code; account credentials are configured in the dashboard. */
+export const voiceProviderOn = (): boolean => VOICE_API_CONFIG.enabled;
 
 /** The account's recorded-voice switches (never its credentials). */
 export const voiceSettingsOf = (
@@ -69,13 +70,14 @@ export const voiceCredentialsView = (
   };
 };
 
-/** The account's recorded-voice settings; `enabled` only when the install has a provider too. */
+/** Recorded voice needs an enabled account and either its own token or a shared platform login. */
 export const accountVoiceApi = async (accountId: Types.ObjectId | string) => {
   const account = await AccountModel.findById(accountId)
     .select({ voiceApi: 1 })
     .lean<{ voiceApi?: AccountVoiceApi }>();
   const settings = voiceSettingsOf(account);
-  return { ...settings, enabled: settings.enabled && voiceProviderOn() };
+  const connected = usesOwnToken(credentialsOf(account?.voiceApi)) || getVoiceApiClient() !== null;
+  return { ...settings, enabled: settings.enabled && voiceProviderOn() && connected };
 };
 
 /** Throws unless the account may run recorded-voice campaigns. */
@@ -230,7 +232,7 @@ export const adminVoiceStatus = async () => {
     .limit(100)
     .lean();
   return {
-    provider: env.VOICE_API_PROVIDER,
+    provider: voiceProviderOn() ? (client?.provider ?? VOICE_API_CONFIG.provider) : 'off',
     tokenConfigured:
       env.VOICE_API_PROVIDER === 'cell24x7' ? Boolean(env.CELL24X7_VOICE_API_TOKEN) : false,
     webhook: {
@@ -314,6 +316,11 @@ export const setVoiceCredentials = async (
     throw new AppError('VOICE_API_NOT_ENABLED', 'No voice provider on this server.');
   const before = credentialsOf(account.voiceApi);
   if (body.mode === 'platform') {
+    if (!getVoiceApiClient())
+      throw new AppError(
+        'VOICE_API_NOT_ENABLED',
+        "No shared platform login is configured. Connect this account's own Cell24x7 API key.",
+      );
     await AccountModel.updateOne(
       { _id: account._id },
       { $set: { 'voiceApi.credentials': { ...DEFAULT_VOICE_CREDENTIALS } } },

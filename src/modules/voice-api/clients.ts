@@ -3,6 +3,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { Types } from 'mongoose';
 
 import { getEnv } from '../../config/env';
+import { VOICE_API_CONFIG } from '../../config/voice-api';
 import {
   Cell24x7VoiceClient,
   FakeVoiceClient,
@@ -20,7 +21,8 @@ import { open, secretBoxKey } from '../../shared/crypto/secret-box';
 /**
  * Which Cell24x7 login an account uses (per-account tokens): the platform client from env,
  * or a client with the account's own sealed token. Clients are cached for a minute and
- * dropped when the token changes. With the fake provider every account shares the fake.
+ * dropped when the token changes. An own login needs no platform client or voice env settings.
+ * With the fake provider every account shares the fake.
  */
 
 const CACHE_MS = 60_000;
@@ -36,8 +38,8 @@ export const usesOwnToken = (c: AccountVoiceCredentials): boolean =>
 
 /** A client for a token (fake provider: the shared fake; never logs the token). */
 export const clientForToken = (token: string): VoiceApiClient | null => {
+  if (!VOICE_API_CONFIG.enabled) return null;
   const platform = getVoiceApiClient();
-  if (!platform) return null;
   if (platform instanceof FakeVoiceClient) return platform;
   return new Cell24x7VoiceClient({ baseUrl: getEnv().CELL24X7_VOICE_BASE_URL, token });
 };
@@ -54,8 +56,8 @@ export const accountUsesOwnToken = async (accountId: Types.ObjectId | string): P
 export const voiceClientFor = async (
   accountId: Types.ObjectId | string,
 ): Promise<VoiceApiClient | null> => {
+  if (!VOICE_API_CONFIG.enabled) return null;
   const platform = getVoiceApiClient();
-  if (!platform) return null;
   const account = await AccountModel.findById(accountId)
     .select({ voiceApi: 1 })
     .lean<{ voiceApi?: AccountVoiceApi }>();
@@ -65,7 +67,8 @@ export const voiceClientFor = async (
   const hit = cache.get(key);
   if (hit && hit.tokenSealed === c.tokenSealed && Date.now() - hit.at < CACHE_MS) return hit.client;
   const token = open(secretBoxKey(getEnv()), c.tokenSealed as string);
-  const client = clientForToken(token) ?? platform;
+  const client = clientForToken(token);
+  if (!client) return null;
   cache.set(key, { at: Date.now(), tokenSealed: c.tokenSealed as string, client });
   return client;
 };

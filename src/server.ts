@@ -5,6 +5,7 @@ import type { Types } from 'mongoose';
 
 import { createApp } from './app';
 import { getEnv, type Env } from './config/env';
+import { VOICE_API_CONFIG } from './config/voice-api';
 import { createAiProvider } from './core/ai';
 import { queueAiJobs } from './core/ai/jobs';
 import { queueBillingJobs } from './core/billing/jobs';
@@ -182,11 +183,17 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   }
 
   const storage = createStorage(env, logger);
-  // VAPI: recorded-voice / IVR campaigns over the Cell24x7 Voice API (null when off)
+  // Optional shared platform login; own account logins work without it.
   const voiceApi = createVoiceApiClient(env, { redis });
   setVoiceApiClient(voiceApi);
-  if (voiceApi) {
-    logger.info({ provider: voiceApi.provider }, 'voice api: provider ready');
+  if (VOICE_API_CONFIG.enabled) {
+    logger.info(
+      {
+        provider: voiceApi?.provider ?? VOICE_API_CONFIG.provider,
+        platformLogin: voiceApi !== null,
+      },
+      'voice api: ready for account logins',
+    );
     // any process may queue batch ticks, polls and results on the `campaigns` queue
     setVoiceJobs(queueVoiceJobs(createQueue(QUEUES.campaigns, queueDeps)));
     setVoiceStorage(storage);
@@ -199,6 +206,7 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
       if (voiceApi instanceof FakeVoiceClient) voiceApi.stop();
       setVoiceApiClient(null);
       setVoiceJobs(null);
+      setVoiceStorage(undefined);
     },
     5,
   );

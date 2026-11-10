@@ -24,6 +24,12 @@ Status map: `PP1` / `CALLING` / `Submitted` → dialing; `ANSWERED` → complete
 
 ## Flow
 
+Cell24x7 account logins need no voice environment changes. Non-secret defaults ship in
+`src/config/voice-api.ts` (provider URL, caller ID fallback, batch size, gateway lines and
+poll interval). After deployment, Admin → Accounts → account → **SIP trunk → Cell24x7 API
+key** checks and encrypts the key, registers an automatically generated account webhook,
+then enables recorded voice. Campaign queues start even without a shared platform login.
+
 1. Superadmin turns recorded voice on for the account (Admin → account → Recorded voice),
    assigns IVR menus and sets `Recorded voice (₹ per 15 s per number)` in the rate card.
    A price of 0 means "not priced": campaigns can be drafted but not started.
@@ -52,16 +58,20 @@ Status map: `PP1` / `CALLING` / `Submitted` → dialing; `ANSWERED` → complete
 
 ## Security
 
-- Token only in the server env (`CELL24X7_VOICE_API_TOKEN`); never logged, never returned.
+- Account tokens are entered in the dashboard and encrypted in MongoDB; never logged or
+  returned. The optional shared platform login still accepts `CELL24X7_VOICE_API_TOKEN`.
 - The webhook has no signature: the secret path is the only credential and polling
   re-checks every result; unknown request ids are ignored; 600 requests/min per IP.
-- One platform token serves every account: customers never see the provider's audio or
-  IVR lists — only their own audio and IVRs a superadmin assigned.
+- Platform-token accounts see their own audio and assigned IVRs. Own-token accounts see
+  only the runnable IVRs belonging to their own Cell24x7 login.
 - Numbers (10 digits) and the audio file are sent to Cell24x7 (processor). See DATA_MAP.
 
 ## One Cell24x7 login per account
 
-Every account can use **the platform's token** (env `CELL24X7_VOICE_API_TOKEN`, default) or **its own Cell24x7 token** — its own credits, audios, IVRs, caller ID and webhook (the PDF allows one webhook URL per token).
+Every account can use **its own Cell24x7 token without any voice env setup** — its own
+credits, audios, IVRs, caller ID and webhook. An existing shared **platform token** remains
+optional (env `CELL24X7_VOICE_API_TOKEN`). With no shared login, an account must connect its
+own key before running campaigns. The provider allows one webhook URL per token.
 
 Superadmin, **Admin → Accounts → account → Recorded voice → Cell24x7 login**:
 
@@ -83,9 +93,15 @@ Back to **Platform token** removes the account's token. Audit: `voice_api.creden
 
 ## Going live (owner approval and a test number required)
 
-1. Server env: `VOICE_API_PROVIDER=cell24x7`, `CELL24X7_VOICE_API_TOKEN`,
-   `CELL24X7_WEBHOOK_SECRET` (32+ random chars), optional caller ID / batch size; restart.
-2. Admin → System → Recorded voice → **Register webhook** (must show "registered").
-3. Enable the test account, set its price, upload a 10 s audio, run a 1-number campaign to
+1. Deploy API and workers. No new Cell24x7 env variables are required for account logins.
+2. Admin → Accounts → account → SIP trunk → **Cell24x7 API key → Save and connect**.
+   The provider must accept the key and webhook URL; the app uses its existing `APP_URL`.
+3. Set the test account's price, upload a 10 s audio, run a 1-number campaign to
    the owner's phone; check the webhook result, `/details` result and the wallet ledger.
-4. Rollback: `VOICE_API_PROVIDER=off` (feature hidden; nothing else changes).
+4. Turn an account off with its Recorded voice switch. `VOICE_API_PROVIDER=off` disables
+   only the optional shared platform login; own account keys remain available. To disable
+   the integration in code, set `VOICE_API_CONFIG.enabled` to `false` and redeploy.
+
+For the optional shared platform login, keep the existing `VOICE_API_PROVIDER=cell24x7`,
+`CELL24X7_VOICE_API_TOKEN` and `CELL24X7_WEBHOOK_SECRET` configuration and register its
+webhook in Admin → System. Do not put API keys or webhook secrets in the constants file.

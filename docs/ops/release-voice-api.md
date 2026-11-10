@@ -2,7 +2,11 @@
 
 - **Migration** `0025-voice-api` (additive): account `voiceApi` defaults, campaign `voiceApi: null`,
   index `campaign_contact_voice_result`. Down drops the index only.
-- **Env** (all optional while `VOICE_API_PROVIDER=off`, the default): `VOICE_API_PROVIDER`,
+- **Account setup**: deploy, then connect the account's API key in Admin → Accounts →
+  SIP trunk. No Cell24x7 env edits are needed. Public defaults live in
+  `src/config/voice-api.ts`; account keys are encrypted in MongoDB and webhook secrets
+  are generated automatically. Voice queues start without a platform token.
+- **Optional shared-platform env** (`VOICE_API_PROVIDER=off` by default): `VOICE_API_PROVIDER`,
   `CELL24X7_VOICE_BASE_URL`, `CELL24X7_VOICE_API_TOKEN` (secret), `CELL24X7_VOICE_CALLER_ID`,
   `CELL24X7_WEBHOOK_SECRET` (secret), `VOICE_API_BATCH_SIZE`, `VOICE_API_LINES`,
   `VOICE_API_POLL_SEC`, `VOICE_API_FAKE_DELAY_MS`. `fake` is refused in production.
@@ -16,5 +20,6 @@
   `POST /admin/voice-api/webhook`, `GET /admin/voice-api/ivrs`,
   `POST /admin/campaigns/:id/voice-batches/:no/resolve`, `GET /voice-api/ivrs`,
   `POST /webhooks/voice-api/:secret` (public). `GET /phone-line` adds `voiceApi.enabled`.
-- **Order**: migrate → deploy API + workers → set env → Register webhook → enable accounts.
+- **Order**: migrate → deploy API + workers → Save and connect the account's API key → set
+  the account's recorded-voice price. Shared-platform env remains a legacy optional setup.
 - Live checks and deployment need the owner's approval (see the integration guide).
