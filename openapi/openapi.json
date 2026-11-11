@@ -8705,7 +8705,7 @@
           "inbound": {
             "type": "object",
             "properties": {
-              "route": { "type": "string", "enum": ["team", "ai", "ai_then_team"] },
+              "route": { "type": "string", "enum": ["team", "ai", "ai_then_team", "team_then_ai"] },
               "aiProgram": {
                 "type": ["object", "null"],
                 "properties": {

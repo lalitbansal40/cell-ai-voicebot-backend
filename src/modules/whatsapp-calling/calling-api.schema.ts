@@ -1,3 +1,4 @@
+import { INBOUND_ROUTES } from '../../db/models/whatsapp-channel.model';
 import { registry } from '../../shared/openapi/registry';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
@@ -75,7 +76,7 @@ export const CallingSettingsSchema = registry.register(
     callHours: CallingSettingsPatch.shape.callHours.unwrap(),
     callbackPermission: z.boolean(),
     inbound: z.object({
-      route: z.enum(['team', 'ai', 'ai_then_team']),
+      route: z.enum(INBOUND_ROUTES),
       aiProgram: ProgramBody.nullable(),
       ringTimeoutSec: z.number(),
       ringUserIds: z.array(z.string()).nullable(),
