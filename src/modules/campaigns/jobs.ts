@@ -5,6 +5,7 @@ import { Types } from 'mongoose';
 
 import { availableMicros, walletEvents, type WalletChange } from '../../core/billing/events';
 import type { StorageProvider } from '../../core/storage';
+import { CallModel } from '../../db/models/call.model';
 import { CampaignContactModel } from '../../db/models/campaign-contact.model';
 import { CampaignModel, type CampaignDoc } from '../../db/models/campaign.model';
 import { AppError } from '../../shared/errors/app-error';
@@ -263,6 +264,22 @@ export const wireCampaigns = (deps: {
     hangUpLive: async (c) => {
       await deps.calls.hangupCampaign(c._id.toString());
       await deps.calling?.calls?.hangupCampaign(c._id.toString());
+      if (c.talkMode === 'team') {
+        // CM: the agents' calls run in the API process: ended over the call bus
+        const rows = await CallModel.find({
+          campaignId: c._id,
+          status: { $in: ['queued', 'ringing', 'in_progress'] },
+        })
+          .select({ _id: 1 })
+          .lean<{ _id: Types.ObjectId }[]>();
+        await Promise.all(
+          rows.map((row) =>
+            deps.calls
+              .hangupAnywhere(c.accountId.toString(), row._id.toString())
+              .catch(() => undefined),
+          ),
+        );
+      }
     },
     resumeBlocker,
   });

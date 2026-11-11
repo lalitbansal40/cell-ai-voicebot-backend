@@ -194,6 +194,8 @@ export class CampaignDispatcher {
         continue;
       }
       if (!campaign.snapshot.done) continue; // the sweep resumes it
+      // CM: a team campaign is dialled by its agents (one call each, from their browser)
+      if (campaign.talkMode === 'team') continue;
       if (!(await this.stillRunnable(campaign))) {
         await pauseCampaignDoc(campaign, 'flow_not_runnable', null).catch(() => undefined);
         continue;

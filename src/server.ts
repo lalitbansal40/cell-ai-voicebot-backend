@@ -64,6 +64,7 @@ import { CampaignDispatcher } from './modules/campaigns/dispatcher';
 import { queueCampaignExports, queueCampaignJobs, wireCampaigns } from './modules/campaigns/jobs';
 import { resetProgressThrottle } from './modules/campaigns/progress';
 import { DialRate } from './modules/campaigns/slots';
+import { wireTeamCalls } from './modules/campaigns/team/wire';
 import { setVoiceStorage } from './modules/campaigns/voice-api/batch';
 import { queueVoiceJobs, setVoiceJobs } from './modules/campaigns/voice-api/jobs';
 import { acceptVoiceResult } from './modules/campaigns/voice-api/results';
@@ -338,6 +339,9 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
           },
         })
       : null;
+  // CM: team campaign calls end in this process (their agents' browsers talk to it)
+  if (env.CAMPAIGNS_ENABLED)
+    wireTeamCalls({ calls: callManager, whatsappCalls: calling?.calls ?? null });
   if (calling?.calls) {
     const calls = calling.calls;
     callManager.setWhatsAppAttach((input, leg) => calls.attachAgent(input, leg));

@@ -1221,7 +1221,9 @@ export const estimateCampaignCost = async (req: Request, id: string) => {
     ...(campaign.line === 'whatsapp'
       ? {
           transportNote:
-            'WhatsApp estimate uses the highest quoted audience-market call rate, plus AI usage; actual charges follow talk time.',
+            campaign.talkMode === 'team'
+              ? 'WhatsApp estimate uses the highest quoted audience-market call rate; your team talks, so no AI minutes are charged.'
+              : 'WhatsApp estimate uses the highest quoted audience-market call rate, plus AI usage; actual charges follow talk time.',
         }
       : {}),
   };

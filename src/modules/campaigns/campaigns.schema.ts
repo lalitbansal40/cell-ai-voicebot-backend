@@ -688,3 +688,96 @@ registry.registerPath({
   request: { params: CampaignParams, ...json(ExportCampaignBody) },
   responses: { 202: ok(ExportJobSchema, 'Queued'), ...writes },
 });
+
+// CM — team calling: the agents' calling session of a team campaign (browser only)
+export const TeamCallParams = z.strictObject({ id: ObjectIdSchema, callId: ObjectIdSchema });
+export const TeamWrapUpBody = z.strictObject({
+  disposition: z.string().trim().max(64).nullable().optional(),
+  note: z.string().max(2000).nullable().optional(),
+});
+const AGENT_VIEW_STATES = ['ready', 'on_call', 'wrap_up', 'paused', 'away'] as const;
+export const TeamSessionSchema = registry.register(
+  'CampaignTeamSession',
+  z.object({
+    agents: z.array(
+      z.object({
+        userId: z.string(),
+        name: z.string(),
+        state: z.enum(AGENT_VIEW_STATES),
+        callId: z.string().nullable(),
+        since: z.string().datetime(),
+        wrapUpUntil: z.string().datetime().nullable(),
+      }),
+    ),
+    ready: z.number().int(),
+    onCall: z.number().int(),
+  }),
+);
+export const TeamNextSchema = registry.register(
+  'CampaignTeamNext',
+  z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('call'),
+      callId: z.string(),
+      transport: z.enum(['sip', 'whatsapp']),
+      contact: z.object({ id: z.string(), name: z.string().nullable() }),
+      mediaTicket: z.string(),
+      expiresAt: z.string(),
+      wsPath: z.string(),
+    }),
+    z.object({
+      kind: z.literal('wait'),
+      reason: z.enum(['not_running', 'window', 'wallet', 'no_contacts', 'line', 'busy']),
+      until: z.string().datetime().nullable(),
+    }),
+  ]),
+);
+export const TeamWrapUpSchema = registry.register(
+  'CampaignTeamWrapUp',
+  z.object({ callId: z.string(), disposition: z.string().nullable() }),
+);
+for (const action of ['join', 'leave', 'heartbeat', 'pause', 'ready'] as const)
+  registry.registerPath({
+    method: 'post',
+    path: `${base}/{id}/session/${action}`,
+    tags,
+    summary: {
+      join: 'Join the calling session of a team campaign (calls.trigger) — 403 AGENT_NOT_IN_CAMPAIGN',
+      leave: 'Leave the calling session (calls.trigger)',
+      heartbeat: 'Still here (every 10 s; 30 s silent = away, no calls) — 409 AGENT_SESSION_GONE',
+      pause: 'Take a break: no calls until ready (calls.trigger)',
+      ready: 'Back from a break or wrap-up (calls.trigger)',
+    }[action],
+    security: bearer,
+    request: { params: CampaignParams },
+    responses: { 200: ok(TeamSessionSchema), ...writes },
+  });
+registry.registerPath({
+  method: 'get',
+  path: `${base}/{id}/session`,
+  tags,
+  summary: 'Who is calling for this team campaign and what each agent is doing (campaigns.read)',
+  security: bearer,
+  request: { params: CampaignParams },
+  responses: { 200: ok(TeamSessionSchema), ...common },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/session/next`,
+  tags,
+  summary:
+    "The agent's next call: a human call to the next dialable contact with a media ticket, or why to wait (calls.trigger) — 409 AGENT_CALL_ACTIVE / AGENT_SESSION_GONE",
+  security: bearer,
+  request: { params: CampaignParams },
+  responses: { 200: ok(TeamNextSchema), ...writes },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/{id}/calls/{callId}/wrap-up`,
+  tags,
+  summary:
+    "Save the outcome and a note of the agent's finished call; the agent is ready again (calls.trigger) — 422 DISPOSITION_UNKNOWN",
+  security: bearer,
+  request: { params: TeamCallParams, ...json(TeamWrapUpBody) },
+  responses: { 200: ok(TeamWrapUpSchema), ...writes },
+});

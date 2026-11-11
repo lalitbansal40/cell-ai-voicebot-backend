@@ -449,7 +449,16 @@ export const createApiRouter = ({
       ...(flows.rateLimitStores?.audio ? { uploadStore: flows.rateLimitStores.audio } : {}),
     }),
   );
-  router.use('/campaigns', createCampaignsRouter(campaigns));
+  router.use(
+    '/campaigns',
+    createCampaignsRouter({
+      ...campaigns,
+      team: {
+        manager: calls?.manager,
+        whatsappCalls: whatsappRuntime?.calling?.calls ?? null,
+      },
+    }),
+  );
   router.use('/calls', createCallInsightsRouter({ jobs: ai.jobs ?? unavailableAiJobs }));
   router.use('/calls', createAfterCallRouter());
   router.use('/outcome-rules', createOutcomeRulesRouter());

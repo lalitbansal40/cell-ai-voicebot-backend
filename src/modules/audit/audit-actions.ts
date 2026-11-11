@@ -217,6 +217,8 @@ export const AUDIT_ACTIONS = [
   'voice_api.account_webhook_registered',
   // a superadmin set / removed an account's own SIP trunk
   'account.sip_trunk_changed',
+  'campaign.agent_joined',
+  'campaign.agent_left',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

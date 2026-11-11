@@ -23,7 +23,13 @@ export const FINAL_DISPOSITIONS = new Set([
 ]);
 
 /** Call ends that are not the customer's fault: re-dialed, not counted as an attempt. */
-export const NOT_COUNTED: readonly CallEndReason[] = ['server_shutdown', 'limit', 'wallet_empty'];
+export const NOT_COUNTED: readonly CallEndReason[] = [
+  'server_shutdown',
+  'limit',
+  'wallet_empty',
+  // CM: a team call whose agent never joined (browser closed) — the customer is called again
+  'no_agent_available',
+];
 
 /** Technical failures (circuit breaker). */
 export const TECHNICAL: readonly CallEndReason[] = [

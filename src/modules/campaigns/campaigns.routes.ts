@@ -21,6 +21,8 @@ import {
   ExportCampaignBody,
   ListCampaignContactsQuery,
   ListCampaignsQuery,
+  TeamCallParams,
+  TeamWrapUpBody,
   UpdateCampaignBody,
 } from './campaigns.schema';
 import {
@@ -46,17 +48,29 @@ import {
   type CampaignExportJobs,
 } from './export';
 import { campaignSummary } from './summary';
+import {
+  joinSession,
+  leaveSession,
+  nextTeamCall,
+  sessionOf,
+  updateSession,
+  wrapUpCall,
+  type TeamDeps,
+} from './team/team.service';
 
 export interface CampaignsRouterDeps {
   exports?: CampaignExportJobs;
   /** `rl:campaign:` writes per user per minute. */
   rateLimitStore?: Store;
+  /** CM: team calling starts the agents' calls in this process. */
+  team?: TeamDeps;
 }
 
 /** `/api/v1/campaigns` — campaigns, their contacts, runs and exports (PHASE_8_PLAN §1r). */
 export const createCampaignsRouter = ({
   exports = unavailableCampaignExports,
   rateLimitStore,
+  team = {},
 }: CampaignsRouterDeps = {}): Router => {
   const router = Router();
   router.use(authenticate({ apiKeys: true }));
@@ -214,6 +228,54 @@ export const createCampaignsRouter = ({
       { params: CampaignParams, body: ExportCampaignBody },
       async ({ params, body, req, res }) => {
         accepted(res, await createCampaignExport(req, params.id, body.format, exports));
+      },
+    ),
+  );
+  // CM — team calling: an agent's calling session (browser only, never impersonated)
+  const agent = [requirePermission('calls.trigger'), blockWhenImpersonating()] as RequestHandler[];
+  router.get(
+    '/:id/session',
+    read,
+    ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
+      ok(res, await sessionOf(req, params.id));
+    }),
+  );
+  router.post(
+    '/:id/session/join',
+    ...agent,
+    ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
+      ok(res, await joinSession(req, params.id));
+    }),
+  );
+  router.post(
+    '/:id/session/leave',
+    ...agent,
+    ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
+      ok(res, await leaveSession(req, params.id));
+    }),
+  );
+  for (const action of ['heartbeat', 'pause', 'ready'] as const)
+    router.post(
+      `/:id/session/${action}`,
+      ...agent,
+      ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
+        ok(res, await updateSession(req, params.id, action));
+      }),
+    );
+  router.post(
+    '/:id/session/next',
+    ...agent,
+    ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
+      ok(res, await nextTeamCall(req, params.id, team));
+    }),
+  );
+  router.post(
+    '/:id/calls/:callId/wrap-up',
+    ...agent,
+    ...handle(
+      { params: TeamCallParams, body: TeamWrapUpBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await wrapUpCall(req, params.id, params.callId, body));
       },
     ),
   );
