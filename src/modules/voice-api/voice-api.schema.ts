@@ -53,6 +53,8 @@ export const VoiceCredentialsSchema = registry.register(
     callerId: z.string().nullable(),
     verifiedAt: z.string().nullable(),
     webhookRegisteredAt: z.string().nullable(),
+    /** Saved but not checked yet: why this server could not reach Cell24x7. */
+    checkError: z.string().nullable(),
   }),
 );
 

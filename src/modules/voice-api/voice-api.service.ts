@@ -4,7 +4,7 @@ import type { Types } from 'mongoose';
 import { getEnv } from '../../config/env';
 import { VOICE_API_CONFIG } from '../../config/voice-api';
 import { getVoiceApiClient } from '../../core/voice-api';
-import type { VoiceIvr } from '../../core/voice-api/types';
+import { VoiceApiError, type VoiceIvr } from '../../core/voice-api/types';
 import {
   AccountModel,
   DEFAULT_ACCOUNT_VOICE_API,
@@ -16,7 +16,7 @@ import {
 import { CampaignModel } from '../../db/models/campaign.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { toObjectId } from '../../shared/auth/tenant';
-import { seal, secretBoxKey } from '../../shared/crypto/secret-box';
+import { open, seal, secretBoxKey } from '../../shared/crypto/secret-box';
 import {
   AppError,
   ConflictError,
@@ -67,6 +67,8 @@ export const voiceCredentialsView = (
     callerId: own ? c.callerId : null,
     verifiedAt: own ? (c.verifiedAt?.toISOString() ?? null) : null,
     webhookRegisteredAt: own ? (c.webhookRegisteredAt?.toISOString() ?? null) : null,
+    /** Saved but not checked: this server could not reach Cell24x7 (the reason). */
+    checkError: own ? (c.checkError ?? null) : null,
   };
 };
 
@@ -338,22 +340,40 @@ export const setVoiceCredentials = async (
     ...(body.callerId !== undefined ? { callerId: body.callerId } : {}),
   };
   if (token) {
-    // the token must work before it is saved (Cell24x7 lists the account's IVRs)
+    // the token is checked before it is saved (Cell24x7 lists the account's IVRs). A refused
+    // token is never saved; when this server cannot reach Cell24x7 at all (firewall, DNS), it
+    // is saved as "not checked" so setup can finish — it works once the network allows it.
     const client = clientForToken(token);
     if (!client) throw new AppError('VOICE_API_NOT_ENABLED');
+    let checkError: string | null = null;
     try {
       await client.ivrs();
     } catch (err) {
-      throw toAppError(err);
+      if (!(err instanceof VoiceApiError && err.network)) throw toAppError(err);
+      checkError = toAppError(err).message;
     }
     next = {
       ...next,
       tokenSealed: seal(secretBoxKey(getEnv()), token),
       tokenHint: token.slice(-4),
-      verifiedAt: new Date(),
+      verifiedAt: checkError ? null : new Date(),
+      checkError,
       // the old webhook belongs to the old token
       ...(before.tokenSealed ? { webhookKeyHash: null, webhookRegisteredAt: null } : {}),
     };
+  }
+  if (!token && before.tokenSealed && before.checkError) {
+    // saved earlier without a check: try the saved token again (the network may be open now)
+    const client = clientForToken(open(secretBoxKey(getEnv()), before.tokenSealed));
+    if (client) {
+      try {
+        await client.ivrs();
+        next = { ...next, verifiedAt: new Date(), checkError: null };
+      } catch (err) {
+        if (!(err instanceof VoiceApiError && err.network)) throw toAppError(err);
+        next = { ...next, checkError: toAppError(err).message };
+      }
+    }
   }
   await AccountModel.updateOne({ _id: account._id }, { $set: { 'voiceApi.credentials': next } });
   forgetVoiceClient(account._id);

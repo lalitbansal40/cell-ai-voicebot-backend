@@ -9,6 +9,7 @@ import {
   type VoiceResultRow,
   type VoiceSubmitInput,
   type VoiceSubmitResult,
+  networkReasonOf,
 } from './types';
 
 /**
@@ -124,8 +125,15 @@ export class Cell24x7VoiceClient implements VoiceApiClient {
         signal: AbortSignal.timeout(timeoutMs),
         redirect: 'error',
       });
-    } catch {
-      throw new VoiceApiError('VOICE_API_UNAVAILABLE', 0, true, `${op}: no answer`);
+    } catch (err) {
+      const reason = networkReasonOf(err);
+      throw new VoiceApiError(
+        'VOICE_API_UNAVAILABLE',
+        0,
+        true,
+        `${op}: no answer (${reason})`,
+        reason,
+      );
     }
     const text = await res.text().catch(() => '');
     let body: z.infer<typeof Envelope> = {};

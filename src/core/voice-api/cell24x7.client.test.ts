@@ -104,6 +104,30 @@ describe('Cell24x7VoiceClient', () => {
     });
   });
 
+  it('names why nothing came back: firewall / timeout / DNS / TLS (no secrets)', async () => {
+    const fail = (err: unknown) => clientWith(vi.fn<typeof fetch>().mockRejectedValue(err));
+    const cause = (code: string) =>
+      Object.assign(new TypeError('fetch failed'), { cause: { code } });
+    const cases: [unknown, string][] = [
+      [cause('UND_ERR_CONNECT_TIMEOUT'), 'connect'],
+      [cause('ECONNREFUSED'), 'connect'],
+      [cause('ENOTFOUND'), 'dns'],
+      [cause('CERT_HAS_EXPIRED'), 'tls'],
+      [Object.assign(new Error('timed out'), { name: 'TimeoutError' }), 'timeout'],
+      [new Error('other'), 'network'],
+    ];
+    for (const [err, reason] of cases) {
+      const e = (await fail(err)
+        .ivrs()
+        .catch((x: unknown) => x)) as VoiceApiError;
+      expect(e).toMatchObject({ code: 'VOICE_API_UNAVAILABLE', status: 0, network: reason });
+      expect(e.message).not.toContain(TOKEN);
+    }
+    // an HTTP answer is not a network failure
+    const http = clientWith(vi.fn<typeof fetch>().mockResolvedValue(reply(502, {})));
+    expect(((await http.ivrs().catch((x: unknown) => x)) as VoiceApiError).network).toBeNull();
+  });
+
   it('reads details rows leniently and pages by 100', async () => {
     const rows = [
       {

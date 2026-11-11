@@ -327,6 +327,10 @@ export const ERROR_CODES = {
     status: 503,
     message: 'The voice provider did not answer. Please try again later.',
   },
+  VOICE_API_UNREACHABLE: {
+    status: 503,
+    message: 'This server cannot reach the voice provider (network / firewall).',
+  },
   // Phase 20 — incoming phone calls
   CALL_ALREADY_ANSWERED: { status: 409, message: 'Someone else already answered this call.' },
   CALL_NOT_RINGING: { status: 409, message: "This call isn't ringing any more." },

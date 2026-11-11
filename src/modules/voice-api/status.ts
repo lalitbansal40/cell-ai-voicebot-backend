@@ -122,6 +122,27 @@ export const toAppError = (
     case 'VOICE_API_NOT_FOUND':
       return new AppError(notFound);
     default:
-      return new AppError('VOICE_API_UNAVAILABLE');
+      return err.network
+        ? new AppError('VOICE_API_UNREACHABLE', unreachableText(err.network))
+        : new AppError('VOICE_API_UNAVAILABLE');
   }
+};
+
+/** What an admin reads when our server cannot reach Cell24x7 at all. */
+export const unreachableText = (reason: string): string => {
+  const host = (() => {
+    try {
+      return new URL(getEnv().CELL24X7_VOICE_BASE_URL).host;
+    } catch {
+      return 'the Cell24x7 API';
+    }
+  })();
+  const why: Record<string, string> = {
+    timeout: 'it did not answer in time',
+    connect: 'the connection was refused or timed out (usually a firewall)',
+    dns: 'the host name could not be found (DNS)',
+    tls: 'the secure (HTTPS) connection failed',
+    network: 'the network request failed',
+  };
+  return `This server cannot reach Cell24x7 (${host}): ${why[reason] ?? why.network}. Ask the server admin to allow outgoing HTTPS (port 443) from this server to ${host}, then try again.`;
 };

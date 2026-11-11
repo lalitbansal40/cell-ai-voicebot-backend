@@ -91,6 +91,17 @@ What changes for an own-token account:
 
 Back to **Platform token** removes the account's token. Audit: `voice_api.credentials_changed`, `voice_api.account_webhook_registered`.
 
+## "This server cannot reach Cell24x7"
+
+The key check calls `GET /ivrs` from **our server**. When nothing comes back (firewall, DNS, TLS, timeout) the key is still saved as _not checked_ and the card shows why. Fix on the server, then press **Save and connect** again (no new key needed):
+
+```bash
+# on the app server (not your laptop)
+curl -sv -m 15 https://voice.truebeeps.com/api/v1/voice/partner/ivrs -o /dev/null
+```
+
+`HTTP 401` = reachable (good). A timeout or "connection refused" = outgoing HTTPS (443) to `voice.truebeeps.com` is blocked by the server / hosting firewall — the client's server admin must allow it.
+
 ## Going live (owner approval and a test number required)
 
 1. Deploy API and workers. No new Cell24x7 env variables are required for account logins.

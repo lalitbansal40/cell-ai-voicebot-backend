@@ -244,6 +244,8 @@ export interface AccountVoiceCredentials {
   webhookRegisteredAt: Date | null;
   /** Last successful check of the token against Cell24x7. */
   verifiedAt: Date | null;
+  /** Why the last check could not reach Cell24x7 (saved anyway); `null` = checked. */
+  checkError?: string | null;
 }
 
 /**

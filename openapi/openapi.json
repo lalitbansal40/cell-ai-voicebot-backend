@@ -1416,9 +1416,17 @@
           "tokenHint": { "type": ["string", "null"] },
           "callerId": { "type": ["string", "null"] },
           "verifiedAt": { "type": ["string", "null"] },
-          "webhookRegisteredAt": { "type": ["string", "null"] }
+          "webhookRegisteredAt": { "type": ["string", "null"] },
+          "checkError": { "type": ["string", "null"] }
         },
-        "required": ["mode", "tokenHint", "callerId", "verifiedAt", "webhookRegisteredAt"]
+        "required": [
+          "mode",
+          "tokenHint",
+          "callerId",
+          "verifiedAt",
+          "webhookRegisteredAt",
+          "checkError"
+        ]
       },
       "VoiceIvr": {
         "type": "object",

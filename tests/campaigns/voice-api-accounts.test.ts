@@ -177,4 +177,33 @@ describe('an account on its own Cell24x7 token', () => {
     expect(ok.status).toBe(200);
     expect((await CampaignContactModel.findById(row?._id).lean())?.status).toBe('completed');
   });
+
+  it('this server cannot reach Cell24x7: the key is saved "not checked" with the reason', async () => {
+    // a closed local port stands in for a firewall that drops the connection
+    process.env.CELL24X7_VOICE_BASE_URL = 'http://127.0.0.1:9/api/v1/voice/partner';
+    resetEnvForTests();
+    setVoiceApiClient(
+      new Cell24x7VoiceClient({ baseUrl: 'http://127.0.0.1:9/api/v1/voice/partner', token: 'p' }),
+    );
+    try {
+      const w = await voiceWorld(storage);
+      const id = w.accountId.toString();
+      const res = await credentials(id, { mode: 'own', token: TOKEN });
+      expect(res.status).toBe(200);
+      expect(res.body.data).toMatchObject({ mode: 'own', tokenHint: '9876', verifiedAt: null });
+      expect(res.body.data.checkError).toMatch(/cannot reach Cell24x7 \(127\.0\.0\.1:9\)/);
+      expect(res.body.data.checkError).toMatch(/allow outgoing HTTPS/);
+      expect(JSON.stringify(res.body)).not.toContain(TOKEN);
+      // the webhook needs the connection: a clear error, not "try again later"
+      const hook = await request(app)
+        .post(`/api/v1/admin/accounts/${id}/voice-api/webhook`)
+        .set(header(superadmin));
+      expect(hook.body.error.code).toBe('VOICE_API_UNREACHABLE');
+    } finally {
+      delete process.env.CELL24X7_VOICE_BASE_URL;
+      resetEnvForTests();
+      setVoiceApiClient(fake);
+      forgetVoiceClient();
+    }
+  });
 });

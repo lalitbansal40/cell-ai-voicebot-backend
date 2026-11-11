@@ -109,17 +109,38 @@ export type VoiceApiErrorCode = (typeof VOICE_API_ERROR_CODES)[number];
  * 5xx, network) — a submit must never be repeated automatically. The message never
  * carries the token, the request body or a phone number.
  */
+/**
+ * Why a request got no answer at all (our server could not reach Cell24x7): `timeout`
+ * (no reply in time), `connect` (connection refused / timed out — usually a firewall),
+ * `dns` (host name not found), `tls` (certificate / HTTPS problem), `network` (other).
+ */
+export type VoiceNetworkReason = 'timeout' | 'connect' | 'dns' | 'tls' | 'network';
+
 export class VoiceApiError extends Error {
   constructor(
     readonly code: VoiceApiErrorCode,
     readonly status: number,
     readonly uncertain: boolean,
     message: string,
+    /** Set when nothing came back from Cell24x7 (status 0). */
+    readonly network: VoiceNetworkReason | null = null,
   ) {
     super(message);
     this.name = 'VoiceApiError';
   }
 }
+
+/** The kind of network failure behind a `fetch` error (no secrets, no URL). */
+export const networkReasonOf = (err: unknown): VoiceNetworkReason => {
+  const e = err as { name?: string; cause?: { code?: string; name?: string } } | null;
+  if (e?.name === 'TimeoutError' || e?.name === 'AbortError') return 'timeout';
+  const code = e?.cause?.code ?? '';
+  if (/ENOTFOUND|EAI_AGAIN/.test(code)) return 'dns';
+  if (/CONNECT_TIMEOUT|ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|ECONNRESET/.test(code))
+    return 'connect';
+  if (/CERT|TLS|SSL|SELF_SIGNED/.test(code)) return 'tls';
+  return 'network';
+};
 
 /** Removes digit runs that could be phone numbers or ids (provider messages, logs). */
 export const scrubMessage = (text: string): string => text.replace(/\d{8,}/g, '…').slice(0, 200);
