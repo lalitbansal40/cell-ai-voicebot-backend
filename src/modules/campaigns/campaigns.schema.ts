@@ -9,6 +9,8 @@ import {
 import {
   CAMPAIGN_AMD_MODES,
   CAMPAIGN_LINES,
+  TALK_MODES,
+  TEAM_LIMITS,
   CAMPAIGN_MODES,
   CAMPAIGN_PRIORITIES,
   CAMPAIGN_STATUSES,
@@ -149,8 +151,25 @@ const VoiceApiInput = z.strictObject({
     )
     .optional(),
 });
+/** CM: team calling — who may join, and the pause after each call. */
+export const TeamInput = z.strictObject({
+  agentUserIds: z.array(ObjectIdSchema).max(TEAM_LIMITS.agentsMax).nullable().default(null),
+  wrapUpSec: z
+    .number()
+    .int()
+    .min(0)
+    .max(TEAM_LIMITS.wrapUpMaxSec)
+    .default(TEAM_LIMITS.wrapUpDefaultSec),
+});
+
 const settings = {
   line: z.enum(CAMPAIGN_LINES).optional(),
+  /** CM: who talks — `ai` (flow / agent) or `team` (members in the browser; live only). */
+  talkMode: z.enum(TALK_MODES).optional().openapi({
+    description:
+      '`ai` (default): a flow or AI agent talks. `team`: team members take the calls in the browser (live phone / WhatsApp call campaigns; no flow)',
+  }),
+  team: TeamInput.nullable().optional(),
   voiceApi: VoiceApiInput.nullable().optional(),
   channelId: ObjectIdSchema.nullable().optional(),
   program: ProgramInput.nullable().optional(),
@@ -188,6 +207,7 @@ export const CancelCampaignBody = z.strictObject({ hangUpLive: z.boolean().defau
 export const ExportCampaignBody = z.strictObject({ format: z.enum(EXPORT_FORMATS).default('csv') });
 
 export const AudiencePreviewBody = z.strictObject({
+  talkMode: z.enum(TALK_MODES).optional(),
   channelId: ObjectIdSchema.nullable().optional(),
   askPermissionFirst: z.boolean().optional(),
   line: z.enum(CAMPAIGN_LINES).optional(),
@@ -265,6 +285,12 @@ export const CampaignListItemSchema = registry.register(
       .optional(),
     channelId: z.string().nullable().optional(),
     program: ProgramInput.extend({ name: z.string().optional() }).nullable().optional(),
+    /** CM: who talks on the calls. */
+    talkMode: z.enum(TALK_MODES).optional(),
+    team: z
+      .object({ agentUserIds: z.array(z.string()).nullable(), wrapUpSec: z.number() })
+      .nullable()
+      .optional(),
     askPermissionFirst: z.object({ templateId: z.string() }).nullable().optional(),
     flow: z.object({ id: z.string(), name: z.string(), version: z.number().nullable() }),
     stats: CampaignStatsSchema,

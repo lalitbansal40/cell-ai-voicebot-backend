@@ -39,6 +39,7 @@ import { FlowAudioModel } from '../../db/models/flow-audio.model';
 import { FlowVersionModel, type FlowVersionDoc } from '../../db/models/flow-version.model';
 import { FlowModel, type FlowDoc } from '../../db/models/flow.model';
 import { SegmentModel } from '../../db/models/segment.model';
+import { UserModel } from '../../db/models/user.model';
 import { WhatsAppTemplateModel } from '../../db/models/whatsapp-template.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
@@ -205,9 +206,12 @@ export const loadFlowVersion = async (
 };
 
 export const loadCampaignProgram = async (
-  campaign: Pick<CampaignDoc, 'accountId' | 'flowId' | 'chosenVersion' | 'line' | 'program'>,
+  campaign: Pick<
+    CampaignDoc,
+    'accountId' | 'flowId' | 'chosenVersion' | 'line' | 'program' | 'talkMode'
+  >,
 ) => {
-  if (campaign.line === 'voice_api') {
+  if (campaign.line === 'voice_api' || campaign.talkMode === 'team') {
     // Cell24x7 plays the audio itself: no flow, no AI, no contact fields
     return { pinned: null, hasAi: false, used: await usedFields(campaign.accountId, {}, []) };
   }
@@ -285,6 +289,8 @@ type CampaignSettings = Pick<
   | 'line'
   | 'channelId'
   | 'program'
+  | 'talkMode'
+  | 'team'
   | 'askPermissionFirst'
   | 'flowId'
   | 'chosenVersion'
@@ -301,6 +307,34 @@ type CampaignSettings = Pick<
   | 'voiceApi'
 >;
 
+/**
+ * CM: team calling runs on the real line only (a person cannot talk to the simulated
+ * customer), on phone or WhatsApp calls, with members of this account who may call.
+ */
+const teamSettingsProblems = async (
+  accountId: Types.ObjectId,
+  s: Pick<CampaignDoc, 'mode' | 'line' | 'team'>,
+): Promise<ErrorDetail[]> => {
+  const problems: ErrorDetail[] = [];
+  if (s.mode !== 'live')
+    problems.push({ path: 'talkMode', message: 'Team calling needs a live campaign' });
+  if ((s.line ?? 'phone') !== 'phone' && s.line !== 'whatsapp')
+    problems.push({ path: 'talkMode', message: 'Team calling is for phone or WhatsApp calls' });
+  const ids = s.team?.agentUserIds;
+  if (ids?.length) {
+    const found = await UserModel.countDocuments({
+      _id: { $in: ids },
+      accountId,
+      status: 'active',
+    });
+    if (found !== ids.length)
+      problems.push({ path: 'team.agentUserIds', message: 'Choose active team members' });
+  } else if (ids && ids.length === 0) {
+    problems.push({ path: 'team.agentUserIds', message: 'Choose at least one team member' });
+  }
+  return problems;
+};
+
 /** Phone campaigns on the real line need the SIP trunk (WhatsApp / recorded voice do not). */
 const needsSipLine = (s: Pick<CampaignDoc, 'mode' | 'line'>) =>
   s.mode === 'live' && (s.line ?? 'phone') === 'phone';
@@ -316,6 +350,8 @@ export const defaultSettings = (
   line: 'phone',
   channelId: null,
   program: null,
+  talkMode: 'ai',
+  team: null,
   askPermissionFirst: null,
   chosenVersion: null,
   versionPolicy: 'pinned',
@@ -412,10 +448,25 @@ export const mergeSettings = (
   // recorded voice always calls real phones (Cell24x7); there is no dry run of it
   const mode = voice ? 'live' : (input.mode ?? current.mode);
   const dryRunBase = current.dryRun ?? defaultDryRun();
+  // CM: team calling — members talk, so there is no flow / program to run
+  const talkMode = voice ? 'ai' : (input.talkMode ?? current.talkMode ?? 'ai');
+  const team = talkMode === 'team';
+  const teamBase = current.team ?? { agentUserIds: null, wrapUpSec: 15 };
   return {
     name: input.name ?? current.name,
     mode,
     line,
+    talkMode,
+    team: team
+      ? input.team
+        ? {
+            agentUserIds: input.team.agentUserIds
+              ? [...new Set(input.team.agentUserIds)].map((u) => new Types.ObjectId(u))
+              : null,
+            wrapUpSec: input.team.wrapUpSec,
+          }
+        : teamBase
+      : null,
     voiceApi: voice ? mergeVoiceApi(current.voiceApi, input.voiceApi) : null,
     channelId: voice
       ? null
@@ -424,13 +475,14 @@ export const mergeSettings = (
         : input.channelId
           ? new Types.ObjectId(input.channelId)
           : null,
-    program: voice
-      ? null
-      : input.program === undefined
-        ? current.program
-        : input.program
-          ? { kind: input.program.kind, id: new Types.ObjectId(input.program.id) }
-          : null,
+    program:
+      voice || team
+        ? null
+        : input.program === undefined
+          ? current.program
+          : input.program
+            ? { kind: input.program.kind, id: new Types.ObjectId(input.program.id) }
+            : null,
     askPermissionFirst: voice
       ? null
       : input.askPermissionFirst === undefined
@@ -438,16 +490,17 @@ export const mergeSettings = (
         : input.askPermissionFirst
           ? { templateId: new Types.ObjectId(input.askPermissionFirst.templateId) }
           : null,
-    flowId: voice
-      ? null
-      : (input.line ?? current.line) === 'whatsapp' &&
-          (input.program ?? current.program)?.kind === 'agent'
+    flowId:
+      voice || team
         ? null
-        : input.program?.kind === 'flow'
-          ? new Types.ObjectId(input.program.id)
-          : input.flowId
-            ? new Types.ObjectId(input.flowId)
-            : current.flowId,
+        : (input.line ?? current.line) === 'whatsapp' &&
+            (input.program ?? current.program)?.kind === 'agent'
+          ? null
+          : input.program?.kind === 'flow'
+            ? new Types.ObjectId(input.program.id)
+            : input.flowId
+              ? new Types.ObjectId(input.flowId)
+              : current.flowId,
     chosenVersion: input.chosenVersion === undefined ? current.chosenVersion : input.chosenVersion,
     versionPolicy: input.versionPolicy ?? current.versionPolicy,
     audience: input.audience ? toAudience(input.audience, current.audience) : current.audience,
@@ -502,6 +555,8 @@ export const validateSettings = async (
 ): Promise<void> => {
   if (needsSipLine(s) && account.line !== 'sip') throw liveRefused();
   const voiceDetails: ErrorDetail[] = [];
+  const team = s.talkMode === 'team';
+  if (team) voiceDetails.push(...(await teamSettingsProblems(accountId, s)));
   if (s.line === 'voice_api') {
     voiceDetails.push(...(await voiceSettingsProblems(accountId, s, account.window)));
   } else if (s.line === 'whatsapp') {
@@ -522,12 +577,14 @@ export const validateSettings = async (
           message: 'Choose an approved permission template on this number',
         },
       ]);
-    const problems = await programProblems(
-      accountId,
-      s.program ?? (s.flowId ? { kind: 'flow', id: s.flowId } : null),
-    );
-    if (problems.length) throw new ValidationError(problems);
-  } else if (!s.flowId)
+    if (!team) {
+      const problems = await programProblems(
+        accountId,
+        s.program ?? (s.flowId ? { kind: 'flow', id: s.flowId } : null),
+      );
+      if (problems.length) throw new ValidationError(problems);
+    }
+  } else if (!team && !s.flowId)
     throw new ValidationError([{ path: 'flowId', message: 'Choose a published call flow' }]);
   const details: ErrorDetail[] = [...voiceDetails];
   if (!intersect(s.window, account.window)) {
@@ -863,6 +920,8 @@ export const duplicateCampaign = async (req: Request, id: string) => {
       line: source.line,
       channelId: source.channelId,
       program: source.program,
+      talkMode: source.talkMode ?? 'ai',
+      team: source.team ?? null,
       askPermissionFirst: source.askPermissionFirst,
       chosenVersion: source.chosenVersion,
       versionPolicy: source.versionPolicy,
@@ -975,6 +1034,7 @@ export const previewCampaignAudience = async (
     program: body.program
       ? { kind: body.program.kind, id: new Types.ObjectId(body.program.id) }
       : null,
+    talkMode: body.talkMode ?? 'ai',
   });
   const audience = toAudience(body.audience, {
     listIds: [],
@@ -1273,6 +1333,8 @@ export const beginRun = async (
  */
 export const pinnedProblems = async (campaign: CampaignDoc): Promise<ErrorDetail[]> => {
   if (campaign.line === 'voice_api') return voiceRunProblems(campaign);
+  // CM: team calling has no program to load
+  if (campaign.talkMode === 'team') return [];
   if (campaign.line === 'whatsapp') {
     const problems = await programProblems(
       campaign.accountId,

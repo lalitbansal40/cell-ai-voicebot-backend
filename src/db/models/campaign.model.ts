@@ -256,6 +256,19 @@ export interface CampaignVoiceApi {
   lastError: { code: string; at: Date } | null;
 }
 
+/** Who talks on a call campaign's calls: the AI (flow / agent) or team members (CM). */
+export const TALK_MODES = ['ai', 'team'] as const;
+export type TalkMode = (typeof TALK_MODES)[number];
+
+export const TEAM_LIMITS = { wrapUpMaxSec: 120, wrapUpDefaultSec: 15, agentsMax: 100 } as const;
+
+/** Team calling: who may join the campaign's calling session and the pause after each call. */
+export interface CampaignTeam {
+  /** `null` = every active member who may place calls. */
+  agentUserIds: Types.ObjectId[] | null;
+  wrapUpSec: number;
+}
+
 export interface CampaignDoc {
   _id: Types.ObjectId;
   accountId: Types.ObjectId;
@@ -267,6 +280,9 @@ export interface CampaignDoc {
   voiceApi?: CampaignVoiceApi | null;
   channelId?: Types.ObjectId | null;
   program?: { kind: 'flow' | 'agent'; id: Types.ObjectId } | null;
+  /** CM: `team` = members talk (phone / WhatsApp call campaigns, live only). Missing = `ai`. */
+  talkMode?: TalkMode;
+  team?: CampaignTeam | null;
   askPermissionFirst?: { templateId: Types.ObjectId } | null;
   /** Set at start (pinned); `null` before. */
   flowVersionId: Types.ObjectId | null;
@@ -367,6 +383,8 @@ const schema = new Schema<CampaignDoc>(
     voiceApi: { type: Schema.Types.Mixed, default: null },
     channelId: { type: Schema.Types.ObjectId, default: null },
     program: { type: Schema.Types.Mixed, default: null },
+    talkMode: { type: String, enum: TALK_MODES, default: 'ai' },
+    team: { type: Schema.Types.Mixed, default: null },
     askPermissionFirst: { type: Schema.Types.Mixed, default: null },
     flowVersionId: { type: Schema.Types.ObjectId, default: null },
     flowVersion: { type: Number, default: null },

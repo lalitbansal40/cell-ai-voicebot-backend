@@ -87,6 +87,13 @@ export const toCampaignListItem = (
   line: c.line ?? 'phone',
   voice: c.line === 'voice_api' ? voiceLabel(c, names) : null,
   channelId: c.channelId?.toString() ?? null,
+  talkMode: c.talkMode ?? 'ai',
+  team: c.team
+    ? {
+        agentUserIds: c.team.agentUserIds?.map(String) ?? null,
+        wrapUpSec: c.team.wrapUpSec,
+      }
+    : null,
   program: c.program
     ? {
         kind: c.program.kind,

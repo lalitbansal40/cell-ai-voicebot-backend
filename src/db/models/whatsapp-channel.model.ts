@@ -100,7 +100,8 @@ export const WEEK_DAYS = [
 ] as const;
 export type WeekDay = (typeof WEEK_DAYS)[number];
 
-export const INBOUND_ROUTES = ['team', 'ai', 'ai_then_team'] as const;
+/** CM: `team_then_ai` = the team rings first; nobody in time / online → the AI program. */
+export const INBOUND_ROUTES = ['team', 'ai', 'ai_then_team', 'team_then_ai'] as const;
 export type InboundRoute = (typeof INBOUND_ROUTES)[number];
 
 /** Meta's time format (`HHMM`, 24 h). */

@@ -76,6 +76,8 @@ export interface CampaignContactDoc {
   dials: number;
   nextAttemptAt: Date | null;
   lastCallId: Types.ObjectId | null;
+  /** CM: the team member who took the last call (team campaigns). */
+  agentUserId?: Types.ObjectId | null;
   lastResult: CallResult | null;
   lastAttemptAt: Date | null;
   disposition: string | null;
@@ -108,6 +110,7 @@ const schema = new Schema<CampaignContactDoc>(
     dials: { type: Number, default: 0, min: 0 },
     nextAttemptAt: { type: Date, default: null },
     lastCallId: { type: Schema.Types.ObjectId, default: null },
+    agentUserId: { type: Schema.Types.ObjectId, default: null },
     lastResult: { type: String, enum: [...CALL_RESULTS, null], default: null },
     lastAttemptAt: { type: Date, default: null },
     disposition: { type: String, default: null },

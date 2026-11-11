@@ -86,6 +86,8 @@ describe('phase 2 migrations', () => {
     await migrateDown(db(), MIGRATIONS, logger);
     // Phase 20: 0026 (incoming phone calls)
     await migrateDown(db(), MIGRATIONS, logger);
+    // CM: 0027 (call modes)
+    await migrateDown(db(), MIGRATIONS, logger);
     expect(await AccountModel.countDocuments({ slug: 'platform' })).toBe(0);
   });
 });
