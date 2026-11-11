@@ -44,6 +44,8 @@ export interface WsEventMap {
     disposition: string | null;
     costMicros: number;
   };
+  /** CM: a team campaign's calling session changed (who joined, states) — refetch the board. */
+  'campaign.session': { campaignId: string };
   'campaign.status': {
     campaignId: string;
     status: 'draft' | 'scheduled' | 'running' | 'paused' | 'completed' | 'canceled' | 'failed';
@@ -179,6 +181,7 @@ export const WS_EVENT_TYPES = [
   'call.insights',
   'campaign.status',
   'campaign.progress',
+  'campaign.session',
   'whatsapp.channel.updated',
   'inbox.conversation.updated',
   'inbox.summary.updated',
