@@ -13,6 +13,7 @@ import {
 } from '../../../db/models/campaign-contact.model';
 import { CampaignModel, type CampaignDoc } from '../../../db/models/campaign.model';
 import { ContactModel } from '../../../db/models/contact.model';
+import { UserModel } from '../../../db/models/user.model';
 import { requireAuth } from '../../../shared/auth/auth-context';
 import { tenantFilter } from '../../../shared/auth/tenant';
 import { AppError, ForbiddenError, NotFoundError } from '../../../shared/errors/app-error';
@@ -461,4 +462,66 @@ export const teamCallEnded = async (
     until: wrap > 0 ? Date.now() + wrap : null,
   });
   publishSession(campaign);
+};
+
+/**
+ * CM (D17): per-agent results of a campaign — calls, connected, talk time and outcomes for
+ * each member who talked; the AI's calls in one row (`userId: null`).
+ */
+export const campaignAgentStats = async (req: Request, id: string) => {
+  const { accountId } = tenantFilter(req);
+  const campaign = Types.ObjectId.isValid(id)
+    ? await CampaignModel.findOne({ _id: id, accountId, deletedAt: null })
+        .select({ _id: 1 })
+        .lean<{ _id: Types.ObjectId }>()
+    : null;
+  if (!campaign) throw new NotFoundError('Campaign not found');
+  const rows = await CallModel.aggregate<{
+    _id: { user: Types.ObjectId | null; disposition: string | null };
+    calls: number;
+    connected: number;
+    talkSec: number;
+  }>([
+    { $match: { accountId, campaignId: campaign._id } },
+    {
+      $group: {
+        _id: {
+          user: { $cond: [{ $eq: ['$mode', 'human'] }, '$agentUserId', null] },
+          disposition: '$disposition',
+        },
+        calls: { $sum: 1 },
+        connected: { $sum: { $cond: [{ $ne: ['$timestamps.answeredAt', null] }, 1, 0] } },
+        talkSec: { $sum: '$durationSec' },
+      },
+    },
+  ]);
+  const byUser = new Map<
+    string,
+    { calls: number; connected: number; talkSec: number; outcomes: Record<string, number> }
+  >();
+  for (const r of rows) {
+    const key = r._id.user?.toString() ?? '';
+    const cur = byUser.get(key) ?? { calls: 0, connected: 0, talkSec: 0, outcomes: {} };
+    cur.calls += r.calls;
+    cur.connected += r.connected;
+    cur.talkSec += r.talkSec;
+    if (r._id.disposition)
+      cur.outcomes[r._id.disposition] = (cur.outcomes[r._id.disposition] ?? 0) + r.calls;
+    byUser.set(key, cur);
+  }
+  const ids = [...byUser.keys()].filter((k) => k && Types.ObjectId.isValid(k));
+  const users = await UserModel.find({ accountId, _id: { $in: ids } })
+    .select({ name: 1 })
+    .lean<{ _id: Types.ObjectId; name: string }[]>();
+  const names = new Map(users.map((u) => [u._id.toString(), u.name]));
+  return [...byUser.entries()]
+    .map(([userId, s]) => ({
+      userId: userId || null,
+      name: userId ? (names.get(userId) ?? 'Team member') : 'AI',
+      calls: s.calls,
+      connected: s.connected,
+      talkSec: Math.round(s.talkSec),
+      outcomes: s.outcomes,
+    }))
+    .sort((a, b) => b.calls - a.calls);
 };

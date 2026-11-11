@@ -162,6 +162,7 @@ beforeAll(async () => {
       status: 'no_answer',
       contactId: contact._id,
       whatsapp: { channelId: channel, answeredBy: owner.user._id },
+      mode: 'human',
       cost: emptyCallCost(),
     }),
     callDoc(t.account._id, { createdAt: LATE_SEP2, provider: 'webcall', cost: emptyCallCost() }),
@@ -241,9 +242,11 @@ describe('POST /exports/calls', () => {
       'promised_to_pay',
     ]);
     expect(first.slice(11, 15)).toEqual(['ai', 'positive', '2026-09-05', '₹5,000.00']);
-    expect(first[18]).toBe('₹1.25');
+    expect(first[18]).toBe('AI'); // Talked by
+    expect(first[19]).toBe('₹1.25');
     expect(second[3]).toBe('Support line');
     expect(second[17]).toBe(owner.user.name);
+    expect(second[18]).toBe(owner.user.name); // a person talked (human call)
     expect(rows).toHaveLength(3); // the 00:30-on-3-Sep call stays out
   });
 

@@ -321,6 +321,8 @@ export const CALL_HEADERS = [
   'Flow / agent',
   'Campaign',
   'Answered by',
+  // CM (D17): who talked on the call — the AI or the member
+  'Talked by',
   'Cost',
   'Call id',
 ] as const;
@@ -438,6 +440,9 @@ const callRowsOf = async (
       safeCell(program ?? ''),
       safeCell(c.campaignId ? (campaigns.get(c.campaignId.toString()) ?? '') : ''),
       safeCell(by ? (users.get(by.toString()) ?? '') : ''),
+      c.mode === 'human'
+        ? safeCell(by ? (users.get(by.toString()) ?? 'Team member') : 'Team member')
+        : 'AI',
       formatInr(c.cost.totalMicros),
       c._id.toString(),
     ];

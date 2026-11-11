@@ -18,6 +18,7 @@ import {
 } from '../../src/modules/campaigns/campaigns.service';
 import { setSessionRedis } from '../../src/modules/campaigns/team/session';
 import {
+  campaignAgentStats,
   joinSession,
   leaveSession,
   nextTeamCall,
@@ -241,5 +242,15 @@ describe('team calling campaigns', () => {
     doc = (await CampaignModel.findById(c.id).lean<CampaignDoc>())!;
     expect(doc.status).toBe('completed');
     expect(await leaveSession(reqOf(caller), c.id)).toMatchObject({ agents: [] });
+    // who talked: every call was the member's (3 calls, 2 connected-by-hand outcomes one)
+    const stats = await campaignAgentStats(reqOf(owner), c.id);
+    expect(stats).toEqual([
+      expect.objectContaining({
+        userId: caller.user._id.toString(),
+        calls: 3,
+        connected: 3,
+        outcomes: { paid: 1 },
+      }),
+    ]);
   });
 });

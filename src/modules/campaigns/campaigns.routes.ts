@@ -49,6 +49,7 @@ import {
 } from './export';
 import { campaignSummary } from './summary';
 import {
+  campaignAgentStats,
   joinSession,
   leaveSession,
   nextTeamCall,
@@ -233,6 +234,13 @@ export const createCampaignsRouter = ({
   );
   // CM — team calling: an agent's calling session (browser only, never impersonated)
   const agent = [requirePermission('calls.trigger'), blockWhenImpersonating()] as RequestHandler[];
+  router.get(
+    '/:id/agents',
+    read,
+    ...handle({ params: CampaignParams }, async ({ params, req, res }) => {
+      ok(res, await campaignAgentStats(req, params.id));
+    }),
+  );
   router.get(
     '/:id/session',
     read,

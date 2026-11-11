@@ -781,3 +781,24 @@ registry.registerPath({
   request: { params: TeamCallParams, ...json(TeamWrapUpBody) },
   responses: { 200: ok(TeamWrapUpSchema), ...writes },
 });
+export const CampaignAgentStatsSchema = registry.register(
+  'CampaignAgentStats',
+  z.object({
+    userId: z.string().nullable().openapi({ description: 'null = calls the AI talked on' }),
+    name: z.string(),
+    calls: z.number().int(),
+    connected: z.number().int(),
+    talkSec: z.number().int(),
+    outcomes: z.record(z.string(), z.number().int()),
+  }),
+);
+registry.registerPath({
+  method: 'get',
+  path: `${base}/{id}/agents`,
+  tags,
+  summary:
+    'Who talked on the campaign: per member (and the AI) calls, connected, talk time, outcomes (campaigns.read)',
+  security: bearer,
+  request: { params: CampaignParams },
+  responses: { 200: ok(z.array(CampaignAgentStatsSchema)), ...common },
+});
