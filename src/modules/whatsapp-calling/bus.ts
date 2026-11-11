@@ -308,6 +308,26 @@ export class CallControlBus {
     return ok === 'OK';
   }
 
+  /** CM: some node took this inbound call (it has a claim). */
+  async inboundClaimed(waCallId: string): Promise<boolean> {
+    return (await this.redis.exists(this.k(`call:wa:claim:${waCallId}`))) === 1;
+  }
+
+  /**
+   * CM: no node had room for an inbound call — exactly one node refuses it (and records
+   * the missed call), so the customer never just rings.
+   */
+  async claimBusyRefusal(waCallId: string): Promise<boolean> {
+    const ok = await this.redis.set(
+      this.k(`call:wa:busy:${waCallId}`),
+      this.nodeId,
+      'EX',
+      WHATSAPP_CALL_LIMITS.claimTtlSec,
+      'NX',
+    );
+    return ok === 'OK';
+  }
+
   /** First answer wins → the winner's user id (this one or an earlier one). */
   async claimAnswer(callId: string, userId: string): Promise<string> {
     const key = this.k(`call:wa:answer:${callId}`);

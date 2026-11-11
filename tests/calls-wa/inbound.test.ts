@@ -342,6 +342,59 @@ describe('user-initiated WhatsApp calls', () => {
     await ended(call.id);
   });
 
+  it('CM: team then AI — nobody online, the AI answers at once (not a missed call)', async () => {
+    const agentId = await createAgentDoc(state.acc.account._id, 'Fallback');
+    await WhatsAppChannelModel.updateOne(
+      { _id: state.channel._id },
+      {
+        $set: {
+          'calling.inbound.route': 'team_then_ai',
+          'calling.inbound.aiProgram': { kind: 'agent', id: agentId },
+        },
+      },
+    );
+    online = [];
+    const call = await incoming();
+    // the AI program runs on the answered call
+    await vi.waitFor(() => expect(currentIo).not.toBeNull(), { timeout: 10_000 });
+    const row = await query(call.id);
+    expect(row).toMatchObject({
+      mode: 'ai',
+      source: { kind: 'agent', agentId: new Types.ObjectId(agentId) },
+    });
+    await world.w.fake.userHangup(call.waCallId);
+    expect((await ended(call.id)).status).toBe('completed');
+  });
+
+  it('CM: every line busy — the call is refused after a moment and listed as missed', async () => {
+    // the env object is frozen: swap it for one with no room for calls
+    const ctx = world.w.ctx as { env: typeof world.w.ctx.env };
+    const env = ctx.env;
+    ctx.env = { ...env, WA_MEDIA_MAX_CALLS: 0 };
+    try {
+      sequence += 1;
+      const { waCallId } = await world.w.fake.userCall(
+        state.channel.phoneNumberId ?? '',
+        `91900009${String(sequence).padStart(5, '0')}`,
+      );
+      const row = await vi.waitFor(
+        async () => {
+          const found = await CallModel.findOne({ 'whatsapp.waCallId': waCallId }).lean<CallDoc>();
+          expect(found).toBeTruthy();
+          return found!;
+        },
+        { timeout: 10_000 },
+      );
+      expect(row).toMatchObject({
+        status: 'no_answer',
+        endReason: 'line_busy',
+        direction: 'inbound',
+      });
+    } finally {
+      ctx.env = env;
+    }
+  });
+
   it('ends missed with no eligible online users and rejects a different tenant command', async () => {
     online = [];
     const call = await incoming();

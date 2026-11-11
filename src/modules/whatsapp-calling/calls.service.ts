@@ -19,6 +19,7 @@ import { WhatsAppPeer, type PeerOptions } from '../../core/telephony/whatsapp/pe
 import type { Clock } from '../../core/voice/clock';
 import { systemClock } from '../../core/voice/clock';
 import type { TtsCache } from '../../core/voice/tts-cache';
+import { isDuplicateKeyError } from '../../db/errors';
 import {
   AccountModel,
   DEFAULT_ACCOUNT_SETTINGS,
@@ -69,6 +70,7 @@ import type { CallPermissionsService } from './permissions.service';
 import type { CallProgram } from './program';
 import { selectRingTargets, withinCallHours } from './routing';
 import type { CallingDeps } from './settings.service';
+import { TeamThenAiScript } from './team-then-ai';
 
 /**
  * WhatsApp calls (PHASE_12_PLAN §1f, PHASE_12_PROMPT T12.6). This process owns the
@@ -147,6 +149,8 @@ interface Ring {
 }
 
 const PROVIDER = 'whatsapp' as const;
+/** CM: how long a full node waits for another node's claim before refusing a call. */
+const BUSY_REFUSAL_WAIT_MS = 3_000;
 
 const ringAction = (command: CallCommand): boolean =>
   command.action === 'answer' || command.action === 'decline';
@@ -1080,13 +1084,93 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     await timeline(call.callId, 'accepted');
   };
 
+  /**
+   * CM: every node is full — after a short wait for another node's claim, exactly one node
+   * refuses the call at Meta and records it as missed (bell + `whatsapp.call.missed`).
+   */
+  const refuseBusy = async (
+    channel: WhatsAppChannelDoc,
+    event: MetaCallEvent,
+    value: MetaCallsValue,
+  ): Promise<void> => {
+    await new Promise((resolve) => setTimeout(resolve, BUSY_REFUSAL_WAIT_MS));
+    if (await deps.bus.inboundClaimed(event.id)) return;
+    if (await ctx.redis.exists(`call:wa:ended:${event.id}`)) return;
+    if (!(await deps.bus.claimBusyRefusal(event.id))) return;
+    const { token } = await deps.token(channel._id);
+    await ctx.meta
+      .rejectCall(token, channel.phoneNumberId ?? '', event.id)
+      .catch((err: unknown) => deps.logger.warn({ err }, 'whatsapp call: busy refusal failed'));
+    const phone = event.from?.replace(/\D/g, '') ?? '';
+    const contact = phone
+      ? await findOrCreateWhatsAppContact({
+          accountId: channel.accountId,
+          waId: phone,
+          profileName: value.contacts?.[0]?.profile?.name,
+        })
+      : null;
+    if (!contact) return;
+    const conversation = await upsertConversation({
+      key: { accountId: channel.accountId, channelId: channel._id, waId: phone },
+      contactId: contact._id,
+      source: 'inbound',
+    });
+    const now = new Date(clock.now());
+    const created = await CallModel.create({
+      accountId: channel.accountId,
+      provider: PROVIDER,
+      direction: 'inbound',
+      mode: 'human',
+      from: contact.phoneE164,
+      to: `whatsapp:${channel._id.toString()}`,
+      contactId: contact._id,
+      source: { kind: null },
+      status: 'no_answer',
+      endReason: 'line_busy',
+      charged: false,
+      timestamps: { queuedAt: now, ringingAt: now, answeredAt: null, endedAt: now },
+      whatsapp: {
+        channelId: channel._id,
+        waCallId: event.id,
+        direction: 'USER_INITIATED',
+        conversationId: conversation._id,
+        ctaPayload: null,
+        deeplinkPayload: null,
+        timeline: [{ event: 'busy_refused', at: now }],
+      },
+    }).catch((err: unknown) => {
+      // the same call id twice (a retried webhook): already recorded
+      if (isDuplicateKeyError(err)) return null;
+      throw err;
+    });
+    if (!created) return;
+    const userIds = (await usersWithPermission(channel.accountId, 'calls.answer')).map(
+      (u) => u.userId,
+    );
+    if (userIds.length)
+      await notify({
+        accountId: channel.accountId,
+        userIds,
+        type: 'call.whatsapp_missed',
+        title: 'Missed WhatsApp call',
+        body: 'A customer called while every line was busy.',
+        link: `/inbox/${conversation._id.toString()}`,
+      });
+    await publishCallCompleted(created._id.toString());
+  };
+
   const startInbound = async (
     channel: WhatsAppChannelDoc,
     event: MetaCallEvent,
     value: MetaCallsValue,
   ): Promise<void> => {
-    if (!event.session || event.session.sdp_type !== 'offer' || capacity().active >= capacity().max)
+    if (!event.session || event.session.sdp_type !== 'offer') return;
+    if (capacity().active >= capacity().max) {
+      void refuseBusy(channel, event, value).catch((err: unknown) =>
+        deps.logger.error({ err }, 'whatsapp call: busy refusal failed'),
+      );
       return;
+    }
     if (await ctx.redis.exists(`call:wa:ended:${event.id}`)) return;
     if (!(await deps.bus.claimInbound(event.id))) return;
     const calling = channel.calling ?? defaultCalling();
@@ -1122,7 +1206,9 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     });
     const settings = await callingSettings(channel.accountId);
     const route = calling.inbound.route;
-    const mode = route === 'team' ? 'human' : 'ai';
+    // CM: team_then_ai rings the team first; the AI answers only when nobody does
+    const mode = route === 'team' || route === 'team_then_ai' ? 'human' : 'ai';
+    const aiFallback = route === 'team_then_ai' && calling.inbound.aiProgram !== null;
     const quote = await quoteCall({
       accountId: channel.accountId,
       phoneE164: contact.phoneE164,
@@ -1168,7 +1254,8 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       callId: doc._id.toString(),
       quote,
       charged: false,
-      withAi: mode === 'ai',
+      // team_then_ai holds AI money too (charged only for the AI's seconds if it answers)
+      withAi: mode === 'ai' || aiFallback,
       conversationId: conversation._id.toString(),
     });
     const peer = new WhatsAppPeer(peerOptions());
@@ -1231,6 +1318,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         : !withinCallHours(calling.callHours, new Date(clock.now()))
           ? 'outside_call_hours'
           : null;
+    let teamThenAi: TeamThenAiScript | null = null;
     let choice: ScriptChoice = {
       script: call.bridge ?? new BridgeScript(),
       voice: 'coral',
@@ -1242,6 +1330,16 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         choice = await deps.scriptFor(doc);
         call.handoff = new HandoffScript(choice.script);
         choice = { ...choice, script: call.handoff };
+      }
+      if (!refusal && aiFallback && calling.inbound.aiProgram && call.bridge) {
+        // prepared now: when nobody takes the call, the AI answers at once
+        const program = calling.inbound.aiProgram;
+        const ai = await deps.scriptFor({
+          ...doc,
+          source: sourceOf('ai', { kind: program.kind, id: program.id.toString() }),
+        });
+        teamThenAi = new TeamThenAiScript(call.bridge, ai.script);
+        choice = { ...ai, script: teamThenAi };
       }
     } catch (err) {
       refusal =
@@ -1267,7 +1365,11 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         settings.maxCallMinutes * 60,
         choice.maxDurationSec ?? CALL_LIMITS.maxCallSecHard,
       ),
-      answerTimeout: { sec: calling.inbound.ringTimeoutSec, reason: 'no_agent_available' },
+      // team_then_ai: the AI may still answer after the ring ends
+      answerTimeout: {
+        sec: calling.inbound.ringTimeoutSec + (teamThenAi ? CALL_LIMITS.readyTimeoutSec : 0),
+        reason: 'no_agent_available',
+      },
       onEnded: (summary) => {
         call.endTask = onEnded(call, summary).catch((err: unknown) => {
           deps.logger.error(
@@ -1293,7 +1395,29 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       else
         void ringTeam(call, false)
           .then(async (connected) => {
-            if (!connected) await rejectInbound(call, 'no_agent_available');
+            if (connected) return;
+            if (!teamThenAi || call.terminated || call.session?.ended) {
+              await rejectInbound(call, 'no_agent_available');
+              return;
+            }
+            // nobody in the team took it: the AI program answers (not a missed call)
+            teamThenAi.useAi();
+            const program = calling.inbound.aiProgram;
+            call.mode = 'ai';
+            call.programKind = program?.kind ?? null;
+            await CallModel.updateOne(
+              { _id: call.callId },
+              {
+                $set: {
+                  mode: 'ai',
+                  source: sourceOf(
+                    'ai',
+                    program ? { kind: program.kind, id: program.id.toString() } : null,
+                  ),
+                },
+              },
+            );
+            await acceptInbound(call);
           })
           .catch(() => rejectInbound(call, 'engine_error'));
     } catch {

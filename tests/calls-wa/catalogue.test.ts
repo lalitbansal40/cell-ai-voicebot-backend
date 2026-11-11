@@ -284,7 +284,7 @@ describe('Phase 12 catalogue', () => {
       'messaging_limit',
       'not_cloud_api',
     ]);
-    expect(INBOUND_ROUTES).toEqual(['team', 'ai', 'ai_then_team']);
+    expect(INBOUND_ROUTES).toEqual(['team', 'ai', 'ai_then_team', 'team_then_ai']); // CM: team_then_ai
     expect(WEEK_DAYS).toHaveLength(7);
     expect(CALL_AVAILABILITY).toEqual(['available', 'busy', 'offline']);
     expect(RATE_CARD_KINDS).toEqual(['messaging', 'calling']);

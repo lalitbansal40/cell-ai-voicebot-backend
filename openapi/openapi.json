@@ -3423,6 +3423,15 @@
             "required": ["kind", "id"],
             "additionalProperties": false
           },
+          "talkMode": { "type": "string", "enum": ["ai", "team"] },
+          "team": {
+            "type": ["object", "null"],
+            "properties": {
+              "agentUserIds": { "type": ["array", "null"], "items": { "type": "string" } },
+              "wrapUpSec": { "type": "number" }
+            },
+            "required": ["agentUserIds", "wrapUpSec"]
+          },
           "askPermissionFirst": {
             "type": ["object", "null"],
             "properties": { "templateId": { "type": "string" } },
@@ -10145,7 +10154,7 @@
           "inbound": {
             "type": "object",
             "properties": {
-              "route": { "type": "string", "enum": ["team", "ai", "ai_then_team"] },
+              "route": { "type": "string", "enum": ["team", "ai", "ai_then_team", "team_then_ai"] },
               "aiProgram": {
                 "type": ["object", "null"],
                 "properties": {
@@ -18899,6 +18908,29 @@
                   "mode": { "type": "string", "enum": ["dry_run", "live"], "default": "dry_run" },
                   "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "line": { "type": "string", "enum": ["phone", "whatsapp", "voice_api"] },
+                  "talkMode": {
+                    "type": "string",
+                    "enum": ["ai", "team"],
+                    "description": "`ai` (default): a flow or AI agent talks. `team`: team members take the calls in the browser (live phone / WhatsApp call campaigns; no flow)"
+                  },
+                  "team": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "agentUserIds": {
+                        "type": ["array", "null"],
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 100,
+                        "default": null
+                      },
+                      "wrapUpSec": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 120,
+                        "default": 15
+                      }
+                    },
+                    "additionalProperties": false
+                  },
                   "voiceApi": {
                     "type": ["object", "null"],
                     "properties": {
@@ -19253,6 +19285,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "talkMode": { "type": "string", "enum": ["ai", "team"] },
                   "channelId": { "type": ["string", "null"], "pattern": "^[a-f0-9]{24}$/i" },
                   "askPermissionFirst": { "type": "boolean" },
                   "line": { "type": "string", "enum": ["phone", "whatsapp", "voice_api"] },
@@ -19418,6 +19451,29 @@
                   "mode": { "type": "string", "enum": ["dry_run", "live"] },
                   "flowId": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
                   "line": { "type": "string", "enum": ["phone", "whatsapp", "voice_api"] },
+                  "talkMode": {
+                    "type": "string",
+                    "enum": ["ai", "team"],
+                    "description": "`ai` (default): a flow or AI agent talks. `team`: team members take the calls in the browser (live phone / WhatsApp call campaigns; no flow)"
+                  },
+                  "team": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "agentUserIds": {
+                        "type": ["array", "null"],
+                        "items": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+                        "maxItems": 100,
+                        "default": null
+                      },
+                      "wrapUpSec": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 120,
+                        "default": 15
+                      }
+                    },
+                    "additionalProperties": false
+                  },
                   "voiceApi": {
                     "type": ["object", "null"],
                     "properties": {
