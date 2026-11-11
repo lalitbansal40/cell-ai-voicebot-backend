@@ -26,6 +26,33 @@ curl -X POST https://wa.notifynow.in/api/v1/campaigns/6720f0a1b2c3d4e5f6a7b8cc/s
 - **Window & retries:** calls only inside the window (09:00–21:00 at most); `retry` redials no-answer / busy / failed.
 - **Schedule:** `schedule.startAt` for later, `schedule.recurrence` for daily / weekly runs (`GET /campaigns/{id}/runs`).
 
+### Team calling (`talkMode: "team"`)
+
+For SIP / normal and WhatsApp call campaigns you choose **who talks**:
+
+| `talkMode`     | Who talks                             | Needs                                                              | Billing                   |
+| -------------- | ------------------------------------- | ------------------------------------------------------------------ | ------------------------- |
+| `ai` (default) | the published flow or AI agent        | `flowId` (phone) or `program` (WhatsApp)                           | line minutes + AI minutes |
+| `team`         | your team members, from the dashboard | `team.agentUserIds` (or `null` = everyone who may call), live mode | line minutes only (no AI) |
+
+```json
+{
+  "name": "Renewal calls by the sales team",
+  "mode": "live",
+  "line": "phone",
+  "talkMode": "team",
+  "team": { "agentUserIds": ["6720f0a1b2c3d4e5f6a7b8d3"], "wrapUpSec": 20 },
+  "audience": { "listIds": ["6720f0a1b2c3d4e5f6a7b8ca"] }
+}
+```
+
+- Start the campaign as usual. Nothing is dialled by itself: each team member opens the campaign in the dashboard and clicks **Join calling session** (microphone first).
+- A joined member gets **one call at a time**: the next contact is dialled only for them, and the call connects to their browser. Nobody is called without a person ready — no abandoned calls.
+- After the call the member saves an outcome (your account's dispositions) and a note; `wrapUpSec` gives them time before the next call.
+- The same rules as AI campaigns apply: calling window, DND / opt-out, per-contact caps, retries and (WhatsApp) the customer's call permission.
+- A member whose browser does not join a call in time is paused; that contact is called again without using an attempt.
+- Sessions are dashboard-only (not in the public API). Errors there: `403 AGENT_NOT_IN_CAMPAIGN`, `409 AGENT_SESSION_GONE`, `409 AGENT_CALL_ACTIVE`.
+
 ### Recorded voice (`line: "voice_api"`)
 
 ```json

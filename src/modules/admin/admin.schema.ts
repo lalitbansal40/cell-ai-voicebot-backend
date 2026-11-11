@@ -120,6 +120,14 @@ export const AdminAccountDetailSchema = registry.register(
     usersCount: z.number().int(),
     apiLimits: z.object({ readsPerMinute: z.number(), writesPerMinute: z.number() }).nullable(),
     voiceLine: z.enum(ACCOUNT_VOICE_LINES),
+    phoneLine: z.object({
+      server: z.enum(['sip', 'dryrun']).openapi({
+        description: "This server's phone line: `sip` when the install has a SIP trunk / Asterisk",
+      }),
+      connected: z
+        .boolean()
+        .openapi({ description: 'The account really dials on the SIP line (server and account)' }),
+    }),
     sipSettings: SipSettingsBody,
     voiceApi: z
       .object({

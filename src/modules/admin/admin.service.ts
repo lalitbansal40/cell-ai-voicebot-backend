@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import { Types } from 'mongoose';
 import type { z } from 'zod';
 
+import { getEnv } from '../../config/env';
 import { notifyAccount, notifyUser } from '../../core/realtime/notify';
 import {
   AccountModel,
@@ -35,6 +36,7 @@ import { startLoginAs, type LoginAsMode } from '../auth/login-as';
 import { hashPassword, validatePasswordPolicy } from '../auth/password';
 import { revokeAllForUser } from '../auth/refresh.service';
 import { toPublicAccount, toPublicUser, type AuthSession } from '../auth/session';
+import { effectiveLine } from '../calls/line';
 import { resumeCampaignDoc } from '../campaigns/campaigns.service';
 import { pauseAccountCampaigns } from '../campaigns/jobs';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
@@ -274,6 +276,11 @@ export const accountDetail = async (id: string) => {
     account: toPublicAccount(account),
     apiLimits: account.apiLimits ?? null,
     voiceLine: account.voiceLine ?? 'dryrun',
+    // CM (D18): the server's own phone line, and whether this account really dials on it
+    phoneLine: {
+      server: getEnv().TELEPHONY_PROVIDER,
+      connected: effectiveLine(account, getEnv()) === 'sip',
+    },
     sipSettings: { ...DEFAULT_SIP_SETTINGS, ...account.sipSettings },
     voiceApi: { ...voiceSettingsOf(account), credentials: voiceCredentialsView(account) },
     owner: owner ? toPublicUser(owner) : null,

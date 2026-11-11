@@ -193,7 +193,7 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
     operationId: 'createCampaign',
     area: 'Campaigns',
     scope: 'campaigns:write',
-    description: `Creates a draft call campaign. Three lines:\n\n- \`line: phone\` — a published flow (\`flowId\`) or agent, on the SIP line (\`mode: live\`) or the test line (\`mode: dry_run\`, simulated, never charged).\n- \`line: whatsapp\` — WhatsApp calls from \`channelId\` with \`program\` (flow or agent); only people who allowed calls are called (\`askPermissionFirst\` sends the permission template first).\n- \`line: voice_api\` — recorded audio or an IVR played by the provider (\`voiceApi.content\`), always live, 10-digit Indian mobiles only, charged per number per started 15 s when each batch is sent.\n\nAudience: lists, segment, filter or contact ids; calling window, retries, pacing and schedule (recurring allowed). Nothing dials until \`start\`. Errors: \`VOICE_API_NOT_ENABLED\`, \`VALIDATION_FAILED\` with field paths. ${WRITE}`,
+    description: `Creates a draft call campaign. Three lines:\n\n- \`line: phone\` — a published flow (\`flowId\`) or agent, on the SIP line (\`mode: live\`) or the test line (\`mode: dry_run\`, simulated, never charged).\n- \`line: whatsapp\` — WhatsApp calls from \`channelId\` with \`program\` (flow or agent); only people who allowed calls are called (\`askPermissionFirst\` sends the permission template first).\n- \`line: voice_api\` — recorded audio or an IVR played by the provider (\`voiceApi.content\`), always live, 10-digit Indian mobiles only, charged per number per started 15 s when each batch is sent.\n\nWho talks (\`phone\` and \`whatsapp\`): \`talkMode: ai\` (default) runs the flow / agent; \`talkMode: team\` lets your team members talk — no flow or program, live only, \`team.agentUserIds\` (null = every member who may call) and \`team.wrapUpSec\` (0–120 s after each call). Team members join the campaign's calling session in the dashboard and get one call at a time; no AI minutes are charged.\n\nAudience: lists, segment, filter or contact ids; calling window, retries, pacing and schedule (recurring allowed). Nothing dials until \`start\`. Errors: \`VOICE_API_NOT_ENABLED\`, \`VALIDATION_FAILED\` with field paths. ${WRITE}`,
     request: {
       name: 'November EMI calls',
       mode: 'live',
@@ -227,6 +227,18 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
           program: { kind: 'agent', id: '6720f0a1b2c3d4e5f6a7b8cb' },
           askPermissionFirst: { templateId: '6720f0a1b2c3d4e5f6a7b8d2' },
           audience: { segmentId: '6720f0a1b2c3d4e5f6a7b8cc' },
+        },
+      },
+      teamCalls: {
+        summary: 'Your team talks (agents in the dashboard, no AI)',
+        value: {
+          name: 'Renewal calls by the sales team',
+          mode: 'live',
+          line: 'phone',
+          talkMode: 'team',
+          team: { agentUserIds: ['6720f0a1b2c3d4e5f6a7b8d3'], wrapUpSec: 20 },
+          audience: { listIds: ['6720f0a1b2c3d4e5f6a7b8ca'] },
+          window: { start: '10:00', end: '19:00', days: [1, 2, 3, 4, 5, 6] },
         },
       },
       recordedVoice: {

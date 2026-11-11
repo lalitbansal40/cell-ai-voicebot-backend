@@ -36,6 +36,8 @@ describe('phone line per account (T18.6)', () => {
     const detail = await request(app).get(url).set(header(superadmin));
     expect(detail.body.data).toMatchObject({
       voiceLine: 'dryrun',
+      // the test server has no SIP line: never "connected"
+      phoneLine: { server: 'dryrun', connected: false },
       sipSettings: { pulseSec: null, spendMinutesPerHour: null },
     });
     const res = await request(app)

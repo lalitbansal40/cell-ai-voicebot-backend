@@ -12,7 +12,7 @@ Operations: 72 · with problems: 0
 | GET    | `/api/v1/calls/{id}`                           | getCall                          | calls:read               | 291  | —      | ✓      | 401 403 404 422 429         | —        |
 | GET    | `/api/v1/calls/{id}/transcript`                | getCallTranscript                | calls:read               | 211  | —      | ✓      | 401 403 404 422 429         | —        |
 | GET    | `/api/v1/campaigns`                            | listCampaigns                    | campaigns:read           | 367  | —      | ✓      | 401 403 404 422 429         | —        |
-| POST   | `/api/v1/campaigns`                            | createCampaign                   | campaigns:write          | 829  | ✓      | ✓      | 401 403 404 409 422 429     | —        |
+| POST   | `/api/v1/campaigns`                            | createCampaign                   | campaigns:write          | 1216 | ✓      | ✓      | 401 403 404 409 422 429     | —        |
 | GET    | `/api/v1/campaigns/{id}`                       | getCampaign                      | campaigns:read           | 310  | —      | ✓      | 401 403 404 422 429         | —        |
 | POST   | `/api/v1/campaigns/{id}/estimate`              | estimateCampaign                 | campaigns:read           | 399  | —      | ✓      | 401 403 404 409 422 429     | —        |
 | POST   | `/api/v1/campaigns/{id}/start`                 | startCampaign                    | campaigns:write          | 483  | —      | ✓      | 401 403 404 409 422 429     | —        |

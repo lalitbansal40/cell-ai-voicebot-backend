@@ -87,7 +87,7 @@ const manager = {
       provider: 'dryrun',
       mode: 'human',
       from: 'x',
-      to: input.to,
+      to: input.to as string,
       isTest: false,
       source: { kind: null },
       agentUserId: new Types.ObjectId(input.initiatedBy as string),
