@@ -50,11 +50,22 @@ export const SYNC_STATUSES = [
 ] as const;
 export type SyncStatus = (typeof SYNC_STATUSES)[number];
 
-export const WA_PROVIDERS = ['meta', 'fake'] as const;
+/** PN: `pinnacle` = a managed number — every API call goes through the Pinnacle partner API. */
+export const WA_PROVIDERS = ['meta', 'fake', 'pinnacle'] as const;
 export type WaProvider = (typeof WA_PROVIDERS)[number];
 
 export const REGISTRATION_STATUSES = ['not_needed', 'pending', 'registered', 'failed'] as const;
-export const CREDIT_LINE_STATUSES = ['not_needed', 'attached', 'failed'] as const;
+/**
+ * `partner_pending` / `partner_active`: a managed (Pinnacle) number billed through the
+ * partner's credit line — requested / approved in the partner panel, set by a superadmin.
+ */
+export const CREDIT_LINE_STATUSES = [
+  'not_needed',
+  'attached',
+  'failed',
+  'partner_pending',
+  'partner_active',
+] as const;
 export const SUBSCRIPTION_STATUSES = ['subscribed', 'failed'] as const;
 
 /** The connect steps (`statusReason.step`; retry-setup resumes from it). */
@@ -85,6 +96,8 @@ export const WA_CALLING_UNAVAILABLE_REASONS = [
   'country',
   'messaging_limit',
   'not_cloud_api',
+  // PN: the partner API (managed number) refused calling
+  'provider_unsupported',
 ] as const;
 export type WaCallingUnavailableReason = (typeof WA_CALLING_UNAVAILABLE_REASONS)[number];
 
@@ -214,6 +227,18 @@ export const callHoursProblems = (hours: Pick<CallHours, 'weekly' | 'holidays'>)
   return problems;
 };
 
+/** PN: partner (Pinnacle) details of a managed number — never the API key itself. */
+export interface WaPinnacle {
+  /** Secret Pinnacle sends back in `x-cell-webhook-secret` (sealed, select:false). */
+  webhookSecretSealed?: string | null;
+  webhookUrl: string | null;
+  webhookSetAt: Date | null;
+  keyLast4: string | null;
+  keyCheckedAt: Date | null;
+  lastBalanceErrorAt: Date | null;
+  addedBy: Types.ObjectId | null;
+}
+
 export interface WaHistoryEntry {
   status: WaChannelStatus;
   reason: string | null;
@@ -299,6 +324,8 @@ export interface WhatsAppChannelDoc {
   statusReason: WaStatusReason | null;
   restriction: { type: string; until: Date | null } | null;
   webhook: { lastEventAt: Date | null; lastField: string | null };
+  /** PN: managed (Pinnacle) numbers only; `null` otherwise. */
+  pinnacle: WaPinnacle | null;
   /** Last 10 volume pricing tier updates (Phase 11). */
   pricingTier?: WaPricingTier[];
   /** WhatsApp calling (Phase 12) — absent on channels created before migration 0013. */
@@ -510,6 +537,21 @@ const schema = new Schema<WhatsAppChannelDoc>({
     lastEventAt: { type: Date, default: null },
     lastField: nullableString,
   },
+  pinnacle: {
+    type: new Schema<WaPinnacle>(
+      {
+        webhookSecretSealed: { type: String, default: null, select: false },
+        webhookUrl: { type: String, default: null, maxlength: 500 },
+        webhookSetAt: { type: Date, default: null },
+        keyLast4: { type: String, default: null, maxlength: 4 },
+        keyCheckedAt: { type: Date, default: null },
+        lastBalanceErrorAt: { type: Date, default: null },
+        addedBy: { type: Schema.Types.ObjectId, default: null },
+      },
+      { _id: false },
+    ),
+    default: null,
+  },
   pricingTier: {
     type: [
       new Schema<WaPricingTier>(
@@ -553,7 +595,7 @@ schema.pre('validate', function () {
   }
 });
 schema.plugin(tenantPlugin);
-schema.plugin(basePlugin, { hide: ['tokenSealed'] });
+schema.plugin(basePlugin, { hide: ['tokenSealed', 'pinnacle.webhookSecretSealed'] });
 // one active channel per number platform-wide (a disconnected one may be connected again elsewhere)
 schema.index(
   { phoneNumberId: 1 },
@@ -572,6 +614,7 @@ schema.index(
   { name: 'account_waac', partialFilterExpression: { waacId: { $type: 'string' } } },
 );
 schema.index({ metaUserId: 1 });
+schema.index({ provider: 1, status: 1 });
 
 /** A WhatsApp Business number connected to an account (PHASE_9_PLAN §1e). */
 export const WhatsAppChannelModel: Model<WhatsAppChannelDoc> =

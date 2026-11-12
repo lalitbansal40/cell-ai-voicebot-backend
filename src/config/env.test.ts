@@ -788,6 +788,44 @@ describe('loadEnv — WhatsApp calling (Phase 12)', () => {
     ).toEqual(['FAKE_META_CALL_DELAYS_MS']);
   });
 
+  it('PINNACLE (PN): off by default, needs WhatsApp, voice URL defaults, https in production', () => {
+    const off = loadEnv({});
+    expect(off.PINNACLE_ENABLED).toBe(false);
+    expect(off.PINNACLE_BASE_URL).toBe('https://partnersv1.pinbot.ai');
+    expect(off.PINNACLE_VOICE_BASE_URL).toBe('https://partnersv1.pinbot.ai');
+    expect(off.PINNACLE_TIMEOUT_MS).toBe(15_000);
+    const on = loadEnv({
+      PINNACLE_ENABLED: 'true',
+      PINNACLE_VOICE_BASE_URL: 'https://voice.example.test/',
+    });
+    expect(on.PINNACLE_ENABLED).toBe(true);
+    expect(on.PINNACLE_VOICE_BASE_URL).toBe('https://voice.example.test');
+    expect(
+      issuesOf({ PINNACLE_ENABLED: 'true', WHATSAPP_ENABLED: 'false' }).issues.map(
+        (i) => i.variable,
+      ),
+    ).toEqual(['PINNACLE_ENABLED']);
+    expect(issuesOf({ PINNACLE_TIMEOUT_MS: '100' }).issues.map((i) => i.variable)).toEqual([
+      'PINNACLE_TIMEOUT_MS',
+    ]);
+    const prod = {
+      ...validProduction,
+      META_PROVIDER: 'meta',
+      META_APP_ID: '1234567890',
+      META_APP_SECRET: 'test-meta-app-secret-0123456789abcdef',
+      META_ES_CONFIG_ID: '987654321',
+      META_WEBHOOK_VERIFY_TOKEN: 'test-meta-verify-token-0123456789',
+      WA_MEDIA_PUBLIC_IP: '203.0.113.10',
+      PINNACLE_ENABLED: 'true',
+    };
+    expect(loadEnv(prod).PINNACLE_ENABLED).toBe(true);
+    expect(
+      issuesOf({ ...prod, PINNACLE_VOICE_BASE_URL: 'http://voice.example.test' }).issues.map(
+        (i) => i.variable,
+      ),
+    ).toEqual(['PINNACLE_VOICE_BASE_URL']);
+  });
+
   it('WA_CALL_WINDOW_IGNORED: fake Meta outside production only', () => {
     expect(loadEnv({}).WA_CALL_WINDOW_IGNORED).toBe(false);
     expect(loadEnv({ WA_CALL_WINDOW_IGNORED: 'true' }).WA_CALL_WINDOW_IGNORED).toBe(true);

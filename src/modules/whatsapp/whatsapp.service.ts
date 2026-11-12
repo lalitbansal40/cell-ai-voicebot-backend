@@ -50,7 +50,7 @@ import { canRetryCoexistence, requestCoexistenceSyncs } from './coexistence';
 import { nowOf, openSecret, phoneLast4, sealSecret, toE164, type WhatsAppContext } from './context';
 import { metaApiError, notReady, signupError, signupFailed } from './errors';
 
-const SECRET_FIELDS = '+tokenSealed +registration.pinSealed';
+const SECRET_FIELDS = '+tokenSealed +registration.pinSealed +pinnacle.webhookSecretSealed';
 /** Fields the `phone` step sets (dropped when the number turns out to be taken). */
 const PHONE_KEYS = ['phoneNumberId', 'displayPhoneNumber', 'phoneE164', 'verifiedName'] as const;
 

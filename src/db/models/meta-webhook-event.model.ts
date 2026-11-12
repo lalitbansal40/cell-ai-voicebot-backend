@@ -11,6 +11,9 @@ export const META_EVENT_STATUSES = [
 ] as const;
 export type MetaEventStatus = (typeof META_EVENT_STATUSES)[number];
 
+export const META_EVENT_SOURCES = ['meta', 'pinnacle'] as const;
+export type MetaEventSource = (typeof META_EVENT_SOURCES)[number];
+
 export interface MetaWebhookEventDoc {
   _id: Types.ObjectId;
   /** sha256(object | entry id | field | stable JSON of the value) — idempotency. */
@@ -28,6 +31,8 @@ export interface MetaWebhookEventDoc {
   /** No PII — schema / routing / handler error text. */
   error: string | null;
   receivedAt: Date;
+  /** PN: which route delivered it (Meta directly, or the Pinnacle relay). */
+  source?: MetaEventSource;
   processedAt: Date | null;
   /** Set when a later phase consumed a deferred event. */
   consumedAt: Date | null;
@@ -49,6 +54,7 @@ const schema = new Schema<MetaWebhookEventDoc>({
   attempts: { type: Number, default: 0 },
   error: { type: String, default: null, maxlength: 300 },
   receivedAt: { type: Date, required: true },
+  source: { type: String, enum: META_EVENT_SOURCES, default: 'meta' },
   processedAt: { type: Date, default: null },
   consumedAt: { type: Date, default: null },
   expiresAt: { type: Date, required: true },

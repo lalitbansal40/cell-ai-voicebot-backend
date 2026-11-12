@@ -195,6 +195,34 @@ export const TOKEN_INVALID_REASON: WaStatusReason = {
   step: null,
 };
 
+/* ── PN: managed (Pinnacle) numbers ─────────────────────────────────────── */
+
+export const PARTNER_CREDIT_LINE_PENDING: WaStatusReason = {
+  code: 'partner_credit_line_pending',
+  message: 'Billing for this number is being activated at the partner.',
+  step: null,
+};
+export const PROVIDER_KEY_INVALID: WaStatusReason = {
+  code: 'provider_key_invalid',
+  message: 'The partner API key was rejected — replace it.',
+  step: null,
+};
+export const PROVIDER_NUMBER_MISSING: WaStatusReason = {
+  code: 'provider_number_missing',
+  message: "The partner API key doesn't include this number any more.",
+  step: null,
+};
+export const PROVIDER_WEBHOOK_MISMATCH: WaStatusReason = {
+  code: 'provider_webhook_mismatch',
+  message: "The partner isn't sending this number's events to us — reset the webhook.",
+  step: null,
+};
+export const REGISTER_AT_PARTNER: WaStatusReason = {
+  code: 'register_at_partner',
+  message: 'Finish registering this number in the partner panel.',
+  step: null,
+};
+
 /** Every Graph `190` (token gone) for a channel ends here. */
 export const markNeedsReconnect = (
   ctx: Pick<WhatsAppContext, 'env' | 'now'>,

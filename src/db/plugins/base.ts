@@ -12,7 +12,20 @@ export const basePlugin = (schema: Schema, options: BasePluginOptions = {}): voi
     if (ret._id !== undefined) ret.id = (ret._id as { toString(): string }).toString();
     delete ret._id;
     delete ret.__v;
-    for (const field of hide) delete ret[field];
+    for (const field of hide) {
+      // `a.b` hides a nested field (the parent object stays)
+      const parts = field.split('.');
+      let target: unknown = ret;
+      for (const part of parts.slice(0, -1)) {
+        target =
+          target && typeof target === 'object'
+            ? (target as Record<string, unknown>)[part]
+            : undefined;
+      }
+      if (target && typeof target === 'object') {
+        delete (target as Record<string, unknown>)[parts[parts.length - 1] ?? field];
+      }
+    }
     return ret;
   };
   schema.set('timestamps', true);

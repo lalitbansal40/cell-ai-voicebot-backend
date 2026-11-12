@@ -35,6 +35,8 @@ const DEV_META_VERIFY_TOKEN = 'dev-meta-verify-token';
 const DEV_FAKE_META_APP_SECRET = 'dev-fake-meta-app-secret';
 /** Cell24x7 Voice API (partner endpoints). */
 export const CELL24X7_VOICE_DEFAULT_URL = VOICE_API_CONFIG.baseUrl;
+/** PN: Pinnacle partner API (WhatsApp managed numbers). */
+export const PINNACLE_DEFAULT_URL = 'https://partnersv1.pinbot.ai';
 const DEV_VOICE_API_WEBHOOK_SECRET = 'dev-voice-api-webhook-secret-not-for-production';
 
 const RawEnvSchema = z.object({
@@ -165,6 +167,12 @@ const RawEnvSchema = z.object({
   META_CREDIT_LINE_ID: z.string().regex(/^\d+$/, { message: 'must be digits' }).optional(),
   /** System User token of our business (business_management, Admin / Financial Editor). */
   META_SYSTEM_USER_TOKEN: optionalString,
+  /** PN: managed WhatsApp numbers over the Pinnacle partner API (superadmin adds them). */
+  PINNACLE_ENABLED: z.enum(['true', 'false'], { message: 'must be true or false' }).optional(),
+  PINNACLE_BASE_URL: z.url().default(PINNACLE_DEFAULT_URL),
+  /** WhatsApp Voice wrapper host (defaults to PINNACLE_BASE_URL). */
+  PINNACLE_VOICE_BASE_URL: z.url().optional(),
+  PINNACLE_TIMEOUT_MS: z.coerce.number().int().min(2000).max(60_000).default(15_000),
   /** DEV / TEST ONLY — app secret of the fake Meta provider (signs simulated webhooks). */
   FAKE_META_APP_SECRET: optionalString,
   /** Days WhatsApp messages and their media are kept (Phase 10; `0` = keep forever, else ≥ 30). */
@@ -353,6 +361,8 @@ export type Env = Readonly<
     | 'WA_CALL_WINDOW_IGNORED'
     | 'CELL24X7_WEBHOOK_SECRET'
     | 'SIP_INBOUND_ENABLED'
+    | 'PINNACLE_ENABLED'
+    | 'PINNACLE_VOICE_BASE_URL'
   > & {
     APP_URL: string;
     FRONTEND_URL: string;
@@ -404,6 +414,10 @@ export type Env = Readonly<
     CELL24X7_WEBHOOK_SECRET: string;
     /** Incoming trunk calls are taken (Phase 20); only with the SIP line. */
     SIP_INBOUND_ENABLED: boolean;
+    /** PN: managed numbers over Pinnacle (needs WhatsApp on). */
+    PINNACLE_ENABLED: boolean;
+    /** Resolved (defaults to PINNACLE_BASE_URL). */
+    PINNACLE_VOICE_BASE_URL: string;
   }
 >;
 
@@ -722,6 +736,27 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
         !PLACEHOLDER.test(raw.META_WEBHOOK_VERIFY_TOKEN),
     );
   }
+  const pinnacleEnabled = raw.PINNACLE_ENABLED === 'true';
+  if (pinnacleEnabled) {
+    check('PINNACLE_ENABLED', 'needs WHATSAPP_ENABLED', whatsappEnabled);
+    if (production) {
+      check(
+        'PINNACLE_BASE_URL',
+        'must be an https URL in production',
+        raw.PINNACLE_BASE_URL.startsWith('https://'),
+      );
+      check(
+        'PINNACLE_VOICE_BASE_URL',
+        'must be an https URL in production',
+        (raw.PINNACLE_VOICE_BASE_URL ?? raw.PINNACLE_BASE_URL).startsWith('https://'),
+      );
+      check(
+        'APP_URL',
+        'must be an https URL (the partner webhook) when PINNACLE_ENABLED',
+        (raw.APP_URL ?? '').startsWith('https://'),
+      );
+    }
+  }
   if (production && whatsappEnabled) {
     check('META_PROVIDER', 'must be meta in production', metaProvider === 'meta');
     check(
@@ -898,6 +933,11 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     CAMPAIGNS_ENABLED: raw.CAMPAIGNS_ENABLED !== 'false',
     WHATSAPP_ENABLED: whatsappEnabled,
     META_PROVIDER: metaProvider,
+    PINNACLE_ENABLED: pinnacleEnabled && whatsappEnabled,
+    PINNACLE_VOICE_BASE_URL: (raw.PINNACLE_VOICE_BASE_URL ?? raw.PINNACLE_BASE_URL).replace(
+      /\/+$/,
+      '',
+    ),
     META_WEBHOOK_VERIFY_TOKEN:
       raw.META_WEBHOOK_VERIFY_TOKEN ?? (metaProvider === 'fake' ? DEV_META_VERIFY_TOKEN : ''),
     FAKE_META_APP_SECRET:

@@ -49,6 +49,12 @@ export const SEALED_FIELDS: SealedField[] = [
     path: 'registration.pinSealed',
   },
   {
+    // PN: the secret a managed (Pinnacle) number's callbacks carry
+    name: 'whatsappChannels.pinnacle.webhookSecretSealed',
+    collection: raw(WhatsAppChannelModel),
+    path: 'pinnacle.webhookSecretSealed',
+  },
+  {
     name: 'metaWebhookEvents.payloadSealed',
     collection: raw(MetaWebhookEventModel),
     path: 'payloadSealed',

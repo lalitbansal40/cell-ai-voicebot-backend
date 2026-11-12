@@ -42,6 +42,24 @@ describe('db plugins', () => {
     expect(json.createdAt).toBeInstanceOf(Date);
   });
 
+  it('basePlugin hides top-level and nested (`a.b`) fields, keeping the parent', () => {
+    const secretive = new Schema({
+      name: String,
+      tokenSealed: String,
+      nested: { secretSealed: String, keep: String },
+    });
+    secretive.plugin(basePlugin, { hide: ['tokenSealed', 'nested.secretSealed', 'gone.x'] });
+    const Secretive = mongoose.model('PluginSecretive', secretive);
+    const json = new Secretive({
+      name: 'n',
+      tokenSealed: 's1',
+      nested: { secretSealed: 's2', keep: 'k' },
+    }).toJSON() as Record<string, unknown>;
+    expect(json.tokenSealed).toBeUndefined();
+    expect(json.nested).toEqual({ keep: 'k' });
+    expect(json.name).toBe('n');
+  });
+
   it('tenantPlugin requires and indexes accountId', async () => {
     await expect(ThingModel.create({ name: 'no-account' })).rejects.toThrow(/accountId/);
     const indexes = await ThingModel.collection.indexes();
