@@ -49,6 +49,8 @@ const seed = async (keys = OLD) => {
       accountId,
       tokenSealed: v(name),
       registration: { pinSealed: v(`${name}-pin`) },
+      // PN: a managed number's partner webhook secret
+      pinnacle: { webhookSecretSealed: v(`${name}-pinnacle`) },
     });
   }
   await MetaWebhookEventModel.collection.insertOne({ payloadSealed: v('meta') });
