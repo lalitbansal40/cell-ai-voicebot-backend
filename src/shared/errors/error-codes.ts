@@ -356,6 +356,30 @@ export const ERROR_CODES = {
     message: 'Your calling session ended. Join the campaign again.',
   },
   AGENT_CALL_ACTIVE: { status: 409, message: 'Finish your current call first.' },
+  // PN: managed WhatsApp numbers over the Pinnacle partner API
+  WA_PROVIDER_NOT_CONFIGURED: {
+    status: 503,
+    message: "Managed WhatsApp numbers aren't set up on this server.",
+  },
+  WA_PROVIDER_UNSUPPORTED: {
+    status: 422,
+    message: "This isn't available for managed WhatsApp numbers.",
+  },
+  WA_PROVIDER_ERROR: { status: 502, message: 'The WhatsApp partner refused the request.' },
+  WA_PROVIDER_BALANCE_LOW: {
+    status: 402,
+    message: 'The WhatsApp partner balance is low — contact support.',
+  },
+  PINNACLE_KEY_INVALID: { status: 422, message: 'The partner rejected this API key.' },
+  PINNACLE_NUMBER_NOT_ON_KEY: {
+    status: 422,
+    message: "This API key doesn't include that WhatsApp number.",
+  },
+  PINNACLE_WEBHOOK_NOT_SET: {
+    status: 502,
+    message: "The partner didn't accept our webhook for this number.",
+  },
+  PINNACLE_WEBHOOK_FORBIDDEN: { status: 403, message: 'Invalid partner webhook secret.' },
 } as const satisfies Record<string, { status: number; message: string }>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

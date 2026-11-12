@@ -78,30 +78,41 @@ import {
   type MetaUploadFile,
 } from './types';
 
-export interface GraphMetaClientOptions {
+export interface GraphMetaClientOptions extends GraphTransportOptions {
   appId: string;
   appSecret: string;
-  graphVersion: string;
-  baseUrl: string;
   /** Our Solution Partner credit line (`META_CREDIT_LINE_ID`). */
   creditLineId?: string | undefined;
   /** System User token of our business (credit line calls). Never logged. */
   systemUserToken?: string | undefined;
+  /** Extra media hosts allowed for downloads (exact host — tests' local stub only). */
+  mediaHosts?: readonly string[];
+}
+
+/** PN: how a Graph-compatible API is reached (Meta, or the Pinnacle relay). */
+export interface GraphTransportOptions {
+  graphVersion: string;
+  baseUrl: string;
   fetch?: typeof fetch;
   logger?: Logger;
-  /** Backoff wait (tests pass an instant one). */
   sleep?: (ms: number) => Promise<void>;
   random?: () => number;
   timeoutMs?: number;
   retries?: number;
   retryBaseMs?: number;
-  /** Extra media hosts allowed for downloads (exact host — tests' local stub only). */
-  mediaHosts?: readonly string[];
+  /** `bearer` (Meta) or `apikey` (Pinnacle: the token goes in an `apikey` header). */
+  auth?: 'bearer' | 'apikey';
+  /** Checked before Meta's mapping; `null` → Meta's `graphError`. */
+  mapError?: (status: number, json: unknown) => MetaApiError | null;
+  /** A 2xx body that still means "failed" (Pinnacle answers HTTP 200 with `status: failed`). */
+  failureBody?: (json: unknown) => boolean;
+  /** Log label (default `meta`). */
+  label?: string;
 }
 
-type Method = 'GET' | 'POST' | 'DELETE';
+export type Method = 'GET' | 'POST' | 'DELETE';
 
-interface GraphRequest<T> {
+export interface GraphRequest<T> {
   /** Name for logs — the URL is never logged (it may carry credentials). */
   op: string;
   method: Method;
@@ -178,28 +189,33 @@ const PRICING_DIMENSIONS = 'PRICING_CATEGORY,PRICING_TYPE,COUNTRY';
 
 const unix = (d: Date) => String(Math.floor(d.getTime() / 1000));
 
-const seg = (value: string) => encodeURIComponent(value);
+export const seg = (value: string) => encodeURIComponent(value);
 const tokenKey = (token: string) => createHash('sha256').update(token).digest('hex');
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Real Meta Graph API client (plain `fetch`, no SDK). */
-export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClient => {
+/** Request / retry core shared by the Meta client and the Pinnacle client (PN). */
+export const createGraphTransport = (options: GraphTransportOptions) => {
   const {
-    appId,
-    appSecret,
     graphVersion,
-    creditLineId,
-    systemUserToken,
     fetch: fetchFn = fetch,
     sleep = defaultSleep,
     random = Math.random,
     timeoutMs = WHATSAPP_LIMITS.graphTimeoutMs,
     retries = WHATSAPP_LIMITS.graphRetries,
     retryBaseMs = WHATSAPP_LIMITS.graphRetryBaseMs,
+    auth = 'bearer',
+    label = 'meta',
   } = options;
   const baseUrl = options.baseUrl.replace(/\/+$/, '');
   const log = () => options.logger ?? getLogger();
-  const owners = new Map<string, string>();
+  const authHeaders = (req: GraphRequest<unknown>): Record<string, string> => {
+    if (!req.token) return {};
+    // Pinnacle takes its key in `apikey` on every call (also the upload bytes)
+    if (auth === 'apikey') return { apikey: req.token };
+    return { authorization: `${req.authScheme ?? 'Bearer'} ${req.token}` };
+  };
+  const failed = (status: number, json: unknown): MetaApiError =>
+    options.mapError?.(status, json) ?? graphError(status, json);
 
   const once = async <T>(req: GraphRequest<T>): Promise<T> => {
     const url = new URL(`${baseUrl}/${graphVersion}/${req.path}`);
@@ -211,7 +227,7 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
         method: req.method,
         headers: {
           accept: 'application/json',
-          ...(req.token ? { authorization: `${req.authScheme ?? 'Bearer'} ${req.token}` } : {}),
+          ...authHeaders(req),
           ...(req.body ? { 'content-type': 'application/json' } : {}),
           ...req.headers,
         },
@@ -228,11 +244,15 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
       try {
         json = JSON.parse(text);
       } catch {
-        throw res.ok ? invalidResponse(res.status, req.op) : graphError(res.status, null);
+        throw res.ok ? invalidResponse(res.status, req.op) : failed(res.status, null);
       }
     }
-    if (!res.ok || (json && typeof json === 'object' && 'error' in json)) {
-      throw graphError(res.status, json);
+    if (
+      !res.ok ||
+      (json && typeof json === 'object' && 'error' in json) ||
+      (options.failureBody?.(json) ?? false)
+    ) {
+      throw failed(res.status, json);
     }
     const parsed = req.schema.safeParse(json);
     if (!parsed.success) throw invalidResponse(res.status, req.op);
@@ -248,7 +268,7 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
         const retry = metaErr.retryable && attempt < retries;
         log().warn(
           { op: req.op, attempt: attempt + 1, retry, ...metaErrorMeta(metaErr) },
-          'meta: request failed',
+          `${label}: request failed`,
         );
         if (!retry) throw metaErr;
         await sleep(retryBaseMs * 2 ** attempt + Math.floor(random() * retryBaseMs));
@@ -267,6 +287,81 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
       'query' | 'body' | 'form' | 'bytes' | 'headers' | 'authScheme'
     > = {},
   ) => call({ op, method, path, token, schema, ...extra });
+
+  /** Retries with a fresh request per attempt (a multipart body can be read once). */
+  const retrying = async <T>(op: string, make: () => GraphRequest<T>): Promise<T> => {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await once(make());
+      } catch (err) {
+        const metaErr = err as MetaApiError;
+        const retry = metaErr.retryable && attempt < retries;
+        log().warn(
+          { op, attempt: attempt + 1, retry, ...metaErrorMeta(metaErr) },
+          `${label}: request failed`,
+        );
+        if (!retry) throw metaErr;
+        await sleep(retryBaseMs * 2 ** attempt + Math.floor(random() * retryBaseMs));
+      }
+    }
+  };
+
+  /** Streams a media body with the size cap (the caller checked the URL's host). */
+  const streamMedia = async (
+    url: string,
+    headers: Record<string, string>,
+    maxBytes: number,
+    method: Method = 'GET',
+  ) => {
+    let res: Response;
+    try {
+      res = await fetchFn(url, {
+        method,
+        headers,
+        redirect: 'error',
+        signal: AbortSignal.timeout(timeoutMs * 6),
+      });
+    } catch (err) {
+      const name = (err as Error).name;
+      throw networkError(name === 'TimeoutError' || name === 'AbortError');
+    }
+    if (!res.ok || !res.body) {
+      await res.body?.cancel().catch(() => undefined);
+      throw failed(res.status, null);
+    }
+    const length = Number(res.headers.get('content-length'));
+    const contentLength = Number.isFinite(length) && length > 0 ? length : null;
+    if (contentLength !== null && contentLength > maxBytes) {
+      await res.body.cancel().catch(() => undefined);
+      throw mediaRefused('too_large');
+    }
+    let seen = 0;
+    const counter = new Transform({
+      transform(chunk: Buffer, _enc, done) {
+        seen += chunk.length;
+        if (seen > maxBytes) done(mediaRefused('too_large'));
+        else done(null, chunk);
+      },
+    });
+    const source = Readable.fromWeb(res.body);
+    source.on('error', (err) => counter.destroy(err));
+    return {
+      stream: source.pipe(counter),
+      contentType: res.headers.get('content-type'),
+      contentLength,
+    };
+  };
+
+  return { baseUrl, once, call, bearer, retrying, streamMedia, log };
+};
+
+export type GraphTransport = ReturnType<typeof createGraphTransport>;
+
+/** Real Meta Graph API client (plain `fetch`, no SDK). */
+export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClient => {
+  const { appId, appSecret, creditLineId, systemUserToken } = options;
+  const owners = new Map<string, string>();
+  const { call, bearer, retrying, streamMedia } = createGraphTransport(options);
 
   /** Meta's resumable upload: session on the app, then the bytes (`OAuth` header) → handle. */
   const resumableUpload = async (op: string, token: string, file: MetaUploadFile) => {
@@ -544,28 +639,15 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
         );
         return f;
       };
-      for (let attempt = 0; ; attempt += 1) {
-        try {
-          const raw = await once({
-            op: 'phone.media_upload',
-            method: 'POST',
-            path: `${seg(phoneNumberId)}/media`,
-            token,
-            form: form(),
-            schema: mediaUploadSchema,
-          });
-          return raw.id;
-        } catch (err) {
-          const metaErr = err as MetaApiError;
-          const retry = metaErr.retryable && attempt < retries;
-          log().warn(
-            { op: 'phone.media_upload', attempt: attempt + 1, retry, ...metaErrorMeta(metaErr) },
-            'meta: request failed',
-          );
-          if (!retry) throw metaErr;
-          await sleep(retryBaseMs * 2 ** attempt + Math.floor(random() * retryBaseMs));
-        }
-      }
+      const raw = await retrying('phone.media_upload', () => ({
+        op: 'phone.media_upload',
+        method: 'POST',
+        path: `${seg(phoneNumberId)}/media`,
+        token,
+        form: form(),
+        schema: mediaUploadSchema,
+      }));
+      return raw.id;
     },
 
     async getMediaUrl(token, mediaId, phoneNumberId) {
@@ -577,42 +659,7 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
 
     async downloadMedia(token, url, { maxBytes }) {
       if (!isAllowedMediaUrl(url, options.mediaHosts)) throw mediaRefused('host');
-      let res: Response;
-      try {
-        res = await fetchFn(url, {
-          headers: { authorization: `Bearer ${token}` },
-          redirect: 'error',
-          signal: AbortSignal.timeout(timeoutMs * 6),
-        });
-      } catch (err) {
-        const name = (err as Error).name;
-        throw networkError(name === 'TimeoutError' || name === 'AbortError');
-      }
-      if (!res.ok || !res.body) {
-        await res.body?.cancel().catch(() => undefined);
-        throw graphError(res.status, null);
-      }
-      const length = Number(res.headers.get('content-length'));
-      const contentLength = Number.isFinite(length) && length > 0 ? length : null;
-      if (contentLength !== null && contentLength > maxBytes) {
-        await res.body.cancel().catch(() => undefined);
-        throw mediaRefused('too_large');
-      }
-      let seen = 0;
-      const counter = new Transform({
-        transform(chunk: Buffer, _enc, done) {
-          seen += chunk.length;
-          if (seen > maxBytes) done(mediaRefused('too_large'));
-          else done(null, chunk);
-        },
-      });
-      const source = Readable.fromWeb(res.body);
-      source.on('error', (err) => counter.destroy(err));
-      return {
-        stream: source.pipe(counter),
-        contentType: res.headers.get('content-type'),
-        contentLength,
-      };
+      return streamMedia(url, { authorization: `Bearer ${token}` }, maxBytes);
     },
 
     async blockUsers(token, phoneNumberId, waIds) {

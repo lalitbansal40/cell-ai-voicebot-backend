@@ -25,6 +25,8 @@ const SECRET_PATTERNS: RegExp[] = [
   /code=[^&\s"]+/g,
   /Bearer\s+[^\s"]+/gi,
   /OAuth\s+[^\s"]+/g,
+  // PN: a Pinnacle key echoed back (`apikey: …` / `apikey=…`)
+  /apikey["']?\s*[:=]\s*["']?[^\s"',&]+/gi,
 ];
 /** SDP bodies / ICE credentials / candidates / fingerprints (they carry IPs and keys). */
 const SDP_PATTERNS: RegExp[] = [
@@ -44,7 +46,9 @@ export const scrubSecrets = (text: string): string =>
           ? 'Bearer ***'
           : match.startsWith('OAuth')
             ? 'OAuth ***'
-            : `${match.slice(0, match.indexOf('=') + 1)}***`,
+            : /^apikey/i.test(match)
+              ? 'apikey=***'
+              : `${match.slice(0, match.indexOf('=') + 1)}***`,
       ),
     SDP_PATTERNS.reduce((out, re) => out.replace(re, '<sdp>'), text).replace(
       MEDIA_URL,
@@ -428,3 +432,81 @@ export const mapCallError = (
 
 /** 131026 on a call permission request / call button → the bubble reason. */
 export const CALL_MESSAGE_OLD_CLIENT_REASON = "Customer's WhatsApp is too old";
+
+/* ── PN: Pinnacle partner API errors (carried in `type`; `code` stays Meta's) ── */
+
+/** `MetaApiError.type` values the Pinnacle client produces. */
+export const PROVIDER_ERROR_TYPES = {
+  /** The partner wallet is empty ("Insufficient Balance"). */
+  balanceLow: 'provider_balance_low',
+  /** The partner refused the call (any other `status: failed`). */
+  error: 'provider_error',
+  /** The method has no partner equivalent (Meta-app only). */
+  unsupported: 'provider_unsupported',
+} as const;
+
+const BALANCE_LOW = /insufficient\s+balance|low\s+balance/i;
+const KEY_INVALID =
+  /invalid.{0,20}(api\s*key|apikey|token)|unauthori[sz]ed|api\s*key.{0,20}(invalid|not\s+found|expired)/i;
+
+/** Pinnacle's own failure body: `{ code, status: "failed" | "error", message }`. */
+export const isPinnacleFailureBody = (json: unknown): boolean => {
+  if (!json || typeof json !== 'object' || 'error' in json) return false;
+  const status = (json as { status?: unknown }).status;
+  return typeof status === 'string' && /^(failed|failure|error)$/i.test(status);
+};
+
+const pinnacleMessage = (json: unknown): string | null => {
+  if (!json || typeof json !== 'object') return null;
+  const body = json as { message?: unknown; error?: unknown };
+  if (typeof body.message === 'string' && body.message) return body.message;
+  if (typeof body.error === 'string' && body.error) return body.error;
+  return null;
+};
+
+/**
+ * Maps a Pinnacle answer to a `MetaApiError` (D13 / D14). Meta-shaped bodies
+ * (`{ error: { … } }`, relayed from Graph) return `null` → `graphError`.
+ */
+export const pinnacleError = (status: number, json: unknown): MetaApiError | null => {
+  if (json && typeof json === 'object' && 'error' in json && typeof json.error === 'object') {
+    return null;
+  }
+  const raw = pinnacleMessage(json);
+  const message = scrubSecrets(raw ?? `Partner request failed (HTTP ${String(status)})`).slice(
+    0,
+    300,
+  );
+  const balanceLow = raw !== null && BALANCE_LOW.test(raw);
+  const tokenInvalid =
+    !balanceLow && (status === 401 || status === 403 || KEY_INVALID.test(raw ?? ''));
+  return new MetaApiError({
+    status,
+    code: null,
+    subcode: null,
+    type: balanceLow ? PROVIDER_ERROR_TYPES.balanceLow : PROVIDER_ERROR_TYPES.error,
+    message,
+    fbtraceId: null,
+    retryable: !balanceLow && !tokenInvalid && (status === 429 || status >= 500),
+    tokenInvalid,
+  });
+};
+
+/** A `MetaClient` method a managed (Pinnacle) number can't use. */
+export const providerUnsupported = (what: string): MetaApiError =>
+  new MetaApiError({
+    status: 0,
+    code: null,
+    subcode: null,
+    type: PROVIDER_ERROR_TYPES.unsupported,
+    message: `${what} is not available for managed numbers`,
+    fbtraceId: null,
+    retryable: false,
+    tokenInvalid: false,
+  });
+
+export const isProviderBalanceLow = (err: unknown): boolean =>
+  err instanceof MetaApiError && err.type === PROVIDER_ERROR_TYPES.balanceLow;
+
+export const isProviderUnsupported = (err: unknown): boolean =>
+  err instanceof MetaApiError && err.type === PROVIDER_ERROR_TYPES.unsupported;

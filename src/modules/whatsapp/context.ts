@@ -1,13 +1,17 @@
 import type { Redis } from 'ioredis';
 
 import type { Env } from '../../config/env';
-import type { MetaClient } from '../../core/meta';
+import type { MetaClient, PinnacleClient } from '../../core/meta';
+import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
 import { open, seal, type SecretKey } from '../../shared/crypto/secret-box';
+import { AppError } from '../../shared/errors/app-error';
 
 /** Everything the WhatsApp services need (built once by the server, injected in tests). */
 export interface WhatsAppContext {
   env: Env;
   meta: MetaClient;
+  /** PN: the Pinnacle partner API for managed numbers (`null` / absent when off). */
+  pinnacle?: PinnacleClient | null;
   redis: Redis;
   /** Secret-box key (`secretBoxKey(env)`) — seals business tokens and PINs. */
   key: SecretKey;
@@ -43,3 +47,20 @@ export const toE164 = (display: string | null | undefined): string | null => {
 /** Last 4 digits of the business number (audit / emails). */
 export const phoneLast4 = (display: string | null | undefined): string =>
   (display?.replace(/\D/g, '') ?? '').slice(-4);
+
+/** PN: is this a managed number (every call goes through the Pinnacle partner API)? */
+export const isPinnacle = (channel: Pick<WhatsAppChannelDoc, 'provider'>): boolean =>
+  channel.provider === 'pinnacle';
+
+/**
+ * PN (D7): the API client for a channel — Pinnacle for managed numbers, Meta otherwise.
+ * Every channel-bound call goes through here (`routing.guard.test.ts`).
+ */
+export const clientFor = (
+  ctx: Pick<WhatsAppContext, 'meta' | 'pinnacle'>,
+  channel: Pick<WhatsAppChannelDoc, 'provider'>,
+): MetaClient => {
+  if (!isPinnacle(channel)) return ctx.meta;
+  if (!ctx.pinnacle) throw new AppError('WA_PROVIDER_NOT_CONFIGURED');
+  return ctx.pinnacle;
+};

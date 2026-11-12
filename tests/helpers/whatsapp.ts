@@ -11,8 +11,10 @@ import { secretBoxKey } from '../../src/core/ai/secret-box';
 import {
   buildFakeCode,
   createFakeMetaClient,
+  createFakePinnacleClient,
   fakeIds,
   type FakeMetaClient,
+  type FakePinnacleClient,
   type FakeSignup,
 } from '../../src/core/meta';
 import {
@@ -32,6 +34,8 @@ import { testEnv } from './test-app';
 export interface WhatsAppWorld {
   redis: Redis;
   fake: FakeMetaClient;
+  /** PN: fake Pinnacle (managed numbers) over the same fake Meta. */
+  pinnacle: FakePinnacleClient;
   env: Env;
   ctx: WhatsAppContext;
   svc: WhatsAppService;
@@ -49,9 +53,11 @@ export const useWhatsAppWorld = (env: NodeJS.ProcessEnv = {}): WhatsAppWorld => 
       prefix,
       appSecret: world.env.FAKE_META_APP_SECRET ?? 'dev-fake-meta-app-secret',
     });
+    world.pinnacle = createFakePinnacleClient(world.fake, world.redis, prefix);
     world.ctx = {
       env: world.env,
       meta: world.fake,
+      pinnacle: world.pinnacle,
       redis: world.redis,
       key: secretBoxKey(world.env),
     };

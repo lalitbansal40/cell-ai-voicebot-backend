@@ -342,7 +342,7 @@ export interface MetaCallAnalyticsPoint {
  * Every method throws `MetaApiError` on failure.
  */
 export interface MetaClient {
-  readonly provider: 'meta' | 'fake';
+  readonly provider: 'meta' | 'fake' | 'pinnacle';
   exchangeCode(code: string): Promise<MetaAccessToken>;
   debugToken(token: string): Promise<MetaDebugToken>;
   listOwnedWabas(token: string): Promise<MetaWabaSummary[]>;

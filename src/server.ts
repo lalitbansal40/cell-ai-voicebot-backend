@@ -18,7 +18,7 @@ import {
   type EmailProvider,
 } from './core/email';
 import { createLifecycle, type Lifecycle } from './core/lifecycle';
-import { createMetaClient, type FakeMetaClient } from './core/meta';
+import { createMetaClient, createPinnacleFromEnv, type FakeMetaClient } from './core/meta';
 import { createPaymentProvider } from './core/payments';
 import { QUEUES } from './core/queues/names';
 import { closeAllQueues, createQueue, DEFAULT_QUEUE_PREFIX } from './core/queues/queue-factory';
@@ -293,27 +293,31 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   const whatsappQueue = env.WHATSAPP_ENABLED ? createQueue(QUEUES.whatsapp, queueDeps) : undefined;
   // Phase 15: templates after a call ride the `whatsapp` queue
   if (whatsappQueue) setPostCallJobs(queuePostCallJobs(whatsappQueue));
-  const whatsapp = whatsappQueue
-    ? {
-        ctx: {
-          env,
-          meta: createMetaClient(env, { redis, logger }),
-          redis,
-          key: secretBoxKey(env),
-          callsFastPath,
-        },
-        jobs: queueWhatsAppJobs(whatsappQueue),
-        inboxJobs: queueInboxJobs(whatsappQueue),
-        templateJobs: queueTemplateJobs(whatsappQueue),
-        callingJobs: queueCallingJobs(whatsappQueue),
-        waCampaignJobs: queueWaCampaignJobs(whatsappQueue),
-        connectRateLimitStore: createRedisRateLimitStore(redis, 'rl:wa-connect:'),
-        inboxSendRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-send:'),
-        inboxUploadRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-upload:'),
-        templatesRateLimitStore: createRedisRateLimitStore(redis, 'rl:templates:'),
-        templateSyncRateLimitStore: createRedisRateLimitStore(redis, 'rl:template-sync:'),
-      }
-    : undefined;
+  const whatsappMeta = whatsappQueue ? createMetaClient(env, { redis, logger }) : null;
+  const whatsapp =
+    whatsappQueue && whatsappMeta
+      ? {
+          ctx: {
+            env,
+            meta: whatsappMeta,
+            // PN: managed numbers over the Pinnacle partner API
+            pinnacle: createPinnacleFromEnv(env, whatsappMeta, { redis, logger }),
+            redis,
+            key: secretBoxKey(env),
+            callsFastPath,
+          },
+          jobs: queueWhatsAppJobs(whatsappQueue),
+          inboxJobs: queueInboxJobs(whatsappQueue),
+          templateJobs: queueTemplateJobs(whatsappQueue),
+          callingJobs: queueCallingJobs(whatsappQueue),
+          waCampaignJobs: queueWaCampaignJobs(whatsappQueue),
+          connectRateLimitStore: createRedisRateLimitStore(redis, 'rl:wa-connect:'),
+          inboxSendRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-send:'),
+          inboxUploadRateLimitStore: createRedisRateLimitStore(redis, 'rl:inbox-upload:'),
+          templatesRateLimitStore: createRedisRateLimitStore(redis, 'rl:templates:'),
+          templateSyncRateLimitStore: createRedisRateLimitStore(redis, 'rl:template-sync:'),
+        }
+      : undefined;
   // Phase 12: WhatsApp calling (settings, permissions, calls with media in this process)
   const calling =
     whatsapp && whatsappQueue
