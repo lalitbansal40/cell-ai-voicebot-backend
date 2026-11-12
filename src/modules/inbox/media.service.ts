@@ -12,7 +12,7 @@ import {
 import { AppError, NotFoundError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
 import { markNeedsReconnect } from '../whatsapp/channel-status';
-import { openSecret } from '../whatsapp/context';
+import { clientFor, openSecret } from '../whatsapp/context';
 
 import { inboxNow, type InboxContext } from './context';
 import { emitMessageUpdated } from './events';
@@ -71,11 +71,13 @@ export const downloadInboundMedia = async (
       throw new PermanentMediaError('The WhatsApp number is not connected');
     }
     const token = openSecret(ix.wa, channel.tokenSealed);
-    const info = await ix.wa.meta.getMediaUrl(token, m.media.metaMediaId, channel.phoneNumberId);
+    // PN: Meta, or the Pinnacle partner API for a managed number
+    const api = clientFor(ix.wa, channel);
+    const info = await api.getMediaUrl(token, m.media.metaMediaId, channel.phoneNumberId);
     if (info.size !== null && info.size > INBOX_LIMITS.inboundMediaMaxBytes) {
       throw new PermanentMediaError('Media is larger than allowed');
     }
-    const download = await ix.wa.meta.downloadMedia(token, info.url, {
+    const download = await api.downloadMedia(token, info.url, {
       maxBytes: INBOX_LIMITS.inboundMediaMaxBytes,
     });
     const bytes = await readAll(download.stream);

@@ -68,7 +68,8 @@ export interface ReadinessFacts {
     | 'messagingLimitTier'
     | 'businessVerificationStatus'
     | 'calling'
-  >;
+  > &
+    Partial<Pick<WhatsAppChannelDoc, 'provider'>>;
   callsWebhook: boolean | null;
   appPermission: boolean | null;
   media: {
@@ -133,34 +134,53 @@ export const readinessItems = (f: ReadinessFacts): ReadinessItem[] => {
           ? 'Verify the business in Meta Business Settings → Security Centre; it also raises the messaging limit.'
           : null,
     },
-    {
-      key: 'calls_webhook',
-      ok: f.callsWebhook,
-      detail:
-        f.callsWebhook === null
-          ? 'Could not read the app’s webhook fields'
-          : f.callsWebhook
-            ? 'The app receives `calls` events'
-            : 'The app is not subscribed to `calls`',
-      fix:
-        f.callsWebhook === false
-          ? 'Meta App Dashboard → WhatsApp → Configuration → Webhook fields: subscribe to "calls".'
-          : null,
-    },
-    {
-      key: 'app_permission',
-      ok: f.appPermission,
-      detail:
-        f.appPermission === null
-          ? 'Could not check the number’s access'
-          : f.appPermission
-            ? 'whatsapp_business_messaging granted'
-            : 'whatsapp_business_messaging missing',
-      fix:
-        f.appPermission === false
-          ? 'Connect the number again and allow every permission in the Meta popup.'
-          : null,
-    },
+    // PN (D16): a managed number's events and access come from the partner (Pinnacle)
+    f.channel.provider === 'pinnacle'
+      ? {
+          key: 'calls_webhook',
+          ok: f.callsWebhook,
+          detail: f.callsWebhook
+            ? 'Partner webhook set — calls events reach us'
+            : 'The partner webhook is not set for this number',
+          fix: f.callsWebhook ? null : 'Ask support to reset the partner webhook for this number.',
+        }
+      : {
+          key: 'calls_webhook',
+          ok: f.callsWebhook,
+          detail:
+            f.callsWebhook === null
+              ? 'Could not read the app’s webhook fields'
+              : f.callsWebhook
+                ? 'The app receives `calls` events'
+                : 'The app is not subscribed to `calls`',
+          fix:
+            f.callsWebhook === false
+              ? 'Meta App Dashboard → WhatsApp → Configuration → Webhook fields: subscribe to "calls".'
+              : null,
+        },
+    f.channel.provider === 'pinnacle'
+      ? {
+          key: 'app_permission',
+          ok: f.appPermission,
+          detail: f.appPermission
+            ? 'Partner API key valid'
+            : 'The partner API key was rejected or not checked yet',
+          fix: f.appPermission ? null : 'Ask support to replace the partner API key.',
+        }
+      : {
+          key: 'app_permission',
+          ok: f.appPermission,
+          detail:
+            f.appPermission === null
+              ? 'Could not check the number’s access'
+              : f.appPermission
+                ? 'whatsapp_business_messaging granted'
+                : 'whatsapp_business_messaging missing',
+          fix:
+            f.appPermission === false
+              ? 'Connect the number again and allow every permission in the Meta popup.'
+              : null,
+        },
     {
       key: 'meta_status',
       ok: calling.status === 'enabled',
@@ -262,6 +282,7 @@ export const createCallingReadiness = (deps: ReadinessDeps) => {
 
   const callsWebhook = () =>
     cached('wa:readiness:calls-webhook', async () => {
+      // meta-only: our Meta app (managed numbers: see `read`)
       const subs = await meta.getAppSubscriptions();
       return subs.some(
         (s) => s.object === 'whatsapp_business_account' && s.active && s.fields.includes('calls'),
@@ -271,6 +292,7 @@ export const createCallingReadiness = (deps: ReadinessDeps) => {
   const appPermission = (channelId: string) =>
     cached(`wa:readiness:scope:${channelId}`, async () => {
       const { token } = await deps.token(channelId);
+      // meta-only: our Meta app (managed numbers: see `read`)
       const info = await meta.debugToken(token);
       return info.isValid && info.scopes.includes('whatsapp_business_messaging');
     });
@@ -287,9 +309,14 @@ export const createCallingReadiness = (deps: ReadinessDeps) => {
     channel: WhatsAppChannelDoc,
   ): Promise<{ ready: boolean; items: ReadinessItem[] }> => {
     const now = deps.ctx.now?.() ?? new Date();
+    const managed = channel.provider === 'pinnacle';
     const [hook, scope, prices, port] = await Promise.all([
-      callsWebhook(),
-      appPermission(channel._id.toString()),
+      managed ? Promise.resolve(Boolean(channel.pinnacle?.webhookSetAt)) : callsWebhook(),
+      managed
+        ? Promise.resolve(
+            Boolean(channel.pinnacle?.keyCheckedAt) && channel.status !== 'needs_reconnect',
+          )
+        : appPermission(channel._id.toString()),
       pricesImported(),
       env.WA_MEDIA_ENABLED ? portBindable(env.WA_MEDIA_PORT_MAX) : Promise.resolve(null),
     ]);

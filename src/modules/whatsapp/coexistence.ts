@@ -24,7 +24,9 @@ export const requestCoexistenceSyncs = async (
   token: string,
 ): Promise<WhatsAppChannelDoc['coexistence']> => {
   const next = { ...channel.coexistence };
-  if (channel.mode !== 'coexistence' || !channel.phoneNumberId) return next;
+  // PN: managed (Pinnacle) numbers are never coexistence numbers
+  if (channel.mode !== 'coexistence' || !channel.phoneNumberId || channel.provider === 'pinnacle')
+    return next;
   for (const kind of COEXISTENCE_SYNC_KINDS) {
     const field = FIELD[kind];
     if (!REQUESTABLE.has(next[field])) continue;

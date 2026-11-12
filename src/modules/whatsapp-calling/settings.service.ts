@@ -32,7 +32,7 @@ import {
   SYSTEM_ACTOR,
   type WaActor,
 } from '../whatsapp/channel-status';
-import { nowOf, phoneLast4, type WhatsAppContext } from '../whatsapp/context';
+import { clientFor, nowOf, phoneLast4, type WhatsAppContext } from '../whatsapp/context';
 
 import { callingUnavailableReason } from './availability';
 import type { CallingSettingsPatchInput } from './calling.schema';
@@ -149,7 +149,7 @@ export const createCallingSettings = (deps: CallingDeps) => {
     try {
       const { token } = await deps.token(channel._id);
       meta = await withCallErrors(() =>
-        ctx.meta.getPhoneSettings(token, channel.phoneNumberId ?? ''),
+        clientFor(ctx, channel).getPhoneSettings(token, channel.phoneNumberId ?? ''),
       );
     } catch (err) {
       getLogger().warn(
@@ -296,7 +296,7 @@ export const createCallingSettings = (deps: CallingDeps) => {
     if (forMeta) {
       const { token } = await deps.token(channel._id);
       await withCallErrors(() =>
-        ctx.meta.updateCallingSettings(token, channel.phoneNumberId ?? '', forMeta),
+        clientFor(ctx, channel).updateCallingSettings(token, channel.phoneNumberId ?? '', forMeta),
       );
     }
     const set: Record<string, unknown> = { 'calling.unavailableReason': unavailableReason };

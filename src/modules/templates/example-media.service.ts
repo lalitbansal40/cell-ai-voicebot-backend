@@ -82,11 +82,11 @@ export const uploadHeaderExample = async (
     ]);
   }
   const channel = await templateChannel(accountId, t.wabaId, channelId);
-  const { token } = await templateToken(tx, channel._id);
+  const { token, api } = await templateToken(tx, channel._id);
   const fileName = safeName(file.fileName, sniffed.ext);
   let handle: string;
   try {
-    handle = await tx.wa.meta.uploadExample(token, {
+    handle = await api.uploadExample(token, {
       bytes: file.bytes,
       mimeType: sniffed.mime,
       fileName,

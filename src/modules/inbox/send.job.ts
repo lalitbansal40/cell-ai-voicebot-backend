@@ -7,6 +7,7 @@ import {
   mapSendError,
   templateSendEffect,
   type InteractiveHeaderInput,
+  type MetaClient,
   type MetaContactCard,
   type OutboundContent,
 } from '../../core/meta';
@@ -27,7 +28,7 @@ import { auditTemplate, emitTemplateUpdated } from '../templates/notify';
 import { templatePayloadFor } from '../templates/send.service';
 import { historyPush, recordTemplateUsage } from '../templates/template.service';
 import { SYSTEM_ACTOR } from '../whatsapp/channel-status';
-import { openSecret } from '../whatsapp/context';
+import { clientFor, openSecret } from '../whatsapp/context';
 import { acquireMessageSlot } from '../whatsapp/message-pacer';
 import { autoPause } from '../whatsapp-campaigns/lifecycle';
 import { trackCampaignMessage } from '../whatsapp-campaigns/tracking';
@@ -73,6 +74,7 @@ const fresh = (uploadedAt: Date | null, now: Date) =>
 /** Uploads a stored file to Meta once (media ids are valid ~30 days) and remembers the id. */
 const metaMediaFor = async (
   ix: InboxContext,
+  api: MetaClient,
   m: MessageDoc,
   token: string,
   phoneNumberId: string,
@@ -93,7 +95,7 @@ const metaMediaFor = async (
   } catch {
     throw new NotSendable('The file is missing');
   }
-  const mediaId = await ix.wa.meta.uploadMedia(token, phoneNumberId, {
+  const mediaId = await api.uploadMedia(token, phoneNumberId, {
     bytes,
     mimeType: src.mimeType?.split(';')[0] ?? 'application/octet-stream',
     fileName: src.fileName ?? `file.${src.storageKey.split('.').pop() ?? 'bin'}`,
@@ -122,6 +124,7 @@ const cardsOf = (m: MessageDoc): MetaContactCard[] =>
 /** Stored message → what Meta takes (uploads media first). */
 const contentOf = async (
   ix: InboxContext,
+  api: MetaClient,
   m: MessageDoc,
   token: string,
   phoneNumberId: string,
@@ -134,23 +137,23 @@ const contentOf = async (
     case 'video':
       return {
         type: m.type,
-        mediaId: await metaMediaFor(ix, m, token, phoneNumberId, 'media', now),
+        mediaId: await metaMediaFor(ix, api, m, token, phoneNumberId, 'media', now),
         caption: m.text,
       };
     case 'audio':
       return {
         type: 'audio',
-        mediaId: await metaMediaFor(ix, m, token, phoneNumberId, 'media', now),
+        mediaId: await metaMediaFor(ix, api, m, token, phoneNumberId, 'media', now),
       };
     case 'sticker':
       return {
         type: 'sticker',
-        mediaId: await metaMediaFor(ix, m, token, phoneNumberId, 'media', now),
+        mediaId: await metaMediaFor(ix, api, m, token, phoneNumberId, 'media', now),
       };
     case 'document':
       return {
         type: 'document',
-        mediaId: await metaMediaFor(ix, m, token, phoneNumberId, 'media', now),
+        mediaId: await metaMediaFor(ix, api, m, token, phoneNumberId, 'media', now),
         caption: m.text,
         fileName: m.media?.fileName ?? 'document',
       };
@@ -180,7 +183,7 @@ const contentOf = async (
         let header: InteractiveHeaderInput | null = null;
         if (i.header?.type === 'text') header = { type: 'text', text: i.header.text ?? '' };
         else if (i.header) {
-          const mediaId = await metaMediaFor(ix, m, token, phoneNumberId, 'header', now);
+          const mediaId = await metaMediaFor(ix, api, m, token, phoneNumberId, 'header', now);
           header =
             i.header.type === 'document'
               ? {
@@ -329,6 +332,7 @@ const fail = async (
 /** A template message → Meta's template payload (header media uploaded once). */
 const templatePayload = async (
   ix: InboxContext,
+  api: MetaClient,
   m: MessageDoc,
   conversation: ConversationDoc,
   token: string,
@@ -338,7 +342,9 @@ const templatePayload = async (
   if (!m.template) throw new NotSendable('Template missing');
   const t = await WhatsAppTemplateModel.findById(m.template.templateId).lean<WhatsAppTemplateDoc>();
   if (!t) throw new NotSendable('The template was deleted');
-  const mediaId = m.media ? await metaMediaFor(ix, m, token, phoneNumberId, 'media', now) : null;
+  const mediaId = m.media
+    ? await metaMediaFor(ix, api, m, token, phoneNumberId, 'media', now)
+    : null;
   return templatePayloadFor(t, m, conversation.waId, mediaId);
 };
 
@@ -388,12 +394,14 @@ export const processSend = async (
     }
     if (conversation.blocked) throw new NotSendable('You blocked this customer');
     const token = openSecret(ix.wa, channel.tokenSealed);
+    // PN: Meta, or the Pinnacle partner API for a managed number
+    const api = clientFor(ix.wa, channel);
     const payload =
       m.type === 'template'
-        ? await templatePayload(ix, m, conversation, token, channel.phoneNumberId, now)
+        ? await templatePayload(ix, api, m, conversation, token, channel.phoneNumberId, now)
         : buildMessagePayload(
             conversation.waId,
-            await contentOf(ix, m, token, channel.phoneNumberId, now),
+            await contentOf(ix, api, m, token, channel.phoneNumberId, now),
             m.context?.replyToWaMessageId ?? null,
           );
     // Validate first, then acquire immediately before entering the provider. No DB work
@@ -441,7 +449,7 @@ export const processSend = async (
       sendingChannel = fresh;
       // Repeat the campaign guards after sleeping, before taking the actual send slot.
     }
-    const { waMessageId } = await ix.wa.meta.sendMessage(token, channel.phoneNumberId, payload);
+    const { waMessageId } = await api.sendMessage(token, channel.phoneNumberId, payload);
     await update(m, 'queued', { waMessageId, error: null }, 'accepted', now);
     await trackCampaignMessage({ _id: m._id, status: 'accepted' });
     return { kind: 'accepted', waMessageId };

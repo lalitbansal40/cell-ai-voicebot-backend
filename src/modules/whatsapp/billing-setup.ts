@@ -38,6 +38,8 @@ export const setupBilling = async (
   token: string,
   waba: MetaWaba,
 ): Promise<BillingResult> => {
+  // PN (D11): a managed number is billed on the partner's credit line — never attach ours
+  if (channel.provider === 'pinnacle') return { patch: {}, attached: false };
   if (channel.metaPayer === 'customer') {
     return {
       patch: {

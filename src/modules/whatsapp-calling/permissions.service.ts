@@ -36,7 +36,7 @@ import { upsertConversation } from '../inbox/conversation-store';
 import { isWindowOpen, sendMessage } from '../inbox/outbound.service';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { numberName } from '../whatsapp/channel-status';
-import { nowOf } from '../whatsapp/context';
+import { clientFor, nowOf } from '../whatsapp/context';
 
 import { activeRestrictions, bicCountryBlocked } from './availability';
 import { withCallErrors } from './errors';
@@ -156,7 +156,7 @@ export const createCallPermissions = (deps: PermissionDeps) => {
     }
     const { token } = await deps.token(channel._id);
     const fresh = await withCallErrors(() =>
-      ctx.meta.getCallPermissions(token, channel.phoneNumberId ?? '', waId),
+      clientFor(ctx, channel).getCallPermissions(token, channel.phoneNumberId ?? '', waId),
     ).catch((err: unknown) => {
       // an API problem never lets a call / request through
       if (err instanceof AppError && err.code !== 'WHATSAPP_CALL_PERMISSION_CHECK_FAILED') {

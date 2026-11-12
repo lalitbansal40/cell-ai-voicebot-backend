@@ -11,7 +11,7 @@ import {
 import { NotFoundError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
 import { markNeedsReconnect } from '../whatsapp/channel-status';
-import { openSecret } from '../whatsapp/context';
+import { clientFor, openSecret } from '../whatsapp/context';
 
 import { inboxNow, type InboxContext } from './context';
 import { emitConversation, emitSummary, emitTyping } from './events';
@@ -102,6 +102,8 @@ const tokenFor = async (ix: InboxContext, channelId: Types.ObjectId) => {
   }
   return {
     channel,
+    // PN: Meta, or the Pinnacle partner API for a managed number
+    api: clientFor(ix.wa, channel),
     token: openSecret(ix.wa, channel.tokenSealed),
     phoneNumberId: channel.phoneNumberId,
   };
@@ -118,7 +120,7 @@ export const processReadReceipt = async (
   const access = await tokenFor(ix, m.channelId);
   if (!access) return 'skipped';
   try {
-    await ix.wa.meta.markRead(access.token, access.phoneNumberId, m.waMessageId);
+    await access.api.markRead(access.token, access.phoneNumberId, m.waMessageId);
     return 'sent';
   } catch (err) {
     if (isMetaApiError(err) && err.tokenInvalid) {
@@ -160,7 +162,7 @@ export const sendTyping = async (
   const access = latest ? await tokenFor(ix, conversation.channelId) : null;
   if (!latest?.waMessageId || !access) return { sent: false };
   try {
-    await ix.wa.meta.markRead(access.token, access.phoneNumberId, latest.waMessageId, {
+    await access.api.markRead(access.token, access.phoneNumberId, latest.waMessageId, {
       typing: true,
     });
     return { sent: true };

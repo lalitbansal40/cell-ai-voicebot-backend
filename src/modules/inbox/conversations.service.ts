@@ -19,7 +19,7 @@ import { recordAudit, type AuditActorInput } from '../audit/audit.service';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { readContactVariables } from '../privacy/sensitive';
 import { markNeedsReconnect } from '../whatsapp/channel-status';
-import { openSecret } from '../whatsapp/context';
+import { clientFor, openSecret } from '../whatsapp/context';
 
 import { inboxNow, type InboxContext } from './context';
 import { upsertConversation } from './conversation-store';
@@ -546,6 +546,8 @@ const channelAccess = async (ix: InboxContext, channelId: Types.ObjectId) => {
   }
   return {
     channel,
+    // PN: Meta, or the Pinnacle partner API for a managed number
+    api: clientFor(ix.wa, channel),
     token: openSecret(ix.wa, channel.tokenSealed),
     phoneNumberId: channel.phoneNumberId,
   };
@@ -564,8 +566,8 @@ export const setBlocked = async (
   let result;
   try {
     result = blocked
-      ? await ix.wa.meta.blockUsers(access.token, access.phoneNumberId, [c.waId])
-      : await ix.wa.meta.unblockUsers(access.token, access.phoneNumberId, [c.waId]);
+      ? await access.api.blockUsers(access.token, access.phoneNumberId, [c.waId])
+      : await access.api.unblockUsers(access.token, access.phoneNumberId, [c.waId]);
   } catch (err) {
     if (isMetaApiError(err) && err.tokenInvalid) await markNeedsReconnect(ix.wa, access.channel);
     throw new AppError('META_API_ERROR', undefined, [

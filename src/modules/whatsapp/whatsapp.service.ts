@@ -47,7 +47,15 @@ import {
   type WaActor,
 } from './channel-status';
 import { canRetryCoexistence, requestCoexistenceSyncs } from './coexistence';
-import { nowOf, openSecret, phoneLast4, sealSecret, toE164, type WhatsAppContext } from './context';
+import {
+  clientFor,
+  nowOf,
+  openSecret,
+  phoneLast4,
+  sealSecret,
+  toE164,
+  type WhatsAppContext,
+} from './context';
 import { metaApiError, notReady, signupError, signupFailed } from './errors';
 
 const SECRET_FIELDS = '+tokenSealed +registration.pinSealed +pinnacle.webhookSecretSealed';
@@ -263,8 +271,10 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
       );
     }
     if (granted.length === 1 && granted[0]) return granted[0];
+    // meta-only: embedded signup
     let candidates = (await meta.listOwnedWabas(token)).map((w) => w.id);
     if (!candidates.length) {
+      // meta-only: embedded signup
       candidates = (await meta.listBusinessesWithWabas(token)).flatMap((b) =>
         b.wabas.map((w) => w.id),
       );
@@ -320,7 +330,10 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     try {
       for (step of CONNECT_STEPS.slice(CONNECT_STEPS.indexOf(from))) {
         if (step === 'phone') {
-          const picked = pickPhone(await meta.listPhoneNumbers(token, ch.wabaId), undefined);
+          const picked = pickPhone(
+            await clientFor(ctx, ch).listPhoneNumbers(token, ch.wabaId),
+            undefined,
+          );
           if (picked === null || picked === 'not_found') fail = NO_PHONE;
           else if (picked === 'several') fail = SEVERAL_PHONES;
           else if (await activeElsewhere(picked.id, ch._id)) fail = IN_USE;
@@ -332,13 +345,14 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
               verifiedName: picked.verifiedName,
             });
         } else if (step === 'details') {
-          waba = await meta.getWaba(token, ch.wabaId);
+          waba = await clientFor(ctx, ch).getWaba(token, ch.wabaId);
           apply({
             ...wabaPatch(waba),
-            ...phonePatch(await meta.getPhoneNumber(token, ch.phoneNumberId ?? '')),
+            ...phonePatch(await clientFor(ctx, ch).getPhoneNumber(token, ch.phoneNumberId ?? '')),
           });
         } else if (step === 'subscribe') {
           try {
+            // meta-only: our app's webhook subscription (never for managed numbers)
             await meta.subscribeApp(token, ch.wabaId);
             apply({ subscription: { status: 'subscribed', error: null, at: now } });
           } catch (err) {
@@ -357,7 +371,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
           // may switch a failing account to "customer pays Meta" before Retry setup)
           if (ch.creditLine.status !== 'attached')
             apply({ metaPayer: await accountPayer(ch.accountId) });
-          waba ??= await meta.getWaba(token, ch.wabaId);
+          waba ??= await clientFor(ctx, ch).getWaba(token, ch.wabaId);
           const billing = await setupBilling(ctx, ch, token, waba);
           apply(billing.patch);
           attached = billing.attached;
@@ -371,7 +385,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
           } else {
             const pin = String(randomInt(0, 1_000_000)).padStart(WHATSAPP_LIMITS.pinLength, '0');
             try {
-              await meta.registerPhone(token, ch.phoneNumberId ?? '', pin);
+              await clientFor(ctx, ch).registerPhone(token, ch.phoneNumberId ?? '', pin);
               apply({
                 registration: {
                   status: 'registered',
@@ -475,11 +489,13 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     let token: string;
     let info: MetaDebugToken;
     try {
+      // meta-only: embedded signup
       token = input.accessToken ?? (await meta.exchangeCode(input.code ?? '')).accessToken;
     } catch (err) {
       throw signupError(err, 'exchange');
     }
     try {
+      // meta-only: embedded signup
       info = await meta.debugToken(token);
     } catch (err) {
       throw signupError(err, 'verify');
@@ -499,6 +515,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     try {
       wabaId = await resolveWaba(token, info.grantedWabaIds, input.sessionInfo?.wabaId);
       const choice = pickPhone(
+        // meta-only: embedded signup
         await meta.listPhoneNumbers(token, wabaId),
         input.sessionInfo?.phoneNumberId,
       );
@@ -649,7 +666,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     }
     const token = await requireToken(channel, actor);
     try {
-      await meta.registerPhone(token, channel.phoneNumberId ?? '', pin);
+      await clientFor(ctx, channel).registerPhone(token, channel.phoneNumberId ?? '', pin);
     } catch (err) {
       if (!isMetaApiError(err)) throw err;
       if (err.tokenInvalid) {
@@ -691,6 +708,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     if (!token) return markNeedsReconnect(ctx, channel, TOKEN_INVALID_REASON, actor);
     const now = nowOf(ctx);
     try {
+      // meta-only: Meta numbers' token check (managed numbers: see the Pinnacle branch)
       const info = await meta.debugToken(token);
       if (!info.isValid) return await markNeedsReconnect(ctx, channel, TOKEN_INVALID_REASON, actor);
       if (info.grantedWabaIds.length && !info.grantedWabaIds.includes(channel.wabaId)) {
@@ -711,8 +729,8 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
         await afterSetupAudits(run, actor);
         return run.channel;
       }
-      const waba = await meta.getWaba(token, ch.wabaId);
-      const phone = await meta.getPhoneNumber(token, ch.phoneNumberId ?? '');
+      const waba = await clientFor(ctx, ch).getWaba(token, ch.wabaId);
+      const phone = await clientFor(ctx, ch).getPhoneNumber(token, ch.phoneNumberId ?? '');
       const patch: Partial<WhatsAppChannelDoc> = {
         ...tokenPatch(info, now),
         ...wabaPatch(waba),
@@ -841,6 +859,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     const token = tokenOf(channel);
     if (!othersOnWaba && token) {
       try {
+        // meta-only: our app's webhook subscription
         await meta.unsubscribeApp(token, channel.wabaId);
       } catch (err) {
         log().warn(

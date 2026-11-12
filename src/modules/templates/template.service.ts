@@ -273,11 +273,11 @@ export const submitTemplate = async (
     ]);
   }
   await assertWithinLimits(tx, channel);
-  const { token } = await templateToken(tx, channel._id);
+  const { token, api } = await templateToken(tx, channel._id);
   const now = templateNow(tx);
   let res;
   try {
-    res = await tx.wa.meta.createTemplate(token, t.wabaId, {
+    res = await api.createTemplate(token, t.wabaId, {
       name: t.name,
       language: t.language,
       category: t.category,
@@ -419,9 +419,9 @@ export const editTemplate = async (
       ]);
     }
     const channel = selectedChannel ?? (await wabaChannel(accountId, t.wabaId));
-    const { token } = await templateToken(tx, channel._id);
+    const { token, api } = await templateToken(tx, channel._id);
     try {
-      await tx.wa.meta.editTemplate(token, t.metaTemplateId ?? '', {
+      await api.editTemplate(token, t.metaTemplateId ?? '', {
         ...(patch.category && patch.category !== t.category ? { category: patch.category } : {}),
         components: componentsForMeta({ ...t, components: stored }),
         ...(next.ttlSeconds ? { ttlSeconds: next.ttlSeconds } : {}),
@@ -477,9 +477,9 @@ export const deleteTemplate = async (
   const atMeta = rows.filter((r) => r.metaTemplateId);
   if (atMeta.length) {
     const channel = await wabaChannel(accountId, t.wabaId);
-    const { token } = await templateToken(tx, channel._id);
+    const { token, api } = await templateToken(tx, channel._id);
     try {
-      await tx.wa.meta.deleteTemplate(token, t.wabaId, {
+      await api.deleteTemplate(token, t.wabaId, {
         name: t.name,
         ...(scope === 'one' ? { hsmId: t.metaTemplateId } : {}),
       });
@@ -660,7 +660,7 @@ export const syncTemplates = async (
   reason: string,
   actor: WaActor = SYSTEM_ACTOR,
 ): Promise<SyncResult> => {
-  const { channel, token } = await templateToken(tx, channelId);
+  const { channel, token, api } = await templateToken(tx, channelId);
   const started = templateNow(tx);
   const seen = new Set<string>();
   const result: SyncResult = { created: 0, updated: 0, deleted: 0, unchanged: 0 };
@@ -669,7 +669,7 @@ export const syncTemplates = async (
   for (let page = 0; page < 1000; page += 1) {
     let res;
     try {
-      res = await tx.wa.meta.listTemplates(token, channel.wabaId, {
+      res = await api.listTemplates(token, channel.wabaId, {
         after,
         limit: TEMPLATE_LIMITS.syncPageSize,
       });

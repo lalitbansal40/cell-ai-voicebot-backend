@@ -12,7 +12,7 @@ import {
 import { AppError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
 
 import { auditChannel, markNeedsReconnect, type WaActor } from './channel-status';
-import { openSecret, type WhatsAppContext } from './context';
+import { clientFor, openSecret, type WhatsAppContext } from './context';
 
 const CACHE_SEC = 300;
 const cacheKey = (channelId: string) => `wa-profile-${channelId}`;
@@ -67,7 +67,7 @@ export const getBusinessProfile = async (
   const { channel, token, phoneNumberId } = await access(ctx, accountId, channelId);
   if (cached) return JSON.parse(cached) as MetaBusinessProfile;
   const profile = await metaCall(ctx, channel, () =>
-    ctx.meta.getBusinessProfile(token, phoneNumberId),
+    clientFor(ctx, channel).getBusinessProfile(token, phoneNumberId),
   );
   await ctx.redis.set(cacheKey(channelId), JSON.stringify(profile), 'EX', CACHE_SEC);
   return profile;
@@ -82,7 +82,9 @@ export const updateBusinessProfile = async (
   actor: WaActor,
 ): Promise<MetaBusinessProfile> => {
   const { channel, token, phoneNumberId } = await access(ctx, accountId, channelId);
-  await metaCall(ctx, channel, () => ctx.meta.updateBusinessProfile(token, phoneNumberId, fields));
+  await metaCall(ctx, channel, () =>
+    clientFor(ctx, channel).updateBusinessProfile(token, phoneNumberId, fields),
+  );
   await ctx.redis.del(cacheKey(channelId));
   await auditChannel(channel, 'whatsapp.profile_updated', actor, {
     fields: Object.keys(fields).filter((k) => k !== 'profilePictureHandle'),
@@ -148,7 +150,7 @@ export const updateProfilePhoto = async (
   }
   const { channel, token } = await access(ctx, accountId, channelId);
   const handle = await metaCall(ctx, channel, () =>
-    ctx.meta.uploadProfilePhoto(token, bytes, png ? 'image/png' : 'image/jpeg'),
+    clientFor(ctx, channel).uploadProfilePhoto(token, bytes, png ? 'image/png' : 'image/jpeg'),
   );
   return updateBusinessProfile(ctx, accountId, channelId, { profilePictureHandle: handle }, actor);
 };

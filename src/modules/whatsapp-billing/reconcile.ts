@@ -43,9 +43,22 @@ export const runWhatsAppReconcile = async (
 ): Promise<{ wabas: number; rows: number; failed: number; mismatches: number }> => {
   const end = new Date(Math.floor(now.getTime() / DAY) * DAY);
   const start = new Date(end.getTime() - WHATSAPP_BILLING_LIMITS.reconcileDays * DAY);
+  // PN (D22): managed (Pinnacle) numbers have no pricing analytics — the partner bills us
+  const skipped = await WhatsAppChannelModel.countDocuments({
+    metaPayer: 'platform',
+    status: { $in: ['connected', 'restricted'] },
+    provider: 'pinnacle',
+  });
+  if (skipped) {
+    getLogger().info(
+      { metric: 'wa_reconcile_skipped_provider', skipped },
+      'reconcile: managed numbers skipped',
+    );
+  }
   const channels = await WhatsAppChannelModel.find({
     metaPayer: 'platform',
     status: { $in: ['connected', 'restricted'] },
+    provider: { $ne: 'pinnacle' },
   })
     .select('+tokenSealed')
     .sort({ createdAt: 1 })

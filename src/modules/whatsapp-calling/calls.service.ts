@@ -57,7 +57,7 @@ import { emitConversation, emitMessageCreated } from '../inbox/events';
 import { blankContent, insertMessage } from '../inbox/message-store';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { publishCallCompleted } from '../webhooks/publish';
-import { openSecret } from '../whatsapp/context';
+import { clientFor, openSecret } from '../whatsapp/context';
 
 import { activeRestrictions } from './availability';
 import { LATE_TERMINATE_GRACE_MS, quoteCall, WhatsAppCallBilling, type CallQuote } from './billing';
@@ -743,7 +743,11 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         terminate: async () => {
           if (!entry.waCallId) return;
           const { token } = await deps.token(channel._id);
-          await ctx.meta.terminateCall(token, channel.phoneNumberId ?? '', entry.waCallId);
+          await clientFor(ctx, channel).terminateCall(
+            token,
+            channel.phoneNumberId ?? '',
+            entry.waCallId,
+          );
         },
         transfer: () => transferToTeam(entry),
       },
@@ -851,7 +855,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     try {
       const offer = await peer.createOffer();
       const { token } = await deps.token(channel._id);
-      ({ waCallId } = await ctx.meta.startCall(token, channel.phoneNumberId ?? '', {
+      ({ waCallId } = await clientFor(ctx, channel).startCall(token, channel.phoneNumberId ?? '', {
         to: waId,
         sdpOffer: offer,
         bizOpaque: entry.callId,
@@ -1071,7 +1075,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     )
       return;
     const { token } = await deps.token(call.channel._id);
-    await ctx.meta.acceptCall(
+    await clientFor(ctx, call.channel).acceptCall(
       token,
       call.channel.phoneNumberId ?? '',
       call.waCallId,
@@ -1192,7 +1196,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     if (!contact) {
       // An unidentified offer must never create a fabricated phone number.
       const { token } = await deps.token(channel._id);
-      await ctx.meta.rejectCall(token, channel.phoneNumberId ?? '', event.id);
+      await clientFor(ctx, channel).rejectCall(token, channel.phoneNumberId ?? '', event.id);
       return;
     }
     if (bsuid)
@@ -1277,7 +1281,11 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         signaling: {
           terminate: async () => {
             const { token } = await deps.token(channel._id);
-            await ctx.meta.terminateCall(token, channel.phoneNumberId ?? '', event.id);
+            await clientFor(ctx, channel).terminateCall(
+              token,
+              channel.phoneNumberId ?? '',
+              event.id,
+            );
           },
           transfer: () => transferToTeam(call),
         },
@@ -1389,7 +1397,12 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       call.answerSdp = await peer.answer(event.session.sdp);
       const { token } = await deps.token(channel._id);
       if (call.terminated || call.session.ended) return;
-      await ctx.meta.preAcceptCall(token, channel.phoneNumberId ?? '', event.id, call.answerSdp);
+      await clientFor(ctx, channel).preAcceptCall(
+        token,
+        channel.phoneNumberId ?? '',
+        event.id,
+        call.answerSdp,
+      );
       if (call.terminated || call.session.ended) return;
       if (mode === 'ai') await acceptInbound(call);
       else
