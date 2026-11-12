@@ -58,6 +58,7 @@ import { blankContent, insertMessage } from '../inbox/message-store';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { publishCallCompleted } from '../webhooks/publish';
 import { clientFor, openSecret } from '../whatsapp/context';
+import { noteProviderError } from '../whatsapp/provider-alerts';
 
 import { activeRestrictions } from './availability';
 import { LATE_TERMINATE_GRACE_MS, quoteCall, WhatsAppCallBilling, type CallQuote } from './billing';
@@ -861,6 +862,8 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         bizOpaque: entry.callId,
       }));
     } catch (err) {
+      // PN (D13): the partner wallet is empty (managed numbers) — superadmins hear about it
+      await noteProviderError(ctx, channel._id, err);
       const mapped = callError(err);
       const code = mapped instanceof AppError ? mapped.code : 'META_API_ERROR';
       const reason: CallEndReason =
@@ -1075,13 +1078,18 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     )
       return;
     const { token } = await deps.token(call.channel._id);
-    await clientFor(ctx, call.channel).acceptCall(
-      token,
-      call.channel.phoneNumberId ?? '',
-      call.waCallId,
-      call.answerSdp,
-      call.callId,
-    );
+    try {
+      await clientFor(ctx, call.channel).acceptCall(
+        token,
+        call.channel.phoneNumberId ?? '',
+        call.waCallId,
+        call.answerSdp,
+        call.callId,
+      );
+    } catch (err) {
+      await noteProviderError(ctx, call.channel._id, err);
+      throw err;
+    }
     if (call.terminated || call.session?.ended) return;
     call.answered = true;
     call.leg.answered();
@@ -1397,12 +1405,17 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       call.answerSdp = await peer.answer(event.session.sdp);
       const { token } = await deps.token(channel._id);
       if (call.terminated || call.session.ended) return;
-      await clientFor(ctx, channel).preAcceptCall(
-        token,
-        channel.phoneNumberId ?? '',
-        event.id,
-        call.answerSdp,
-      );
+      try {
+        await clientFor(ctx, channel).preAcceptCall(
+          token,
+          channel.phoneNumberId ?? '',
+          event.id,
+          call.answerSdp,
+        );
+      } catch (err) {
+        await noteProviderError(ctx, channel._id, err);
+        throw err;
+      }
       if (call.terminated || call.session.ended) return;
       if (mode === 'ai') await acceptInbound(call);
       else

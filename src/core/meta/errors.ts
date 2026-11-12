@@ -250,7 +250,18 @@ export const mapSendError = (input: {
   status?: number;
   tokenInvalid?: boolean;
   retryable?: boolean;
+  /** PN: `MetaApiError.type` (Pinnacle partner errors). */
+  type?: string | null;
 }): SendErrorMapping => {
+  // PN (D13): the partner wallet is empty — never retried, the channel stays connected
+  if (input.type === PROVIDER_ERROR_TYPES.balanceLow) {
+    return {
+      retryable: false,
+      retryAfterSec: null,
+      channelEffect: 'none',
+      reason: 'The partner account balance is low — contact support.',
+    };
+  }
   if (input.tokenInvalid || input.code === META_ERROR_CODES.tokenInvalid) {
     return {
       retryable: false,
@@ -268,6 +279,14 @@ export const mapSendError = (input: {
       retryAfterSec: null,
       channelEffect: 'none',
       reason: 'WhatsApp service temporarily unavailable',
+    };
+  }
+  if (input.type === PROVIDER_ERROR_TYPES.error && !input.tokenInvalid) {
+    return {
+      retryable: input.retryable ?? false,
+      retryAfterSec: null,
+      channelEffect: 'none',
+      reason: 'The WhatsApp partner refused the message',
     };
   }
   return {

@@ -125,7 +125,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('adds 5 notification types (26 + 5; Phase 14: 32) with titles, audiences, links and e-mail flags', () => {
-    expect(NOTIFICATION_TYPES).toHaveLength(47); // Phase 20: 1; VAPI: 1; Phase 19: 6; Phase 18B: T18B.4 1; Phase 18: T18.14 1, T18.15 1; + Phase 14 analytics.reconcile_mismatch, Phase 15 webhook.endpoint_disabled
+    expect(NOTIFICATION_TYPES).toHaveLength(48); // PN: 1; Phase 20: 1; VAPI: 1; Phase 19: 6; Phase 18B: T18B.4 1; Phase 18: T18.14 1, T18.15 1; + Phase 14 analytics.reconcile_mismatch, Phase 15 webhook.endpoint_disabled
     const added = NOTIFICATION_TYPES.slice(26, 31);
     expect(added).toEqual([
       'call.whatsapp_missed',

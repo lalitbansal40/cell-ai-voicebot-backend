@@ -30,6 +30,7 @@ import { historyPush, recordTemplateUsage } from '../templates/template.service'
 import { SYSTEM_ACTOR } from '../whatsapp/channel-status';
 import { clientFor, openSecret } from '../whatsapp/context';
 import { acquireMessageSlot } from '../whatsapp/message-pacer';
+import { noteProviderError } from '../whatsapp/provider-alerts';
 import { autoPause } from '../whatsapp-campaigns/lifecycle';
 import { trackCampaignMessage } from '../whatsapp-campaigns/tracking';
 
@@ -467,7 +468,10 @@ export const processSend = async (
       status: err.status,
       tokenInvalid: err.tokenInvalid,
       retryable: err.retryable,
+      type: err.type,
     });
+    // PN (D13): the partner wallet is empty — superadmins hear about it (throttled)
+    await noteProviderError(ix.wa, m.channelId, err);
     getLogger().warn(
       { messageId, code: err.code, retryable: mapped.retryable, final: options.finalAttempt },
       'inbox: send failed',

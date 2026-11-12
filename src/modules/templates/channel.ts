@@ -11,6 +11,7 @@ import { getLogger } from '../../shared/logger';
 import { markNeedsReconnect, TOKEN_INVALID_REASON } from '../whatsapp/channel-status';
 import { clientFor, openSecret } from '../whatsapp/context';
 import { metaApiError, notReady } from '../whatsapp/errors';
+import { noteProviderError } from '../whatsapp/provider-alerts';
 
 import type { TemplateContext } from './context';
 
@@ -85,6 +86,8 @@ export const templateMetaError = async (
   err: unknown,
 ): Promise<unknown> => {
   if (!isMetaApiError(err)) return err;
+  // PN (D13): the partner wallet is empty (managed numbers)
+  await noteProviderError(tx.wa, channel._id, err);
   if (err.tokenInvalid) {
     await markNeedsReconnect(tx.wa, channel, TOKEN_INVALID_REASON);
     return notReady('The WhatsApp connection expired — reconnect the number.');

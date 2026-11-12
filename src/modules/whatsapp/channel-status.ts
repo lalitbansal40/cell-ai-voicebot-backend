@@ -229,7 +229,17 @@ export const markNeedsReconnect = (
   channel: WhatsAppChannelDoc,
   reason: WaStatusReason = TOKEN_INVALID_REASON,
   actor: WaActor = SYSTEM_ACTOR,
-): Promise<WhatsAppChannelDoc> => transition(ctx, channel, 'needs_reconnect', reason, actor);
+): Promise<WhatsAppChannelDoc> =>
+  transition(
+    ctx,
+    channel,
+    'needs_reconnect',
+    // PN: a managed number's "token" is the partner API key
+    channel.provider === 'pinnacle' && reason === TOKEN_INVALID_REASON
+      ? PROVIDER_KEY_INVALID
+      : reason,
+    actor,
+  );
 
 /**
  * Notifications for detail changes Meta reports (sync / health pass): quality turned
