@@ -30,7 +30,7 @@ export const runHealthPass = async (
   concurrency: number = WHATSAPP_LIMITS.healthConcurrency,
 ): Promise<HealthResult> => {
   const channels = await WhatsAppChannelModel.find({ status: { $in: WA_ACTIVE_STATUSES } })
-    .select('+tokenSealed')
+    .select('+tokenSealed +pinnacle.webhookSecretSealed')
     .sort({ accountId: 1, _id: 1 })
     .lean<WhatsAppChannelDoc[]>();
   const byAccount = new Map<string, WhatsAppChannelDoc[]>();

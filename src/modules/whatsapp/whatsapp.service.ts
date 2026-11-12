@@ -1078,10 +1078,17 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
    * `needs_reconnect` (a superadmin replaces the key).
    */
   const syncManaged = async (
-    channel: WhatsAppChannelDoc,
+    loaded: WhatsAppChannelDoc,
     actor: WaActor,
   ): Promise<WhatsAppChannelDoc> => {
     const pin = pinnacleOf();
+    // callers may have read the row without the sealed fields: read them here
+    const channel =
+      loaded.tokenSealed === undefined || loaded.pinnacle?.webhookSecretSealed === undefined
+        ? ((await WhatsAppChannelModel.findById(loaded._id)
+            .select(SECRET_FIELDS)
+            .lean<WhatsAppChannelDoc>()) ?? loaded)
+        : loaded;
     const key = tokenOf(channel);
     if (!key) return markNeedsReconnect(ctx, channel, PROVIDER_KEY_INVALID, actor);
     const now = nowOf(ctx);

@@ -120,7 +120,7 @@ const update = async (
 const resync = async (h: HandlerContext, channel: WhatsAppChannelDoc) => {
   try {
     const full = await WhatsAppChannelModel.findById(channel._id)
-      .select('+tokenSealed')
+      .select('+tokenSealed +pinnacle.webhookSecretSealed')
       .lean<WhatsAppChannelDoc>();
     if (full && full.status !== 'disconnected') await h.service.syncChannel(full, SYSTEM_ACTOR);
   } catch (err) {
