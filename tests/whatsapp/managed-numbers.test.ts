@@ -339,3 +339,29 @@ describe('managed number actions (PN-T5)', () => {
     expect(JSON.stringify(res.body)).not.toContain('webhookSecret');
   });
 });
+
+describe('dev: seed a managed number (PN-T9)', () => {
+  const dev = () => buildTestApp({ MOCK_APIS_ENABLED: 'true' }, { whatsapp: { ctx: w.ctx, jobs } });
+
+  it('a superadmin gets a test key that Add managed number accepts; others 403', async () => {
+    const seeded = await request(dev())
+      .post('/api/v1/dev/meta/managed-number')
+      .set(bearer(superadmin.token))
+      .send({});
+    expect(seeded.status).toBe(200);
+    expect(seeded.body.data.apiKey).toMatch(/^pin_test_/);
+    const added = await request(dev()).post(addUrl()).set(bearer(superadmin.token)).send({
+      label: 'Demo',
+      wabaId: seeded.body.data.wabaId,
+      phoneNumberId: seeded.body.data.phoneNumberId,
+      apiKey: seeded.body.data.apiKey,
+      creditLine: 'partner_active',
+    });
+    expect(added.status).toBe(201);
+    const denied = await request(dev())
+      .post('/api/v1/dev/meta/managed-number')
+      .set(bearer(owner.token))
+      .send({});
+    expect(denied.status).toBe(403);
+  });
+});

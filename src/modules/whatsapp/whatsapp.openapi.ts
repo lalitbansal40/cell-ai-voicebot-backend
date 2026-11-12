@@ -31,6 +31,7 @@ import {
   ManualConnectBody,
   RegisterPinBody,
   RenameChannelBody,
+  SeedManagedNumberBody,
   SimulatedUserCallBody,
   SimulatorBody,
   WhatsAppBillingBody,
@@ -629,6 +630,28 @@ registry.registerPath({
 });
 
 // ── dev ─────────────────────────────────────────────────────────────────────
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/dev/meta/managed-number',
+  tags: ['Dev'],
+  summary:
+    'DEV ONLY — a fake number "at Pinnacle" and its test API key, to try Add managed number (superadmin; fake provider)',
+  security: bearer,
+  request: json(SeedManagedNumberBody),
+  responses: {
+    200: ok(
+      z.object({
+        apiKey: z.string(),
+        wabaId: z.string(),
+        phoneNumberId: z.string(),
+        displayPhoneNumber: z.string().nullable(),
+      }),
+    ),
+    401: errors[401],
+    403: errors[403],
+    503: { description: 'Managed numbers are off (WA_PROVIDER_NOT_CONFIGURED)' },
+  },
+});
 registry.registerPath({
   method: 'post',
   path: '/api/v1/dev/meta/webhooks',

@@ -142,6 +142,18 @@ export const SimulatorBody = z
   .openapi('WhatsAppSimulatorInput');
 
 /** `POST /dev/meta/calls/user-call` — the fake customer calls the number. */
+/** PN (dev only): a fake number "at Pinnacle" and its test API key. */
+export const SeedManagedNumberBody = z
+  .strictObject({
+    businessName: z.string().trim().min(1).max(100).optional(),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^\+?[\d\s-]{8,20}$/)
+      .optional(),
+  })
+  .openapi('DevSeedManagedNumberInput');
+
 export const SimulatedUserCallBody = z
   .strictObject({
     channelId: ObjectIdSchema,

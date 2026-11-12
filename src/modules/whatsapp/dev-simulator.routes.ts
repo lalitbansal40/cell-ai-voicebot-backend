@@ -1,11 +1,20 @@
 import { Router } from 'express';
 import { Types } from 'mongoose';
 
-import { verifyFakeMediaSignature, type FakeMetaClient } from '../../core/meta';
+import {
+  verifyFakeMediaSignature,
+  type FakeMetaClient,
+  type FakePinnacleClient,
+} from '../../core/meta';
 import type { StorageProvider } from '../../core/storage';
 import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
 import { requireAuth } from '../../shared/auth/auth-context';
-import { ForbiddenError, NotFoundError, ValidationError } from '../../shared/errors/app-error';
+import {
+  AppError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../../shared/errors/app-error';
 import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { handle } from '../../shared/middlewares/validate';
@@ -23,7 +32,7 @@ import {
 import type { WhatsAppContext } from './context';
 import type { WhatsAppJobs } from './jobs';
 import { runSimulator, type SimulatorKind } from './simulator';
-import { SimulatedUserCallBody, SimulatorBody } from './whatsapp.schema';
+import { SeedManagedNumberBody, SimulatedUserCallBody, SimulatorBody } from './whatsapp.schema';
 
 /**
  * `/api/v1/dev/meta` — the dev webhook simulator (§1j) and the fake provider's media /
@@ -204,5 +213,23 @@ export const createDevSimulatorRouter = (deps: {
       calls: fake && channel.phoneNumberId ? await fake.fakeCalls(channel.phoneNumberId) : [],
     });
   });
+  // PN: a fake number "at Pinnacle" + its test API key (superadmin; fake provider only)
+  router.post(
+    '/managed-number',
+    ...handle({ body: SeedManagedNumberBody }, async ({ body, req, res }) => {
+      const auth = requireAuth(req);
+      if (auth.platformRole !== 'superadmin' || auth.impersonatorId) throw new ForbiddenError();
+      const pin = deps.ctx.pinnacle;
+      if (!pin || !('fake' in pin)) throw new AppError('WA_PROVIDER_NOT_CONFIGURED');
+      const stamp = String(Date.now()).slice(-6);
+      ok(
+        res,
+        await (pin as FakePinnacleClient).seedManagedNumber({
+          businessName: body.businessName ?? `Managed demo ${stamp}`,
+          phone: body.phone ?? `+91 95${stamp.slice(0, 3)} ${stamp.slice(3)}01`,
+        }),
+      );
+    }),
+  );
   return router;
 };
