@@ -1,4 +1,4 @@
-import { isMetaApiError, mapCallError } from '../../core/meta';
+import { isMetaApiError, mapCallError, PROVIDER_ERROR_TYPES } from '../../core/meta';
 import { AppError } from '../../shared/errors/app-error';
 import { metaApiError } from '../whatsapp/errors';
 
@@ -49,4 +49,18 @@ export const withCallErrors = async <T>(
     }
     throw callError(err);
   }
+};
+
+/**
+ * PN (D15): the partner API (managed number) can't do calling for it — its own
+ * "unsupported", or a 404 on a calling path. Works on the raw or the mapped error.
+ */
+export const isPartnerCallingUnsupported = (err: unknown): boolean => {
+  const raw = err instanceof AppError && isMetaApiError(err.cause) ? err.cause : err;
+  if (err instanceof AppError && err.code === 'WA_PROVIDER_UNSUPPORTED') return true;
+  if (!isMetaApiError(raw)) return false;
+  return (
+    raw.type === PROVIDER_ERROR_TYPES.unsupported ||
+    (raw.type === PROVIDER_ERROR_TYPES.error && raw.status === 404)
+  );
 };

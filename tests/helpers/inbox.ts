@@ -23,7 +23,7 @@ import { openSecret } from '../../src/modules/whatsapp/context';
 import type { WhatsAppJobs } from '../../src/modules/whatsapp/jobs';
 import type { HandlerContext } from '../../src/modules/whatsapp/webhook-handlers';
 import { processWebhookEvent } from '../../src/modules/whatsapp/webhook-processor';
-import { receiveWebhook } from '../../src/modules/whatsapp/webhooks.service';
+import { receiveSimulatedWebhook } from '../../src/modules/whatsapp/webhooks.service';
 
 import { createTestAccount, type TestAccount } from './auth';
 import { useTempStorage } from './contacts';
@@ -110,7 +110,12 @@ export const useInboxWorld = (env: NodeJS.ProcessEnv = {}) => {
   /** Signs + receives a payload, then processes every queued event (like the worker). */
   const deliver = async (payload: Record<string, unknown>) => {
     const raw = Buffer.from(JSON.stringify(payload));
-    await receiveWebhook(w.ctx, waJobs, raw, signWebhook(raw, w.env.FAKE_META_APP_SECRET ?? ''));
+    await receiveSimulatedWebhook(
+      w.ctx,
+      waJobs,
+      raw,
+      signWebhook(raw, w.env.FAKE_META_APP_SECRET ?? ''),
+    );
     const statuses = [];
     for (const id of queued.splice(0)) {
       statuses.push(await processWebhookEvent(state.h, id, { finalAttempt: false }));

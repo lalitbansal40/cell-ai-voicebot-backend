@@ -36,7 +36,7 @@ import { clientFor, nowOf, phoneLast4, type WhatsAppContext } from '../whatsapp/
 
 import { callingUnavailableReason } from './availability';
 import type { CallingSettingsPatchInput } from './calling.schema';
-import { withCallErrors } from './errors';
+import { isPartnerCallingUnsupported, withCallErrors } from './errors';
 import { callingView, type CallingView } from './json';
 import { CALLING_NOTIFICATIONS } from './notification-types';
 import { programProblems } from './program';
@@ -138,6 +138,15 @@ export const createCallingSettings = (deps: CallingDeps) => {
    * Meta's settings → our row (status, icon, hours, callback, restrictions). `throwOnError`
    * for the manual sync; jobs / webhooks store `lastError` and carry on.
    */
+  /** PN (D15): calling is unavailable on a managed number the partner can't call with. */
+  const markPartnerUnsupported = (channel: WhatsAppChannelDoc) =>
+    save(channel._id, {
+      'calling.status': 'unavailable',
+      'calling.unavailableReason': 'provider_unsupported',
+      'calling.syncedAt': nowOf(ctx),
+      'calling.lastError': "The WhatsApp partner doesn't support calling on this number",
+    });
+
   const syncCalling = async (
     channel: WhatsAppChannelDoc,
     options: { throwOnError?: boolean } = {},
@@ -152,6 +161,12 @@ export const createCallingSettings = (deps: CallingDeps) => {
         clientFor(ctx, channel).getPhoneSettings(token, channel.phoneNumberId ?? ''),
       );
     } catch (err) {
+      // PN (D15): the partner can't do calling for this managed number
+      if (channel.provider === 'pinnacle' && isPartnerCallingUnsupported(err)) {
+        const saved = await markPartnerUnsupported(channel);
+        if (options.throwOnError) throw new AppError('WA_PROVIDER_UNSUPPORTED');
+        return saved;
+      }
       getLogger().warn(
         { channelId: channel._id.toString(), errName: (err as Error).name },
         'whatsapp calling: settings sync failed',
@@ -295,9 +310,22 @@ export const createCallingSettings = (deps: CallingDeps) => {
     const forMeta = metaUpdate(calling, patch);
     if (forMeta) {
       const { token } = await deps.token(channel._id);
-      await withCallErrors(() =>
-        clientFor(ctx, channel).updateCallingSettings(token, channel.phoneNumberId ?? '', forMeta),
-      );
+      try {
+        await withCallErrors(() =>
+          clientFor(ctx, channel).updateCallingSettings(
+            token,
+            channel.phoneNumberId ?? '',
+            forMeta,
+          ),
+        );
+      } catch (err) {
+        // PN (D15): the partner can't do calling for this managed number
+        if (channel.provider === 'pinnacle' && isPartnerCallingUnsupported(err)) {
+          await markPartnerUnsupported(channel);
+          throw new AppError('WA_PROVIDER_UNSUPPORTED');
+        }
+        throw err;
+      }
     }
     const set: Record<string, unknown> = { 'calling.unavailableReason': unavailableReason };
     if (patch.status) set['calling.status'] = unavailableReason ? 'unavailable' : patch.status;
