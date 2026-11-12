@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 import type { Redis } from 'ioredis';
 import { Types } from 'mongoose';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { AccountModel } from '../../src/db/models/account.model';
 import { AuditLogModel } from '../../src/db/models/audit-log.model';
@@ -166,6 +166,13 @@ describe('team calling campaigns', () => {
   });
 
   it('join → next call (human, the agent owns it) → hang up → wrap-up → next → done', async () => {
+    // live calls only inside 09:00–21:00 IST (TRAI): the clock reads noon IST today
+    const noon = new Date();
+    noon.setUTCHours(6, 30, 0, 0);
+    vi.useFakeTimers({ toFake: ['Date'], now: noon });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const c = await createCampaign(reqOf(owner), {
       name: 'Team run',
       mode: 'live',
@@ -175,7 +182,8 @@ describe('team calling campaigns', () => {
       audience: { listIds: [listId] },
     } as never);
     await startCampaign(reqOf(owner), c.id);
-    for (let i = 0; i < 50; i += 1) {
+    // the snapshot runs in the background (slow under load): up to 30 s
+    for (let i = 0; i < 600; i += 1) {
       const doc = await CampaignModel.findById(c.id).lean<CampaignDoc>();
       if (doc?.snapshot.done) break;
       await new Promise((r) => setTimeout(r, 50));

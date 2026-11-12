@@ -25,7 +25,7 @@ Plan: `docs/prompts/CALL_MODES_PROMPT.md`. Branch `feature/call-modes` in both r
 
 ## Checks
 
-- Backend: lint ✅, typecheck ✅, build ✅, openapi:check ✅, docs:audit 0 problems ✅. Tests run for every changed area pass (team session, WhatsApp inbound, catalogue, exports, line, realtime, docs, calls-wa settings). **Full backend suite not run** in this pass: the machine was at load ~90 (Docker VM and other sessions) — run it once before deploy.
+- Backend: lint ✅, typecheck ✅, build ✅, openapi:check ✅, docs:audit 0 problems ✅. Full suite once (serial): 4050 passed, 6 failed → fixed 4 (audit + error-code docs and the campaign catalogue list missed the new entries; the team-session test depended on the clock — live calls only 09:00–21:00 IST — now pinned to noon). Remaining 2 are pre-existing and not touched here: WhatsApp campaign recurrence (known) and `tts-cache` purge (a leftover old entry in the shared test DB).
 - Frontend: lint ✅, typecheck ✅, build ✅; new tests pass (who-talks 3, team-session 2, settings Team → AI 1) plus the wizard, calls, admin and WhatsApp settings files. The full suite under that load showed 15 s timeouts in unrelated files (layout, agents, contact exports…) that changed from run to run — not caused by this work; rerun on a quiet machine.
 
 ## Live checks still open

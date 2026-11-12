@@ -134,6 +134,10 @@ From Phase 1 the single source of truth is `src/shared/errors/error-codes.ts`; t
 | `CALL_NOT_RINGING`                          | 409  | The incoming phone call ended or was answered before this action                                                                                                                                                      | 20    |
 | `INBOUND_PROGRAM_REQUIRED`                  | 422  | The number's route (or after-hours AI) needs a flow or AI agent                                                                                                                                                       | 20    |
 | `INBOUND_PROGRAM_NOT_READY`                 | 422  | The chosen flow is not published / the AI agent is not active                                                                                                                                                         | 20    |
+| `CAMPAIGN_NO_AGENTS`                        | 422  | A team calling campaign needs at least one active team member who can make calls                                                                                                                                      | CM    |
+| `AGENT_NOT_IN_CAMPAIGN`                     | 403  | The user isn't one of the team campaign's callers                                                                                                                                                                     | CM    |
+| `AGENT_SESSION_GONE`                        | 409  | The agent's calling session ended (left or timed out) — join again                                                                                                                                                    | CM    |
+| `AGENT_CALL_ACTIVE`                         | 409  | The agent is still on a call (finish it before the next one or the outcome)                                                                                                                                           | CM    |
 
 `FLOW_INVALID` details are the validation issues: `{ path, message, issue, severity, nodeId?, edgeId? }` (Phase 6).
 

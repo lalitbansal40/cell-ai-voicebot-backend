@@ -51,6 +51,9 @@ describe('Phase 8 catalogue', () => {
       'campaign.deleted',
       'campaign.exported',
       'campaign.admin_paused',
+      // call modes: team calling sessions
+      'campaign.agent_joined',
+      'campaign.agent_left',
     ]);
     expect(AUDIT_ACTIONS).toEqual(
       expect.arrayContaining(['call.triggered', 'account.limits_updated']),
