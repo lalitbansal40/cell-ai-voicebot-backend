@@ -11,7 +11,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../../shared/erro
 import { openSecret, type WhatsAppContext } from '../whatsapp/context';
 import type { WhatsAppJobs } from '../whatsapp/jobs';
 import { SIMULATED_CUSTOMER } from '../whatsapp/simulator';
-import { receiveWebhook } from '../whatsapp/webhooks.service';
+import { receiveSimulatedWebhook } from '../whatsapp/webhooks.service';
 
 import type { CallingRuntime } from './runtime';
 import type { CallingSimulatorKind } from './simulator-kinds';
@@ -61,7 +61,12 @@ export const runCallingSimulator = async (
       ],
     };
     const raw = Buffer.from(JSON.stringify(payload));
-    return receiveWebhook(deps.ctx, deps.jobs, raw, signWebhook(raw, metaAppSecret(deps.ctx.env)));
+    return receiveSimulatedWebhook(
+      deps.ctx,
+      deps.jobs,
+      raw,
+      signWebhook(raw, metaAppSecret(deps.ctx.env)),
+    );
   };
   const liveCall = async (): Promise<string> => {
     if (input.waCallId) return input.waCallId;

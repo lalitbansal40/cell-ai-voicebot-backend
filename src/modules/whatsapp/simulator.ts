@@ -16,7 +16,7 @@ import { NotFoundError } from '../../shared/errors/app-error';
 
 import { openSecret, type WhatsAppContext } from './context';
 import type { WhatsAppJobs } from './jobs';
-import { receiveWebhook, type WebhookReceipt } from './webhooks.service';
+import { receiveSimulatedWebhook, type WebhookReceipt } from './webhooks.service';
 
 /** Dev webhook simulator kinds (§1j) — Meta-shaped payloads, same pipeline as Meta's. */
 export const SIMULATOR_KINDS = [
@@ -294,7 +294,7 @@ export const runSimulator = async (
   }
   const payload = buildSimulatorPayload(kind, channel);
   const raw = Buffer.from(JSON.stringify(payload));
-  const receipt = await receiveWebhook(deps.ctx, deps.jobs, raw, signWebhook(raw, secret));
+  const receipt = await receiveSimulatedWebhook(deps.ctx, deps.jobs, raw, signWebhook(raw, secret));
   const field = (payload.entry as { changes: { field: string }[] }[])[0]?.changes[0]?.field ?? '';
   return { kind, field, ...receipt };
 };

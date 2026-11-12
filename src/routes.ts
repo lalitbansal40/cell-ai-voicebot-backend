@@ -100,6 +100,7 @@ import {
 } from './modules/webhooks/endpoints.routes';
 import { createDevSimulatorRouter } from './modules/whatsapp/dev-simulator.routes';
 import { createMetaCallbacksRouter } from './modules/whatsapp/meta-callbacks.routes';
+import { createPinnacleWebhooksRouter } from './modules/whatsapp/pinnacle-webhooks.routes';
 import { createBusinessProfileRouter } from './modules/whatsapp/profile.routes';
 import {
   createMetaWebhooksRouter,
@@ -336,6 +337,9 @@ export const createApiRouter = ({
     if (whatsappRuntime.calling)
       router.use(createCallingRouter({ runtime: whatsappRuntime.calling }));
     router.use('/webhooks/meta', createMetaWebhooksRouter(whatsappRuntime));
+    // PN: managed numbers — Meta's payload relayed by Pinnacle
+    if (whatsappRuntime.ctx.env.PINNACLE_ENABLED)
+      router.use('/webhooks/pinnacle', createPinnacleWebhooksRouter(whatsappRuntime));
     router.use('/meta', createMetaCallbacksRouter(whatsappRuntime));
     router.use('/whatsapp', createBusinessProfileRouter(whatsappRuntime.ctx));
     router.use('/whatsapp', createPricePreviewRouter());

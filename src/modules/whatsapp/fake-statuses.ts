@@ -3,7 +3,7 @@ import { getLogger } from '../../shared/logger';
 
 import type { WhatsAppContext } from './context';
 import type { WhatsAppJobs } from './jobs';
-import { receiveWebhook } from './webhooks.service';
+import { receiveSimulatedWebhook } from './webhooks.service';
 
 /**
  * Fake provider only: the fake's auto status webhooks (sent → delivered → read) are
@@ -19,7 +19,12 @@ export const connectFakeStatusWebhooks = (deps: {
   fake.setWebhookEmitter(async (body) => {
     const raw = Buffer.from(JSON.stringify(body));
     try {
-      await receiveWebhook(deps.ctx, deps.jobs, raw, signWebhook(raw, metaAppSecret(deps.ctx.env)));
+      await receiveSimulatedWebhook(
+        deps.ctx,
+        deps.jobs,
+        raw,
+        signWebhook(raw, metaAppSecret(deps.ctx.env)),
+      );
     } catch (err) {
       getLogger().warn({ errName: (err as Error).name }, 'fake meta: status webhook not stored');
     }

@@ -8,8 +8,14 @@ import {
   verifyWebhookSignature,
   WEBHOOK_OBJECT,
   webhookEnvelopeSchema,
+  type WebhookEnvelope,
 } from '../../core/meta';
 import { MetaWebhookEventModel } from '../../db/models/meta-webhook-event.model';
+import {
+  WA_ACTIVE_STATUSES,
+  WhatsAppChannelModel,
+  type WhatsAppChannelDoc,
+} from '../../db/models/whatsapp-channel.model';
 import { AppError, ValidationError } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
 
@@ -124,17 +130,8 @@ const fastPath = (ctx: WhatsAppContext, eventId: string, value: unknown): void =
   }
 };
 
-export const receiveWebhook = async (
-  ctx: WhatsAppContext,
-  jobs: WhatsAppJobs,
-  rawBody: Buffer,
-  signature: string | undefined,
-): Promise<WebhookReceipt> => {
-  const log = getLogger();
-  if (!verifyWebhookSignature(rawBody, signature, metaAppSecret(ctx.env))) {
-    log.warn({ metric: 'meta_webhook_signature_invalid' }, 'meta webhook: bad signature');
-    throw new AppError('META_SIGNATURE_INVALID');
-  }
+/** A JSON body that must be Meta's webhook envelope (Meta route and the Pinnacle relay). */
+export const parseEnvelope = (rawBody: Buffer): WebhookEnvelope => {
   let json: unknown;
   try {
     json = JSON.parse(rawBody.toString('utf8'));
@@ -145,11 +142,151 @@ export const receiveWebhook = async (
   if (!parsed.success) {
     throw new ValidationError([{ path: 'body', message: 'Not a Meta webhook payload' }]);
   }
-  const envelope = parsed.data;
+  return parsed.data;
+};
+
+export const receiveWebhook = async (
+  ctx: WhatsAppContext,
+  jobs: WhatsAppJobs,
+  rawBody: Buffer,
+  signature: string | undefined,
+): Promise<WebhookReceipt> => {
+  if (!verifyWebhookSignature(rawBody, signature, metaAppSecret(ctx.env))) {
+    getLogger().warn({ metric: 'meta_webhook_signature_invalid' }, 'meta webhook: bad signature');
+    throw new AppError('META_SIGNATURE_INVALID');
+  }
+  return ingestEnvelope(ctx, jobs, parseEnvelope(rawBody), { source: 'meta' });
+};
+
+/**
+ * Fake provider only (simulators, the fake's auto events): the fake Meta speaks for every
+ * number, so each change goes in as its number would really arrive — a managed (Pinnacle)
+ * number's through the relay path, the others as Meta's. With the real Meta this is
+ * `receiveWebhook`.
+ */
+export const receiveSimulatedWebhook = async (
+  ctx: WhatsAppContext,
+  jobs: WhatsAppJobs,
+  rawBody: Buffer,
+  signature: string | undefined,
+): Promise<WebhookReceipt> => {
+  if (ctx.meta.provider !== 'fake') return receiveWebhook(ctx, jobs, rawBody, signature);
+  if (!verifyWebhookSignature(rawBody, signature, metaAppSecret(ctx.env))) {
+    getLogger().warn({ metric: 'meta_webhook_signature_invalid' }, 'meta webhook: bad signature');
+    throw new AppError('META_SIGNATURE_INVALID');
+  }
+  const envelope = parseEnvelope(rawBody);
+  const phoneIds = envelope.entry.flatMap((e) =>
+    e.changes.map((c) => phoneNumberIdOf(c.value)).filter((id): id is string => !!id),
+  );
+  const managed = phoneIds.length
+    ? await WhatsAppChannelModel.find({
+        phoneNumberId: { $in: phoneIds },
+        provider: 'pinnacle',
+        status: { $in: WA_ACTIVE_STATUSES },
+      })
+        .select({ wabaId: 1, phoneNumberId: 1 })
+        .lean<Pick<WhatsAppChannelDoc, '_id' | 'wabaId' | 'phoneNumberId'>[]>()
+    : [];
+  const total = { received: 0, duplicates: 0, ignored: false };
+  const add = (r: WebhookReceipt) => {
+    total.received += r.received;
+    total.duplicates += r.duplicates;
+    total.ignored = total.ignored || r.ignored;
+  };
+  for (const channel of managed) {
+    add(await ingestEnvelope(ctx, jobs, envelope, { source: 'pinnacle', channel }));
+  }
+  add(await ingestEnvelope(ctx, jobs, envelope, { source: 'meta' }));
+  return total;
+};
+
+/** Where an envelope came from — Meta directly, or Pinnacle's relay for one managed number. */
+export type EnvelopeSource =
+  | { source: 'meta' }
+  | { source: 'pinnacle'; channel: Pick<WhatsAppChannelDoc, '_id' | 'wabaId' | 'phoneNumberId'> };
+
+/**
+ * Phone number ids of active managed (Pinnacle) numbers — one query per 30 s per process
+ * (Meta sends thousands of status webhooks). A stale moment is harmless: the same event
+ * from both paths has the same idempotency key and is stored once.
+ */
+const MANAGED_CACHE_MS = 30_000;
+let managedCache: { at: number; ids: Set<string> } | null = null;
+const managedNumbers = async (): Promise<Set<string>> => {
+  const now = Date.now();
+  if (managedCache && now - managedCache.at < MANAGED_CACHE_MS) return managedCache.ids;
+  const rows = await WhatsAppChannelModel.find({
+    provider: 'pinnacle',
+    status: { $in: WA_ACTIVE_STATUSES },
+    phoneNumberId: { $type: 'string' },
+  })
+    .select({ phoneNumberId: 1 })
+    .lean<{ phoneNumberId: string }[]>();
+  managedCache = { at: now, ids: new Set(rows.map((r) => r.phoneNumberId)) };
+  return managedCache.ids;
+};
+
+/** Forget the managed numbers cache (a number was added / disconnected here; tests). */
+export const resetManagedNumbersCache = (): void => {
+  managedCache = null;
+};
+
+/**
+ * PN (D10): which changes of the envelope belong to this source. The Pinnacle relay may only
+ * carry its own number's events; Meta's own deliveries for a managed number are dropped
+ * (the relay brings them — one handler run per event).
+ */
+const changesFor = async (envelope: WebhookEnvelope, from: EnvelopeSource) => {
+  const all = envelope.entry.flatMap((entry) =>
+    entry.changes.map((change) => ({
+      entry,
+      change,
+      phoneNumberId: phoneNumberIdOf(change.value),
+    })),
+  );
+  if (from.source === 'pinnacle') {
+    const { channel } = from;
+    const kept = all.filter(({ entry, phoneNumberId }) =>
+      phoneNumberId ? phoneNumberId === channel.phoneNumberId : entry.id === channel.wabaId,
+    );
+    if (kept.length < all.length) {
+      getLogger().warn(
+        {
+          metric: 'pinnacle_webhook_foreign_number',
+          dropped: all.length - kept.length,
+          channelId: channel._id.toString(),
+        },
+        'pinnacle webhook: changes for another number dropped',
+      );
+    }
+    return kept;
+  }
+  if (!all.some((c) => c.phoneNumberId)) return all;
+  const skip = await managedNumbers();
+  if (!skip.size) return all;
+  const kept = all.filter((c) => !c.phoneNumberId || !skip.has(c.phoneNumberId));
+  if (kept.length === all.length) return all;
+  getLogger().info(
+    { metric: 'meta_webhook_foreign_provider', dropped: all.length - kept.length },
+    'meta webhook: managed numbers come through the partner relay',
+  );
+  return kept;
+};
+
+/** Stores each change once (idempotency key), queues it, and hands `calls` to the fast path. */
+export const ingestEnvelope = async (
+  ctx: WhatsAppContext,
+  jobs: WhatsAppJobs,
+  envelope: WebhookEnvelope,
+  from: EnvelopeSource,
+): Promise<WebhookReceipt> => {
+  const log = getLogger();
+  const label = from.source === 'meta' ? 'meta webhook' : 'pinnacle webhook';
   if (envelope.object !== WEBHOOK_OBJECT) {
     log.info(
-      { metric: 'meta_webhook', received: 0, duplicates: 0, ignored: 1 },
-      'meta webhook: other object',
+      { metric: 'meta_webhook', source: from.source, received: 0, duplicates: 0, ignored: 1 },
+      `${label}: other object`,
     );
     return { received: 0, duplicates: 0, ignored: true };
   }
@@ -157,51 +294,60 @@ export const receiveWebhook = async (
   const expiresAt = new Date(now.getTime() + WHATSAPP_LIMITS.webhookEventTtlDays * 86_400_000);
   let received = 0;
   let duplicates = 0;
+  let changes: Awaited<ReturnType<typeof changesFor>>;
   try {
-    for (const entry of envelope.entry) {
-      for (const change of entry.changes) {
-        const key = eventKey(envelope.object, entry.id, change.field, change.value, entry.time);
-        const res = await MetaWebhookEventModel.updateOne(
-          { key },
-          {
-            $setOnInsert: {
-              key,
-              object: envelope.object,
-              field: change.field,
-              wabaId: entry.id,
-              phoneNumberId: phoneNumberIdOf(change.value),
-              accountId: null,
-              channelId: null,
-              payloadSealed: sealSecret(ctx, JSON.stringify(change.value ?? null)),
-              status: 'received',
-              attempts: 0,
-              error: null,
-              receivedAt: now,
-              processedAt: null,
-              consumedAt: null,
-              expiresAt,
-            },
-          },
-          { upsert: true },
-        );
-        if (res.upsertedId) {
-          received += 1;
-          await jobs.enqueueEvent(res.upsertedId.toString());
-          if (change.field === 'calls') fastPath(ctx, res.upsertedId.toString(), change.value);
-          continue;
-        }
-        duplicates += 1;
-        const existing = await MetaWebhookEventModel.findOne({ key })
-          .select({ status: 1 })
-          .lean<{ _id: { toString(): string }; status: string }>();
-        // stored before but never queued (Redis was down) → queue it now (same job id)
-        if (existing?.status === 'received') await jobs.enqueueEvent(existing._id.toString());
-      }
-    }
+    changes = await changesFor(envelope, from);
   } catch (err) {
-    log.error({ err, metric: 'meta_webhook_unavailable' }, 'meta webhook: store / queue failed');
+    log.error({ err, metric: 'meta_webhook_unavailable' }, `${label}: routing check failed`);
     throw unavailable(err);
   }
-  log.info({ metric: 'meta_webhook', received, duplicates, ignored: 0 }, 'meta webhook: stored');
+  try {
+    for (const { entry, change, phoneNumberId } of changes) {
+      const key = eventKey(envelope.object, entry.id, change.field, change.value, entry.time);
+      const res = await MetaWebhookEventModel.updateOne(
+        { key },
+        {
+          $setOnInsert: {
+            key,
+            object: envelope.object,
+            field: change.field,
+            wabaId: entry.id,
+            phoneNumberId,
+            accountId: null,
+            channelId: null,
+            payloadSealed: sealSecret(ctx, JSON.stringify(change.value ?? null)),
+            status: 'received',
+            attempts: 0,
+            error: null,
+            receivedAt: now,
+            processedAt: null,
+            consumedAt: null,
+            expiresAt,
+            source: from.source,
+          },
+        },
+        { upsert: true },
+      );
+      if (res.upsertedId) {
+        received += 1;
+        await jobs.enqueueEvent(res.upsertedId.toString());
+        if (change.field === 'calls') fastPath(ctx, res.upsertedId.toString(), change.value);
+        continue;
+      }
+      duplicates += 1;
+      const existing = await MetaWebhookEventModel.findOne({ key })
+        .select({ status: 1 })
+        .lean<{ _id: { toString(): string }; status: string }>();
+      // stored before but never queued (Redis was down) → queue it now (same job id)
+      if (existing?.status === 'received') await jobs.enqueueEvent(existing._id.toString());
+    }
+  } catch (err) {
+    log.error({ err, metric: 'meta_webhook_unavailable' }, `${label}: store / queue failed`);
+    throw unavailable(err);
+  }
+  log.info(
+    { metric: 'meta_webhook', source: from.source, received, duplicates, ignored: 0 },
+    `${label}: stored`,
+  );
   return { received, duplicates, ignored: false };
 };

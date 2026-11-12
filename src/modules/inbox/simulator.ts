@@ -14,7 +14,7 @@ import {
 import { NotFoundError } from '../../shared/errors/app-error';
 import type { WhatsAppContext } from '../whatsapp/context';
 import type { WhatsAppJobs } from '../whatsapp/jobs';
-import { receiveWebhook, type WebhookReceipt } from '../whatsapp/webhooks.service';
+import { receiveSimulatedWebhook, type WebhookReceipt } from '../whatsapp/webhooks.service';
 
 import { DEV_MEDIA } from './dev-media';
 import { emitConversation } from './events';
@@ -388,7 +388,7 @@ export const runInboxSimulator = async (
     entry: [{ id: channel.wabaId, time: Number(ts), changes: [{ field: 'messages', value }] }],
   };
   const raw = Buffer.from(JSON.stringify(payload));
-  const receipt = await receiveWebhook(
+  const receipt = await receiveSimulatedWebhook(
     deps.ctx,
     deps.jobs,
     raw,

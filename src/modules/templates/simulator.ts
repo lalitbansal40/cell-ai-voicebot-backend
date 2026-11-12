@@ -15,7 +15,7 @@ import {
 import { NotFoundError, ValidationError } from '../../shared/errors/app-error';
 import type { WhatsAppContext } from '../whatsapp/context';
 import type { WhatsAppJobs } from '../whatsapp/jobs';
-import { receiveWebhook, type WebhookReceipt } from '../whatsapp/webhooks.service';
+import { receiveSimulatedWebhook, type WebhookReceipt } from '../whatsapp/webhooks.service';
 import { runWhatsAppReconcile } from '../whatsapp-billing/reconcile';
 
 import { unavailableTemplateJobs } from './jobs';
@@ -61,7 +61,7 @@ export const runTemplateSimulator = async (
   const fake = deps.ctx.meta.provider === 'fake' ? (deps.ctx.meta as FakeMetaClient) : null;
   const deliver = async (field: string, value: Record<string, unknown>): Promise<Result> => {
     const raw = Buffer.from(JSON.stringify(envelope(channel.wabaId, field, value)));
-    const receipt = await receiveWebhook(
+    const receipt = await receiveSimulatedWebhook(
       deps.ctx,
       deps.jobs,
       raw,

@@ -140,6 +140,11 @@ export const createApp = ({
     '/api/v1/webhooks/meta',
     raw({ type: 'application/json', limit: WHATSAPP_LIMITS.webhookMaxBytes }),
   );
+  // PN: Pinnacle relays Meta's payload for managed numbers (secret header; same raw bytes)
+  app.use(
+    '/api/v1/webhooks/pinnacle',
+    raw({ type: () => true, limit: WHATSAPP_LIMITS.webhookMaxBytes }),
+  );
   // DEV ONLY: the mock webhook receiver checks signatures over the raw bytes.
   if (env.MOCK_APIS_ENABLED)
     app.use(DEV_RECEIVER_PATH, raw({ type: () => true, limit: WEBHOOK_LIMITS.maxPayloadBytes }));
