@@ -25,6 +25,9 @@ import {
   EventParams,
   ListChannelsQuery,
   ListEventsQuery,
+  ManagedCreditLineBody,
+  ManagedKeyBody,
+  ManagedNumberBody,
   ManualConnectBody,
   RegisterPinBody,
   RenameChannelBody,
@@ -42,6 +45,10 @@ export const WhatsAppChannelSchema = registry.register(
     id: z.string(),
     label: z.string(),
     provider: z.enum(WA_PROVIDERS),
+    managed: z.boolean().openapi({
+      description:
+        'A managed number: every call goes through the partner API (Pinnacle); added and looked after by the platform team',
+    }),
     mode: z.enum(WA_MODES),
     status: z.enum(WA_CHANNEL_STATUSES),
     statusReason: z
@@ -312,6 +319,48 @@ registry.registerPath({
     503: { description: 'Storage / queue unavailable — Meta retries (PROVIDER_UNAVAILABLE)' },
   },
 });
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/webhooks/pinnacle/{channelId}',
+  tags: metaTags,
+  summary: 'Partner (Pinnacle) webhook ping — answers ok, reads nothing',
+  request: { params: z.object({ channelId: z.string() }) },
+  responses: {
+    200: { description: '`ok` (text/plain)', content: { 'text/plain': { schema: z.string() } } },
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/webhooks/pinnacle/{channelId}',
+  tags: metaTags,
+  summary:
+    "Meta's webhook payload relayed by Pinnacle for one managed number (x-cell-webhook-secret, ≤ 3 MB)",
+  request: {
+    params: z.object({ channelId: z.string() }),
+    headers: z.object({
+      'x-cell-webhook-secret': z
+        .string()
+        .openapi({ description: 'The per-number secret we gave the partner (setwebhook)' }),
+    }),
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({ object: z.string(), entry: z.array(z.unknown()) }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: ok(WebhookReceiptSchema),
+    403: { description: 'Missing / wrong secret (PINNACLE_WEBHOOK_FORBIDDEN)' },
+    404: errors[404],
+    413: errors[413],
+    422: errors[422],
+    503: {
+      description: 'Storage / queue unavailable — the partner retries (PROVIDER_UNAVAILABLE)',
+    },
+  },
+});
 const signedRequest = {
   body: {
     content: {
@@ -389,6 +438,11 @@ export const WhatsAppAdminStatusSchema = registry.register(
     deauthorizeUrl: z.string(),
     dataDeletionUrl: z.string(),
     lastEventAt: iso,
+    pinnacle: z.object({
+      enabled: z.boolean(),
+      baseUrl: z.string(),
+      voiceBaseUrl: z.string(),
+    }),
     channelsByStatus: z.record(z.string(), z.number().int()),
     eventsByStatus24h: z.record(z.string(), z.number().int()),
   }),
@@ -497,6 +551,76 @@ registry.registerPath({
   request: { params: ChannelParams, ...json(ManualConnectBody) },
   responses: {
     200: ok(WhatsAppConnectResultSchema),
+    ...admin,
+    404: errors[404],
+    409: errors[409],
+    422: errors[422],
+  },
+});
+
+// PN: managed numbers over the Pinnacle partner API
+const partnerFailed = {
+  description:
+    "The partner refused the request or didn't keep our webhook (WA_PROVIDER_ERROR / PINNACLE_WEBHOOK_NOT_SET)",
+};
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/whatsapp/managed-numbers',
+  tags: adminTags,
+  summary:
+    'Add a managed number (lives at Pinnacle): key checked, details read, our webhook set at the partner',
+  security: bearer,
+  request: { params: ChannelParams, ...json(ManagedNumberBody) },
+  responses: {
+    201: ok(ChannelOutcomeSchema),
+    ...admin,
+    404: errors[404],
+    409: errors[409],
+    422: errors[422],
+    502: partnerFailed,
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/whatsapp/channels/{id}/managed/api-key',
+  tags: adminTags,
+  summary: 'Replace the partner API key of a managed number (checked; webhook set with it)',
+  security: bearer,
+  request: { params: ChannelParams, ...json(ManagedKeyBody) },
+  responses: {
+    200: ok(WhatsAppChannelSchema),
+    ...admin,
+    404: errors[404],
+    409: errors[409],
+    422: errors[422],
+    502: partnerFailed,
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/whatsapp/channels/{id}/managed/webhook',
+  tags: adminTags,
+  summary: 'Set our webhook again at the partner with a new secret (read back)',
+  security: bearer,
+  request: { params: ChannelParams },
+  responses: {
+    200: ok(WhatsAppChannelSchema),
+    ...admin,
+    404: errors[404],
+    409: errors[409],
+    502: partnerFailed,
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/whatsapp/channels/{id}/managed/credit-line',
+  tags: adminTags,
+  summary:
+    'The partner credit line of a managed number: requested (number waits) or active (as approved in the partner panel)',
+  security: bearer,
+  request: { params: ChannelParams, ...json(ManagedCreditLineBody) },
+  responses: {
+    200: ok(WhatsAppChannelSchema),
     ...admin,
     404: errors[404],
     409: errors[409],

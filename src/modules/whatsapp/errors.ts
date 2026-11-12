@@ -1,4 +1,9 @@
-import { isMetaApiError, META_ERROR_CODES, type MetaApiError } from '../../core/meta';
+import {
+  isMetaApiError,
+  META_ERROR_CODES,
+  PROVIDER_ERROR_TYPES,
+  type MetaApiError,
+} from '../../core/meta';
 import { AppError } from '../../shared/errors/app-error';
 
 /** Where a signup failed (`details[0].message`). */
@@ -9,20 +14,32 @@ export const signupFailed = (step: SignupStep, message: string): AppError =>
 
 /** `502 META_API_ERROR` with Meta's code / subcode / trace id (message already scrubbed). */
 export const metaApiError = (err: MetaApiError): AppError =>
-  new AppError(
-    'META_API_ERROR',
-    undefined,
-    [
-      {
-        path: 'meta',
-        message: err.message,
-        ...(err.code !== null ? { metaCode: err.code } : {}),
-        ...(err.subcode !== null ? { metaSubcode: err.subcode } : {}),
-        ...(err.fbtraceId ? { fbtraceId: err.fbtraceId } : {}),
-      },
-    ],
-    { cause: err },
-  );
+  // PN: errors of the Pinnacle partner API (managed numbers)
+  err.type === PROVIDER_ERROR_TYPES.balanceLow
+    ? new AppError('WA_PROVIDER_BALANCE_LOW', undefined, undefined, { cause: err })
+    : err.type === PROVIDER_ERROR_TYPES.unsupported
+      ? new AppError('WA_PROVIDER_UNSUPPORTED', undefined, undefined, { cause: err })
+      : err.type === PROVIDER_ERROR_TYPES.error
+        ? new AppError(
+            'WA_PROVIDER_ERROR',
+            undefined,
+            [{ path: 'provider', message: err.message }],
+            { cause: err },
+          )
+        : new AppError(
+            'META_API_ERROR',
+            undefined,
+            [
+              {
+                path: 'meta',
+                message: err.message,
+                ...(err.code !== null ? { metaCode: err.code } : {}),
+                ...(err.subcode !== null ? { metaSubcode: err.subcode } : {}),
+                ...(err.fbtraceId ? { fbtraceId: err.fbtraceId } : {}),
+              },
+            ],
+            { cause: err },
+          );
 
 /** Before a channel exists: Meta errors become signup / API errors (the token is dropped). */
 export const signupError = (err: unknown, step: SignupStep): unknown => {

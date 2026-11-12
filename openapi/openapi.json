@@ -1316,7 +1316,11 @@
               "voice_api.account_webhook_registered",
               "account.sip_trunk_changed",
               "campaign.agent_joined",
-              "campaign.agent_left"
+              "campaign.agent_left",
+              "whatsapp.managed_number_added",
+              "whatsapp.managed_key_replaced",
+              "whatsapp.managed_webhook_reset",
+              "whatsapp.credit_line_updated"
             ]
           },
           "actor": {
@@ -1668,7 +1672,27 @@
                 "messagingLimitTier": { "type": ["string", "null"] },
                 "metaPayer": { "type": "string", "enum": ["platform", "customer"] },
                 "creditLineStatus": { "type": "string" },
-                "connectedAt": { "type": ["string", "null"] }
+                "connectedAt": { "type": ["string", "null"] },
+                "provider": { "type": "string" },
+                "managed": { "type": "boolean" },
+                "pinnacle": {
+                  "type": ["object", "null"],
+                  "properties": {
+                    "keyLast4": { "type": ["string", "null"] },
+                    "webhookUrl": { "type": ["string", "null"] },
+                    "webhookSetAt": { "type": ["string", "null"] },
+                    "keyCheckedAt": { "type": ["string", "null"] },
+                    "lastBalanceErrorAt": { "type": ["string", "null"] }
+                  },
+                  "required": [
+                    "keyLast4",
+                    "webhookUrl",
+                    "webhookSetAt",
+                    "keyCheckedAt",
+                    "lastBalanceErrorAt"
+                  ]
+                },
+                "statusReasonCode": { "type": ["string", "null"] }
               },
               "required": [
                 "id",
@@ -1681,7 +1705,11 @@
                 "messagingLimitTier",
                 "metaPayer",
                 "creditLineStatus",
-                "connectedAt"
+                "connectedAt",
+                "provider",
+                "managed",
+                "pinnacle",
+                "statusReasonCode"
               ]
             }
           },
@@ -8886,7 +8914,11 @@
         "properties": {
           "id": { "type": "string" },
           "label": { "type": "string" },
-          "provider": { "type": "string", "enum": ["meta", "fake"] },
+          "provider": { "type": "string", "enum": ["meta", "fake", "pinnacle"] },
+          "managed": {
+            "type": "boolean",
+            "description": "A managed number: every call goes through the partner API (Pinnacle); added and looked after by the platform team"
+          },
           "mode": { "type": "string", "enum": ["cloud_api", "coexistence"] },
           "status": {
             "type": "string",
@@ -8950,7 +8982,14 @@
               "status": { "type": "string", "enum": ["disabled", "enabled", "unavailable"] },
               "unavailableReason": {
                 "type": ["string", "null"],
-                "enum": ["coexistence", "country", "messaging_limit", "not_cloud_api", null]
+                "enum": [
+                  "coexistence",
+                  "country",
+                  "messaging_limit",
+                  "not_cloud_api",
+                  "provider_unsupported",
+                  null
+                ]
               },
               "restricted": {
                 "type": "boolean",
@@ -8966,7 +9005,16 @@
               "creditLine": {
                 "type": "object",
                 "properties": {
-                  "status": { "type": "string", "enum": ["not_needed", "attached", "failed"] }
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "not_needed",
+                      "attached",
+                      "failed",
+                      "partner_pending",
+                      "partner_active"
+                    ]
+                  }
                 },
                 "required": ["status"]
               },
@@ -9031,6 +9079,7 @@
           "id",
           "label",
           "provider",
+          "managed",
           "mode",
           "status",
           "statusReason",
@@ -9212,6 +9261,15 @@
           "deauthorizeUrl": { "type": "string" },
           "dataDeletionUrl": { "type": "string" },
           "lastEventAt": { "type": ["string", "null"] },
+          "pinnacle": {
+            "type": "object",
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "baseUrl": { "type": "string" },
+              "voiceBaseUrl": { "type": "string" }
+            },
+            "required": ["enabled", "baseUrl", "voiceBaseUrl"]
+          },
           "channelsByStatus": { "type": "object", "additionalProperties": { "type": "integer" } },
           "eventsByStatus24h": { "type": "object", "additionalProperties": { "type": "integer" } }
         },
@@ -9224,6 +9282,7 @@
           "deauthorizeUrl",
           "dataDeletionUrl",
           "lastEventAt",
+          "pinnacle",
           "channelsByStatus",
           "eventsByStatus24h"
         ]
@@ -10403,6 +10462,64 @@
           }
         },
         "required": ["wabaId", "phoneNumberId", "accessToken"],
+        "additionalProperties": false
+      },
+      "WhatsAppManagedNumberInput": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+          "wabaId": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^(\\d+|fake_[a-z]+_[0-9a-f]{12})$",
+            "example": "106540352242922"
+          },
+          "phoneNumberId": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^(\\d+|fake_[a-z]+_[0-9a-f]{12})$",
+            "example": "106540352242922"
+          },
+          "apiKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 512,
+            "pattern": "^\\S+$",
+            "description": "Partner API key (Admin → Manage API Keys); sealed at rest, never echoed"
+          },
+          "creditLine": {
+            "type": "string",
+            "enum": ["partner_pending", "partner_active"],
+            "description": "The partner credit line as the partner panel shows it: requested (`partner_pending`, the number stays 'action needed') or approved (`partner_active`)"
+          }
+        },
+        "required": ["label", "wabaId", "phoneNumberId", "apiKey", "creditLine"],
+        "additionalProperties": false
+      },
+      "WhatsAppManagedKeyInput": {
+        "type": "object",
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 512,
+            "pattern": "^\\S+$",
+            "description": "Partner API key (Admin → Manage API Keys); sealed at rest, never echoed"
+          }
+        },
+        "required": ["apiKey"],
+        "additionalProperties": false
+      },
+      "WhatsAppManagedCreditLineInput": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["partner_pending", "partner_active"],
+            "description": "The partner credit line as the partner panel shows it: requested (`partner_pending`, the number stays 'action needed') or approved (`partner_active`)"
+          }
+        },
+        "required": ["status"],
         "additionalProperties": false
       },
       "WhatsAppSimulatorInput": {
@@ -41222,6 +41339,91 @@
         }
       }
     },
+    "/api/v1/webhooks/pinnacle/{channelId}": {
+      "get": {
+        "tags": ["Meta callbacks"],
+        "summary": "Partner (Pinnacle) webhook ping — answers ok, reads nothing",
+        "parameters": [
+          { "schema": { "type": "string" }, "required": true, "name": "channelId", "in": "path" }
+        ],
+        "responses": {
+          "200": {
+            "description": "`ok` (text/plain)",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Meta callbacks"],
+        "summary": "Meta's webhook payload relayed by Pinnacle for one managed number (x-cell-webhook-secret, ≤ 3 MB)",
+        "parameters": [
+          { "schema": { "type": "string" }, "required": true, "name": "channelId", "in": "path" },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The per-number secret we gave the partner (setwebhook)"
+            },
+            "required": true,
+            "description": "The per-number secret we gave the partner (setwebhook)",
+            "name": "x-cell-webhook-secret",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "object": { "type": "string" },
+                  "entry": { "type": "array", "items": {} }
+                },
+                "required": ["object", "entry"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/MetaWebhookReceipt" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": { "description": "Missing / wrong secret (PINNACLE_WEBHOOK_FORBIDDEN)" },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "413": {
+            "description": "Body or file too large (PAYLOAD_TOO_LARGE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": {
+            "description": "Storage / queue unavailable — the partner retries (PROVIDER_UNAVAILABLE)"
+          }
+        }
+      }
+    },
     "/api/v1/meta/deauthorize": {
       "post": {
         "tags": ["Meta callbacks"],
@@ -41711,6 +41913,292 @@
                   "properties": {
                     "success": { "type": "boolean", "enum": [true] },
                     "data": { "$ref": "#/components/schemas/WhatsAppConnectResult" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/whatsapp/managed-numbers": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "Add a managed number (lives at Pinnacle): key checked, details read, our webhook set at the partner",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppManagedNumberInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "channel": { "$ref": "#/components/schemas/WhatsAppChannel" },
+                        "outcome": {
+                          "type": "string",
+                          "enum": ["connected", "action_needed", "needs_reconnect"]
+                        }
+                      },
+                      "required": ["channel", "outcome"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": {
+            "description": "The partner refused the request or didn't keep our webhook (WA_PROVIDER_ERROR / PINNACLE_WEBHOOK_NOT_SET)"
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp/channels/{id}/managed/api-key": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "Replace the partner API key of a managed number (checked; webhook set with it)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppManagedKeyInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppChannel" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": {
+            "description": "The partner refused the request or didn't keep our webhook (WA_PROVIDER_ERROR / PINNACLE_WEBHOOK_NOT_SET)"
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp/channels/{id}/managed/webhook": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "Set our webhook again at the partner with a new secret (read back)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppChannel" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": {
+            "description": "The partner refused the request or didn't keep our webhook (WA_PROVIDER_ERROR / PINNACLE_WEBHOOK_NOT_SET)"
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp/channels/{id}/managed/credit-line": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "The partner credit line of a managed number: requested (number waits) or active (as approved in the partner panel)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppManagedCreditLineInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppChannel" }
                   },
                   "required": ["success", "data"]
                 }

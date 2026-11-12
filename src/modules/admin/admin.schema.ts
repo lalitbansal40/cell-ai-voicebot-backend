@@ -176,6 +176,19 @@ export const AdminAccountDetailSchema = registry.register(
         metaPayer: z.enum(META_PAYERS),
         creditLineStatus: z.string(),
         connectedAt: z.string().nullable(),
+        // PN: managed numbers (Pinnacle) — never the key or the webhook secret
+        provider: z.string(),
+        managed: z.boolean(),
+        pinnacle: z
+          .object({
+            keyLast4: z.string().nullable(),
+            webhookUrl: z.string().nullable(),
+            webhookSetAt: z.string().nullable(),
+            keyCheckedAt: z.string().nullable(),
+            lastBalanceErrorAt: z.string().nullable(),
+          })
+          .nullable(),
+        statusReasonCode: z.string().nullable(),
       }),
     ),
     recentAudit: z.array(AuditEntrySchema),

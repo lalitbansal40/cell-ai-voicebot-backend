@@ -219,6 +219,11 @@ export const AUDIT_ACTIONS = [
   'account.sip_trunk_changed',
   'campaign.agent_joined',
   'campaign.agent_left',
+  // PN: managed WhatsApp numbers over the Pinnacle partner API (superadmin)
+  'whatsapp.managed_number_added',
+  'whatsapp.managed_key_replaced',
+  'whatsapp.managed_webhook_reset',
+  'whatsapp.credit_line_updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

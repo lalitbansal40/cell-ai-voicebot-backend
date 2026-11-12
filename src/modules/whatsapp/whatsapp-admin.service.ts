@@ -90,6 +90,12 @@ export const whatsappStatus = async (env: Env) => {
     deauthorizeUrl: `${env.APP_URL.replace(/\/+$/, '')}/api/v1/meta/deauthorize`,
     dataDeletionUrl: `${env.APP_URL.replace(/\/+$/, '')}/api/v1/meta/data-deletion`,
     lastEventAt: last ? last.receivedAt.toISOString() : null,
+    // PN: managed numbers over the Pinnacle partner API (URLs are not secret)
+    pinnacle: {
+      enabled: env.PINNACLE_ENABLED,
+      baseUrl: env.PINNACLE_BASE_URL,
+      voiceBaseUrl: env.PINNACLE_VOICE_BASE_URL,
+    },
     channelsByStatus: Object.fromEntries(byStatus.map((r) => [r._id, r.n])),
     eventsByStatus24h: Object.fromEntries(events.map((r) => [r._id, r.n])),
   };
@@ -189,6 +195,22 @@ export const accountWhatsApp = async (accountId: Types.ObjectId) => {
       metaPayer: c.metaPayer,
       creditLineStatus: c.creditLine.status,
       connectedAt: c.connectedAt ? c.connectedAt.toISOString() : null,
+      // PN: managed numbers — partner details for the superadmin (never the key or secret)
+      provider: c.provider,
+      managed: c.provider === 'pinnacle',
+      pinnacle:
+        c.provider === 'pinnacle' && c.pinnacle
+          ? {
+              keyLast4: c.pinnacle.keyLast4,
+              webhookUrl: c.pinnacle.webhookUrl,
+              webhookSetAt: c.pinnacle.webhookSetAt ? c.pinnacle.webhookSetAt.toISOString() : null,
+              keyCheckedAt: c.pinnacle.keyCheckedAt ? c.pinnacle.keyCheckedAt.toISOString() : null,
+              lastBalanceErrorAt: c.pinnacle.lastBalanceErrorAt
+                ? c.pinnacle.lastBalanceErrorAt.toISOString()
+                : null,
+            }
+          : null,
+      statusReasonCode: c.statusReason?.code ?? null,
     })),
   };
 };
@@ -216,6 +238,47 @@ export const adminDisconnect = async (
   );
   return view;
 };
+
+/* ── PN: managed numbers over the Pinnacle partner API ─────────────────── */
+
+/** Superadmin adds a number that lives at Pinnacle (key, details, our webhook at the partner). */
+export const addManagedNumber = async (
+  req: Request,
+  deps: WhatsAppAdminDeps,
+  accountId: string,
+  input: {
+    label: string;
+    wabaId: string;
+    phoneNumberId: string;
+    apiKey: string;
+    creditLine: 'partner_pending' | 'partner_active';
+  },
+) => {
+  const account = await customerAccount(accountId);
+  if (account.status !== 'active') throw new AppError('AUTH_ACCOUNT_SUSPENDED');
+  return deps.service.connectManaged({
+    accountId: account._id,
+    actor: platformActor(req),
+    ...input,
+  });
+};
+
+export const replaceManagedKey = (
+  req: Request,
+  deps: WhatsAppAdminDeps,
+  channelId: string,
+  apiKey: string,
+) => deps.service.replaceManagedKey(channelId, apiKey, platformActor(req));
+
+export const resetManagedWebhook = (req: Request, deps: WhatsAppAdminDeps, channelId: string) =>
+  deps.service.resetManagedWebhook(channelId, platformActor(req));
+
+export const setManagedCreditLine = (
+  req: Request,
+  deps: WhatsAppAdminDeps,
+  channelId: string,
+  status: 'partner_pending' | 'partner_active',
+) => deps.service.setManagedCreditLine(channelId, status, platformActor(req));
 
 /** Manual connect (platform test number): a System User token instead of a signup code. */
 export const manualConnect = async (

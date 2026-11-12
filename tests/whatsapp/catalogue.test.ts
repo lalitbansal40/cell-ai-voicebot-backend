@@ -75,6 +75,11 @@ describe('Phase 9 catalogue', () => {
       'whatsapp.event_replayed',
       'meta.deauthorized',
       'meta.data_deletion_requested',
+      // PN: managed numbers over the Pinnacle partner API
+      'whatsapp.managed_number_added',
+      'whatsapp.managed_key_replaced',
+      'whatsapp.managed_webhook_reset',
+      'whatsapp.credit_line_updated',
     ]);
   });
 

@@ -17,6 +17,8 @@ export const channelListItem = (c: WhatsAppChannelDoc) => ({
   id: c._id.toString(),
   label: c.label,
   provider: c.provider,
+  /** PN: a managed number (every call goes through the partner API, superadmin-managed). */
+  managed: c.provider === 'pinnacle',
   mode: c.mode,
   status: c.status,
   statusReason: c.statusReason

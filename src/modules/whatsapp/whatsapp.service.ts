@@ -11,6 +11,7 @@ import {
   type MetaPhone,
   type MetaPhoneSummary,
   type MetaWaba,
+  type PinnacleClient,
 } from '../../core/meta';
 import { isDuplicateKeyError } from '../../db/errors';
 import { AccountModel, DEFAULT_ACCOUNT_WHATSAPP } from '../../db/models/account.model';
@@ -42,6 +43,11 @@ import {
   notifyChannel,
   notifyDetailChanges,
   numberName,
+  PARTNER_CREDIT_LINE_PENDING,
+  PROVIDER_KEY_INVALID,
+  PROVIDER_NUMBER_MISSING,
+  PROVIDER_WEBHOOK_MISMATCH,
+  REGISTER_AT_PARTNER,
   TOKEN_INVALID_REASON,
   transition,
   type WaActor,
@@ -49,6 +55,7 @@ import {
 import { canRetryCoexistence, requestCoexistenceSyncs } from './coexistence';
 import {
   clientFor,
+  isPinnacle,
   nowOf,
   openSecret,
   phoneLast4,
@@ -57,6 +64,8 @@ import {
   type WhatsAppContext,
 } from './context';
 import { metaApiError, notReady, signupError, signupFailed } from './errors';
+import { PINNACLE_SECRET_HEADER, pinnacleWebhookUrl } from './pinnacle-webhooks.service';
+import { resetManagedNumbersCache } from './webhooks.service';
 
 const SECRET_FIELDS = '+tokenSealed +registration.pinSealed +pinnacle.webhookSecretSealed';
 /** Fields the `phone` step sets (dropped when the number turns out to be taken). */
@@ -650,6 +659,12 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     if (channel.status !== 'action_needed') {
       throw new ConflictError('CONFLICT_INVALID_STATE', 'This number has no setup step to retry.');
     }
+    // PN (D18): a managed number has no setup steps here — check it at the partner again
+    if (isPinnacle(channel)) {
+      const synced = await syncManaged(channel, actor);
+      await connected(synced);
+      return { channel: channelListItem(synced), outcome: outcomeOf(synced) };
+    }
     const token = await requireToken(channel, actor);
     const run = await withLock(channel.phoneNumberId ?? `waba-${channel.wabaId}`, () =>
       runSetup(channel, token, resumeStep(channel), actor),
@@ -661,7 +676,11 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
 
   const submitPin = async (accountId: Types.ObjectId, id: string, pin: string, actor: WaActor) => {
     const channel = await load(accountId, id, true);
-    if (channel.status !== 'action_needed' || channel.statusReason?.code !== PIN_REQUIRED.code) {
+    if (
+      isPinnacle(channel) ||
+      channel.status !== 'action_needed' ||
+      channel.statusReason?.code !== PIN_REQUIRED.code
+    ) {
       throw new ConflictError('CONFLICT_INVALID_STATE', "This number doesn't need a PIN.");
     }
     const token = await requireToken(channel, actor);
@@ -704,6 +723,8 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     actor: WaActor,
   ): Promise<WhatsAppChannelDoc> => {
     if (channel.status === 'disconnected') throw notReady('This WhatsApp number is disconnected.');
+    // PN (D17): a managed number is checked at the partner, not with Meta's debug_token
+    if (isPinnacle(channel)) return syncManaged(channel, actor);
     const token = tokenOf(channel);
     if (!token) return markNeedsReconnect(ctx, channel, TOKEN_INVALID_REASON, actor);
     const now = nowOf(ctx);
@@ -857,7 +878,19 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
       _id: { $ne: channel._id },
     });
     const token = tokenOf(channel);
-    if (!othersOnWaba && token) {
+    if (isPinnacle(channel)) {
+      // PN (D20): stop the partner relaying this number to us (best effort)
+      if (token && channel.phoneNumberId && ctx.pinnacle) {
+        try {
+          await ctx.pinnacle.setWebhook(token, channel.phoneNumberId, '', {});
+        } catch (err) {
+          log().warn(
+            { channelId: channel._id.toString(), type: isMetaApiError(err) ? err.type : null },
+            'whatsapp: partner webhook not cleared (disconnecting anyway)',
+          );
+        }
+      }
+    } else if (!othersOnWaba && token) {
       try {
         // meta-only: our app's webhook subscription
         await meta.unsubscribeApp(token, channel.wabaId);
@@ -882,12 +915,19 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     const updated = await transition(ctx, channel, 'disconnected', why, actor, {
       tokenSealed: null,
       'registration.pinSealed': null,
-      subscription: othersOnWaba ? channel.subscription : { status: null, error: null, at: now },
+      ...(isPinnacle(channel) && channel.pinnacle
+        ? { 'pinnacle.webhookSecretSealed': null, 'pinnacle.webhookSetAt': null }
+        : {}),
+      subscription:
+        othersOnWaba && !isPinnacle(channel)
+          ? channel.subscription
+          : { status: null, error: null, at: now },
       disconnectedBy: actor.id,
       disconnectedAt: now,
     });
+    if (isPinnacle(channel)) resetManagedNumbersCache();
     await auditChannel(updated, 'whatsapp.channel_disconnected', actor, {
-      unsubscribed: !othersOnWaba,
+      unsubscribed: !othersOnWaba && !isPinnacle(channel),
       ...(options.byAdminReason ? { byAdmin: true, reason: options.byAdminReason } : {}),
     });
     if (options.byAdminReason) {
@@ -901,6 +941,400 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
       );
     }
     return channelListItem(updated);
+  };
+
+  // ── PN: managed numbers (Pinnacle partner API) ────────────────────────────
+  const pinnacleOf = (): PinnacleClient => {
+    if (!ctx.env.PINNACLE_ENABLED || !ctx.pinnacle)
+      throw new AppError('WA_PROVIDER_NOT_CONFIGURED');
+    return ctx.pinnacle;
+  };
+
+  /** A partner error as the API answers it (balance / unsupported / refused / Meta's). */
+  const partnerError = (err: unknown): unknown => (isMetaApiError(err) ? metaApiError(err) : err);
+
+  /** The key must be valid and list this number of this WABA. */
+  const checkKey = async (
+    pin: PinnacleClient,
+    apiKey: string,
+    wabaId: string,
+    phoneNumberId: string,
+  ) => {
+    let numbers;
+    try {
+      numbers = await pin.getUserDetails(apiKey);
+    } catch (err) {
+      if (isMetaApiError(err) && err.tokenInvalid) throw new AppError('PINNACLE_KEY_INVALID');
+      throw partnerError(err);
+    }
+    if (!numbers.some((n) => n.phoneNumberId === phoneNumberId && n.wabaId === wabaId)) {
+      throw new AppError('PINNACLE_NUMBER_NOT_ON_KEY');
+    }
+  };
+
+  /**
+   * Does the partner relay this number to our URL with our secret? (The header is checked
+   * when the partner echoes headers; some answers leave them out.)
+   */
+  const webhookMatches = async (
+    pin: PinnacleClient,
+    apiKey: string,
+    channel: Pick<WhatsAppChannelDoc, '_id' | 'phoneNumberId'>,
+    secret: string,
+  ): Promise<boolean> => {
+    const current = await pin.getWebhook(apiKey, channel.phoneNumberId ?? '');
+    if (!current || current.url !== pinnacleWebhookUrl(ctx.env, channel._id)) return false;
+    const echoed = Object.entries(current.headers).find(
+      ([k]) => k.toLowerCase() === PINNACLE_SECRET_HEADER,
+    );
+    return !echoed || echoed[1] === secret;
+  };
+
+  /** `setwebhook` to our URL + secret header, then read it back (D8). */
+  const setWebhookChecked = async (
+    pin: PinnacleClient,
+    apiKey: string,
+    channel: Pick<WhatsAppChannelDoc, '_id' | 'phoneNumberId'>,
+    secret: string,
+  ) => {
+    try {
+      await pin.setWebhook(
+        apiKey,
+        channel.phoneNumberId ?? '',
+        pinnacleWebhookUrl(ctx.env, channel._id),
+        {
+          [PINNACLE_SECRET_HEADER]: secret,
+        },
+      );
+      if (await webhookMatches(pin, apiKey, channel, secret)) return;
+    } catch (err) {
+      if (isMetaApiError(err) && err.tokenInvalid) throw new AppError('PINNACLE_KEY_INVALID');
+      throw new AppError(
+        'PINNACLE_WEBHOOK_NOT_SET',
+        undefined,
+        isMetaApiError(err) ? [{ path: 'provider', message: err.message }] : undefined,
+        { cause: err },
+      );
+    }
+    throw new AppError('PINNACLE_WEBHOOK_NOT_SET', undefined, [
+      { path: 'provider', message: "The partner didn't keep our webhook URL." },
+    ]);
+  };
+
+  /** Status of a managed number from what the partner reports (D12 / D17 / D18). */
+  const managedState = (
+    ch: Pick<WhatsAppChannelDoc, 'creditLine' | 'restriction'>,
+    phoneStatus: string | null,
+    webhookOk: boolean,
+  ): { status: WhatsAppChannelDoc['status']; why: WaStatusReason | null } => {
+    if (RESTRICTED_PHONE_STATUSES.has(phoneStatus ?? '')) {
+      return {
+        status: 'restricted',
+        why: reason(
+          'restricted',
+          `Meta reports this number as ${(phoneStatus ?? '').toLowerCase()}.`,
+          null,
+        ),
+      };
+    }
+    if (!webhookOk) return { status: 'action_needed', why: PROVIDER_WEBHOOK_MISMATCH };
+    if (ch.creditLine.status === 'partner_pending') {
+      return { status: 'action_needed', why: PARTNER_CREDIT_LINE_PENDING };
+    }
+    if (phoneStatus && phoneStatus !== 'CONNECTED') {
+      return { status: 'action_needed', why: REGISTER_AT_PARTNER };
+    }
+    return { status: 'connected', why: null };
+  };
+
+  const loadManaged = async (channelId: string) => {
+    if (!Types.ObjectId.isValid(channelId)) throw new NotFoundError('WhatsApp number not found');
+    const channel = await WhatsAppChannelModel.findById(channelId)
+      .select(SECRET_FIELDS)
+      .lean<WhatsAppChannelDoc>();
+    if (!channel) throw new NotFoundError('WhatsApp number not found');
+    if (!isPinnacle(channel)) {
+      throw new ConflictError('CONFLICT_INVALID_STATE', 'This is not a managed number.');
+    }
+    if (channel.status === 'disconnected') {
+      throw new ConflictError('CONFLICT_INVALID_STATE', 'This number is disconnected.');
+    }
+    return channel;
+  };
+
+  const webhookSecretOf = (channel: WhatsAppChannelDoc): string | null => {
+    const sealed = channel.pinnacle?.webhookSecretSealed;
+    if (!sealed) return null;
+    try {
+      return openSecret(ctx, sealed);
+    } catch {
+      return null;
+    }
+  };
+
+  /**
+   * PN (D17): health / sync of a managed number — key, number on the key, our webhook
+   * (re-set once when the partner lost it), details, status. Key problems end in
+   * `needs_reconnect` (a superadmin replaces the key).
+   */
+  const syncManaged = async (
+    channel: WhatsAppChannelDoc,
+    actor: WaActor,
+  ): Promise<WhatsAppChannelDoc> => {
+    const pin = pinnacleOf();
+    const key = tokenOf(channel);
+    if (!key) return markNeedsReconnect(ctx, channel, PROVIDER_KEY_INVALID, actor);
+    const now = nowOf(ctx);
+    const phoneNumberId = channel.phoneNumberId ?? '';
+    try {
+      const numbers = await pin.getUserDetails(key);
+      if (!numbers.some((n) => n.phoneNumberId === phoneNumberId)) {
+        return await markNeedsReconnect(ctx, channel, PROVIDER_NUMBER_MISSING, actor);
+      }
+      const secret = webhookSecretOf(channel);
+      let webhookOk = secret ? await webhookMatches(pin, key, channel, secret) : false;
+      let reset = false;
+      if (!webhookOk && secret) {
+        try {
+          await setWebhookChecked(pin, key, channel, secret);
+          webhookOk = true;
+          reset = true;
+        } catch (err) {
+          log().warn(
+            { channelId: channel._id.toString(), errName: (err as Error).name },
+            'whatsapp: partner webhook could not be set again',
+          );
+        }
+      }
+      const waba = await pin.getWaba(key, channel.wabaId);
+      const phone = await pin.getPhoneNumber(key, phoneNumberId);
+      const { status, why } = managedState(channel, phone.status, webhookOk);
+      const updated = await transition(ctx, channel, status, why, actor, {
+        ...wabaPatch(waba),
+        ...phonePatch(phone),
+        registration: {
+          ...channel.registration,
+          status: phone.status === 'CONNECTED' ? 'not_needed' : 'pending',
+          error: null,
+        },
+        tokenCheckedAt: now,
+        syncedAt: now,
+        restriction:
+          status === 'restricted'
+            ? (channel.restriction ?? { type: phone.status ?? 'RESTRICTED', until: null })
+            : null,
+        'pinnacle.keyCheckedAt': now,
+        ...(reset
+          ? {
+              'pinnacle.webhookUrl': pinnacleWebhookUrl(ctx.env, channel._id),
+              'pinnacle.webhookSetAt': now,
+            }
+          : {}),
+      });
+      if (reset) {
+        await auditChannel(updated, 'whatsapp.managed_webhook_reset', actor, { automatic: true });
+      }
+      await notifyDetailChanges(ctx, channel, updated);
+      return updated;
+    } catch (err) {
+      if (isMetaApiError(err) && err.tokenInvalid) {
+        return markNeedsReconnect(ctx, channel, PROVIDER_KEY_INVALID, actor);
+      }
+      throw partnerError(err);
+    }
+  };
+
+  /**
+   * PN: superadmin adds a number that lives at Pinnacle (D2 / T5): key check, details,
+   * channel, our webhook at the partner (read back — otherwise nothing is kept), status.
+   */
+  const connectManaged = async (input: {
+    accountId: Types.ObjectId;
+    actor: WaActor;
+    label: string;
+    wabaId: string;
+    phoneNumberId: string;
+    apiKey: string;
+    creditLine: 'partner_pending' | 'partner_active';
+  }) => {
+    const pin = pinnacleOf();
+    return withLock(input.phoneNumberId, async () => {
+      await checkKey(pin, input.apiKey, input.wabaId, input.phoneNumberId);
+      if (await activeElsewhere(input.phoneNumberId, null)) {
+        throw new AppError('WHATSAPP_NUMBER_IN_USE');
+      }
+      const count = await WhatsAppChannelModel.countDocuments({
+        accountId: input.accountId,
+        status: { $in: WA_ACTIVE_STATUSES },
+      });
+      if (count >= WHATSAPP_LIMITS.maxChannelsPerAccount)
+        throw new AppError('WHATSAPP_CHANNEL_LIMIT');
+      let waba: MetaWaba;
+      let phone: MetaPhone;
+      try {
+        waba = await pin.getWaba(input.apiKey, input.wabaId);
+        phone = await pin.getPhoneNumber(input.apiKey, input.phoneNumberId);
+      } catch (err) {
+        if (isMetaApiError(err) && err.tokenInvalid) throw new AppError('PINNACLE_KEY_INVALID');
+        throw partnerError(err);
+      }
+      const now = nowOf(ctx);
+      const secret = randomBytes(32).toString('base64url');
+      let channel: WhatsAppChannelDoc;
+      try {
+        const created = await WhatsAppChannelModel.create({
+          accountId: input.accountId,
+          label: input.label.slice(0, WHATSAPP_LIMITS.labelMax),
+          provider: 'pinnacle',
+          mode: 'cloud_api',
+          wabaId: input.wabaId,
+          ...wabaPatch(waba),
+          phoneNumberId: input.phoneNumberId,
+          ...phonePatch(phone),
+          phoneE164: toE164(phone.displayPhoneNumber),
+          tokenSealed: sealSecret(ctx, input.apiKey),
+          tokenType: 'pinnacle_api_key',
+          tokenScopes: [],
+          tokenExpiresAt: null,
+          tokenCheckedAt: now,
+          metaUserId: null,
+          metaPayer: 'platform',
+          creditLine: { status: input.creditLine, allocationConfigId: null, error: null, at: now },
+          subscription: { status: 'subscribed', error: null, at: now },
+          registration: {
+            status: phone.status === 'CONNECTED' ? 'not_needed' : 'pending',
+            pinSealed: null,
+            error: null,
+            at: null,
+          },
+          pinnacle: {
+            webhookSecretSealed: sealSecret(ctx, secret),
+            webhookUrl: null,
+            webhookSetAt: null,
+            keyLast4: input.apiKey.slice(-4),
+            keyCheckedAt: now,
+            lastBalanceErrorAt: null,
+            addedBy: input.actor.id,
+          },
+          connectedBy: input.actor.id,
+          connectedAt: now,
+          status: 'connecting',
+          history: [{ status: 'connecting', reason: null, at: now, by: input.actor.id }],
+        });
+        channel = created.toObject({ transform: false });
+      } catch (err) {
+        if (isDuplicateKeyError(err)) throw new AppError('WHATSAPP_NUMBER_IN_USE');
+        throw err;
+      }
+      try {
+        await setWebhookChecked(pin, input.apiKey, channel, secret);
+      } catch (err) {
+        // nothing is kept when the partner didn't take our webhook
+        await WhatsAppChannelModel.deleteOne({ _id: channel._id });
+        throw err;
+      }
+      resetManagedNumbersCache();
+      const { status, why } = managedState(channel, phone.status, true);
+      const updated = await transition(ctx, channel, status, why, input.actor, {
+        'pinnacle.webhookUrl': pinnacleWebhookUrl(ctx.env, channel._id),
+        'pinnacle.webhookSetAt': now,
+        syncedAt: now,
+        ...(status === 'restricted'
+          ? { restriction: { type: phone.status ?? 'RESTRICTED', until: null } }
+          : {}),
+      });
+      await auditChannel(updated, 'whatsapp.managed_number_added', input.actor, {
+        byAdmin: true,
+        keyLast4: input.apiKey.slice(-4),
+        creditLine: input.creditLine,
+      });
+      await connected(updated);
+      return { channel: channelListItem(updated), outcome: outcomeOf(updated) };
+    });
+  };
+
+  /** PN: a new partner API key for a managed number (checked, webhook set with it). */
+  const replaceManagedKey = async (channelId: string, apiKey: string, actor: WaActor) => {
+    const pin = pinnacleOf();
+    const channel = await loadManaged(channelId);
+    return withLock(channel.phoneNumberId ?? `waba-${channel.wabaId}`, async () => {
+      await checkKey(pin, apiKey, channel.wabaId, channel.phoneNumberId ?? '');
+      const secret = webhookSecretOf(channel) ?? randomBytes(32).toString('base64url');
+      await setWebhookChecked(pin, apiKey, channel, secret);
+      const now = nowOf(ctx);
+      const before = channel.pinnacle?.keyLast4 ?? null;
+      const saved = await persist(channel, {
+        tokenSealed: sealSecret(ctx, apiKey),
+        tokenCheckedAt: now,
+        ...({
+          'pinnacle.webhookSecretSealed': sealSecret(ctx, secret),
+          'pinnacle.keyLast4': apiKey.slice(-4),
+          'pinnacle.keyCheckedAt': now,
+          'pinnacle.webhookUrl': pinnacleWebhookUrl(ctx.env, channel._id),
+          'pinnacle.webhookSetAt': now,
+        } as Partial<WhatsAppChannelDoc>),
+      });
+      const full = await WhatsAppChannelModel.findById(saved._id)
+        .select(SECRET_FIELDS)
+        .lean<WhatsAppChannelDoc>();
+      const synced = await syncManaged(full ?? saved, actor);
+      await auditChannel(synced, 'whatsapp.managed_key_replaced', actor, {
+        byAdmin: true,
+        fromLast4: before,
+        toLast4: apiKey.slice(-4),
+      });
+      await connected(synced);
+      return channelListItem(synced);
+    });
+  };
+
+  /** PN: a fresh webhook secret, set at the partner and read back. */
+  const resetManagedWebhook = async (channelId: string, actor: WaActor) => {
+    const pin = pinnacleOf();
+    const channel = await loadManaged(channelId);
+    const key = tokenOf(channel);
+    if (!key) throw new AppError('PINNACLE_KEY_INVALID');
+    return withLock(channel.phoneNumberId ?? `waba-${channel.wabaId}`, async () => {
+      const secret = randomBytes(32).toString('base64url');
+      await setWebhookChecked(pin, key, channel, secret);
+      const now = nowOf(ctx);
+      const saved = await persist(channel, {
+        'pinnacle.webhookSecretSealed': sealSecret(ctx, secret),
+        'pinnacle.webhookUrl': pinnacleWebhookUrl(ctx.env, channel._id),
+        'pinnacle.webhookSetAt': now,
+      } as Partial<WhatsAppChannelDoc>);
+      const full = await WhatsAppChannelModel.findById(saved._id)
+        .select(SECRET_FIELDS)
+        .lean<WhatsAppChannelDoc>();
+      const synced = await syncManaged(full ?? saved, actor);
+      await auditChannel(synced, 'whatsapp.managed_webhook_reset', actor, { byAdmin: true });
+      await connected(synced);
+      return channelListItem(synced);
+    });
+  };
+
+  /** PN (D10 / D12): the partner credit line state as the superadmin sees it in the panel. */
+  const setManagedCreditLine = async (
+    channelId: string,
+    status: 'partner_pending' | 'partner_active',
+    actor: WaActor,
+  ) => {
+    const channel = await loadManaged(channelId);
+    const from = channel.creditLine.status;
+    const saved = await persist(channel, {
+      creditLine: { ...channel.creditLine, status, at: nowOf(ctx), error: null },
+    });
+    const full = await WhatsAppChannelModel.findById(saved._id)
+      .select(SECRET_FIELDS)
+      .lean<WhatsAppChannelDoc>();
+    const synced = await syncManaged(full ?? saved, actor);
+    await auditChannel(synced, 'whatsapp.credit_line_updated', actor, {
+      byAdmin: true,
+      from,
+      to: status,
+    });
+    await connected(synced);
+    return channelListItem(synced);
   };
 
   // ── views / internal ──────────────────────────────────────────────────────
@@ -956,6 +1390,11 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     listChannels,
     getChannel,
     getChannelToken,
+    // PN: managed numbers (superadmin)
+    connectManaged,
+    replaceManagedKey,
+    resetManagedWebhook,
+    setManagedCreditLine,
     /** For tests / audits: the last 4 digits helper. */
     phoneLast4,
   };

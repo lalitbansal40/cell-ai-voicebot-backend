@@ -71,6 +71,34 @@ export const ManualConnectBody = z
   })
   .openapi('WhatsAppManualConnectInput');
 
+/** PN: the partner (Pinnacle) API key of a managed number — never stored or echoed in plain text. */
+const PartnerApiKey = z.string().trim().min(8).max(512).regex(/^\S+$/, 'No spaces').openapi({
+  description: 'Partner API key (Admin → Manage API Keys); sealed at rest, never echoed',
+});
+
+const PartnerCreditLine = z.enum(['partner_pending', 'partner_active']).openapi({
+  description:
+    "The partner credit line as the partner panel shows it: requested (`partner_pending`, the number stays 'action needed') or approved (`partner_active`)",
+});
+
+export const ManagedNumberBody = z
+  .strictObject({
+    label: z.string().trim().min(1).max(60),
+    wabaId: MetaId,
+    phoneNumberId: MetaId,
+    apiKey: PartnerApiKey,
+    creditLine: PartnerCreditLine,
+  })
+  .openapi('WhatsAppManagedNumberInput');
+
+export const ManagedKeyBody = z
+  .strictObject({ apiKey: PartnerApiKey })
+  .openapi('WhatsAppManagedKeyInput');
+
+export const ManagedCreditLineBody = z
+  .strictObject({ status: PartnerCreditLine })
+  .openapi('WhatsAppManagedCreditLineInput');
+
 export const EventParams = z.strictObject({ id: ObjectIdSchema });
 
 export const ListEventsQuery = z.strictObject({

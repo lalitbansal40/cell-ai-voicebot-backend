@@ -1,15 +1,20 @@
 import { Router } from 'express';
 
 import { AppError } from '../../shared/errors/app-error';
-import { ok } from '../../shared/http/envelope';
+import { created, ok } from '../../shared/http/envelope';
+import { blockWhenImpersonating } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 import { updateAccountWhatsAppBilling } from '../whatsapp-billing/admin.service';
 
 import {
+  addManagedNumber,
   adminDisconnect,
   listEvents,
   manualConnect,
+  replaceManagedKey,
   replayEvent,
+  resetManagedWebhook,
+  setManagedCreditLine,
   whatsappStatus,
   type WhatsAppAdminDeps,
 } from './whatsapp-admin.service';
@@ -18,6 +23,9 @@ import {
   ChannelParams,
   EventParams,
   ListEventsQuery,
+  ManagedCreditLineBody,
+  ManagedKeyBody,
+  ManagedNumberBody,
   ManualConnectBody,
   WhatsAppBillingBody,
 } from './whatsapp.schema';
@@ -77,6 +85,51 @@ export const createWhatsAppAdminRouter = ({
       { params: ChannelParams, body: ManualConnectBody },
       async ({ params, body, req, res }) => {
         ok(res, await manualConnect(req, need(), params.id, body));
+      },
+    ),
+  );
+  // PN: managed numbers over the Pinnacle partner API (superadmin, never while impersonating)
+  const needPinnacle = (): WhatsAppAdminDeps => {
+    const deps = need();
+    if (!deps.ctx.env.PINNACLE_ENABLED || !deps.ctx.pinnacle) {
+      throw new AppError('WA_PROVIDER_NOT_CONFIGURED');
+    }
+    return deps;
+  };
+  router.post(
+    '/accounts/:id/whatsapp/managed-numbers',
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ChannelParams, body: ManagedNumberBody },
+      async ({ params, body, req, res }) => {
+        created(res, await addManagedNumber(req, needPinnacle(), params.id, body));
+      },
+    ),
+  );
+  router.post(
+    '/whatsapp/channels/:id/managed/api-key',
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ChannelParams, body: ManagedKeyBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await replaceManagedKey(req, needPinnacle(), params.id, body.apiKey));
+      },
+    ),
+  );
+  router.post(
+    '/whatsapp/channels/:id/managed/webhook',
+    blockWhenImpersonating(),
+    ...handle({ params: ChannelParams }, async ({ params, req, res }) => {
+      ok(res, await resetManagedWebhook(req, needPinnacle(), params.id));
+    }),
+  );
+  router.post(
+    '/whatsapp/channels/:id/managed/credit-line',
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ChannelParams, body: ManagedCreditLineBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await setManagedCreditLine(req, needPinnacle(), params.id, body.status));
       },
     ),
   );
