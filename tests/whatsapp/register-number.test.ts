@@ -115,8 +115,12 @@ describe('register with the configured PIN', () => {
   });
 });
 
-describe('"Register number" without a configured PIN', () => {
-  it('a number that asked for its PIN needs it typed in', async () => {
+describe('the built-in platform PIN (no server setup)', () => {
+  it('defaults to 966411 when the server sets nothing', () => {
+    expect(w.ctx.env.WHATSAPP_REGISTER_PIN).toBe('966411');
+  });
+
+  it('a number with its own PIN: the platform PIN is refused, the typed one works', async () => {
     const pending = await connect(pinSignup());
     expect(
       await failure(
@@ -132,10 +136,10 @@ describe('"Register number" without a configured PIN', () => {
     expect(done.outcome).toBe('connected');
   });
 
-  it('managed number: a random PIN registers a fresh number on add', async () => {
+  it('managed number: the platform PIN registers a fresh number on add', async () => {
     const r = await addManaged(w.svc, '+91 98222 00002');
     expect(r.outcome).toBe('connected');
-    expect(await pinOf(r.id)).toMatch(/^\d{6}$/);
+    expect(await pinOf(r.id)).toBe('966411');
   });
 
   it('managed number with a PIN already set: pin_required, then registered through the partner', async () => {

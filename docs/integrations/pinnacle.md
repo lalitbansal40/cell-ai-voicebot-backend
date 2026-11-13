@@ -52,7 +52,7 @@ Revoking is done in Pinnacle's panel or through their revocation API. We never c
 
 ## Registration
 
-A number Meta still shows as **Pending** isn't registered on the Cloud API. When it is added, we register it through the partner at once with `WHATSAPP_REGISTER_PIN` (a random PIN when unset). If that fails, the number card shows **Register number**. If the number already has its own two-step PIN, the card asks for it (**Enter PIN**). The same applies to numbers connected through Embedded Signup.
+A number Meta still shows as **Pending** isn't registered on the Cloud API. When it is added, we register it through the partner at once with the platform PIN (`WHATSAPP_REGISTER_PIN`, built-in default — nothing to set on the server). If that fails, the number card shows **Register number**. If the number already has its own two-step PIN, the card asks for it (**Enter PIN**). The same applies to numbers connected through Embedded Signup.
 
 ## Status reasons
 
@@ -121,7 +121,7 @@ All routes below are superadmin only, refused while impersonating, and answer `5
 | `PINNACLE_BASE_URL`       | `https://partnersv1.pinbot.ai` | https in production                                                                                  |
 | `PINNACLE_VOICE_BASE_URL` | = base                         | WhatsApp Voice host. **Ask Pinnacle for the production host** (their doc shows a test load balancer) |
 | `PINNACLE_TIMEOUT_MS`     | `15000`                        | 2000–60000                                                                                           |
-| `WHATSAPP_REGISTER_PIN`   | random per number              | 6-digit two-step PIN used to register numbers (secret; set on the server only)                       |
+| `WHATSAPP_REGISTER_PIN`   | built-in platform PIN          | 6-digit two-step PIN used to register numbers; override only if needed                               |
 
 ## Open with Pinnacle
 

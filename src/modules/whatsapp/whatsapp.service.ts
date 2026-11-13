@@ -1,4 +1,4 @@
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
 import { Types } from 'mongoose';
 
@@ -273,10 +273,8 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
       .select({ accountId: 1 })
       .lean<{ _id: Types.ObjectId; accountId: Types.ObjectId }>();
 
-  /** PIN for registering a number: `WHATSAPP_REGISTER_PIN`, else a random one. */
-  const registerPinOf = (): string =>
-    ctx.env.WHATSAPP_REGISTER_PIN ??
-    String(randomInt(0, 1_000_000)).padStart(WHATSAPP_LIMITS.pinLength, '0');
+  /** PIN for registering a number: `WHATSAPP_REGISTER_PIN` (built-in default; no server setup). */
+  const registerPinOf = (): string => ctx.env.WHATSAPP_REGISTER_PIN;
 
   // ── Meta lookups for a signup ─────────────────────────────────────────────
   const resolveWaba = async (
@@ -705,9 +703,9 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
 
   /**
    * "Register number" (and the PIN form): registers the number on the Cloud API — at
-   * Meta, or through the partner for a managed number. Without a PIN the configured
-   * one (`WHATSAPP_REGISTER_PIN`) is used; a number that already asked for its PIN
-   * needs it typed in when none is configured.
+   * Meta, or through the partner for a managed number. Without a PIN the platform
+   * one (`WHATSAPP_REGISTER_PIN`, built-in default) is used; when the number has its own
+   * PIN, Meta refuses it and the PIN form asks for that one.
    */
   const submitPin = async (
     accountId: Types.ObjectId,
@@ -719,15 +717,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     if (!canRegister(channel)) {
       throw new ConflictError('CONFLICT_INVALID_STATE', "This number doesn't need registering.");
     }
-    const pin =
-      pinInput ??
-      ctx.env.WHATSAPP_REGISTER_PIN ??
-      (channel.statusReason?.code === PIN_REQUIRED.code ? null : registerPinOf());
-    if (!pin) {
-      throw new ValidationError([
-        { path: 'pin', message: 'Enter the 6-digit two-step verification PIN.' },
-      ]);
-    }
+    const pin = pinInput ?? registerPinOf();
     const managedNumber = isPinnacle(channel);
     let token: string;
     if (managedNumber) {
