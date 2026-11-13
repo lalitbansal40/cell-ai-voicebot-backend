@@ -35,7 +35,13 @@ import {
 import { getLogger } from '../../shared/logger';
 
 import { setupBilling } from './billing-setup';
-import { channelDetail, channelListItem, type ChannelEvents24h } from './channel-json';
+import {
+  canRegister,
+  channelDetail,
+  channelListItem,
+  REGISTER_REASON_CODES,
+  type ChannelEvents24h,
+} from './channel-json';
 import {
   auditChannel,
   emitChannelUpdated,
@@ -65,6 +71,7 @@ import {
 } from './context';
 import { metaApiError, notReady, signupError, signupFailed } from './errors';
 import { PINNACLE_SECRET_HEADER, pinnacleWebhookUrl } from './pinnacle-webhooks.service';
+import { noteProviderError } from './provider-alerts';
 import { resetManagedNumbersCache } from './webhooks.service';
 
 const SECRET_FIELDS = '+tokenSealed +registration.pinSealed +pinnacle.webhookSecretSealed';
@@ -266,6 +273,11 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
       .select({ accountId: 1 })
       .lean<{ _id: Types.ObjectId; accountId: Types.ObjectId }>();
 
+  /** PIN for registering a number: `WHATSAPP_REGISTER_PIN`, else a random one. */
+  const registerPinOf = (): string =>
+    ctx.env.WHATSAPP_REGISTER_PIN ??
+    String(randomInt(0, 1_000_000)).padStart(WHATSAPP_LIMITS.pinLength, '0');
+
   // ── Meta lookups for a signup ─────────────────────────────────────────────
   const resolveWaba = async (
     token: string,
@@ -280,17 +292,34 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
       );
     }
     if (granted.length === 1 && granted[0]) return granted[0];
+    // Discovery is best effort: Meta answers #100 ("nonexisting field") for
+    // `me/whatsapp_business_accounts` on some tokens, and `me/businesses` needs
+    // business_management. A lookup that fails only means "found nothing here".
+    const discover = async (lookup: () => Promise<string[]>): Promise<string[]> => {
+      try {
+        return await lookup();
+      } catch (err) {
+        if (!isMetaApiError(err) || err.tokenInvalid) throw err;
+        log().warn({ code: err.code }, 'whatsapp: WABA discovery lookup failed');
+        return [];
+      }
+    };
     // meta-only: embedded signup
-    let candidates = (await meta.listOwnedWabas(token)).map((w) => w.id);
+    let candidates = await discover(async () =>
+      (await meta.listOwnedWabas(token)).map((w) => w.id),
+    );
     if (!candidates.length) {
-      // meta-only: embedded signup
-      candidates = (await meta.listBusinessesWithWabas(token)).flatMap((b) =>
-        b.wabas.map((w) => w.id),
+      candidates = await discover(async () =>
+        // meta-only: embedded signup
+        (await meta.listBusinessesWithWabas(token)).flatMap((b) => b.wabas.map((w) => w.id)),
       );
     }
     if (granted.length) candidates = candidates.filter((id) => granted.includes(id));
     candidates = [...new Set(candidates)];
     if (hint && candidates.includes(hint)) return hint;
+    // nothing could be listed: trust the popup's WABA (its details are read next,
+    // which fails cleanly when this app has no access to it)
+    if (hint && !candidates.length && !granted.length) return hint;
     if (candidates.length === 1 && candidates[0]) return candidates[0];
     throw signupFailed(
       'waba',
@@ -392,7 +421,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
           if (ch.phoneStatus === 'CONNECTED') {
             apply({ registration: { ...ch.registration, status: 'not_needed', error: null } });
           } else {
-            const pin = String(randomInt(0, 1_000_000)).padStart(WHATSAPP_LIMITS.pinLength, '0');
+            const pin = registerPinOf();
             try {
               await clientFor(ctx, ch).registerPhone(token, ch.phoneNumberId ?? '', pin);
               apply({
@@ -674,43 +703,103 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     return { channel: channelListItem(run.channel), outcome: outcomeOf(run.channel) };
   };
 
-  const submitPin = async (accountId: Types.ObjectId, id: string, pin: string, actor: WaActor) => {
+  /**
+   * "Register number" (and the PIN form): registers the number on the Cloud API — at
+   * Meta, or through the partner for a managed number. Without a PIN the configured
+   * one (`WHATSAPP_REGISTER_PIN`) is used; a number that already asked for its PIN
+   * needs it typed in when none is configured.
+   */
+  const submitPin = async (
+    accountId: Types.ObjectId,
+    id: string,
+    pinInput: string | undefined,
+    actor: WaActor,
+  ) => {
     const channel = await load(accountId, id, true);
-    if (
-      isPinnacle(channel) ||
-      channel.status !== 'action_needed' ||
-      channel.statusReason?.code !== PIN_REQUIRED.code
-    ) {
-      throw new ConflictError('CONFLICT_INVALID_STATE', "This number doesn't need a PIN.");
+    if (!canRegister(channel)) {
+      throw new ConflictError('CONFLICT_INVALID_STATE', "This number doesn't need registering.");
     }
-    const token = await requireToken(channel, actor);
-    try {
-      await clientFor(ctx, channel).registerPhone(token, channel.phoneNumberId ?? '', pin);
-    } catch (err) {
-      if (!isMetaApiError(err)) throw err;
-      if (err.tokenInvalid) {
-        await markNeedsReconnect(ctx, channel, TOKEN_INVALID_REASON, actor);
-        throw notReady('Reconnect this WhatsApp number first.');
-      }
-      if (err.code === META_ERROR_CODES.pinMismatch) {
-        throw new ValidationError([
-          {
-            path: 'pin',
-            message: "That PIN doesn't match the number's two-step verification PIN.",
-          },
-        ]);
-      }
-      throw metaApiError(err);
+    const pin =
+      pinInput ??
+      ctx.env.WHATSAPP_REGISTER_PIN ??
+      (channel.statusReason?.code === PIN_REQUIRED.code ? null : registerPinOf());
+    if (!pin) {
+      throw new ValidationError([
+        { path: 'pin', message: 'Enter the 6-digit two-step verification PIN.' },
+      ]);
     }
-    const now = nowOf(ctx);
-    const updated = await transition(ctx, channel, 'connected', null, actor, {
-      registration: { status: 'registered', pinSealed: sealSecret(ctx, pin), error: null, at: now },
-      phoneStatus: 'CONNECTED',
-      syncedAt: now,
+    const managedNumber = isPinnacle(channel);
+    let token: string;
+    if (managedNumber) {
+      const key = tokenOf(channel);
+      if (!key) {
+        await markNeedsReconnect(ctx, channel, PROVIDER_KEY_INVALID, actor);
+        throw notReady('The partner API key for this number is missing — contact support.');
+      }
+      token = key;
+    } else {
+      token = await requireToken(channel, actor);
+    }
+    return withLock(channel.phoneNumberId ?? `waba-${channel.wabaId}`, async () => {
+      try {
+        await clientFor(ctx, channel).registerPhone(token, channel.phoneNumberId ?? '', pin);
+      } catch (err) {
+        if (!isMetaApiError(err)) throw err;
+        if (err.tokenInvalid) {
+          await markNeedsReconnect(
+            ctx,
+            channel,
+            managedNumber ? PROVIDER_KEY_INVALID : TOKEN_INVALID_REASON,
+            actor,
+          );
+          throw notReady(
+            managedNumber
+              ? 'The partner API key for this number was rejected — contact support.'
+              : 'Reconnect this WhatsApp number first.',
+          );
+        }
+        if (err.code === META_ERROR_CODES.pinMismatch) {
+          // remember that this number wants its own PIN (the form asks for it next)
+          if (channel.status === 'action_needed' || channel.phoneStatus !== 'CONNECTED') {
+            await transition(ctx, channel, 'action_needed', PIN_REQUIRED, actor, {
+              registration: {
+                ...channel.registration,
+                status: 'pending',
+                error: err.message.slice(0, 300),
+              },
+            });
+          }
+          throw new ValidationError([
+            {
+              path: 'pin',
+              message: "That PIN doesn't match the number's two-step verification PIN.",
+            },
+          ]);
+        }
+        if (managedNumber) await noteProviderError(ctx, channel._id, err);
+        throw metaApiError(err);
+      }
+      const now = nowOf(ctx);
+      const waitedForRegistration = REGISTER_REASON_CODES.has(channel.statusReason?.code ?? '');
+      const next = !waitedForRegistration
+        ? { status: channel.status, why: channel.statusReason ?? null }
+        : managedNumber
+          ? managedState(channel, 'CONNECTED', true)
+          : { status: 'connected' as const, why: null };
+      const updated = await transition(ctx, channel, next.status, next.why, actor, {
+        registration: {
+          status: 'registered',
+          pinSealed: sealSecret(ctx, pin),
+          error: null,
+          at: now,
+        },
+        phoneStatus: 'CONNECTED',
+        syncedAt: now,
+      });
+      await auditChannel(updated, 'whatsapp.channel_registered', actor, { manual: true });
+      await connected(updated);
+      return { channel: channelListItem(updated), outcome: outcomeOf(updated) };
     });
-    await auditChannel(updated, 'whatsapp.channel_registered', actor, { manual: true });
-    await connected(updated);
-    return { channel: channelListItem(updated), outcome: outcomeOf(updated) };
   };
 
   /**
@@ -1121,8 +1210,13 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
         ...phonePatch(phone),
         registration: {
           ...channel.registration,
-          status: phone.status === 'CONNECTED' ? 'not_needed' : 'pending',
-          error: null,
+          status:
+            phone.status === 'CONNECTED'
+              ? channel.registration.status === 'registered'
+                ? 'registered'
+                : 'not_needed'
+              : 'pending',
+          error: phone.status === 'CONNECTED' ? null : (channel.registration.error ?? null),
         },
         tokenCheckedAt: now,
         syncedAt: now,
@@ -1241,8 +1335,48 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
         throw err;
       }
       resetManagedNumbersCache();
-      const { status, why } = managedState(channel, phone.status, true);
+      // not registered on the Cloud API yet (Meta shows "Pending"): register it right away
+      let phoneStatus = phone.status;
+      let registration: Partial<WhatsAppChannelDoc> = {};
+      let pinNeeded = false;
+      if (phoneStatus !== 'CONNECTED' && !RESTRICTED_PHONE_STATUSES.has(phoneStatus ?? '')) {
+        const regPin = registerPinOf();
+        try {
+          await pin.registerPhone(input.apiKey, input.phoneNumberId, regPin);
+          phoneStatus = 'CONNECTED';
+          registration = {
+            registration: {
+              status: 'registered',
+              pinSealed: sealSecret(ctx, regPin),
+              error: null,
+              at: now,
+            },
+            phoneStatus: 'CONNECTED',
+          };
+        } catch (err) {
+          if (!isMetaApiError(err)) throw err;
+          await noteProviderError(ctx, channel._id, err);
+          pinNeeded = err.code === META_ERROR_CODES.pinMismatch;
+          registration = {
+            registration: {
+              ...channel.registration,
+              status: 'pending',
+              error: err.message.slice(0, 300),
+            },
+          };
+          log().warn(
+            { channelId: channel._id.toString(), code: err.code },
+            'whatsapp: managed number could not be registered on add',
+          );
+        }
+      }
+      const state = managedState(channel, phoneStatus, true);
+      const { status, why } =
+        pinNeeded && state.why?.code === REGISTER_AT_PARTNER.code
+          ? { status: state.status, why: PIN_REQUIRED }
+          : state;
       const updated = await transition(ctx, channel, status, why, input.actor, {
+        ...registration,
         'pinnacle.webhookUrl': pinnacleWebhookUrl(ctx.env, channel._id),
         'pinnacle.webhookSetAt': now,
         syncedAt: now,

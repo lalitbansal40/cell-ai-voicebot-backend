@@ -49,6 +49,8 @@ export interface FakePinnacleClient extends PinnacleClient {
     phone: string;
     displayName?: string;
     keyPrefix?: string;
+    /** false = the partner hasn't registered it yet (Meta shows "Pending"). Default true. */
+    registered?: boolean;
   }): Promise<FakeManagedNumber>;
   /** Simulates the partner changing the callback in its panel. */
   overwriteWebhook(phoneNumberId: string, webhook: PinnacleWebhook | null): Promise<void>;
@@ -210,6 +212,7 @@ export const createFakePinnacleClient = (
       phone: string;
       displayName?: string;
       keyPrefix?: string;
+      registered?: boolean;
     }): Promise<FakeManagedNumber> {
       const { accessToken } = await meta.exchangeCode(
         buildFakeCode({
@@ -221,12 +224,14 @@ export const createFakePinnacleClient = (
         }),
       );
       const ids = fakeIds(input.businessName, input.phone);
-      // Pinnacle registered the number at onboarding
-      try {
-        await meta.registerPhone(accessToken, ids.phoneNumberId, '246810');
-      } catch (err) {
-        if (!isMetaApiError(err)) throw err;
-        await meta.registerPhone(accessToken, ids.phoneNumberId, FAKE_EXISTING_PIN);
+      // Pinnacle registered the number at onboarding (unless told otherwise)
+      if (input.registered !== false) {
+        try {
+          await meta.registerPhone(accessToken, ids.phoneNumberId, '246810');
+        } catch (err) {
+          if (!isMetaApiError(err)) throw err;
+          await meta.registerPhone(accessToken, ids.phoneNumberId, FAKE_EXISTING_PIN);
+        }
       }
       const apiKey = `${input.keyPrefix ?? FAKE_PINNACLE_KEY_PREFIXES.valid}${randomBytes(12).toString('hex')}`;
       const number: PinnacleUserNumber = {

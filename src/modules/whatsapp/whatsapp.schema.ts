@@ -41,7 +41,11 @@ export const RenameChannelBody = z
 
 export const RegisterPinBody = z
   .strictObject({
-    pin: z.string().regex(/^\d{6}$/, 'Must be the 6-digit two-step verification PIN'),
+    /** Optional: without it the platform's configured PIN is used. */
+    pin: z
+      .string()
+      .regex(/^\d{6}$/, 'Must be the 6-digit two-step verification PIN')
+      .optional(),
   })
   .openapi('WhatsAppRegisterPinInput');
 

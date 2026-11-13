@@ -75,6 +75,9 @@ export const businessesSchema = z.looseObject({
       owned_whatsapp_business_accounts: z
         .looseObject({ data: z.array(wabaSummarySchema) })
         .nullish(),
+      client_whatsapp_business_accounts: z
+        .looseObject({ data: z.array(wabaSummarySchema) })
+        .nullish(),
     }),
   ),
   paging,
@@ -175,7 +178,11 @@ export const toBusinesses = (raw: z.infer<typeof businessesSchema>): MetaBusines
   raw.data.map((b) => ({
     id: b.id,
     name: orNull(b.name),
-    wabas: (b.owned_whatsapp_business_accounts?.data ?? []).map(toWabaSummary),
+    // owned WABAs, then WABAs shared with the business (e.g. created by a partner)
+    wabas: [
+      ...(b.owned_whatsapp_business_accounts?.data ?? []),
+      ...(b.client_whatsapp_business_accounts?.data ?? []),
+    ].map(toWabaSummary),
   }));
 
 export const toWaba = (raw: z.infer<typeof wabaSchema>): MetaWaba => ({

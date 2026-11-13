@@ -50,16 +50,21 @@ Plan: `docs/prompts/PINNACLE_PROVIDER_PROMPT.md`. Sign-off: `docs/phases/PINNACL
 
 Revoking is done in Pinnacle's panel or through their revocation API. We never call it. **A revoke applies to every WABA of the business portfolio and can't be undone.** After a revoke, switch the number to **Requested**, or disconnect it.
 
+## Registration
+
+A number Meta still shows as **Pending** isn't registered on the Cloud API. When it is added, we register it through the partner at once with `WHATSAPP_REGISTER_PIN` (a random PIN when unset). If that fails, the number card shows **Register number**. If the number already has its own two-step PIN, the card asks for it (**Enter PIN**). The same applies to numbers connected through Embedded Signup.
+
 ## Status reasons
 
-| Reason code                    | Shown to the owner                         | What to do                                                                            |
-| ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `partner_credit_line_pending`  | Billing for this number is being activated | Approve the credit line in the panel → switch to **Active**                           |
-| `provider_key_invalid`         | Needs attention from support               | **Replace API key**                                                                   |
-| `provider_number_missing`      | Needs attention from support               | The key no longer lists the number: replace the key, or check the number in the panel |
-| `provider_webhook_mismatch`    | Needs attention from support               | **Reset webhook**; check _Multiple Callback_ in the panel                             |
-| `register_at_partner`          | Being registered                           | Finish registering the number in Pinnacle's panel, then **Sync**                      |
-| calling `provider_unsupported` | Calling not available on this number       | Ask Pinnacle to enable WhatsApp Voice (_Admin → Whatsapp Voice Requests_)             |
+| Reason code                    | Shown to the owner                         | What to do                                                                                                            |
+| ------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `partner_credit_line_pending`  | Billing for this number is being activated | Approve the credit line in the panel → switch to **Active**                                                           |
+| `provider_key_invalid`         | Needs attention from support               | **Replace API key**                                                                                                   |
+| `provider_number_missing`      | Needs attention from support               | The key no longer lists the number: replace the key, or check the number in the panel                                 |
+| `provider_webhook_mismatch`    | Needs attention from support               | **Reset webhook**; check _Multiple Callback_ in the panel                                                             |
+| `register_at_partner`          | Being registered                           | **Register number** on the number card (uses `WHATSAPP_REGISTER_PIN`), or register in Pinnacle's panel, then **Sync** |
+| `pin_required`                 | Enter PIN                                  | The number has its own two-step PIN: enter it in **Enter PIN**                                                        |
+| calling `provider_unsupported` | Calling not available on this number       | Ask Pinnacle to enable WhatsApp Voice (_Admin → Whatsapp Voice Requests_)                                             |
 
 ## Partner balance
 
@@ -116,6 +121,7 @@ All routes below are superadmin only, refused while impersonating, and answer `5
 | `PINNACLE_BASE_URL`       | `https://partnersv1.pinbot.ai` | https in production                                                                                  |
 | `PINNACLE_VOICE_BASE_URL` | = base                         | WhatsApp Voice host. **Ask Pinnacle for the production host** (their doc shows a test load balancer) |
 | `PINNACLE_TIMEOUT_MS`     | `15000`                        | 2000–60000                                                                                           |
+| `WHATSAPP_REGISTER_PIN`   | random per number              | 6-digit two-step PIN used to register numbers (secret; set on the server only)                       |
 
 ## Open with Pinnacle
 

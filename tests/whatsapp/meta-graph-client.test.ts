@@ -112,7 +112,7 @@ describe('Graph client — calls', () => {
       'listBusinessesWithWabas',
       'graph-me-businesses.json',
       '/v26.0/me/businesses',
-      'id,name,owned_whatsapp_business_accounts{id,name}',
+      'id,name,owned_whatsapp_business_accounts{id,name},client_whatsapp_business_accounts{id,name}',
     ],
   ] as const)('%s → %s', async (method, file, path, fields) => {
     stub.next(json(200, fixture(file)));

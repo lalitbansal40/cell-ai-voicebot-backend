@@ -9049,6 +9049,7 @@
             },
             "required": ["status"]
           },
+          "canRegister": { "type": "boolean" },
           "subscription": {
             "type": "object",
             "properties": {
@@ -9100,6 +9101,7 @@
           "billing",
           "coexistence",
           "registration",
+          "canRegister",
           "subscription",
           "restriction",
           "webhook",
@@ -10395,7 +10397,6 @@
       "WhatsAppRegisterPinInput": {
         "type": "object",
         "properties": { "pin": { "type": "string", "pattern": "^\\d{6}$" } },
-        "required": ["pin"],
         "additionalProperties": false
       },
       "WhatsAppAdminDisconnectInput": {
@@ -41031,7 +41032,7 @@
     "/api/v1/whatsapp/channels/{id}/register": {
       "post": {
         "tags": ["WhatsApp"],
-        "summary": "Finish registration with the number’s two-step PIN (whatsapp.manage)",
+        "summary": "Register the number on the Cloud API — PIN optional, the configured one is used without it (whatsapp.manage)",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           {

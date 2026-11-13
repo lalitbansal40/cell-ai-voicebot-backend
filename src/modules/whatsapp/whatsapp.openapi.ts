@@ -95,6 +95,7 @@ export const WhatsAppChannelSchema = registry.register(
       })
       .nullable(),
     registration: z.object({ status: z.enum(REGISTRATION_STATUSES) }),
+    canRegister: z.boolean(),
     subscription: z.object({ status: z.enum(['subscribed', 'failed']).nullable() }),
     restriction: z.object({ type: z.string(), until: iso }).nullable(),
     webhook: z.object({ lastEventAt: iso, lastField: s }),
@@ -235,7 +236,7 @@ for (const [path, summary, body] of [
   ['retry-setup', 'Retry setup from the failed step (whatsapp.manage)', null],
   [
     'register',
-    'Finish registration with the number’s two-step PIN (whatsapp.manage)',
+    'Register the number on the Cloud API — PIN optional, the configured one is used without it (whatsapp.manage)',
     RegisterPinBody,
   ],
   [

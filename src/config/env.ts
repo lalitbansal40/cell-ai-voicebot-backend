@@ -165,6 +165,11 @@ const RawEnvSchema = z.object({
   META_GRAPH_BASE_URL: z.url().default(META_GRAPH_DEFAULT_URL),
   /** Our Solution Partner credit line (platform pays Meta). Checked when a credit line is attached. */
   META_CREDIT_LINE_ID: z.string().regex(/^\d+$/, { message: 'must be digits' }).optional(),
+  /** 6-digit two-step verification PIN used when a number is registered (unset = a random one). */
+  WHATSAPP_REGISTER_PIN: z
+    .string()
+    .regex(/^\d{6}$/, { message: 'must be 6 digits' })
+    .optional(),
   /** System User token of our business (business_management, Admin / Financial Editor). */
   META_SYSTEM_USER_TOKEN: optionalString,
   /** PN: managed WhatsApp numbers over the Pinnacle partner API (superadmin adds them). */

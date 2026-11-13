@@ -12,6 +12,26 @@ export interface ChannelEvents24h {
   byField: Record<string, number>;
 }
 
+/** Reasons a number waits for (or failed) registration on the Cloud API. */
+export const REGISTER_REASON_CODES: ReadonlySet<string> = new Set([
+  'pin_required',
+  'register_failed',
+  'register_at_partner',
+]);
+
+/**
+ * "Register number" is offered while the number isn't registered (Meta's phone status
+ * is not CONNECTED) or setup stopped at registration. Never for coexistence (the
+ * Business app owns registration), disconnected / restricted / reconnect states.
+ */
+export const canRegister = (
+  c: Pick<WhatsAppChannelDoc, 'mode' | 'status' | 'phoneNumberId' | 'phoneStatus' | 'statusReason'>,
+): boolean =>
+  c.mode !== 'coexistence' &&
+  (c.status === 'connected' || c.status === 'action_needed') &&
+  Boolean(c.phoneNumberId) &&
+  (c.phoneStatus !== 'CONNECTED' || REGISTER_REASON_CODES.has(c.statusReason?.code ?? ''));
+
 /** List item — never tokens, PINs or Meta payloads. */
 export const channelListItem = (c: WhatsAppChannelDoc) => ({
   id: c._id.toString(),
@@ -59,6 +79,8 @@ export const channelListItem = (c: WhatsAppChannelDoc) => ({
         }
       : null,
   registration: { status: c.registration.status },
+  /** "Register number" can be pressed (POST `/channels/:id/register`, PIN optional). */
+  canRegister: canRegister(c),
   subscription: { status: c.subscription.status },
   restriction: c.restriction ? { type: c.restriction.type, until: iso(c.restriction.until) } : null,
   webhook: { lastEventAt: iso(c.webhook.lastEventAt), lastField: c.webhook.lastField },

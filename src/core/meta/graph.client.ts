@@ -458,7 +458,10 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
 
     async listBusinessesWithWabas(token) {
       const raw = await bearer('me.businesses', 'GET', 'me/businesses', token, businessesSchema, {
-        query: { fields: 'id,name,owned_whatsapp_business_accounts{id,name}' },
+        query: {
+          fields:
+            'id,name,owned_whatsapp_business_accounts{id,name},client_whatsapp_business_accounts{id,name}',
+        },
       });
       return toBusinesses(raw);
     },
