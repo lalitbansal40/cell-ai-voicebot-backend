@@ -159,9 +159,11 @@ export const toDebugToken = ({ data }: z.infer<typeof debugTokenSchema>): MetaDe
   scopes: data.scopes,
   grantedWabaIds: [
     ...new Set(
-      data.granular_scopes
-        .filter((s) => s.scope === 'whatsapp_business_management')
-        .flatMap((s) => s.target_ids ?? []),
+      // management ids first (Meta: newest WABA first), then messaging ids; ids that
+      // aren't WABAs (WhatsApp / Messaging accounts) are skipped when a WABA is chosen
+      ['whatsapp_business_management', 'whatsapp_business_messaging'].flatMap((scope) =>
+        data.granular_scopes.filter((s) => s.scope === scope).flatMap((s) => s.target_ids ?? []),
+      ),
     ),
   ],
 });

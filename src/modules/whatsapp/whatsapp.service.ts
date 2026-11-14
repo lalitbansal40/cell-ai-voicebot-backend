@@ -281,16 +281,49 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     token: string,
     granted: string[],
     hint: string | undefined,
+    phoneHint?: string,
   ): Promise<string> => {
-    if (hint && granted.includes(hint)) return hint;
-    if (hint && granted.length) {
-      throw signupFailed(
-        'waba',
-        "The WhatsApp Business Account from the popup wasn't shared with this app.",
-      );
+    /** Phones of `id` when the token can read it as a WABA; `null` = not a readable WABA. */
+    const probe = async (id: string): Promise<MetaPhoneSummary[] | null> => {
+      try {
+        // meta-only: embedded signup
+        return await meta.listPhoneNumbers(token, id);
+      } catch (err) {
+        if (!isMetaApiError(err) || err.tokenInvalid) throw err;
+        return null;
+      }
+    };
+    /**
+     * First readable WABA of `ids` (the one holding the popup's number when known).
+     * Meta lists the newest WABA first in `target_ids`; Embedded Signup (2026) may also
+     * grant WhatsApp / Messaging account ids there, which aren't WABAs and are skipped.
+     */
+    const firstReadable = async (ids: string[]): Promise<string | null> => {
+      let first: string | null = null;
+      for (const id of ids.slice(0, 10)) {
+        const phones = await probe(id);
+        if (!phones) continue;
+        if (!phoneHint || phones.some((p) => p.id === phoneHint)) return id;
+        first ??= id;
+      }
+      return first;
+    };
+
+    // 1. the popup's WABA, when shared with this token
+    if (hint) {
+      if (granted.includes(hint) || (await probe(hint))) return hint;
+      if (granted.length) {
+        throw signupFailed(
+          'waba',
+          "The WhatsApp Business Account from the popup wasn't shared with this app.",
+        );
+      }
     }
-    if (granted.length === 1 && granted[0]) return granted[0];
-    // Discovery is best effort: Meta answers #100 ("nonexisting field") for
+    // 2. what the token was granted (debug_token target ids, newest first)
+    const fromGrant = granted.length ? await firstReadable(granted) : null;
+    if (fromGrant) return fromGrant;
+
+    // 3. discovery is best effort: Meta answers #100 ("nonexisting field") for
     // `me/whatsapp_business_accounts` on some tokens, and `me/businesses` needs
     // business_management. A lookup that fails only means "found nothing here".
     const discover = async (lookup: () => Promise<string[]>): Promise<string[]> => {
@@ -312,13 +345,21 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
         (await meta.listBusinessesWithWabas(token)).flatMap((b) => b.wabas.map((w) => w.id)),
       );
     }
-    if (granted.length) candidates = candidates.filter((id) => granted.includes(id));
     candidates = [...new Set(candidates)];
-    if (hint && candidates.includes(hint)) return hint;
-    // nothing could be listed: trust the popup's WABA (its details are read next,
-    // which fails cleanly when this app has no access to it)
-    if (hint && !candidates.length && !granted.length) return hint;
     if (candidates.length === 1 && candidates[0]) return candidates[0];
+    if (candidates.length > 1 && phoneHint) {
+      const holder = await firstReadable(candidates);
+      if (holder) return holder;
+    }
+    log().warn(
+      {
+        granted: granted.length,
+        candidates: candidates.length,
+        hint: Boolean(hint),
+        phoneHint: Boolean(phoneHint),
+      },
+      'whatsapp: no WABA could be chosen for a signup',
+    );
     throw signupFailed(
       'waba',
       candidates.length
@@ -549,7 +590,12 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     let wabaId: string;
     let picked: MetaPhoneSummary | null;
     try {
-      wabaId = await resolveWaba(token, info.grantedWabaIds, input.sessionInfo?.wabaId);
+      wabaId = await resolveWaba(
+        token,
+        info.grantedWabaIds,
+        input.sessionInfo?.wabaId,
+        input.sessionInfo?.phoneNumberId,
+      );
       const choice = pickPhone(
         // meta-only: embedded signup
         await meta.listPhoneNumbers(token, wabaId),

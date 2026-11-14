@@ -198,6 +198,26 @@ describe('WABA discovery when the popup sent no WABA', () => {
     expect(r.outcome).toBe('connected');
   });
 
+  it('several granted ids, no popup WABA: the first readable WABA (Meta: newest first)', async () => {
+    const signup = fakeSignup({ businessName: unique('Grants') });
+    // a WhatsApp / Messaging account id comes first: not a WABA, skipped
+    const svc = createWhatsAppService({
+      ...w.ctx,
+      meta: {
+        ...w.fake,
+        debugToken: async (t) => ({
+          ...(await w.fake.debugToken(t)),
+          grantedWabaIds: ['999999', idsFor(signup).wabaId],
+        }),
+        listOwnedWabas: () => Promise.reject(nonexisting()),
+        listBusinessesWithWabas: () => Promise.resolve([]),
+      },
+    });
+    const r = await connect(signup, { sessionInfo: undefined }, svc);
+    expect(r.outcome).toBe('connected');
+    expect(r.channel.wabaId).toBe(idsFor(signup).wabaId);
+  });
+
   it('both lookups failing: the popup WABA is used', async () => {
     const svc = noGrants({
       listOwnedWabas: () => Promise.reject(nonexisting()),

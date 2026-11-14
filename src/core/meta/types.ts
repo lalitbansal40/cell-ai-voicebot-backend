@@ -43,7 +43,7 @@ export interface MetaDebugToken {
   /** `null` = never expires (`expires_at: 0`). */
   expiresAt: Date | null;
   scopes: string[];
-  /** Target ids of the `whatsapp_business_management` granular scope. */
+  /** Target ids of the WhatsApp granular scopes (management first, then messaging). */
   grantedWabaIds: string[];
 }
 
