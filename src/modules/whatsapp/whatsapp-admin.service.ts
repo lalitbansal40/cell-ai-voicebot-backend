@@ -23,6 +23,7 @@ import { recordAudit } from '../audit/audit.service';
 
 import { auditChannel, type WaActor } from './channel-status';
 import type { WhatsAppContext } from './context';
+import { getWhatsAppSolutionId, setWhatsAppSolutionId } from './embedded-signup-config';
 import type { WhatsAppJobs } from './jobs';
 import type { WhatsAppService } from './whatsapp.service';
 
@@ -61,7 +62,7 @@ const customerAccount = async (id: string): Promise<AccountDoc> => {
 /** Booleans only for secrets — never values. */
 export const whatsappStatus = async (env: Env) => {
   const since = new Date(Date.now() - DAY);
-  const [byStatus, events, last] = await Promise.all([
+  const [byStatus, events, last, solutionId] = await Promise.all([
     WhatsAppChannelModel.aggregate<{ _id: string; n: number }>([
       { $group: { _id: '$status', n: { $sum: 1 } } },
     ]),
@@ -72,6 +73,7 @@ export const whatsappStatus = async (env: Env) => {
     MetaWebhookEventModel.findOne({}, { receivedAt: 1 })
       .sort({ receivedAt: -1 })
       .lean<{ receivedAt: Date }>(),
+    getWhatsAppSolutionId(),
   ]);
   const fake = env.META_PROVIDER === 'fake';
   return {
@@ -82,6 +84,7 @@ export const whatsappStatus = async (env: Env) => {
       appId: Boolean(env.META_APP_ID),
       appSecret: fake ? Boolean(env.FAKE_META_APP_SECRET) : Boolean(env.META_APP_SECRET),
       configId: Boolean(env.META_ES_CONFIG_ID),
+      solutionIdConfigured: Boolean(solutionId),
       verifyToken: Boolean(env.META_WEBHOOK_VERIFY_TOKEN),
       creditLine: fake || Boolean(env.META_CREDIT_LINE_ID),
       systemUserToken: fake || Boolean(env.META_SYSTEM_USER_TOKEN),
@@ -99,6 +102,21 @@ export const whatsappStatus = async (env: Env) => {
     channelsByStatus: Object.fromEntries(byStatus.map((r) => [r._id, r.n])),
     eventsByStatus24h: Object.fromEntries(events.map((r) => [r._id, r.n])),
   };
+};
+
+/** Stores the public Partner Solution id in platform settings; never returns the value. */
+export const updateWhatsAppSolutionId = async (req: Request, solutionId: string | null) => {
+  const auth = requireAuth(req);
+  await setWhatsAppSolutionId(solutionId, auth.userId ?? null);
+  await recordAudit({
+    accountId: auth.accountId,
+    actor: { type: 'user', id: auth.userId ?? null, platform: true },
+    action: 'whatsapp.embedded_signup_solution_updated',
+    target: { type: 'platform_settings', id: 'whatsappEmbeddedSignup' },
+    meta: { fields: ['embeddedSignup.solutionId'], configured: Boolean(solutionId) },
+    ip: req.ip ?? null,
+  });
+  return { solutionIdConfigured: Boolean(solutionId) };
 };
 
 /** Webhook events — metadata only (never payloads). */

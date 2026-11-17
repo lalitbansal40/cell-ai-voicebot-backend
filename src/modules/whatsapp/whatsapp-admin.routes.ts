@@ -16,6 +16,7 @@ import {
   resetManagedWebhook,
   setManagedCreditLine,
   whatsappStatus,
+  updateWhatsAppSolutionId,
   type WhatsAppAdminDeps,
 } from './whatsapp-admin.service';
 import {
@@ -28,6 +29,7 @@ import {
   ManagedNumberBody,
   ManualConnectBody,
   WhatsAppBillingBody,
+  WhatsAppSolutionIdBody,
 } from './whatsapp.schema';
 
 /**
@@ -49,6 +51,13 @@ export const createWhatsAppAdminRouter = ({
   router.get('/whatsapp/status', async (_req, res) => {
     ok(res, await whatsappStatus(need().ctx.env));
   });
+  router.patch(
+    '/whatsapp/solution-id',
+    blockWhenImpersonating(),
+    ...handle({ body: WhatsAppSolutionIdBody }, async ({ body, req, res }) => {
+      ok(res, await updateWhatsAppSolutionId(req, body.solutionId));
+    }),
+  );
   router.get(
     '/whatsapp/events',
     ...handle({ query: ListEventsQuery }, async ({ query, res }) => {

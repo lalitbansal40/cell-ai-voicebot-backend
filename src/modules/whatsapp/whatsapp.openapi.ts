@@ -35,6 +35,7 @@ import {
   SimulatedUserCallBody,
   SimulatorBody,
   WhatsAppBillingBody,
+  WhatsAppSolutionIdBody,
 } from './whatsapp.schema';
 
 const iso = z.string().nullable();
@@ -152,6 +153,10 @@ export const WhatsAppConfigSchema = registry.register(
     appId: s.openapi({ description: 'Meta app id (meta provider only; public)' }),
     configId: s.openapi({ description: 'Embedded Signup configuration id (meta provider only)' }),
     graphVersion: z.string(),
+    metaPayer: z.enum(META_PAYERS),
+    solutionId: s.openapi({
+      description: 'Partner Solution id for this platform-payer account; null otherwise',
+    }),
   }),
 );
 
@@ -432,6 +437,7 @@ export const WhatsAppAdminStatusSchema = registry.register(
       appId: z.boolean(),
       appSecret: z.boolean(),
       configId: z.boolean(),
+      solutionIdConfigured: z.boolean(),
       verifyToken: z.boolean(),
       creditLine: z.boolean(),
       systemUserToken: z.boolean(),
@@ -472,6 +478,19 @@ registry.registerPath({
   summary: 'WhatsApp setup status: provider, configured flags (booleans), webhook URL, counts',
   security: bearer,
   responses: { 200: ok(WhatsAppAdminStatusSchema), ...admin },
+});
+registry.registerPath({
+  method: 'patch',
+  path: '/api/v1/admin/whatsapp/solution-id',
+  tags: adminTags,
+  summary: 'Set or clear the platform Partner Solution id (value is never returned)',
+  security: bearer,
+  request: { ...json(WhatsAppSolutionIdBody) },
+  responses: {
+    200: ok(z.object({ solutionIdConfigured: z.boolean() })),
+    ...admin,
+    422: errors[422],
+  },
 });
 registry.registerPath({
   method: 'get',

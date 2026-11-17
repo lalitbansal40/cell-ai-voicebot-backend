@@ -2,6 +2,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { AccountModel } from '../../src/db/models/account.model';
+import { PlatformSettingsModel } from '../../src/db/models/platform-settings.model';
 import type { WhatsAppJobs } from '../../src/modules/whatsapp/jobs';
 import { whatsappConfig } from '../../src/modules/whatsapp/whatsapp.routes';
 import { createTestAccount, tokenFor, type TestAccount, type TestUser } from '../helpers/auth';
@@ -50,18 +51,44 @@ describe('/whatsapp API', () => {
       appId: null,
       configId: null,
       graphVersion: w.env.META_GRAPH_VERSION,
+      metaPayer: 'platform',
+      solutionId: null,
     });
     expect(
-      whatsappConfig({
-        ...w.ctx,
-        env: { ...w.env, META_PROVIDER: 'meta', META_APP_ID: '123', META_ES_CONFIG_ID: '456' },
-      }),
-    ).toMatchObject({ provider: 'meta', appId: '123', configId: '456' });
-    expect(whatsappConfig({ ...w.ctx, env: { ...w.env, META_PROVIDER: 'meta' } })).toMatchObject({
+      await whatsappConfig(
+        {
+          ...w.ctx,
+          env: { ...w.env, META_PROVIDER: 'meta', META_APP_ID: '123', META_ES_CONFIG_ID: '456' },
+        },
+        acc.account._id,
+      ),
+    ).toMatchObject({ provider: 'meta', appId: '123', configId: '456', solutionId: null });
+    expect(
+      await whatsappConfig({ ...w.ctx, env: { ...w.env, META_PROVIDER: 'meta' } }, acc.account._id),
+    ).toMatchObject({
       appId: null,
       configId: null,
     });
     expect((await request(app()).get(`${base}/config`)).status).toBe(401);
+    await PlatformSettingsModel.create({
+      key: 'whatsappEmbeddedSignup',
+      value: { solutionId: '123456789012345' },
+    });
+    const platformConfig = await whatsappConfig(
+      { ...w.ctx, env: { ...w.env, META_PROVIDER: 'meta' } },
+      acc.account._id,
+    );
+    expect(platformConfig).toMatchObject({ metaPayer: 'platform', solutionId: '123456789012345' });
+    await AccountModel.updateOne(
+      { _id: acc.account._id },
+      { $set: { 'whatsapp.metaPayer': 'customer' } },
+    );
+    const customerConfig = await whatsappConfig(
+      { ...w.ctx, env: { ...w.env, META_PROVIDER: 'meta' } },
+      acc.account._id,
+    );
+    expect(customerConfig).toMatchObject({ metaPayer: 'customer', solutionId: null });
+    expect(JSON.stringify(customerConfig)).not.toContain('123456789012345');
   });
 
   it('owner connects; every role reads; only owner / admin change', async () => {

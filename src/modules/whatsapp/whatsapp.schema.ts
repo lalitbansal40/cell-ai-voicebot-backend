@@ -60,6 +60,16 @@ export const AdminDisconnectBody = z
   .strictObject({ reason: z.string().trim().min(3).max(200) })
   .openapi('WhatsAppAdminDisconnectInput');
 
+export const WhatsAppSolutionIdBody = z
+  .strictObject({
+    solutionId: z
+      .string()
+      .max(64)
+      .regex(/^\d+$/, 'Must be a digits-only Meta Partner Solution id')
+      .nullable(),
+  })
+  .openapi('WhatsAppSolutionIdInput');
+
 /** Phase 9 `metaPayer` + the Phase 11 price override (schema in `whatsapp-billing`). */
 export { AccountWhatsAppBillingBody as WhatsAppBillingBody } from '../whatsapp-billing/admin.schema';
 

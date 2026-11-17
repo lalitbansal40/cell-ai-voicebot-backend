@@ -5,6 +5,7 @@ import { basePlugin } from '../plugins/base';
 
 export const PLATFORM_SETTING_KEYS = [
   'whatsappBilling',
+  'whatsappEmbeddedSignup',
   'whatsappCalling',
   'callingWindowCeiling',
   // Phase 17: last backup, restore drill and release, written by the ops commands
@@ -42,6 +43,11 @@ export interface WhatsAppCallingSettings {
   holdExtendMinutes: number;
 }
 
+/** Public Meta Partner Solution id used only for platform-payer Embedded Signup. */
+export interface WhatsAppEmbeddedSignupSettings {
+  solutionId: string | null;
+}
+
 export const DEFAULT_WHATSAPP_CALLING_SETTINGS: WhatsAppCallingSettings = {
   markupBps: WHATSAPP_BILLING_LIMITS.defaultMarkupBps,
   platformFeePerMinuteMicros: 0,
@@ -73,6 +79,7 @@ export interface PlatformSettingsValues {
   signup: SignupSettings;
   callingWindowCeiling: CallingWindowCeiling;
   whatsappBilling: WhatsAppBillingSettings;
+  whatsappEmbeddedSignup: WhatsAppEmbeddedSignupSettings;
   whatsappCalling: WhatsAppCallingSettings;
   /** Phase 17: written by the ops commands (`modules/ops/ops-status.ts`), never by a form. */
   opsStatus: Record<string, unknown>;
@@ -91,10 +98,12 @@ type Range = readonly [min: number, max: number];
 
 /** Allowed whole-number range of every field, per key. */
 const VALUE_RANGES: {
-  [K in Exclude<PlatformSettingKey, 'callingWindowCeiling' | 'opsStatus' | 'signup'>]: Record<
-    keyof PlatformSettingsValues[K],
-    Range
-  >;
+  [
+    K in Exclude<
+      PlatformSettingKey,
+      'callingWindowCeiling' | 'opsStatus' | 'signup' | 'whatsappEmbeddedSignup'
+    >
+  ]: Record<keyof PlatformSettingsValues[K], Range>;
 } = {
   whatsappBilling: {
     markupBps: [0, 100_000],
@@ -128,6 +137,18 @@ export const platformSettingProblems = (key: unknown, value: unknown): string[] 
         problems.push(`${field} is not a setting`);
     }
     return problems;
+  }
+  if (key === 'whatsappEmbeddedSignup') {
+    const s = value as Partial<WhatsAppEmbeddedSignupSettings> | null;
+    if (
+      s?.solutionId !== null &&
+      (typeof s?.solutionId !== 'string' || s.solutionId.length > 64 || !/^\d+$/.test(s.solutionId))
+    ) {
+      return ['solutionId must be a digits-only Meta id or null'];
+    }
+    return Object.keys(s ?? {}).every((field) => field === 'solutionId')
+      ? []
+      : ['Unknown WhatsApp Embedded Signup setting'];
   }
   if (key === 'callingWindowCeiling') {
     const w = value as Partial<CallingWindowCeiling> | null;

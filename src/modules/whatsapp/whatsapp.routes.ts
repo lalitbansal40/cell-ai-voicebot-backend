@@ -3,6 +3,7 @@ import type { Store } from 'express-rate-limit';
 import { Types } from 'mongoose';
 
 import { WHATSAPP_LIMITS } from '../../config/limits';
+import { AccountModel, DEFAULT_ACCOUNT_WHATSAPP } from '../../db/models/account.model';
 import { requireAuth } from '../../shared/auth/auth-context';
 import { AppError } from '../../shared/errors/app-error';
 import { ok } from '../../shared/http/envelope';
@@ -16,6 +17,7 @@ import { handle } from '../../shared/middlewares/validate';
 
 import type { WaActor } from './channel-status';
 import type { WhatsAppContext } from './context';
+import { getWhatsAppSolutionId } from './embedded-signup-config';
 import {
   ChannelParams,
   EmbeddedSignupBody,
@@ -45,14 +47,23 @@ const actorOf = (req: Request): WaActor => {
 const accountOf = (req: Request) => new Types.ObjectId(requireAuth(req).accountId);
 
 /** Public Embedded Signup config for the browser (no secrets). */
-export const whatsappConfig = (ctx: WhatsAppContext) => {
+export const whatsappConfig = async (ctx: WhatsAppContext, accountId: Types.ObjectId) => {
   const meta = ctx.env.META_PROVIDER === 'meta';
+  const [account, configuredSolutionId] = await Promise.all([
+    AccountModel.findById(accountId).select({ 'whatsapp.metaPayer': 1 }).lean<{
+      whatsapp?: { metaPayer?: 'platform' | 'customer' };
+    }>(),
+    meta ? getWhatsAppSolutionId() : Promise.resolve(null),
+  ]);
+  const metaPayer = account?.whatsapp?.metaPayer ?? DEFAULT_ACCOUNT_WHATSAPP.metaPayer;
   return {
     enabled: ctx.env.WHATSAPP_ENABLED,
     provider: ctx.env.META_PROVIDER,
     appId: meta ? (ctx.env.META_APP_ID ?? null) : null,
     configId: meta ? (ctx.env.META_ES_CONFIG_ID ?? null) : null,
     graphVersion: ctx.env.META_GRAPH_VERSION,
+    metaPayer,
+    solutionId: meta && metaPayer === 'platform' ? configuredSolutionId : null,
   };
 };
 
@@ -90,8 +101,8 @@ export const createWhatsAppRouter = ({
     ...(connectRateLimitStore ? { store: connectRateLimitStore } : {}),
   });
 
-  router.get('/config', (_req, res) => {
-    ok(res, whatsappConfig(ctx));
+  router.get('/config', async (req, res) => {
+    ok(res, await whatsappConfig(ctx, accountOf(req)));
   });
   router.get(
     '/channels',

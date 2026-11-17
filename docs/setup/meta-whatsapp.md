@@ -1,6 +1,6 @@
 # Meta WhatsApp — switching from the fake provider to the real Meta app
 
-Phase 9 runs on the **fake Meta provider** (`META_PROVIDER=fake`, the default outside production): signup, webhooks and the health job all work without Meta. This guide is the checklist for the day the real Meta app is set up. Switching is **env-only** — no code changes (ADR 0037).
+Phase 9 runs on the **fake Meta provider** (`META_PROVIDER=fake`, the default outside production): signup, webhooks and the health job all work without Meta. This guide is the checklist for the day the real Meta app is set up. Core provider credentials remain environment configuration; the public Partner Solution ID is managed from **Admin → WhatsApp** and stored in platform settings, so it needs no env-file change.
 
 > Never commit secrets. `.env` is git-ignored (docs/conventions/secrets.md). App secret, verify token and System User token go only into the server's `.env`. Do **not** copy values from other projects (AutoChatix) — create this app's own.
 
@@ -17,10 +17,18 @@ Phase 9 runs on the **fake Meta provider** (`META_PROVIDER=fake`, the default ou
 
 ## 3. Embedded Signup configuration
 
-1. **Facebook Login for Business → Configurations → Create** — login variation **Embedded Signup**, products **Cloud API** (+ **WhatsApp Business app onboarding** for coexistence numbers). Selecting products makes it an **Embedded Signup v4** configuration (Meta deprecated v2 / v3 on 15 Oct 2026; the app sends `extras: { setup: {} }` and no `sessionInfoVersion` since Phase 13).
+1. **Facebook Login for Business → Configurations → Create** — login variation **Embedded Signup**, products **Cloud API** (+ **WhatsApp Business app onboarding** for coexistence numbers). Selecting products makes it an **Embedded Signup v4** configuration (the app sends no `sessionInfoVersion`; platform-payer signup adds the configured `solutionID` to `extras.setup`, while customer-payer signup omits it).
 2. Permissions are selected by Meta for the products: expect `whatsapp_business_management`, `whatsapp_business_messaging` (+ `business_management` if Meta adds it — then App Review needs its own text + video). They appear in the popup for other businesses only after **Advanced Access** (App Review).
 3. Copy the **Configuration ID** → `META_ES_CONFIG_ID`.
-4. Optional check: **WhatsApp → Embedded Signup Builder → Check a launch config**, paste `{ "setup": {} }` → it shows what the configuration becomes on v4.
+4. Optional check: **WhatsApp → Embedded Signup Builder → Check a launch config**, validate the v4 configuration and the setup fields expected by the active Partner Solution.
+
+## 3a. Partner Solution ID (platform-payer Embedded Signup)
+
+1. In Meta Developers → **Use cases → Connect on WhatsApp → Partner Solutions**, confirm the intended Partner Solution is **Active** and belongs to the same Meta app and partner relationship used for this deployment.
+2. Copy its **Solution ID** (digits only). It is distinct from the **App ID**, Facebook Login **Configuration ID**, WABA/Messaging account ID, and the **credit-line ID**.
+3. In Cell, open **Admin → WhatsApp → Embedded Signup Partner Solution**, enter the Solution ID and save. The value is stored in the `whatsappEmbeddedSignup` platform setting; no `.env`/deployment environment change is needed. The admin page only reports whether it is configured and never reads the saved value back.
+4. The authenticated account's server-side `whatsapp.metaPayer` decides whether the ID reaches the browser config. `platform` gets it; `customer` and fake-provider flows get `null` and do not send it.
+5. If no ID is configured, platform-payer Meta signup is blocked with a setup message. Do not change the account to customer-payer to bypass this guard.
 
 ## 4. Domains
 
@@ -54,11 +62,21 @@ META_GRAPH_VERSION=v26.0            # the latest stable version on that day
 # FAKE_META_APP_SECRET must not be set in production
 ```
 
+The Partner Solution ID is set in **Admin → WhatsApp** as described in §3a; do not add it to `.env`.
+
 ## 8. Billing — Solution Partner credit line (accounts with "platform pays Meta")
 
 1. Become a **Solution Partner** (Meta Business Partner onboarding) and get the **credit line** shared with the business → its id → `META_CREDIT_LINE_ID` (digits).
 2. **Business settings → Users → System users → Add** (Admin), assign the app, give it **Financial Editor** on the business's payment settings; generate a **never-expiring token** with `business_management` (+ the WhatsApp permissions) → `META_SYSTEM_USER_TOKEN` (secret).
 3. Without these two values, connects of "platform pays Meta" accounts stop at `action_needed` ("Platform credit line isn't configured on this server"); "customer pays Meta" accounts work without them. A superadmin chooses the mode per account (**Admin → account → Meta billing**) before the customer connects — a credit line can't be removed from a WhatsApp account once attached.
+
+The Partner Solution ID selects the MPS onboarding relationship; it is not a replacement for `META_CREDIT_LINE_ID` or `META_SYSTEM_USER_TOKEN`. Existing `setupBilling()` remains in place. Validate in staging whether its attachment is compatible with the MPS-associated credit line before production: stop if Meta reports duplicate attachment, a different payer, or unclear ownership. Do not retry a live onboarding until the resulting WABA and billing state are understood.
+
+### Staging check and rollback
+
+Use a controlled staging business only. Confirm App ID/configuration and Active Solution in Meta, then test platform-payer Cloud API, customer-payer signup, and coexistence/platform if enabled. Verify popup partner identity, code exchange, WABA/phone, webhook, channel state, and credit-line owner; record evidence without tokens, signup codes, secrets, personal information or full customer IDs. Meta's exact v4 + `extras.setup.solutionID` behavior and the `setupBilling()` interaction must be proven in this test; unit tests alone do not establish it.
+
+If validation fails, clear the Partner Solution ID in **Admin → WhatsApp** to block further platform-payer signup, while customer-payer's no-solution path remains available. Do not detach historical credit lines or retry onboarding blindly. Restore the setting only after the Meta app/solution and billing state are corrected.
 
 ## 9. Tech Provider access
 

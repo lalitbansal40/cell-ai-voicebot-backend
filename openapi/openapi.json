@@ -9213,9 +9213,22 @@
             "type": ["string", "null"],
             "description": "Embedded Signup configuration id (meta provider only)"
           },
-          "graphVersion": { "type": "string" }
+          "graphVersion": { "type": "string" },
+          "metaPayer": { "type": "string", "enum": ["platform", "customer"] },
+          "solutionId": {
+            "type": ["string", "null"],
+            "description": "Partner Solution id for this platform-payer account; null otherwise"
+          }
         },
-        "required": ["enabled", "provider", "appId", "configId", "graphVersion"]
+        "required": [
+          "enabled",
+          "provider",
+          "appId",
+          "configId",
+          "graphVersion",
+          "metaPayer",
+          "solutionId"
+        ]
       },
       "WhatsAppChannelList": {
         "type": "object",
@@ -9247,6 +9260,7 @@
               "appId": { "type": "boolean" },
               "appSecret": { "type": "boolean" },
               "configId": { "type": "boolean" },
+              "solutionIdConfigured": { "type": "boolean" },
               "verifyToken": { "type": "boolean" },
               "creditLine": { "type": "boolean" },
               "systemUserToken": { "type": "boolean" }
@@ -9255,6 +9269,7 @@
               "appId",
               "appSecret",
               "configId",
+              "solutionIdConfigured",
               "verifyToken",
               "creditLine",
               "systemUserToken"
@@ -10397,6 +10412,14 @@
       "WhatsAppRegisterPinInput": {
         "type": "object",
         "properties": { "pin": { "type": "string", "pattern": "^\\d{6}$" } },
+        "additionalProperties": false
+      },
+      "WhatsAppSolutionIdInput": {
+        "type": "object",
+        "properties": {
+          "solutionId": { "type": ["string", "null"], "maxLength": 64, "pattern": "^\\d+$" }
+        },
+        "required": ["solutionId"],
         "additionalProperties": false
       },
       "WhatsAppAdminDisconnectInput": {
@@ -41589,6 +41612,60 @@
           },
           "403": {
             "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp/solution-id": {
+      "patch": {
+        "tags": ["Superadmin"],
+        "summary": "Set or clear the platform Partner Solution id (value is never returned)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppSolutionIdInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "solutionIdConfigured": { "type": "boolean" } },
+                      "required": ["solutionIdConfigured"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

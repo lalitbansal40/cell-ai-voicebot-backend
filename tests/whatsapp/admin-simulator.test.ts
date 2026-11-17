@@ -9,6 +9,7 @@ import { AccountModel } from '../../src/db/models/account.model';
 import { AuditLogModel } from '../../src/db/models/audit-log.model';
 import { MetaWebhookEventModel } from '../../src/db/models/meta-webhook-event.model';
 import { NotificationModel } from '../../src/db/models/notification.model';
+import { PlatformSettingsModel } from '../../src/db/models/platform-settings.model';
 import {
   WhatsAppChannelModel,
   type WhatsAppChannelDoc,
@@ -119,6 +120,7 @@ describe('superadmin WhatsApp routes', () => {
         creditLine: true,
         systemUserToken: true,
         appId: false,
+        solutionIdConfigured: false,
       },
       webhookUrl: `${w.env.APP_URL.replace(/\/+$/, '')}/api/v1/webhooks/meta`,
     });
@@ -129,6 +131,34 @@ describe('superadmin WhatsApp routes', () => {
       (await request(off).get('/api/v1/admin/whatsapp/status').set(bearer(superadmin.token))).body
         .error.code,
     ).toBe('WHATSAPP_NOT_CONFIGURED');
+  });
+
+  it('sets Solution ID in platform settings without returning the value', async () => {
+    const saved = await request(app())
+      .patch('/api/v1/admin/whatsapp/solution-id')
+      .set(bearer(superadmin.token))
+      .send({ solutionId: '123456789012345' });
+    expect(saved.status).toBe(200);
+    expect(saved.body.data).toEqual({ solutionIdConfigured: true });
+    expect(JSON.stringify(saved.body)).not.toContain('123456789012345');
+    expect(
+      await PlatformSettingsModel.findOne({ key: 'whatsappEmbeddedSignup' }).lean(),
+    ).toMatchObject({
+      value: { solutionId: '123456789012345' },
+    });
+    const status = await request(app())
+      .get('/api/v1/admin/whatsapp/status')
+      .set(bearer(superadmin.token));
+    expect(status.body.data.configured.solutionIdConfigured).toBe(true);
+    expect(JSON.stringify(status.body)).not.toContain('123456789012345');
+    expect(
+      (
+        await request(app())
+          .patch('/api/v1/admin/whatsapp/solution-id')
+          .set(bearer(superadmin.token))
+          .send({ solutionId: 'not-an-id' })
+      ).status,
+    ).toBe(422);
   });
 
   it('failed events list (metadata only) + replay', async () => {

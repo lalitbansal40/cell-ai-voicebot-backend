@@ -120,6 +120,7 @@ export const AUDIT_ACTIONS = [
   'template.variables_updated',
   'whatsapp.rate_card_saved',
   'whatsapp.billing_settings_updated',
+  'whatsapp.embedded_signup_solution_updated',
   'account.whatsapp_billing_updated',
   'contact.whatsapp_marketing_changed',
   // Phase 12 — WhatsApp calling
