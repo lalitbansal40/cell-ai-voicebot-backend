@@ -113,6 +113,10 @@ export const ManagedCreditLineBody = z
   .strictObject({ status: PartnerCreditLine })
   .openapi('WhatsAppManagedCreditLineInput');
 
+export const ConfirmCreditLineBody = z
+  .strictObject({ confirmed: z.literal(true) })
+  .openapi('WhatsAppCreditLineConfirmationInput');
+
 export const EventParams = z.strictObject({ id: ObjectIdSchema });
 
 export const ListEventsQuery = z.strictObject({

@@ -212,6 +212,8 @@ export const accountWhatsApp = async (accountId: Types.ObjectId) => {
       messagingLimitTier: c.messagingLimitTier,
       metaPayer: c.metaPayer,
       creditLineStatus: c.creditLine.status,
+      creditLineAdminConfirmedAt: c.creditLine.adminConfirmedAt?.toISOString() ?? null,
+      statusReasonStep: c.statusReason?.step ?? null,
       connectedAt: c.connectedAt ? c.connectedAt.toISOString() : null,
       // PN: managed numbers — partner details for the superadmin (never the key or secret)
       provider: c.provider,
@@ -297,6 +299,14 @@ export const setManagedCreditLine = (
   channelId: string,
   status: 'partner_pending' | 'partner_active',
 ) => deps.service.setManagedCreditLine(channelId, status, platformActor(req));
+
+/** Superadmin attestation for a platform-billed WABA checked in Meta Business Settings. */
+export const confirmCreditLine = (
+  req: Request,
+  deps: WhatsAppAdminDeps,
+  channelId: string,
+  confirmed: true,
+) => deps.service.confirmCreditLine(channelId, confirmed, platformActor(req));
 
 /** Manual connect (platform test number): a System User token instead of a signup code. */
 export const manualConnect = async (

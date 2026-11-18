@@ -1514,6 +1514,65 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     return channelListItem(synced);
   };
 
+  /** A superadmin confirmed the platform credit line in Meta; skip API attachment retries. */
+  const confirmCreditLine = async (channelId: string, confirmed: true, actor: WaActor) => {
+    if (!Types.ObjectId.isValid(channelId)) throw new NotFoundError('WhatsApp number not found');
+    const channel = await WhatsAppChannelModel.findById(channelId)
+      .select(SECRET_FIELDS)
+      .lean<WhatsAppChannelDoc>();
+    if (!channel) throw new NotFoundError('WhatsApp number not found');
+    if (
+      confirmed !== true ||
+      channel.provider !== 'meta' ||
+      channel.metaPayer !== 'platform' ||
+      channel.status !== 'action_needed' ||
+      channel.statusReason?.step !== 'billing' ||
+      channel.creditLine.status !== 'failed'
+    ) {
+      throw new ConflictError(
+        'CONFLICT_INVALID_STATE',
+        'Manual confirmation is only available for a platform-billed Meta number stopped at billing.',
+      );
+    }
+    const now = nowOf(ctx);
+    const saved = await WhatsAppChannelModel.findOneAndUpdate(
+      {
+        _id: channel._id,
+        provider: 'meta',
+        metaPayer: 'platform',
+        status: 'action_needed',
+        'statusReason.step': 'billing',
+        'creditLine.status': 'failed',
+      },
+      {
+        $set: {
+          'creditLine.status': 'attached',
+          'creditLine.error': null,
+          'creditLine.at': now,
+          'creditLine.adminConfirmedAt': now,
+          'creditLine.adminConfirmedBy': actor.id,
+          paymentMethodOk: null,
+        },
+      },
+      { returnDocument: 'after' },
+    ).lean<WhatsAppChannelDoc>();
+    if (!saved) {
+      throw new ConflictError(
+        'CONFLICT_INVALID_STATE',
+        'This WhatsApp number changed while the credit line confirmation was being saved. Refresh and review its current status.',
+      );
+    }
+    await auditChannel(saved, 'whatsapp.credit_line_admin_confirmed', actor, {
+      byAdmin: true,
+      confirmation: 'meta_business_settings',
+      previousCreditLineStatus: channel.creditLine.status,
+    });
+    // Resume at billing so registration and remaining setup steps still run. The
+    // attached state makes setupBilling skip the missing server-side attach call.
+    const resumed = await retrySetup(channel.accountId, channelId, actor);
+    return resumed.channel;
+  };
+
   // ── views / internal ──────────────────────────────────────────────────────
   const listChannels = async (accountId: Types.ObjectId, status?: WhatsAppChannelDoc['status']) => {
     const channels = await WhatsAppChannelModel.find({ accountId, ...(status ? { status } : {}) })
@@ -1572,6 +1631,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     replaceManagedKey,
     resetManagedWebhook,
     setManagedCreditLine,
+    confirmCreditLine,
     /** For tests / audits: the last 4 digits helper. */
     phoneLast4,
   };

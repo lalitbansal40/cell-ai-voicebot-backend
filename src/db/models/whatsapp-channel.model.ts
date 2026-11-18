@@ -311,6 +311,9 @@ export interface WhatsAppChannelDoc {
     allocationConfigId: string | null;
     error: string | null;
     at: Date | null;
+    /** Superadmin attestation after checking the exact WABA in Meta Business Settings. */
+    adminConfirmedAt?: Date | null;
+    adminConfirmedBy?: Types.ObjectId | null;
   };
   /** Customer pays Meta: a payment method is on the WhatsApp account (null = unknown / n.a.). */
   paymentMethodOk: boolean | null;
@@ -506,6 +509,8 @@ const schema = new Schema<WhatsAppChannelDoc>({
     allocationConfigId: nullableString,
     error: nullableString,
     at: { type: Date, default: null },
+    adminConfirmedAt: { type: Date, default: null },
+    adminConfirmedBy: { type: Schema.Types.ObjectId, default: null },
   },
   paymentMethodOk: { type: Boolean, default: null },
   coexistence: {

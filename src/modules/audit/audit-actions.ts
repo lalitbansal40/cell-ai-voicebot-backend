@@ -225,6 +225,7 @@ export const AUDIT_ACTIONS = [
   'whatsapp.managed_key_replaced',
   'whatsapp.managed_webhook_reset',
   'whatsapp.credit_line_updated',
+  'whatsapp.credit_line_admin_confirmed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

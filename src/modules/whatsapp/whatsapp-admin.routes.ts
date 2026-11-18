@@ -9,6 +9,7 @@ import { updateAccountWhatsAppBilling } from '../whatsapp-billing/admin.service'
 import {
   addManagedNumber,
   adminDisconnect,
+  confirmCreditLine,
   listEvents,
   manualConnect,
   replaceManagedKey,
@@ -22,6 +23,7 @@ import {
 import {
   AdminDisconnectBody,
   ChannelParams,
+  ConfirmCreditLineBody,
   EventParams,
   ListEventsQuery,
   ManagedCreditLineBody,
@@ -139,6 +141,16 @@ export const createWhatsAppAdminRouter = ({
       { params: ChannelParams, body: ManagedCreditLineBody },
       async ({ params, body, req, res }) => {
         ok(res, await setManagedCreditLine(req, needPinnacle(), params.id, body.status));
+      },
+    ),
+  );
+  router.post(
+    '/whatsapp/channels/:id/credit-line/confirm',
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ChannelParams, body: ConfirmCreditLineBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await confirmCreditLine(req, need(), params.id, body.confirmed));
       },
     ),
   );

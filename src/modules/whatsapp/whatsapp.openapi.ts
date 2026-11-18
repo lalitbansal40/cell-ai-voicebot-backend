@@ -21,6 +21,7 @@ import { z } from '../../shared/openapi/zod';
 import {
   AdminDisconnectBody,
   ChannelParams,
+  ConfirmCreditLineBody,
   EmbeddedSignupBody,
   EventParams,
   ListChannelsQuery,
@@ -640,6 +641,21 @@ registry.registerPath({
     'The partner credit line of a managed number: requested (number waits) or active (as approved in the partner panel)',
   security: bearer,
   request: { params: ChannelParams, ...json(ManagedCreditLineBody) },
+  responses: {
+    200: ok(WhatsAppChannelSchema),
+    ...admin,
+    404: errors[404],
+    409: errors[409],
+    422: errors[422],
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/whatsapp/channels/{id}/credit-line/confirm',
+  tags: adminTags,
+  summary: 'Record a superadmin confirmation that the platform credit line is attached in Meta',
+  security: bearer,
+  request: { params: ChannelParams, ...json(ConfirmCreditLineBody) },
   responses: {
     200: ok(WhatsAppChannelSchema),
     ...admin,
