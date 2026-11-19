@@ -741,7 +741,11 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
         !PLACEHOLDER.test(raw.META_WEBHOOK_VERIFY_TOKEN),
     );
   }
-  const pinnacleEnabled = raw.PINNACLE_ENABLED === 'true';
+  // Managed-number support uses the public Pinnacle partner API and per-number
+  // credentials entered by a platform admin. Enable it by default whenever
+  // WhatsApp is enabled; deployments can still explicitly opt out with false.
+  const pinnacleEnabled =
+    raw.PINNACLE_ENABLED === 'true' || (raw.PINNACLE_ENABLED !== 'false' && whatsappEnabled);
   if (pinnacleEnabled) {
     check('PINNACLE_ENABLED', 'needs WHATSAPP_ENABLED', whatsappEnabled);
     if (production) {
