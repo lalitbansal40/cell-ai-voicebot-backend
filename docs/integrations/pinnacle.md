@@ -23,7 +23,7 @@ Plan: `docs/prompts/PINNACLE_PROVIDER_PROMPT.md`. Sign-off: `docs/phases/PINNACL
 
 ## Runbook — add a managed number
 
-**Before you start:** WhatsApp must be enabled and `APP_URL` must be the public https API URL. Pinnacle support is on by default; set `PINNACLE_ENABLED=false` only to opt out. The public URL is part of the webhook Pinnacle calls.
+**Before you start:** WhatsApp must be enabled and `APP_URL` must be the public https API URL. Production enables Pinnacle automatically; non-production can opt out with `PINNACLE_ENABLED=false`. The public URL is part of the webhook Pinnacle calls.
 
 1. **In Pinnacle's panel:**
    - _Whatsapp → Manage Accounts_: copy the **WABA ID** and the **phone number ID**.
@@ -115,13 +115,13 @@ All routes below are superadmin only, refused while impersonating, and answer `5
 
 ## Env
 
-| Variable                  | Default                         | Notes                                                                                                |
-| ------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `PINNACLE_ENABLED`        | `true` when WhatsApp is enabled | Set `false` to opt out                                                                               |
-| `PINNACLE_BASE_URL`       | `https://partnersv1.pinbot.ai`  | https in production                                                                                  |
-| `PINNACLE_VOICE_BASE_URL` | = base                          | WhatsApp Voice host. **Ask Pinnacle for the production host** (their doc shows a test load balancer) |
-| `PINNACLE_TIMEOUT_MS`     | `15000`                         | 2000–60000                                                                                           |
-| `WHATSAPP_REGISTER_PIN`   | built-in platform PIN           | 6-digit two-step PIN used to register numbers; override only if needed                               |
+| Variable                  | Default                                    | Notes                                                                                                |
+| ------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `PINNACLE_ENABLED`        | `true` in production with WhatsApp enabled | Non-production only: set `false` to opt out                                                          |
+| `PINNACLE_BASE_URL`       | `https://partnersv1.pinbot.ai`             | https in production                                                                                  |
+| `PINNACLE_VOICE_BASE_URL` | = base                                     | WhatsApp Voice host. **Ask Pinnacle for the production host** (their doc shows a test load balancer) |
+| `PINNACLE_TIMEOUT_MS`     | `15000`                                    | 2000–60000                                                                                           |
+| `WHATSAPP_REGISTER_PIN`   | built-in platform PIN                      | 6-digit two-step PIN used to register numbers; override only if needed                               |
 
 ## Open with Pinnacle
 

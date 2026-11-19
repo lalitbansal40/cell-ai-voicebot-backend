@@ -788,7 +788,7 @@ describe('loadEnv — WhatsApp calling (Phase 12)', () => {
     ).toEqual(['FAKE_META_CALL_DELAYS_MS']);
   });
 
-  it('PINNACLE (PN): on by default with WhatsApp, can be disabled, voice URL defaults, https in production', () => {
+  it('PINNACLE (PN): on by default with WhatsApp, prod ignores opt-out, voice URL defaults, https in production', () => {
     const off = loadEnv({});
     expect(off.PINNACLE_ENABLED).toBe(true);
     expect(off.PINNACLE_BASE_URL).toBe('https://partnersv1.pinbot.ai');
@@ -820,6 +820,7 @@ describe('loadEnv — WhatsApp calling (Phase 12)', () => {
       PINNACLE_ENABLED: 'true',
     };
     expect(loadEnv(prod).PINNACLE_ENABLED).toBe(true);
+    expect(loadEnv({ ...prod, PINNACLE_ENABLED: 'false' }).PINNACLE_ENABLED).toBe(true);
     expect(
       issuesOf({ ...prod, PINNACLE_VOICE_BASE_URL: 'http://voice.example.test' }).issues.map(
         (i) => i.variable,

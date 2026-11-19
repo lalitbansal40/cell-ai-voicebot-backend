@@ -742,12 +742,13 @@ export const loadEnv = (source: NodeJS.ProcessEnv = process.env): Env => {
     );
   }
   // Managed-number support uses the public Pinnacle partner API and per-number
-  // credentials entered by a platform admin. Enable it by default whenever
-  // WhatsApp is enabled; deployments can still explicitly opt out with false.
-  const pinnacleEnabled =
-    raw.PINNACLE_ENABLED === 'true' || (raw.PINNACLE_ENABLED !== 'false' && whatsappEnabled);
-  if (pinnacleEnabled) {
+  // credentials entered by a platform admin. Keep production ready without a
+  // deployment env change; non-production can explicitly opt out for testing.
+  const pinnacleEnabled = whatsappEnabled && (production || raw.PINNACLE_ENABLED !== 'false');
+  if (raw.PINNACLE_ENABLED === 'true') {
     check('PINNACLE_ENABLED', 'needs WHATSAPP_ENABLED', whatsappEnabled);
+  }
+  if (pinnacleEnabled) {
     if (production) {
       check(
         'PINNACLE_BASE_URL',
