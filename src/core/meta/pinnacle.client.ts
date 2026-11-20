@@ -131,10 +131,22 @@ const setWebhookSchema = z.looseObject({
   success: z.boolean().optional(),
 });
 
-const getWebhookSchema = z.looseObject({
+const webhookEntrySchema = z.looseObject({
   webhook_url: z.string().nullish(),
   headers: z.record(z.string(), z.unknown()).nullish(),
+  source: z.string().nullish(),
 });
+
+/**
+ * `getwebhook` answers a list in production (`[{ webhook_url, headers, source: "API" }]`,
+ * seen live 2026-11-20); a single object is accepted too. The entry set over the API wins.
+ */
+const getWebhookSchema = z
+  .union([z.array(webhookEntrySchema), webhookEntrySchema])
+  .transform((raw) => {
+    const list = (Array.isArray(raw) ? raw : [raw]).filter((e) => e.webhook_url?.trim());
+    return list.find((e) => e.source?.toUpperCase() === 'API') ?? list[0] ?? null;
+  });
 
 const stringHeaders = (raw: Record<string, unknown> | null | undefined): Record<string, string> =>
   Object.fromEntries(
@@ -350,8 +362,8 @@ export const createPinnacleClient = (options: PinnacleClientOptions): PinnacleCl
         apiKey,
         getWebhookSchema,
       );
-      const url = raw.webhook_url?.trim();
-      return url ? { url, headers: stringHeaders(raw.headers) } : null;
+      const url = raw?.webhook_url?.trim();
+      return raw && url ? { url, headers: stringHeaders(raw.headers) } : null;
     },
   };
 };

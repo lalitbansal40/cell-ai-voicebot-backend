@@ -292,6 +292,26 @@ describe('Pinnacle client — extras', () => {
     stub.next(json(200, { webhook_url: '', headers: {} }));
     expect(await c.getWebhook(KEY, PHONE)).toBeNull();
   });
+
+  it('getWebhook reads the list Pinnacle answers in production (API entry first)', async () => {
+    const c = client();
+    stub.next(
+      json(200, [
+        { webhook_url: 'https://panel.example.test/cb', headers: {}, source: 'PANEL' },
+        {
+          webhook_url: 'https://api.example.test/hook',
+          headers: { 'x-cell-webhook-secret': 's' },
+          source: 'API',
+        },
+      ]),
+    );
+    expect(await c.getWebhook(KEY, PHONE)).toEqual({
+      url: 'https://api.example.test/hook',
+      headers: { 'x-cell-webhook-secret': 's' },
+    });
+    stub.next(json(200, []));
+    expect(await c.getWebhook(KEY, PHONE)).toBeNull();
+  });
 });
 
 describe('Pinnacle client — errors', () => {
