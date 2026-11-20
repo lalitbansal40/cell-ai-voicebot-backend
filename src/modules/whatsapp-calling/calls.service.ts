@@ -625,8 +625,20 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         flowVersionId?: string | null;
         flowVersion?: number | null;
       };
+      /** SAC-T8: a scheduled AI call's try (1-based) — a replay returns the same call. */
+      scheduled?: { id: string; attempt: number };
     },
   ) => {
+    if (input.scheduled) {
+      const previous = await CallModel.findOne({
+        accountId: actor.accountId,
+        scheduledCallId: new Types.ObjectId(input.scheduled.id),
+        attempt: input.scheduled.attempt,
+      })
+        .select({ _id: 1 })
+        .lean();
+      if (previous) return { callId: previous._id.toString() };
+    }
     if (input.campaign) {
       const previous = await CallModel.findOne({
         accountId: actor.accountId,
@@ -707,6 +719,12 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
             }
           : {}),
       },
+      ...(input.scheduled
+        ? {
+            scheduledCallId: new Types.ObjectId(input.scheduled.id),
+            attempt: input.scheduled.attempt,
+          }
+        : {}),
       ...(input.campaign
         ? {
             campaignId: input.campaign.campaignId,

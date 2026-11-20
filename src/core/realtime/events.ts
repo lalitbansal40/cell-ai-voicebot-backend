@@ -46,6 +46,13 @@ export interface WsEventMap {
   };
   /** CM: a team campaign's calling session changed (who joined, states) — refetch the board. */
   'campaign.session': { campaignId: string };
+  /** SAC-T8: a scheduled AI WhatsApp call changed (created, placed, done, skipped, cancelled). */
+  'whatsapp_call.scheduled_updated': {
+    id: string;
+    status: string;
+    contactId: string;
+    conversationId: string | null;
+  };
   'campaign.status': {
     campaignId: string;
     status: 'draft' | 'scheduled' | 'running' | 'paused' | 'completed' | 'canceled' | 'failed';
@@ -182,6 +189,7 @@ export const WS_EVENT_TYPES = [
   'campaign.status',
   'campaign.progress',
   'campaign.session',
+  'whatsapp_call.scheduled_updated',
   'whatsapp.channel.updated',
   'inbox.conversation.updated',
   'inbox.summary.updated',

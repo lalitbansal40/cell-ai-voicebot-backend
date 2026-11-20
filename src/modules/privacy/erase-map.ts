@@ -29,6 +29,7 @@ import { WebhookEventModel } from '../../db/models/webhook-event.model';
 import { WhatsAppCallPermissionModel } from '../../db/models/whatsapp-call-permission.model';
 import { WhatsAppCampaignRecipientModel } from '../../db/models/whatsapp-campaign-recipient.model';
 import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
+import { WhatsAppScheduledCallModel } from '../../db/models/whatsapp-scheduled-call.model';
 import { open, secretKeys } from '../../shared/crypto/secret-box';
 
 /** What every store needs to find one person's rows. All queries carry `accountId`. */
@@ -438,6 +439,18 @@ export const ERASE_MAP: EraseEntry[] = [
     run: async (ctx) =>
       deleted(
         await WhatsAppCallPermissionModel.collection.deleteMany({
+          accountId: ctx.accountId,
+          contactId: ctx.contactId,
+        }),
+      ),
+  },
+  // SAC-T8: a contact's scheduled AI calls go with them
+  {
+    store: 'whatsappScheduledCalls',
+    action: 'delete',
+    run: async (ctx) =>
+      deleted(
+        await WhatsAppScheduledCallModel.collection.deleteMany({
           accountId: ctx.accountId,
           contactId: ctx.contactId,
         }),

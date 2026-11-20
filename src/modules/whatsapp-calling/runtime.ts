@@ -1,5 +1,6 @@
 import type { Types } from 'mongoose';
 
+import { getLogger } from '../../shared/logger';
 import type { InboxContext } from '../inbox/context';
 import type { WhatsAppContext } from '../whatsapp/context';
 import type { CallingHooks } from '../whatsapp/webhook-handlers';
@@ -14,6 +15,7 @@ import {
 } from './calls.service';
 import type { CallingJobs } from './jobs';
 import { createCallPermissions, type CallPermissionsService } from './permissions.service';
+import { createScheduledCalls, type ScheduledCallsService } from './scheduled.service';
 import { createCallingSettings, type CallingSettingsService } from './settings.service';
 import { createCallingHooks, createInboxCallingHook } from './webhooks';
 
@@ -29,6 +31,8 @@ export interface CallingRuntime {
   hooks: CallingHooks;
   /** SAC-T6: install settings the incoming-call default checks (call audio). */
   env: WhatsAppContext['env'];
+  /** SAC-T8: scheduled AI calls (placed here when `calls` runs here). */
+  scheduled: ScheduledCallsService;
 }
 
 export const createCallingRuntime = (deps: {
@@ -61,5 +65,11 @@ export const createCallingRuntime = (deps: {
     ...(calls ? { calls: (channel, value, event) => calls.onWebhook(channel, value, event) } : {}),
   });
   const bulk = createBulkPermissions({ permissions, ...(deps.jobs ? { jobs: deps.jobs } : {}) });
-  return { settings, permissions, bulk, calls, hooks, env: deps.ctx.env };
+  const scheduled = createScheduledCalls({
+    logger: deps.calls?.logger ?? getLogger(),
+    calls,
+    permissions,
+    ...(deps.ctx.now ? { now: deps.ctx.now } : {}),
+  });
+  return { settings, permissions, bulk, calls, hooks, env: deps.ctx.env, scheduled };
 };

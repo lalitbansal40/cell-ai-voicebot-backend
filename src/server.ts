@@ -346,6 +346,11 @@ export const startServer = async (options: StartServerOptions = {}): Promise<Run
   // CM: team campaign calls end in this process (their agents' browsers talk to it)
   if (env.CAMPAIGNS_ENABLED)
     wireTeamCalls({ calls: callManager, whatsappCalls: calling?.calls ?? null });
+  // SAC-T8: scheduled AI WhatsApp calls are placed where the call media runs
+  if (calling?.calls && env.WA_SCHEDULED_CALLS_ENABLED) {
+    calling.scheduled.start();
+    lifecycle.onShutdown('wa-scheduled-calls', () => calling.scheduled.stop(), 6);
+  }
   if (calling?.calls) {
     const calls = calling.calls;
     callManager.setWhatsAppAttach((input, leg) => calls.attachAgent(input, leg));

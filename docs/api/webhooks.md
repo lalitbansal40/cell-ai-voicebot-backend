@@ -107,6 +107,7 @@ By default payloads carry ids, statuses, outcomes and amounts only. Turn on **In
 | `whatsapp.call.started` · `whatsapp.call.ended` · `whatsapp.call.missed` | WhatsApp calls                                                              |
 | `contact.opted_out` · `contact.opted_in`                                 | STOP / START or a do-not-call change                                        |
 | `whatsapp_campaign.completed` · `whatsapp_campaign.paused`               | a WhatsApp bulk campaign finished, or paused (by a person or automatically) |
+| `whatsapp_call.scheduled` · `whatsapp_call.scheduled_skipped`            | an AI WhatsApp call was scheduled, or not placed at its time (with why)     |
 
 The `data` of each event, with samples, is listed in [Event payloads](#event-payloads).
 
@@ -363,5 +364,49 @@ Paused by a person (`pauseReason: user`) or automatically: `wallet_empty`, `temp
     "skipped": 30
   },
   "chargedMicros": 73600000
+}
+```
+
+### `whatsapp_call.scheduled`
+
+An AI WhatsApp call was scheduled (inbox **Schedule AI call**, an AI agent's callback — `origin: ai_callback` — or the API).
+
+```json
+{
+  "scheduledCallId": "6740a1b2c3d4e5f6a7b8c9d0",
+  "channelId": "6720f0a1b2c3d4e5f6a7b8cf",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "contactExternalId": "LN-10045",
+  "dueAt": "2026-11-21T05:30:00.000Z",
+  "status": "scheduled",
+  "skipReason": null,
+  "origin": "manual",
+  "program": {
+    "kind": "agent",
+    "id": "6740a1b2c3d4e5f6a7b8c9d1"
+  },
+  "attempt": 0
+}
+```
+
+### `whatsapp_call.scheduled_skipped`
+
+The call was not placed at its time. `skipReason`: `no_permission`, `dnd`, `opted_out`, `outside_window`, `channel_down`, `calling_disabled`, `program_inactive`, `wallet`, `capacity`, `contact_deleted`, `not_allowed`.
+
+```json
+{
+  "scheduledCallId": "6740a1b2c3d4e5f6a7b8c9d0",
+  "channelId": "6720f0a1b2c3d4e5f6a7b8cf",
+  "contactId": "6720f0a1b2c3d4e5f6a7b8ca",
+  "contactExternalId": "LN-10045",
+  "dueAt": "2026-11-21T05:30:00.000Z",
+  "status": "skipped",
+  "skipReason": "no_permission",
+  "origin": "manual",
+  "program": {
+    "kind": "agent",
+    "id": "6740a1b2c3d4e5f6a7b8c9d1"
+  },
+  "attempt": 0
 }
 ```

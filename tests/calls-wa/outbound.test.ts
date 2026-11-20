@@ -558,6 +558,26 @@ describe('business-initiated WhatsApp calls', () => {
     await ended(plain.callId);
   });
 
+  it('SAC-T8: a scheduled call try is placed once — a replay returns the same call', async () => {
+    const contact = await contactFor(customer(FAKE_CALL_KNOBS.neverAnswers));
+    const agent = await createAgentDoc(state.acc.account._id, 'Scheduled caller');
+    const scheduled = { id: new Types.ObjectId().toString(), attempt: 1 };
+    const input = {
+      channelId: state.channel._id.toString(),
+      contactId: contact._id.toString(),
+      mode: 'ai' as const,
+      program: { kind: 'agent' as const, id: agent.toString() },
+      scheduled,
+    };
+    const first = await calls().startOutbound(actor, input);
+    const replay = await calls().startOutbound(actor, input);
+    expect(replay.callId).toBe(first.callId);
+    const call = await callOf(first.callId);
+    expect(call?.scheduledCallId?.toString()).toBe(scheduled.id);
+    expect(call?.attempt).toBe(1);
+    await ended(first.callId);
+  });
+
   it('the customer hangs up after 5 s (00027): ended by Meta, 1 pulse charged', async () => {
     const contact = await contactFor(customer(FAKE_CALL_KNOBS.hangsUpAfter5s));
     const res = await start(contact._id, 'ai', { kind: 'agent', id: await agentId() });

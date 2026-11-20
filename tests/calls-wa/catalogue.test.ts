@@ -127,7 +127,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('adds 5 notification types (26 + 5; Phase 14: 32) with titles, audiences, links and e-mail flags', () => {
-    expect(NOTIFICATION_TYPES).toHaveLength(49); // SAC: 1; PN: 1; Phase 20: 1; VAPI: 1; Phase 19: 6; Phase 18B: T18B.4 1; Phase 18: T18.14 1, T18.15 1; + Phase 14 analytics.reconcile_mismatch, Phase 15 webhook.endpoint_disabled
+    expect(NOTIFICATION_TYPES).toHaveLength(50); // SAC: 2; PN: 1; Phase 20: 1; VAPI: 1; Phase 19: 6; Phase 18B: T18B.4 1; Phase 18: T18.14 1, T18.15 1; + Phase 14 analytics.reconcile_mismatch, Phase 15 webhook.endpoint_disabled
     const added = NOTIFICATION_TYPES.slice(26, 31);
     expect(added).toEqual([
       'call.whatsapp_missed',
@@ -190,7 +190,7 @@ describe('Phase 12 catalogue', () => {
     // prompt §1 literals: errors 115, audit 194, notifications 45, permissions 49, ledger 12, WS 41
     expect(PERMISSIONS).toHaveLength(49);
     expect(LEDGER_TYPES).toHaveLength(13); // VAPI: voice_broadcast_charge
-    expect(WS_EVENT_TYPES).toHaveLength(42); // call modes: campaign.session
+    expect(WS_EVENT_TYPES).toHaveLength(43); // call modes: campaign.session; SAC: whatsapp_call.scheduled_updated
     expect(PERMISSIONS).toEqual(
       expect.arrayContaining([
         'reseller.read',

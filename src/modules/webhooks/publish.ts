@@ -29,6 +29,22 @@ export interface WebhookEventMap {
   'contact.opted_in': ContactOptData;
   'whatsapp_campaign.completed': WhatsAppCampaignEventData;
   'whatsapp_campaign.paused': WhatsAppCampaignEventData;
+  'whatsapp_call.scheduled': ScheduledCallEventData;
+  'whatsapp_call.scheduled_skipped': ScheduledCallEventData;
+}
+
+/** SAC-T8: a scheduled AI WhatsApp call was created, or skipped at its time (no personal data). */
+export interface ScheduledCallEventData {
+  scheduledCallId: string;
+  channelId: string;
+  contactId: string;
+  contactExternalId: string | null;
+  dueAt: string;
+  status: string;
+  skipReason: string | null;
+  origin: string;
+  program: { kind: 'flow' | 'agent'; id: string };
+  attempt: number;
 }
 
 /** WhatsApp bulk campaign finished or paused (no personal data). */
@@ -466,5 +482,42 @@ export const publishWhatsAppCampaignEvent = (
         chargedMicros: c.cost.chargedMicros,
       },
       `${type}:${c._id.toString()}:${c.status === 'paused' ? String(Date.now()) : 'done'}`,
+    );
+  });
+
+/** SAC-T8: `whatsapp_call.scheduled` (created) / `.scheduled_skipped` (not placed at its time). */
+export const publishScheduledCallEvent = (
+  type: 'whatsapp_call.scheduled' | 'whatsapp_call.scheduled_skipped',
+  c: {
+    _id: Types.ObjectId;
+    accountId: Types.ObjectId;
+    channelId: Types.ObjectId;
+    contactId: Types.ObjectId;
+    dueAt: Date;
+    status: string;
+    skipReason: string | null;
+    origin: string;
+    program: { kind: 'flow' | 'agent'; id: Types.ObjectId };
+    attempt: number;
+  },
+): Promise<void> =>
+  safely(type, async () => {
+    const contact = await contactOf(c.accountId, c.contactId);
+    await publish(
+      c.accountId,
+      type,
+      {
+        scheduledCallId: c._id.toString(),
+        channelId: c.channelId.toString(),
+        contactId: c.contactId.toString(),
+        contactExternalId: contact?.externalId ?? null,
+        dueAt: c.dueAt.toISOString(),
+        status: c.status,
+        skipReason: c.skipReason,
+        origin: c.origin,
+        program: { kind: c.program.kind, id: c.program.id.toString() },
+        attempt: c.attempt,
+      },
+      `${type}:${c._id.toString()}:${String(c.attempt)}`,
     );
   });

@@ -177,6 +177,46 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
       program: { kind: 'agent', id: '6720f0a1b2c3d4e5f6a7b8cb' },
     },
   },
+  // SAC-T8: scheduled AI calls
+  'POST /api/v1/whatsapp/scheduled-calls': {
+    operationId: 'scheduleWhatsAppCall',
+    area: 'WhatsApp calls',
+    scope: 'calls:write',
+    description: `Schedules an AI WhatsApp call (a published flow or an active agent) from a calling-ready number to a contact, at least 5 minutes and at most 30 days ahead. At its time every check of a call now runs again (call permission, DND / opt-out, 09:00–21:00 in the account timezone, wallet, limits); outside the window it moves once to the next opening, otherwise it is \`skipped\` with a reason (webhook \`whatsapp_call.scheduled_skipped\`). \`retry\` (0–2 tries, 15–240 min apart) on \`no_answer\` / \`busy\` / \`failed\`. The answer carries \`warnings\` (no permission yet, permission ends before the time, outside the window, empty wallet). At most 3 open per contact. Optional \`Idempotency-Key\`. ${WRITE}`,
+    request: {
+      channelId: ID,
+      contactId: '6720f0a1b2c3d4e5f6a7b8ca',
+      program: { kind: 'agent', id: '6720f0a1b2c3d4e5f6a7b8cb' },
+      purpose: 'EMI reminder — customer asked to be called after 11',
+      dueAt: '2026-11-21T05:30:00.000Z',
+      retry: { max: 1, gapMin: 60, on: ['no_answer', 'busy'] },
+    },
+  },
+  'GET /api/v1/whatsapp/scheduled-calls': {
+    operationId: 'listScheduledWhatsAppCalls',
+    area: 'WhatsApp calls',
+    scope: 'calls:read',
+    description: `Scheduled AI WhatsApp calls, newest first; filter by \`status\` (\`open\` = waiting or in progress), \`contactId\`, \`channelId\` and the time (\`from\` / \`to\`). ${CURSOR} ${READ}`,
+  },
+  'GET /api/v1/whatsapp/scheduled-calls/{id}': {
+    operationId: 'getScheduledWhatsAppCall',
+    area: 'WhatsApp calls',
+    scope: 'calls:read',
+    description: `One scheduled AI call with its tries (\`attempts\`) and the calls it placed (\`callIds\`). ${READ}`,
+  },
+  'PATCH /api/v1/whatsapp/scheduled-calls/{id}': {
+    operationId: 'updateScheduledWhatsAppCall',
+    area: 'WhatsApp calls',
+    scope: 'calls:write',
+    description: `Changes the time, program, purpose or retries of a call still \`scheduled\` (409 once it is being placed). ${WRITE}`,
+    request: { dueAt: '2026-11-21T08:30:00.000Z' },
+  },
+  'POST /api/v1/whatsapp/scheduled-calls/{id}/cancel': {
+    operationId: 'cancelScheduledWhatsAppCall',
+    area: 'WhatsApp calls',
+    scope: 'calls:write',
+    description: `Cancels a call still \`scheduled\` (409 once placed or finished). ${WRITE}`,
+  },
   'GET /api/v1/whatsapp/channels/{id}/calling/quote': {
     operationId: 'quoteWhatsAppCall',
     area: 'WhatsApp calls',

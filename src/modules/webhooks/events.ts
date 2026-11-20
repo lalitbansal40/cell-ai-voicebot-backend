@@ -27,6 +27,9 @@ export const WEBHOOK_EVENT_TYPES = [
   // DOCS-T3: WhatsApp bulk campaigns
   'whatsapp_campaign.completed',
   'whatsapp_campaign.paused',
+  // SAC-T8: scheduled AI WhatsApp calls
+  'whatsapp_call.scheduled',
+  'whatsapp_call.scheduled_skipped',
 ] as const;
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
 

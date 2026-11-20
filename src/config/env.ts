@@ -69,6 +69,11 @@ const RawEnvSchema = z.object({
   MFA_ENFORCED_FOR_ADMINS: z
     .enum(['true', 'false'], { message: 'must be true or false' })
     .optional(),
+  /** SAC-T8: scheduled AI WhatsApp calls (Schedule AI call, AI callbacks). */
+  WA_SCHEDULED_CALLS_ENABLED: z
+    .enum(['true', 'false'], { message: 'must be true or false' })
+    .default('true')
+    .transform((v) => v === 'true'),
   /** SAC: superadmin "Full access" login-as (acts as the owner everywhere, audited). */
   LOGIN_AS_FULL_ENABLED: z
     .enum(['true', 'false'], { message: 'must be true or false' })

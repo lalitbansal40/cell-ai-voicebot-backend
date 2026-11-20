@@ -62,6 +62,8 @@ export const NOTIFICATION_TYPES = [
   'whatsapp.provider_balance_low',
   // SAC-T4: Meta stopped delivering a number's events to us
   'whatsapp.webhook_missing',
+  // SAC-T8: a scheduled AI WhatsApp call could not be placed (its creator)
+  'whatsapp.scheduled_call_failed',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

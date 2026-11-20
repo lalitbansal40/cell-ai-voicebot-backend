@@ -90,6 +90,10 @@ describe('phase 2 migrations', () => {
     await migrateDown(db(), MIGRATIONS, logger);
     // PN: 0028 (managed numbers over Pinnacle)
     await migrateDown(db(), MIGRATIONS, logger);
+    // SAC: 0029 (webhook check), 0030 (incoming default), 0031 (scheduled calls)
+    await migrateDown(db(), MIGRATIONS, logger);
+    await migrateDown(db(), MIGRATIONS, logger);
+    await migrateDown(db(), MIGRATIONS, logger);
     expect(await AccountModel.countDocuments({ slug: 'platform' })).toBe(0);
   });
 });

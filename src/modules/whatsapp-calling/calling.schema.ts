@@ -94,3 +94,45 @@ export type CallingSettingsPatchInput = z.infer<typeof CallingSettingsPatch>;
 export const CallAvailabilityBody = z
   .object({ status: z.enum(CALL_AVAILABILITY) })
   .openapi('CallAvailability');
+
+/* ── SAC-T8: scheduled AI calls ── */
+
+const RetryBody = z.strictObject({
+  max: z.number().int().min(0).max(2),
+  gapMin: z.number().int().min(15).max(240),
+  on: z.array(z.enum(['no_answer', 'busy', 'failed'])).max(3),
+});
+
+/** `POST /whatsapp/scheduled-calls` — an AI call to place later (at least 5 min, at most 30 days). */
+export const ScheduledCallBody = z.strictObject({
+  channelId: ObjectIdSchema,
+  contactId: ObjectIdSchema,
+  conversationId: ObjectIdSchema.nullable().optional(),
+  program: ProgramBody,
+  purpose: z.string().trim().max(500).nullable().optional(),
+  dueAt: z.iso.datetime({ offset: true }).openapi({ example: '2026-11-21T05:30:00.000Z' }),
+  retry: RetryBody.nullable().optional(),
+});
+
+export const ScheduledCallPatch = z
+  .strictObject({
+    dueAt: z.iso.datetime({ offset: true }).optional(),
+    program: ProgramBody.optional(),
+    purpose: z.string().trim().max(500).nullable().optional(),
+    retry: RetryBody.optional(),
+  })
+  .refine((b) => Object.keys(b).length > 0, 'Send at least one field');
+
+export const ScheduledCallsQuery = z.object({
+  status: z
+    .enum(['open', 'scheduled', 'dispatching', 'calling', 'done', 'skipped', 'failed', 'cancelled'])
+    .optional(),
+  contactId: ObjectIdSchema.optional(),
+  channelId: ObjectIdSchema.optional(),
+  from: z.iso.datetime({ offset: true }).optional(),
+  to: z.iso.datetime({ offset: true }).optional(),
+  cursor: ObjectIdSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+export const ScheduledCallParams = z.object({ id: ObjectIdSchema });

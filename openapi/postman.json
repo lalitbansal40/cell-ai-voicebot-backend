@@ -1123,6 +1123,221 @@
               "_postman_previewlanguage": "json"
             }
           ]
+        },
+        {
+          "name": "Scheduled AI WhatsApp calls, newest first (calls.read)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "scheduled-calls"],
+              "query": [
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "contactId", "value": "", "disabled": true },
+                { "key": "channelId", "value": "", "disabled": true },
+                { "key": "from", "value": "", "disabled": true },
+                { "key": "to", "value": "", "disabled": true },
+                { "key": "cursor", "value": "", "disabled": true },
+                { "key": "limit", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Scheduled AI WhatsApp calls, newest first; filter by `status` (`open` = waiting or in progress), `contactId`, `channelId` and the time (`from` / `to`). Cursor pagination: pass `meta.nextCursor` back as `cursor` until `hasMore` is false. Read limit class (600 / min per key).\n\nScope: `calls:read`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "scheduled-calls"],
+                  "query": [
+                    { "key": "status", "value": "", "disabled": true },
+                    { "key": "contactId", "value": "", "disabled": true },
+                    { "key": "channelId", "value": "", "disabled": true },
+                    { "key": "from", "value": "", "disabled": true },
+                    { "key": "to", "value": "", "disabled": true },
+                    { "key": "cursor", "value": "", "disabled": true },
+                    { "key": "limit", "value": "", "disabled": true }
+                  ]
+                },
+                "description": "Scheduled AI WhatsApp calls, newest first; filter by `status` (`open` = waiting or in progress), `contactId`, `channelId` and the time (`from` / `to`). Cursor pagination: pass `meta.nextCursor` back as `cursor` until `hasMore` is false. Read limit class (600 / min per key).\n\nScope: `calls:read`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"contactId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"conversationId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"program\": {\n        \"kind\": \"flow\",\n        \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\"\n      },\n      \"purpose\": \"string\",\n      \"dueAt\": \"2026-11-05T09:30:00.000Z\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"status\": \"scheduled\",\n      \"skipReason\": \"string\",\n      \"origin\": \"manual\",\n      \"attempt\": 1,\n      \"retry\": {\n        \"max\": 1,\n        \"gapMin\": 1,\n        \"on\": [\n          \"no_answer\"\n        ]\n      },\n      \"attempts\": [\n        {\n          \"at\": \"2026-11-05T09:30:00.000Z\",\n          \"callId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n          \"result\": \"answered\",\n          \"reason\": \"string\"\n        }\n      ],\n      \"shiftedAt\": \"2026-11-05T09:30:00.000Z\",\n      \"callIds\": [\n        \"string\"\n      ],\n      \"createdBy\": \"string\",\n      \"cancelledAt\": \"2026-11-05T09:30:00.000Z\",\n      \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n      \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n    }\n  ]\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Schedule an AI WhatsApp call (calls.trigger)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "scheduled-calls"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n  \"contactId\": \"6720f0a1b2c3d4e5f6a7b8ca\",\n  \"program\": {\n    \"kind\": \"agent\",\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8cb\"\n  },\n  \"purpose\": \"EMI reminder — customer asked to be called after 11\",\n  \"dueAt\": \"2026-11-21T05:30:00.000Z\",\n  \"retry\": {\n    \"max\": 1,\n    \"gapMin\": 60,\n    \"on\": [\n      \"no_answer\",\n      \"busy\"\n    ]\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Schedules an AI WhatsApp call (a published flow or an active agent) from a calling-ready number to a contact, at least 5 minutes and at most 30 days ahead. At its time every check of a call now runs again (call permission, DND / opt-out, 09:00–21:00 in the account timezone, wallet, limits); outside the window it moves once to the next opening, otherwise it is `skipped` with a reason (webhook `whatsapp_call.scheduled_skipped`). `retry` (0–2 tries, 15–240 min apart) on `no_answer` / `busy` / `failed`. The answer carries `warnings` (no permission yet, permission ends before the time, outside the window, empty wallet). At most 3 open per contact. Optional `Idempotency-Key`. Write limit class (60 / min per key).\n\nScope: `calls:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Idempotency-Key", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "scheduled-calls"]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n  \"contactId\": \"6720f0a1b2c3d4e5f6a7b8ca\",\n  \"program\": {\n    \"kind\": \"agent\",\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8cb\"\n  },\n  \"purpose\": \"EMI reminder — customer asked to be called after 11\",\n  \"dueAt\": \"2026-11-21T05:30:00.000Z\",\n  \"retry\": {\n    \"max\": 1,\n    \"gapMin\": 60,\n    \"on\": [\n      \"no_answer\",\n      \"busy\"\n    ]\n  }\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "description": "Schedules an AI WhatsApp call (a published flow or an active agent) from a calling-ready number to a contact, at least 5 minutes and at most 30 days ahead. At its time every check of a call now runs again (call permission, DND / opt-out, 09:00–21:00 in the account timezone, wallet, limits); outside the window it moves once to the next opening, otherwise it is `skipped` with a reason (webhook `whatsapp_call.scheduled_skipped`). `retry` (0–2 tries, 15–240 min apart) on `no_answer` / `busy` / `failed`. The answer carries `warnings` (no permission yet, permission ends before the time, outside the window, empty wallet). At most 3 open per contact. Optional `Idempotency-Key`. Write limit class (60 / min per key).\n\nScope: `calls:write`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"scheduledCall\": {\n      \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"contactId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"conversationId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"program\": {\n        \"kind\": \"flow\",\n        \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\"\n      },\n      \"purpose\": \"string\",\n      \"dueAt\": \"2026-11-05T09:30:00.000Z\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"status\": \"scheduled\",\n      \"skipReason\": \"string\",\n      \"origin\": \"manual\",\n      \"attempt\": 1,\n      \"retry\": {\n        \"max\": 1,\n        \"gapMin\": 1,\n        \"on\": [\n          \"no_answer\"\n        ]\n      },\n      \"attempts\": [\n        {\n          \"at\": \"2026-11-05T09:30:00.000Z\",\n          \"callId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n          \"result\": \"answered\",\n          \"reason\": \"string\"\n        }\n      ],\n      \"shiftedAt\": \"2026-11-05T09:30:00.000Z\",\n      \"callIds\": [\n        \"string\"\n      ],\n      \"createdBy\": \"string\",\n      \"cancelledAt\": \"2026-11-05T09:30:00.000Z\",\n      \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n      \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n    },\n    \"warnings\": {\n      \"noPermission\": true,\n      \"permissionExpiresBeforeDue\": true,\n      \"outsideWindow\": true,\n      \"lowWallet\": true\n    },\n    \"replay\": true\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "One scheduled AI WhatsApp call (calls.read)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "scheduled-calls", ":id"],
+              "variable": [{ "key": "id", "value": "" }]
+            },
+            "description": "One scheduled AI call with its tries (`attempts`) and the calls it placed (`callIds`). Read limit class (600 / min per key).\n\nScope: `calls:read`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "scheduled-calls", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "One scheduled AI call with its tries (`attempts`) and the calls it placed (`callIds`). Read limit class (600 / min per key).\n\nScope: `calls:read`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"contactId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"conversationId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"program\": {\n      \"kind\": \"flow\",\n      \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\"\n    },\n    \"purpose\": \"string\",\n    \"dueAt\": \"2026-11-05T09:30:00.000Z\",\n    \"timezone\": \"Asia/Kolkata\",\n    \"status\": \"scheduled\",\n    \"skipReason\": \"string\",\n    \"origin\": \"manual\",\n    \"attempt\": 1,\n    \"retry\": {\n      \"max\": 1,\n      \"gapMin\": 1,\n      \"on\": [\n        \"no_answer\"\n      ]\n    },\n    \"attempts\": [\n      {\n        \"at\": \"2026-11-05T09:30:00.000Z\",\n        \"callId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n        \"result\": \"answered\",\n        \"reason\": \"string\"\n      }\n    ],\n    \"shiftedAt\": \"2026-11-05T09:30:00.000Z\",\n    \"callIds\": [\n      \"string\"\n    ],\n    \"createdBy\": \"string\",\n    \"cancelledAt\": \"2026-11-05T09:30:00.000Z\",\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n    \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Reschedule / change a waiting scheduled call (calls.trigger)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "scheduled-calls", ":id"],
+              "variable": [{ "key": "id", "value": "" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dueAt\": \"2026-11-21T08:30:00.000Z\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Changes the time, program, purpose or retries of a call still `scheduled` (409 once it is being placed). Write limit class (60 / min per key).\n\nScope: `calls:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "scheduled-calls", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"dueAt\": \"2026-11-21T08:30:00.000Z\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "description": "Changes the time, program, purpose or retries of a call still `scheduled` (409 once it is being placed). Write limit class (60 / min per key).\n\nScope: `calls:write`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"contactId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"conversationId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"program\": {\n      \"kind\": \"flow\",\n      \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\"\n    },\n    \"purpose\": \"string\",\n    \"dueAt\": \"2026-11-05T09:30:00.000Z\",\n    \"timezone\": \"Asia/Kolkata\",\n    \"status\": \"scheduled\",\n    \"skipReason\": \"string\",\n    \"origin\": \"manual\",\n    \"attempt\": 1,\n    \"retry\": {\n      \"max\": 1,\n      \"gapMin\": 1,\n      \"on\": [\n        \"no_answer\"\n      ]\n    },\n    \"attempts\": [\n      {\n        \"at\": \"2026-11-05T09:30:00.000Z\",\n        \"callId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n        \"result\": \"answered\",\n        \"reason\": \"string\"\n      }\n    ],\n    \"shiftedAt\": \"2026-11-05T09:30:00.000Z\",\n    \"callIds\": [\n      \"string\"\n    ],\n    \"createdBy\": \"string\",\n    \"cancelledAt\": \"2026-11-05T09:30:00.000Z\",\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n    \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Cancel a waiting scheduled call (calls.trigger)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls/:id/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "scheduled-calls", ":id", "cancel"],
+              "variable": [{ "key": "id", "value": "" }]
+            },
+            "description": "Cancels a call still `scheduled` (409 once placed or finished). Write limit class (60 / min per key).\n\nScope: `calls:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/scheduled-calls/:id/cancel",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "scheduled-calls", ":id", "cancel"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Cancels a call still `scheduled` (409 once placed or finished). Write limit class (60 / min per key).\n\nScope: `calls:write`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"contactId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"conversationId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"program\": {\n      \"kind\": \"flow\",\n      \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\"\n    },\n    \"purpose\": \"string\",\n    \"dueAt\": \"2026-11-05T09:30:00.000Z\",\n    \"timezone\": \"Asia/Kolkata\",\n    \"status\": \"scheduled\",\n    \"skipReason\": \"string\",\n    \"origin\": \"manual\",\n    \"attempt\": 1,\n    \"retry\": {\n      \"max\": 1,\n      \"gapMin\": 1,\n      \"on\": [\n        \"no_answer\"\n      ]\n    },\n    \"attempts\": [\n      {\n        \"at\": \"2026-11-05T09:30:00.000Z\",\n        \"callId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n        \"result\": \"answered\",\n        \"reason\": \"string\"\n      }\n    ],\n    \"shiftedAt\": \"2026-11-05T09:30:00.000Z\",\n    \"callIds\": [\n      \"string\"\n    ],\n    \"createdBy\": \"string\",\n    \"cancelledAt\": \"2026-11-05T09:30:00.000Z\",\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n    \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
         }
       ]
     },

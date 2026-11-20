@@ -31,7 +31,15 @@ import {
   PermissionRequestBody,
   StartWhatsAppCallBody,
 } from './calling-api.schema';
-import { CallAvailabilityBody, CallingSettingsPatch, IncomingDefaultBody } from './calling.schema';
+import {
+  CallAvailabilityBody,
+  CallingSettingsPatch,
+  IncomingDefaultBody,
+  ScheduledCallBody,
+  ScheduledCallParams,
+  ScheduledCallPatch,
+  ScheduledCallsQuery,
+} from './calling.schema';
 import { getIncomingDefault, setIncomingDefault } from './incoming-default';
 import { callPricePreview } from './price.service';
 import type { CallingRuntime } from './runtime';
@@ -76,6 +84,7 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
   // mounted at /api/v1 next to other routers: authenticate only our own paths
   router.use(
     [
+      '/whatsapp/scheduled-calls',
       '/whatsapp/incoming-default',
       '/whatsapp/channels/:id/calling',
       '/whatsapp/call-permissions',
@@ -134,6 +143,95 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
         ok(res, await runtime.settings.updateCalling(who, who.accountId, params.id, body));
       },
     ),
+  );
+  // SAC-T8: scheduled AI calls ("Schedule AI call")
+  const scheduledOn = (): void => {
+    if (!runtime.env.WA_SCHEDULED_CALLS_ENABLED)
+      throw new AppError('PROVIDER_UNAVAILABLE', 'Scheduled calls are turned off on this server.');
+  };
+  const scheduledLimit = limiter('wa-scheduled-calls', 30, 60_000, stores.settings);
+  const scheduledActor = (req: Request) => {
+    const who = caller(req);
+    return {
+      accountId: who.accountId,
+      userId: who.userId,
+      impersonatorId: who.impersonatorId ?? null,
+    };
+  };
+  router.post(
+    '/whatsapp/scheduled-calls',
+    access({ permission: 'calls.trigger', scope: 'calls:write' }),
+    blockWhenImpersonating(),
+    scheduledLimit,
+    ...handle({ body: ScheduledCallBody }, async ({ req, res, body }) => {
+      scheduledOn();
+      const key = req.get('Idempotency-Key')?.trim().slice(0, 100) || null;
+      const out = await runtime.scheduled.create(scheduledActor(req), {
+        channelId: body.channelId,
+        contactId: body.contactId,
+        conversationId: body.conversationId ?? null,
+        program: body.program,
+        purpose: body.purpose ?? null,
+        dueAt: new Date(body.dueAt),
+        retry: body.retry ?? null,
+        origin: requireAuth(req).kind === 'api_key' ? 'api' : 'manual',
+        idempotencyKey: key,
+      });
+      if (out.replay) ok(res, out);
+      else created(res, out);
+    }),
+  );
+  router.get(
+    '/whatsapp/scheduled-calls',
+    access({ permission: 'calls.read', scope: 'calls:read' }),
+    ...handle({ query: ScheduledCallsQuery }, async ({ req, res, query }) => {
+      const page = await runtime.scheduled.list(tenantFilter(req).accountId, {
+        status: query.status,
+        contactId: query.contactId,
+        channelId: query.channelId,
+        from: query.from ? new Date(query.from) : undefined,
+        to: query.to ? new Date(query.to) : undefined,
+        cursor: query.cursor,
+        limit: query.limit,
+      });
+      ok(res, page.items, { nextCursor: page.nextCursor, hasMore: page.nextCursor !== null });
+    }),
+  );
+  router.get(
+    '/whatsapp/scheduled-calls/:id',
+    access({ permission: 'calls.read', scope: 'calls:read' }),
+    ...handle({ params: ScheduledCallParams }, async ({ req, res, params }) => {
+      ok(res, await runtime.scheduled.get(tenantFilter(req).accountId, params.id));
+    }),
+  );
+  router.patch(
+    '/whatsapp/scheduled-calls/:id',
+    access({ permission: 'calls.trigger', scope: 'calls:write' }),
+    blockWhenImpersonating(),
+    scheduledLimit,
+    ...handle(
+      { params: ScheduledCallParams, body: ScheduledCallPatch },
+      async ({ req, res, params, body }) => {
+        scheduledOn();
+        ok(
+          res,
+          await runtime.scheduled.update(scheduledActor(req), params.id, {
+            ...(body.dueAt ? { dueAt: new Date(body.dueAt) } : {}),
+            ...(body.program ? { program: body.program } : {}),
+            ...(body.purpose !== undefined ? { purpose: body.purpose } : {}),
+            ...(body.retry ? { retry: body.retry } : {}),
+          }),
+        );
+      },
+    ),
+  );
+  router.post(
+    '/whatsapp/scheduled-calls/:id/cancel',
+    access({ permission: 'calls.trigger', scope: 'calls:write' }),
+    blockWhenImpersonating(),
+    ...handle({ params: ScheduledCallParams }, async ({ req, res, params }) => {
+      ok(res, await runtime.scheduled.cancel(scheduledActor(req), params.id));
+    }),
   );
   // SAC-T6: the account default for incoming calls ("AI se incoming calls uthao")
   router.get('/whatsapp/incoming-default', read, async (req, res) => {
