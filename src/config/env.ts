@@ -69,6 +69,11 @@ const RawEnvSchema = z.object({
   MFA_ENFORCED_FOR_ADMINS: z
     .enum(['true', 'false'], { message: 'must be true or false' })
     .optional(),
+  /** SAC: superadmin "Full access" login-as (acts as the owner everywhere, audited). */
+  LOGIN_AS_FULL_ENABLED: z
+    .enum(['true', 'false'], { message: 'must be true or false' })
+    .default('true')
+    .transform((v) => v === 'true'),
 
   MONGODB_URI: z
     .string()

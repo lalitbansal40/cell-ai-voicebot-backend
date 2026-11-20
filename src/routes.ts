@@ -14,6 +14,7 @@ import type { FunctionsDeps } from './modules/ai-agents/functions.service';
 import { createApiKeysRouter } from './modules/api-keys/api-keys.routes';
 import { createAuditRouter } from './modules/audit/audit.routes';
 import { createAuthRouter, type AuthRouterDeps } from './modules/auth/auth.routes';
+import { createLoginAsRouter } from './modules/auth/login-as.routes';
 import { createMfaRouter } from './modules/auth/mfa.routes';
 import { createBillingRouter } from './modules/billing/billing.routes';
 import { createInvoicesRouter } from './modules/billing/invoices.routes';
@@ -259,6 +260,8 @@ export const createApiRouter = ({
   );
   router.use('/account', createAccountInsightsRouter());
   router.use('/auth/mfa', createMfaRouter());
+  // SAC: superadmin full access — extend, step-up, ring me too
+  router.use('/auth/login-as', createLoginAsRouter());
   router.use('/account', createComplianceRouter());
   router.use('/admin', createAdminComplianceRouter());
   router.use('/admin', createAdminPhoneNumbersRouter());

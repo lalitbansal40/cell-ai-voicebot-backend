@@ -249,9 +249,12 @@
             "properties": {
               "impersonatorId": { "type": "string" },
               "expiresAt": { "type": "string" },
-              "mode": { "type": "string", "enum": ["view", "act"] },
+              "mode": { "type": "string", "enum": ["view", "act", "full"] },
               "kind": { "type": "string", "enum": ["superadmin", "reseller"] },
-              "returnTo": { "type": "string" }
+              "returnTo": { "type": "string" },
+              "startedAt": { "type": "string" },
+              "maxUntil": { "type": "string" },
+              "ringMeToo": { "type": "boolean" }
             },
             "required": ["impersonatorId", "expiresAt", "mode", "kind", "returnTo"]
           }
@@ -276,9 +279,12 @@
             "properties": {
               "impersonatorId": { "type": "string" },
               "expiresAt": { "type": "string" },
-              "mode": { "type": "string", "enum": ["view", "act"] },
+              "mode": { "type": "string", "enum": ["view", "act", "full"] },
               "kind": { "type": "string", "enum": ["superadmin", "reseller"] },
-              "returnTo": { "type": "string" }
+              "returnTo": { "type": "string" },
+              "startedAt": { "type": "string" },
+              "maxUntil": { "type": "string" },
+              "ringMeToo": { "type": "boolean" }
             },
             "required": ["impersonatorId", "expiresAt", "mode", "kind", "returnTo"]
           }
@@ -1322,7 +1328,12 @@
               "whatsapp.managed_key_replaced",
               "whatsapp.managed_webhook_reset",
               "whatsapp.credit_line_updated",
-              "whatsapp.credit_line_admin_confirmed"
+              "whatsapp.credit_line_admin_confirmed",
+              "auth.login_as_full_started",
+              "auth.login_as_full_extended",
+              "auth.login_as_step_up",
+              "auth.login_as_step_up_failed",
+              "auth.login_as_ring_me_too"
             ]
           },
           "actor": {
@@ -24286,6 +24297,154 @@
                     "data": {
                       "type": "array",
                       "items": { "$ref": "#/components/schemas/PhoneNumber" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login-as/extend": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Superadmin full access: 4 more hours (at most 12 hours from the start)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/AuthSession" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login-as/step-up": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Superadmin full access: confirm with the superadmin's own password (+ two-step code) for 5 minutes",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "format": "password"
+                  },
+                  "code": { "type": "string", "minLength": 6, "maxLength": 20 }
+                },
+                "required": ["password"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "stepUpUntil": { "type": "string" } },
+                      "required": ["stepUpUntil"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login-as/ring-me-too": {
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Superadmin full access: let incoming calls of this account ring this session too",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "on": { "type": "boolean" } },
+                "required": ["on"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "ringMeToo": { "type": "boolean" } },
+                      "required": ["ringMeToo"]
                     }
                   },
                   "required": ["success", "data"]

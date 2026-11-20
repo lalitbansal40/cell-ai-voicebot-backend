@@ -11,6 +11,8 @@ import { REFRESH_COOKIE } from './auth.constants';
 import { findUserByEmail } from './auth.service';
 import { hmacToken } from './hmac';
 import { assertNotLocked, clearFailedLogins, registerFailedLogin } from './lockout';
+import { fullFacts } from './login-as';
+import { isRingMeToo } from './login-as-session';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './password';
 import {
   revokeAllForUser,
@@ -159,6 +161,12 @@ export const me = async (req: Request): Promise<AuthSessionBody> => {
           mode: auth.impersonationMode ?? 'view',
           kind: auth.impersonatorKind ?? 'superadmin',
           returnTo: returnToFor(auth.impersonatorKind ?? 'superadmin', auth.accountId),
+          ...(auth.impersonationMode === 'full'
+            ? {
+                ...fullFacts(auth.impersonationStartedAt ?? new Date()),
+                ringMeToo: auth.sessionId ? await isRingMeToo(auth.sessionId) : false,
+              }
+            : {}),
         }
       : null,
   );

@@ -95,6 +95,7 @@ export const authenticate = (
             impersonatorId: claims.imp,
             impersonationMode: claims.imm ?? ('view' as const),
             impersonatorKind: claims.imk ?? ('superadmin' as const),
+            ...(claims.ims ? { impersonationStartedAt: new Date(claims.ims * 1000) } : {}),
           }
         : {}),
       sessionId: claims.sid,

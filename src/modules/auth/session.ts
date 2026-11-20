@@ -57,11 +57,19 @@ export interface PublicAccount {
 export interface Impersonation {
   impersonatorId: string;
   expiresAt: string;
-  /** Phase 19: `view` = read-only, `act` = may work (sensitive actions still refused). */
-  mode: 'view' | 'act';
+  /**
+   * Phase 19: `view` = read-only, `act` = may work (sensitive actions still refused).
+   * SAC: `full` = a superadmin acting as the owner everywhere (danger actions need a step-up).
+   */
+  mode: 'view' | 'act' | 'full';
   kind: 'superadmin' | 'reseller';
   /** Where "Back" goes. */
   returnTo: string;
+  /** SAC (`full` only): when it started and the latest it can be extended to. */
+  startedAt?: string;
+  maxUntil?: string;
+  /** SAC (`full` only): incoming calls of this account also ring this session. */
+  ringMeToo?: boolean;
 }
 
 /** Phase 19: where "Back" leads after a login-as session. */
@@ -172,8 +180,10 @@ export const accessTokenFor = async (
   options: {
     impersonatorId?: string;
     ttl?: string;
-    mode?: 'view' | 'act';
+    mode?: 'view' | 'act' | 'full';
     kind?: 'superadmin' | 'reseller';
+    /** SAC: login-as start (kept across extends). */
+    startedAt?: Date;
   } = {},
 ) =>
   signAccessToken(
@@ -186,6 +196,9 @@ export const accessTokenFor = async (
       ...(options.impersonatorId ? { imp: options.impersonatorId } : {}),
       ...(options.impersonatorId && options.mode ? { imm: options.mode } : {}),
       ...(options.impersonatorId && options.kind ? { imk: options.kind } : {}),
+      ...(options.impersonatorId && options.startedAt
+        ? { ims: Math.floor(options.startedAt.getTime() / 1000) }
+        : {}),
     },
     options.ttl ?? getEnv().JWT_ACCESS_TTL,
   );

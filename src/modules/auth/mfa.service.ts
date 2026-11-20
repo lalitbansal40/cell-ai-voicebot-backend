@@ -108,9 +108,15 @@ export const confirmMfa = async (req: Request, code: string, now = new Date()) =
   return { recoveryCodes: codes };
 };
 
-/** A code from the app, or a recovery code once. Good for `MFA_FRESH_MS`. */
-export const verifyMfa = async (req: Request, code: string, now = new Date()) => {
-  const user = await loadUser(req);
+/**
+ * Spends one code of `user` (a fresh TOTP step, or a recovery code once). Throws `MFA_INVALID`.
+ * Shared by `verifyMfa` and the SAC login-as step-up.
+ */
+export const spendMfaCode = async (
+  user: Pick<UserDoc, '_id' | 'mfa'>,
+  code: string,
+  now = new Date(),
+): Promise<'totp' | 'recovery'> => {
   const mfa = user.mfa;
   if (!mfa?.enabledAt)
     throw new ConflictError('CONFLICT_INVALID_STATE', 'Two-step sign-in is off.');
@@ -125,7 +131,7 @@ export const verifyMfa = async (req: Request, code: string, now = new Date()) =>
       { $set: { 'mfa.lastStep': step, 'mfa.verifiedAt': now } },
     );
     if (used.modifiedCount === 0) throw new AppError('MFA_INVALID');
-    return { verified: true as const };
+    return 'totp';
   }
   const hash = hmacToken(code.trim().toLowerCase());
   const spent = await UserModel.updateOne(
@@ -133,7 +139,15 @@ export const verifyMfa = async (req: Request, code: string, now = new Date()) =>
     { $pull: { 'mfa.recoveryHashes': hash }, $set: { 'mfa.verifiedAt': now } },
   );
   if (spent.modifiedCount === 0) throw new AppError('MFA_INVALID');
-  await audit(user, req, 'mfa.recovery_used');
+  return 'recovery';
+};
+
+/** A code from the app, or a recovery code once. Good for `MFA_FRESH_MS`. */
+export const verifyMfa = async (req: Request, code: string, now = new Date()) => {
+  const user = await loadUser(req);
+  if ((await spendMfaCode(user, code, now)) === 'recovery') {
+    await audit(user, req, 'mfa.recovery_used');
+  }
   return { verified: true as const };
 };
 

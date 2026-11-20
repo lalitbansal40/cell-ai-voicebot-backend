@@ -433,7 +433,7 @@ export const impersonate = async (
   startLoginAs(req, await findCustomerAccount(id), {
     mode,
     kind: 'superadmin',
-    action: 'admin.impersonation_started',
+    action: mode === 'full' ? 'auth.login_as_full_started' : 'admin.impersonation_started',
   });
 
 export const stopImpersonation = async (req: Request): Promise<void> => {

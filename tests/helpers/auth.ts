@@ -35,8 +35,10 @@ export const tokenFor = async (
     sid?: string;
     imp?: string;
     ttl?: string;
-    imm?: 'view' | 'act';
+    imm?: 'view' | 'act' | 'full';
     imk?: 'superadmin' | 'reseller';
+    /** SAC: login-as start (unix seconds). */
+    ims?: number;
   } = {},
 ): Promise<string> =>
   (
@@ -50,6 +52,7 @@ export const tokenFor = async (
         ...(extra.imp ? { imp: extra.imp } : {}),
         ...(extra.imm ? { imm: extra.imm } : {}),
         ...(extra.imk ? { imk: extra.imk } : {}),
+        ...(extra.ims ? { ims: extra.ims } : {}),
       },
       extra.ttl ?? '15m',
     )

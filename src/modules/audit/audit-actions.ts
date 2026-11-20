@@ -226,6 +226,12 @@ export const AUDIT_ACTIONS = [
   'whatsapp.managed_webhook_reset',
   'whatsapp.credit_line_updated',
   'whatsapp.credit_line_admin_confirmed',
+  // SAC: superadmin full access login-as
+  'auth.login_as_full_started',
+  'auth.login_as_full_extended',
+  'auth.login_as_step_up',
+  'auth.login_as_step_up_failed',
+  'auth.login_as_ring_me_too',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

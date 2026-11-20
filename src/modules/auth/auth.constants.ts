@@ -10,7 +10,14 @@ export const OTP_RESEND_COOLDOWN_MS = 60_000;
 export const OTP_MAX_SENDS_PER_HOUR = 5;
 export const RESET_TTL_MS = 30 * 60_000;
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60_000;
+/** Login-as `view` / `act` (Phase 2 / 19): 30 minutes, no refresh. */
 export const IMPERSONATION_TTL = '30m';
+/** SAC: superadmin `full` login-as — 4 hours, extendable in 4-hour steps up to 12 hours. */
+export const IMPERSONATION_TTL_FULL = '4h';
+export const IMPERSONATION_FULL_STEP_MS = 4 * 60 * 60_000;
+export const IMPERSONATION_FULL_MAX_MS = 12 * 60 * 60_000;
+/** SAC: a step-up (the superadmin's own password + code) is good for 5 minutes. */
+export const STEP_UP_TTL_SEC = 5 * 60;
 /**
  * A just-rotated refresh token presented again within this window, while its
  * successor is still unused, is a lost response (page reload / dropped

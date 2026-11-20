@@ -19,8 +19,10 @@ export interface AuthContext {
   /** Superadmin acting as this user (impersonation token). */
   impersonatorId?: string;
   /** Phase 19: login-as mode / who did it (only with `impersonatorId`). */
-  impersonationMode?: 'view' | 'act';
+  impersonationMode?: 'view' | 'act' | 'full';
   impersonatorKind?: 'superadmin' | 'reseller';
+  /** SAC: when the login-as started (the 12-hour cap of `full`). */
+  impersonationStartedAt?: Date;
   /** Refresh family of the session (`imp_…` while impersonating). */
   sessionId?: string;
   tokenVersion?: number;

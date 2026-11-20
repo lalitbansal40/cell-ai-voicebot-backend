@@ -154,9 +154,13 @@ const sessionBody = {
     .object({
       impersonatorId: z.string(),
       expiresAt: z.string(),
-      mode: z.enum(['view', 'act']),
+      mode: z.enum(['view', 'act', 'full']),
       kind: z.enum(['superadmin', 'reseller']),
       returnTo: z.string(),
+      /** SAC (`full` only). */
+      startedAt: z.string().optional(),
+      maxUntil: z.string().optional(),
+      ringMeToo: z.boolean().optional(),
     })
     .nullable(),
 };
