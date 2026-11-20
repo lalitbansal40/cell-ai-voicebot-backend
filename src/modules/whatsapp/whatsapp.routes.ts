@@ -46,6 +46,9 @@ const actorOf = (req: Request): WaActor => {
 };
 const accountOf = (req: Request) => new Types.ObjectId(requireAuth(req).accountId);
 
+/** Active Meta Facebook Login for Business configuration used by Embedded Signup. */
+const EMBEDDED_SIGNUP_CONFIG_ID = '3076770379332692';
+
 /** Public Embedded Signup config for the browser (no secrets). */
 export const whatsappConfig = async (ctx: WhatsAppContext, accountId: Types.ObjectId) => {
   const meta = ctx.env.META_PROVIDER === 'meta';
@@ -60,7 +63,7 @@ export const whatsappConfig = async (ctx: WhatsAppContext, accountId: Types.Obje
     enabled: ctx.env.WHATSAPP_ENABLED,
     provider: ctx.env.META_PROVIDER,
     appId: meta ? (ctx.env.META_APP_ID ?? null) : null,
-    configId: meta ? (ctx.env.META_ES_CONFIG_ID ?? null) : null,
+    configId: meta ? EMBEDDED_SIGNUP_CONFIG_ID : null,
     graphVersion: ctx.env.META_GRAPH_VERSION,
     metaPayer,
     solutionId: meta && metaPayer === 'platform' ? configuredSolutionId : null,
