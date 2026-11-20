@@ -1688,6 +1688,10 @@
                 "metaPayer": { "type": "string", "enum": ["platform", "customer"] },
                 "creditLineStatus": { "type": "string" },
                 "creditLineAdminConfirmedAt": { "type": ["string", "null"] },
+                "webhookStatus": {
+                  "type": ["string", "null"],
+                  "enum": ["ok", "failed", "unknown", null]
+                },
                 "statusReasonStep": { "type": ["string", "null"] },
                 "connectedAt": { "type": ["string", "null"] },
                 "provider": { "type": "string" },
@@ -1723,6 +1727,7 @@
                 "metaPayer",
                 "creditLineStatus",
                 "creditLineAdminConfirmedAt",
+                "webhookStatus",
                 "statusReasonStep",
                 "connectedAt",
                 "provider",

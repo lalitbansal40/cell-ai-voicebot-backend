@@ -179,6 +179,7 @@ export const AdminAccountDetailSchema = registry.register(
         metaPayer: z.enum(META_PAYERS),
         creditLineStatus: z.string(),
         creditLineAdminConfirmedAt: z.string().nullable(),
+        webhookStatus: z.enum(['ok', 'failed', 'unknown']).nullable(),
         statusReasonStep: z.string().nullable(),
         connectedAt: z.string().nullable(),
         // PN: managed numbers (Pinnacle) — never the key or the webhook secret

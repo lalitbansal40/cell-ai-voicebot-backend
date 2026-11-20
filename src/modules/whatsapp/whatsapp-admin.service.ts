@@ -231,6 +231,8 @@ export const accountWhatsApp = async (accountId: Types.ObjectId) => {
             }
           : null,
       statusReasonCode: c.statusReason?.code ?? null,
+      // SAC-T4: Meta numbers only (a managed number's webhook is the partner's)
+      webhookStatus: c.provider === 'pinnacle' ? null : (c.webhookCheck?.status ?? 'unknown'),
     })),
   };
 };
