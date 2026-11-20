@@ -62,12 +62,18 @@ describe('/whatsapp API', () => {
         },
         acc.account._id,
       ),
-    ).toMatchObject({ provider: 'meta', appId: '123', configId: '456', solutionId: null });
+      // the active Embedded Signup configuration is fixed in code (commit 37cf3b0)
+    ).toMatchObject({
+      provider: 'meta',
+      appId: '123',
+      configId: '3076770379332692',
+      solutionId: null,
+    });
     expect(
       await whatsappConfig({ ...w.ctx, env: { ...w.env, META_PROVIDER: 'meta' } }, acc.account._id),
     ).toMatchObject({
       appId: null,
-      configId: null,
+      configId: '3076770379332692',
     });
     expect((await request(app()).get(`${base}/config`)).status).toBe(401);
     await PlatformSettingsModel.create({

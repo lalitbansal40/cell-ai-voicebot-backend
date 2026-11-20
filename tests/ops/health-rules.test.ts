@@ -53,4 +53,14 @@ describe('healthwatch rules', () => {
     expect(parseFailedBefore(['--failed-before', '12'])).toBe(12);
     expect(parseFailedBefore(['--failed-before', 'x'])).toBeNull();
   });
+
+  it('SAC-T4: a number whose webhook check failed raises wa-webhook-missing', () => {
+    const wa = { mediaEnabled: true, publicIpSet: true, failedSetups15m: 0 };
+    expect(healthIssues(facts({ whatsappCalls: { ...wa, webhookMissing: 1 } }))).toContain(
+      'wa-webhook-missing',
+    );
+    expect(healthIssues(facts({ whatsappCalls: { ...wa, webhookMissing: 0 } }))).not.toContain(
+      'wa-webhook-missing',
+    );
+  });
 });

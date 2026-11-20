@@ -10,15 +10,16 @@ import {
   addManagedNumber,
   adminDisconnect,
   confirmCreditLine,
+  fixChannelWebhook,
   listEvents,
   manualConnect,
   replaceManagedKey,
   replayEvent,
   resetManagedWebhook,
   setManagedCreditLine,
-  whatsappStatus,
-  updateWhatsAppSolutionId,
   type WhatsAppAdminDeps,
+  updateWhatsAppSolutionId,
+  whatsappStatus,
 } from './whatsapp-admin.service';
 import {
   AdminDisconnectBody,
@@ -126,6 +127,14 @@ export const createWhatsAppAdminRouter = ({
         ok(res, await replaceManagedKey(req, needPinnacle(), params.id, body.apiKey));
       },
     ),
+  );
+  // SAC-T4: Webhook check / Fix for a Meta number of any account
+  router.post(
+    '/whatsapp/channels/:id/webhook/fix',
+    blockWhenImpersonating(),
+    ...handle({ params: ChannelParams }, async ({ params, req, res }) => {
+      ok(res, await fixChannelWebhook(req, need(), params.id));
+    }),
   );
   router.post(
     '/whatsapp/channels/:id/managed/webhook',

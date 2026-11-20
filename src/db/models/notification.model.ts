@@ -60,6 +60,8 @@ export const NOTIFICATION_TYPES = [
   'voice_api.provider_error',
   // PN: the partner (Pinnacle) wallet is empty — managed numbers fail (superadmins)
   'whatsapp.provider_balance_low',
+  // SAC-T4: Meta stopped delivering a number's events to us
+  'whatsapp.webhook_missing',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

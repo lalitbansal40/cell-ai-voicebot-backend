@@ -9,7 +9,13 @@ export interface HealthFacts {
   /** Phase 18: the SIP line (absent / null = no trunk on this install). */
   sip?: { ariConnected: boolean; trunkOnline: boolean | null; avgLossPct: number | null } | null;
   /** Phase 18B: WhatsApp call audio (absent / null = WhatsApp off). */
-  whatsappCalls?: { mediaEnabled: boolean; publicIpSet: boolean; failedSetups15m: number } | null;
+  whatsappCalls?: {
+    mediaEnabled: boolean;
+    publicIpSet: boolean;
+    failedSetups15m: number;
+    /** SAC-T4: Meta numbers whose webhook check failed (absent on older APIs). */
+    webhookMissing?: number;
+  } | null;
   /** `production` turns on the public IP rule. */
   env?: string;
 }
@@ -63,6 +69,7 @@ export const healthIssues = (f: HealthFacts): string[] => {
     if (f.whatsappCalls.failedSetups15m >= HEALTH_LIMITS.waCallSetupFailures) {
       issues.push('wa-call-setup-failing');
     }
+    if ((f.whatsappCalls.webhookMissing ?? 0) > 0) issues.push('wa-webhook-missing');
   }
   return issues;
 };

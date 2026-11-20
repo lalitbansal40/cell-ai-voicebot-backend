@@ -78,6 +78,8 @@ export const PINNACLE_UNSUPPORTED = [
   'subscribeApp',
   'unsubscribeApp',
   'getAppSubscriptions',
+  'getSubscribedApps',
+  'setAppSubscription',
   'getTokenOwner',
   'assignSystemUser',
   'attachCreditLine',

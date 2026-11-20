@@ -1,7 +1,24 @@
 import { getEnv } from '../../config/env';
-import type { WhatsAppChannelDoc } from '../../db/models/whatsapp-channel.model';
+import {
+  defaultWebhookState,
+  type WaWebhookState,
+  type WhatsAppChannelDoc,
+} from '../../db/models/whatsapp-channel.model';
 import { callingSummary } from '../whatsapp-calling/json';
 import { campaignMps } from '../whatsapp-campaigns/pacing';
+
+/** SAC-T4: the webhook check as the API shows it. */
+export const webhookCheckJson = (w: WaWebhookState | null | undefined) => {
+  const v = w ?? defaultWebhookState();
+  return {
+    status: v.status,
+    appSubscribed: v.appSubscribed,
+    missingFields: [...v.missingFields],
+    checkedAt: v.checkedAt ? v.checkedAt.toISOString() : null,
+    fixedAt: v.fixedAt ? v.fixedAt.toISOString() : null,
+    error: v.error,
+  };
+};
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 const idOf = (v: { toString(): string } | null | undefined) => (v ? v.toString() : null);
@@ -84,6 +101,8 @@ export const channelListItem = (c: WhatsAppChannelDoc) => ({
   subscription: { status: c.subscription.status },
   restriction: c.restriction ? { type: c.restriction.type, until: iso(c.restriction.until) } : null,
   webhook: { lastEventAt: iso(c.webhook.lastEventAt), lastField: c.webhook.lastField },
+  /** SAC-T4: our last check that Meta delivers this number's events (Webhook check / Fix). */
+  webhookCheck: webhookCheckJson(c.webhookCheck),
   connectedBy: idOf(c.connectedBy),
   connectedAt: iso(c.connectedAt),
   syncedAt: iso(c.syncedAt),

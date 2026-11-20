@@ -28,6 +28,11 @@ export interface MetaAccessToken {
   tokenType: string | null;
 }
 
+export interface MetaSubscribedApp {
+  appId: string;
+  name: string | null;
+}
+
 export interface MetaAppSubscription {
   object: string;
   active: boolean;
@@ -354,6 +359,18 @@ export interface MetaClient {
   unsubscribeApp(token: string, wabaId: string): Promise<void>;
   /** The app's webhook subscriptions (app token) — Phase 18B readiness (`calls` field). */
   getAppSubscriptions(): Promise<MetaAppSubscription[]>;
+  /** SAC-T4: the apps subscribed to a WABA's webhooks (`GET /{waba}/subscribed_apps`). */
+  getSubscribedApps(token: string, wabaId: string): Promise<MetaSubscribedApp[]>;
+  /**
+   * SAC-T4: sets the app-level webhook (`POST /{app-id}/subscriptions`, app token) — callback
+   * URL, verify token and the fields. Meta verifies the callback with a GET challenge first.
+   */
+  setAppSubscription(input: {
+    object: string;
+    callbackUrl: string;
+    verifyToken: string;
+    fields: readonly string[];
+  }): Promise<void>;
   /** Id of the user / System User a token belongs to (cached per token). */
   getTokenOwner(token: string): Promise<string>;
   assignSystemUser(token: string, wabaId: string, userId: string): Promise<void>;

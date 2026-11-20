@@ -293,6 +293,22 @@ export const replaceManagedKey = (
 export const resetManagedWebhook = (req: Request, deps: WhatsAppAdminDeps, channelId: string) =>
   deps.service.resetManagedWebhook(channelId, platformActor(req));
 
+/** SAC-T4: Webhook check / Fix of any account's Meta number (superadmin). */
+export const fixChannelWebhook = async (
+  req: Request,
+  deps: WhatsAppAdminDeps,
+  channelId: string,
+) => {
+  if (!Types.ObjectId.isValid(channelId)) throw new NotFoundError('WhatsApp number not found');
+  const channel = await WhatsAppChannelModel.findById(channelId)
+    .select({ accountId: 1 })
+    .lean<{ accountId: Types.ObjectId }>();
+  if (!channel) throw new NotFoundError('WhatsApp number not found');
+  return deps.service.fixWebhook(channel.accountId, channelId, platformActor(req), {
+    byAdmin: true,
+  });
+};
+
 export const setManagedCreditLine = (
   req: Request,
   deps: WhatsAppAdminDeps,

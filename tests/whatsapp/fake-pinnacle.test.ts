@@ -117,7 +117,10 @@ describe('fake Pinnacle (PN D5)', () => {
   });
 
   it('createPinnacleFromEnv: null when off, the fake with the fake Meta', () => {
-    expect(createPinnacleFromEnv(testEnv(), meta, { redis })).toBeNull();
+    // Pinnacle is on by default outside production since c124251; it can still be turned off
+    expect(
+      createPinnacleFromEnv(testEnv({ PINNACLE_ENABLED: 'false' }), meta, { redis }),
+    ).toBeNull();
     const on = createPinnacleFromEnv(testEnv({ PINNACLE_ENABLED: 'true' }), meta, { redis });
     expect(on?.provider).toBe('pinnacle');
     expect((on as FakePinnacleClient).fake).toBe(true);

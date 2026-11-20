@@ -43,6 +43,7 @@ import {
   businessesSchema,
   creditLineAttachSchema,
   appSubscriptionsSchema,
+  subscribedAppsSchema,
   debugTokenSchema,
   meSchema,
   oauthTokenSchema,
@@ -440,6 +441,38 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
         active: s.active !== false,
         fields: (s.fields ?? []).map((f) => f.name),
       }));
+    },
+
+    async getSubscribedApps(token, wabaId) {
+      const raw = await bearer(
+        'waba.subscribed_apps',
+        'GET',
+        `${seg(wabaId)}/subscribed_apps`,
+        token,
+        subscribedAppsSchema,
+      );
+      return raw.data.flatMap((d) => {
+        const app = d.whatsapp_business_api_data ?? (d.id ? { id: d.id, name: d.name } : null);
+        return app ? [{ appId: app.id, name: app.name ?? null }] : [];
+      });
+    },
+
+    async setAppSubscription(input) {
+      await call({
+        op: 'app.subscribe',
+        method: 'POST',
+        path: `${seg(appId)}/subscriptions`,
+        query: {
+          access_token: `${appId}|${appSecret}`,
+          object: input.object,
+          callback_url: input.callbackUrl,
+          verify_token: input.verifyToken,
+          fields: input.fields.join(','),
+          include_values: 'true',
+        },
+        token: null,
+        schema: successSchema,
+      });
     },
 
     async listOwnedWabas(token) {

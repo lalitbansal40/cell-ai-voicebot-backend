@@ -232,6 +232,9 @@ export const AUDIT_ACTIONS = [
   'auth.login_as_step_up',
   'auth.login_as_step_up_failed',
   'auth.login_as_ring_me_too',
+  // SAC-T4: the Meta webhook of a number (Webhook check / Fix)
+  'whatsapp.webhook_fixed',
+  'whatsapp.webhook_fix_failed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

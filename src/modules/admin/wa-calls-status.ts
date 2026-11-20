@@ -1,5 +1,6 @@
 import type { Env } from '../../config/env';
 import { CallModel, LIVE_CALL_STATUSES, type CallEndReason } from '../../db/models/call.model';
+import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
 
 /** Admin → System (Phase 18B): is WhatsApp call audio ready on this install. No secrets. */
 export interface WhatsAppCallsStatus {
@@ -13,6 +14,8 @@ export interface WhatsAppCallsStatus {
   lastError: { reason: string; at: string } | null;
   /** Failed setups in the last 15 minutes (health rule `wa-call-setup-failing`). */
   failedSetups15m: number;
+  /** SAC-T4: Meta numbers whose last webhook check failed (health rule `wa-webhook-missing`). */
+  webhookMissing: number;
 }
 
 export type WhatsAppCallsEnv = Pick<
@@ -45,7 +48,7 @@ export const readWhatsAppCallsStatus = async (
     status: 'failed' as const,
     endReason: { $in: [...SETUP_FAILURE_REASONS] },
   };
-  const [liveCalls, latest, lastFailed, failedSetups15m] = await Promise.all([
+  const [liveCalls, latest, lastFailed, failedSetups15m, webhookMissing] = await Promise.all([
     CallModel.countDocuments({ provider: 'whatsapp', status: { $in: LIVE_CALL_STATUSES } }),
     CallModel.findOne({ provider: 'whatsapp', 'timestamps.ringingAt': { $ne: null } })
       .sort({ createdAt: -1 })
@@ -58,6 +61,11 @@ export const readWhatsAppCallsStatus = async (
     CallModel.countDocuments({
       ...failed,
       createdAt: { $gte: new Date(now.getTime() - 15 * MIN) },
+    }),
+    WhatsAppChannelModel.countDocuments({
+      provider: { $ne: 'pinnacle' },
+      status: { $in: ['connected', 'action_needed', 'restricted'] },
+      'webhookCheck.status': 'failed',
     }),
   ]);
   const ringing = latest?.timestamps.ringingAt;
@@ -74,5 +82,6 @@ export const readWhatsAppCallsStatus = async (
       ? { reason: lastFailed.endReason, at: lastFailed.createdAt.toISOString() }
       : null,
     failedSetups15m,
+    webhookMissing,
   };
 };

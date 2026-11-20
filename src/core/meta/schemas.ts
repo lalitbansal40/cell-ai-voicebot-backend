@@ -33,6 +33,24 @@ export const oauthTokenSchema = z.looseObject({
   expires_in: z.number().nullish(),
 });
 
+/** `GET /{waba}/subscribed_apps` (SAC-T4): the apps that get this WABA's webhooks. */
+export const subscribedAppsSchema = z.looseObject({
+  data: z
+    .array(
+      z.looseObject({
+        whatsapp_business_api_data: z
+          .looseObject({
+            id: z.union([z.string(), z.number()]).transform(String),
+            name: z.string().nullish(),
+          })
+          .nullish(),
+        id: z.union([z.string(), z.number()]).transform(String).nullish(),
+        name: z.string().nullish(),
+      }),
+    )
+    .default([]),
+});
+
 export const appSubscriptionsSchema = z.looseObject({
   data: z.array(
     z.looseObject({

@@ -155,7 +155,7 @@ export const readinessItems = (f: ReadinessFacts): ReadinessItem[] => {
                 : 'The app is not subscribed to `calls`',
           fix:
             f.callsWebhook === false
-              ? 'Meta App Dashboard → WhatsApp → Configuration → Webhook fields: subscribe to "calls".'
+              ? 'Press "Webhook check / Fix" on the number (or Meta App Dashboard → WhatsApp → Configuration → Webhook fields: subscribe to "calls").'
               : null,
         },
     f.channel.provider === 'pinnacle'

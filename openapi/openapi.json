@@ -1333,7 +1333,9 @@
               "auth.login_as_full_extended",
               "auth.login_as_step_up",
               "auth.login_as_step_up_failed",
-              "auth.login_as_ring_me_too"
+              "auth.login_as_ring_me_too",
+              "whatsapp.webhook_fixed",
+              "whatsapp.webhook_fix_failed"
             ]
           },
           "actor": {
@@ -1855,7 +1857,8 @@
                 "properties": { "reason": { "type": "string" }, "at": { "type": "string" } },
                 "required": ["reason", "at"]
               },
-              "failedSetups15m": { "type": "integer" }
+              "failedSetups15m": { "type": "integer" },
+              "webhookMissing": { "type": "integer" }
             },
             "required": [
               "mediaEnabled",
@@ -1864,7 +1867,8 @@
               "liveCalls",
               "lastSetupMs",
               "lastError",
-              "failedSetups15m"
+              "failedSetups15m",
+              "webhookMissing"
             ],
             "description": "Phase 18B: WhatsApp call audio; null when WhatsApp is off"
           }
@@ -7349,7 +7353,8 @@
               "whatsapp_campaign.completed",
               "whatsapp_campaign.paused",
               "voice_api.provider_error",
-              "whatsapp.provider_balance_low"
+              "whatsapp.provider_balance_low",
+              "whatsapp.webhook_missing"
             ]
           },
           "title": { "type": "string" },
@@ -9087,6 +9092,25 @@
             },
             "required": ["lastEventAt", "lastField"]
           },
+          "webhookCheck": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string", "enum": ["ok", "failed", "unknown"] },
+              "appSubscribed": { "type": ["boolean", "null"] },
+              "missingFields": { "type": "array", "items": { "type": "string" } },
+              "checkedAt": { "type": ["string", "null"] },
+              "fixedAt": { "type": ["string", "null"] },
+              "error": { "type": ["string", "null"] }
+            },
+            "required": [
+              "status",
+              "appSubscribed",
+              "missingFields",
+              "checkedAt",
+              "fixedAt",
+              "error"
+            ]
+          },
           "connectedBy": { "type": ["string", "null"] },
           "connectedAt": { "type": ["string", "null"] },
           "syncedAt": { "type": ["string", "null"] },
@@ -9122,6 +9146,7 @@
           "subscription",
           "restriction",
           "webhook",
+          "webhookCheck",
           "connectedBy",
           "connectedAt",
           "syncedAt",
@@ -41062,6 +41087,191 @@
         }
       }
     },
+    "/api/v1/whatsapp/channels/{id}/webhook": {
+      "get": {
+        "tags": ["WhatsApp"],
+        "summary": "SAC-T4: the last check that Meta delivers this number's events to us (whatsapp.read)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "provider": { "type": "string", "enum": ["meta", "pinnacle"] },
+                        "webhookCheck": {
+                          "type": "object",
+                          "properties": {
+                            "status": { "type": "string", "enum": ["ok", "failed", "unknown"] },
+                            "appSubscribed": { "type": ["boolean", "null"] },
+                            "missingFields": { "type": "array", "items": { "type": "string" } },
+                            "checkedAt": { "type": ["string", "null"] },
+                            "fixedAt": { "type": ["string", "null"] },
+                            "error": { "type": ["string", "null"] }
+                          },
+                          "required": [
+                            "status",
+                            "appSubscribed",
+                            "missingFields",
+                            "checkedAt",
+                            "fixedAt",
+                            "error"
+                          ]
+                        }
+                      },
+                      "required": ["provider", "webhookCheck"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/channels/{id}/webhook/fix": {
+      "post": {
+        "tags": ["WhatsApp"],
+        "summary": "SAC-T4: Webhook check / Fix — subscribe our app to the WABA, add missing app webhook fields, check again (whatsapp.manage; 6 / 10 min / number)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "webhookCheck": {
+                          "type": "object",
+                          "properties": {
+                            "status": { "type": "string", "enum": ["ok", "failed", "unknown"] },
+                            "appSubscribed": { "type": ["boolean", "null"] },
+                            "missingFields": { "type": "array", "items": { "type": "string" } },
+                            "checkedAt": { "type": ["string", "null"] },
+                            "fixedAt": { "type": ["string", "null"] },
+                            "error": { "type": ["string", "null"] }
+                          },
+                          "required": [
+                            "status",
+                            "appSubscribed",
+                            "missingFields",
+                            "checkedAt",
+                            "fixedAt",
+                            "error"
+                          ]
+                        },
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "enum": ["app_subscribed", "fields", "fix_app", "fix_fields"]
+                              },
+                              "ok": { "type": "boolean" },
+                              "detail": { "type": ["string", "null"] }
+                            },
+                            "required": ["key", "ok", "detail"]
+                          }
+                        }
+                      },
+                      "required": ["webhookCheck", "steps"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta returned an error (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
     "/api/v1/whatsapp/channels/{id}/sync": {
       "post": {
         "tags": ["WhatsApp"],
@@ -42361,6 +42571,102 @@
           },
           "502": {
             "description": "The partner refused the request or didn't keep our webhook (WA_PROVIDER_ERROR / PINNACLE_WEBHOOK_NOT_SET)"
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp/channels/{id}/webhook/fix": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "SAC-T4: Webhook check / Fix of any account's Meta number (superadmin, audited)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "webhookCheck": {
+                          "type": "object",
+                          "properties": {
+                            "status": { "type": "string", "enum": ["ok", "failed", "unknown"] },
+                            "appSubscribed": { "type": ["boolean", "null"] },
+                            "missingFields": { "type": "array", "items": { "type": "string" } },
+                            "checkedAt": { "type": ["string", "null"] },
+                            "fixedAt": { "type": ["string", "null"] },
+                            "error": { "type": ["string", "null"] }
+                          },
+                          "required": [
+                            "status",
+                            "appSubscribed",
+                            "missingFields",
+                            "checkedAt",
+                            "fixedAt",
+                            "error"
+                          ]
+                        },
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string",
+                                "enum": ["app_subscribed", "fields", "fix_app", "fix_fields"]
+                              },
+                              "ok": { "type": "boolean" },
+                              "detail": { "type": ["string", "null"] }
+                            },
+                            "required": ["key", "ok", "detail"]
+                          }
+                        }
+                      },
+                      "required": ["webhookCheck", "steps"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
           },
           "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
         }

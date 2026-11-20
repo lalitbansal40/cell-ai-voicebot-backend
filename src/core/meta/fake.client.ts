@@ -389,6 +389,9 @@ const notFound = (what: string) =>
  * (API + worker) sees the same fake WABAs. Responses are Meta-shaped JSON parsed by
  * the same schemas as the Graph client.
  */
+/** SAC-T4: the app id the fake reports in `subscribed_apps` (no `META_APP_ID` with the fake). */
+export const FAKE_META_APP_ID = '1000000000000001';
+
 export const createFakeMetaClient = ({
   redis,
   prefix = '',
@@ -912,6 +915,21 @@ export const createFakeMetaClient = ({
 
     setAppSubscriptionFields(fields) {
       appFields = [...fields];
+    },
+
+    async getSubscribedApps(token, wabaId) {
+      track('getSubscribedApps', wabaId);
+      await owned(token, wabaId, 'waba');
+      return (await redis.get(key(`subscribed-${wabaId}`)))
+        ? [{ appId: FAKE_META_APP_ID, name: 'Cell AI (fake)' }]
+        : [];
+    },
+
+    setAppSubscription(input) {
+      return Promise.resolve().then(() => {
+        track('setAppSubscription', null);
+        appFields = [...new Set([...appFields, ...input.fields])];
+      });
     },
 
     async debugToken(token) {

@@ -22,6 +22,7 @@ export {
   buildFakeCode,
   createFakeMetaClient,
   FAKE_CREDIT_LINE_ID,
+  FAKE_META_APP_ID,
   FAKE_EXISTING_PIN,
   FAKE_INBOX_KNOBS,
   FAKE_TEMPLATE_KNOBS,

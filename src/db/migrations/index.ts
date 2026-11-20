@@ -28,6 +28,7 @@ import { voiceApiMigration } from './0025-voice-api';
 import { inboundSipMigration } from './0026-inbound-sip';
 import { callModesMigration } from './0027-call-modes';
 import { pinnacleProviderMigration } from './0028-pinnacle-provider';
+import { waWebhookStatusMigration } from './0029-wa-webhook-status';
 
 /** Ordered migration registry. Add new files here (no fs globbing — keeps builds simple). */
 export const MIGRATIONS: Migration[] = [
@@ -59,4 +60,5 @@ export const MIGRATIONS: Migration[] = [
   inboundSipMigration,
   callModesMigration,
   pinnacleProviderMigration,
+  waWebhookStatusMigration,
 ];

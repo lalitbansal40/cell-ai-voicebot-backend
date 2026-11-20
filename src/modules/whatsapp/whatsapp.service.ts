@@ -18,9 +18,11 @@ import { AccountModel, DEFAULT_ACCOUNT_WHATSAPP } from '../../db/models/account.
 import { MetaWebhookEventModel } from '../../db/models/meta-webhook-event.model';
 import {
   CONNECT_STEPS,
+  defaultWebhookState,
   WA_ACTIVE_STATUSES,
   WhatsAppChannelModel,
   type ConnectStep,
+  type WaWebhookState,
   type MetaPayer,
   type WaMode,
   type WaStatusReason,
@@ -72,6 +74,7 @@ import {
 import { metaApiError, notReady, signupError, signupFailed } from './errors';
 import { PINNACLE_SECRET_HEADER, pinnacleWebhookUrl } from './pinnacle-webhooks.service';
 import { noteProviderError } from './provider-alerts';
+import { checkWebhook, type WebhookStep } from './webhook-check';
 import { resetManagedNumbersCache } from './webhooks.service';
 
 const SECRET_FIELDS = '+tokenSealed +registration.pinSealed +pinnacle.webhookSecretSealed';
@@ -432,6 +435,11 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
             // meta-only: our app's webhook subscription (never for managed numbers)
             await meta.subscribeApp(token, ch.wabaId);
             apply({ subscription: { status: 'subscribed', error: null, at: now } });
+            // SAC-T4: confirm Meta delivers this number's events (messages, calls) to us,
+            // repairing a missing app webhook field at once. A failure never blocks setup:
+            // the number card shows it with a Fix button.
+            const hook = await checkWebhook(ctx, ch, token, { fix: true, now });
+            apply({ webhookCheck: hook.state });
           } catch (err) {
             if (!isMetaApiError(err) || err.tokenInvalid) throw err;
             apply({
@@ -877,7 +885,10 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
       }
       const waba = await clientFor(ctx, ch).getWaba(token, ch.wabaId);
       const phone = await clientFor(ctx, ch).getPhoneNumber(token, ch.phoneNumberId ?? '');
+      // SAC-T4: the daily health pass / Sync checks the webhook (no repair here)
+      const hook = await checkWebhook(ctx, ch, token, { fix: false, now });
       const patch: Partial<WhatsAppChannelDoc> = {
+        webhookCheck: hook.state,
         ...tokenPatch(info, now),
         ...wabaPatch(waba),
         ...phonePatch(phone),
@@ -887,6 +898,15 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
       const synced = async (updated: Promise<WhatsAppChannelDoc>) => {
         const after = await updated;
         await notifyDetailChanges(ctx, channel, after);
+        if (channel.webhookCheck?.status !== 'failed' && hook.state.status === 'failed') {
+          await notifyChannel(
+            ctx,
+            after,
+            'whatsapp.webhook_missing',
+            'WhatsApp events are not reaching us',
+            `${numberName(after)}: messages or calls from WhatsApp may not arrive. Open the number and press Webhook check / Fix.`,
+          );
+        }
         return after;
       };
       if (RESTRICTED_PHONE_STATUSES.has(phone.status ?? '')) {
@@ -1614,7 +1634,90 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     return { channel, token };
   };
 
+  // ── SAC-T4: the Meta webhook of a number ─────────────────────────────────
+  const WEBHOOK_FIX_MAX = 6;
+  const WEBHOOK_FIX_WINDOW_SEC = 600;
+
+  /** `GET /whatsapp/channels/:id/webhook` — the last check (no Meta call). */
+  const webhookStatus = async (accountId: Types.ObjectId, id: string) => {
+    const channel = await load(accountId, id);
+    return {
+      provider: channel.provider ?? 'meta',
+      webhookCheck: channel.webhookCheck ?? defaultWebhookState(),
+    };
+  };
+
+  /**
+   * `POST /whatsapp/channels/:id/webhook/fix` — check, repair what is missing (subscribe our
+   * app to the WABA, add app webhook fields), check again. 6 per 10 minutes per number.
+   */
+  const fixWebhook = async (
+    accountId: Types.ObjectId,
+    id: string,
+    actor: WaActor,
+    options: { byAdmin?: boolean } = {},
+  ): Promise<{ webhookCheck: WaWebhookState; steps: WebhookStep[] }> => {
+    const channel = await load(accountId, id, true);
+    if (isPinnacle(channel)) {
+      throw new ConflictError(
+        'CONFLICT_INVALID_STATE',
+        "A managed number's webhook is set at the partner — use Reset webhook.",
+      );
+    }
+    if (channel.status === 'disconnected') throw notReady('This WhatsApp number is disconnected.');
+    const key = `wa-rl-webhookfix-${id}`;
+    const used = await redis.incr(key);
+    if (used === 1) await redis.expire(key, WEBHOOK_FIX_WINDOW_SEC);
+    if (used > WEBHOOK_FIX_MAX) {
+      const ttl = await redis.ttl(key);
+      throw new AppError(
+        'RATE_LIMITED',
+        'Too many webhook fixes — try again in a few minutes.',
+        undefined,
+        {
+          retryAfterSec: Math.max(ttl, 1),
+        },
+      );
+    }
+    const token = tokenOf(channel);
+    if (!token) {
+      await markNeedsReconnect(ctx, channel, TOKEN_INVALID_REASON, actor);
+      throw notReady('Meta access was removed — reconnect the number.');
+    }
+    let check;
+    try {
+      check = await checkWebhook(ctx, channel, token, { fix: true, now: nowOf(ctx) });
+    } catch (err) {
+      if (isMetaApiError(err) && err.tokenInvalid) {
+        await markNeedsReconnect(ctx, channel, TOKEN_INVALID_REASON, actor);
+        throw notReady('Meta access was removed — reconnect the number.');
+      }
+      throw err;
+    }
+    const updated =
+      (await WhatsAppChannelModel.findOneAndUpdate(
+        { _id: channel._id },
+        { $set: { webhookCheck: check.state } },
+        { returnDocument: 'after' },
+      ).lean<WhatsAppChannelDoc>()) ?? channel;
+    // calling readiness caches the app's `calls` field for an hour — read it again
+    if (check.repaired) await redis.del('wa:readiness:calls-webhook').catch(() => undefined);
+    await auditChannel(
+      updated,
+      check.state.status === 'ok' ? 'whatsapp.webhook_fixed' : 'whatsapp.webhook_fix_failed',
+      actor,
+      {
+        ...(options.byAdmin ? { byAdmin: true } : {}),
+        missingFields: check.state.missingFields,
+        appSubscribed: check.state.appSubscribed,
+      },
+    );
+    return { webhookCheck: check.state, steps: check.steps };
+  };
+
   return {
+    webhookStatus,
+    fixWebhook,
     connect,
     retrySetup,
     submitPin,

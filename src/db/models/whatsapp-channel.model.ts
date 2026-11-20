@@ -72,6 +72,24 @@ export const SUBSCRIPTION_STATUSES = ['subscribed', 'failed'] as const;
 export const CONNECT_STEPS = ['phone', 'details', 'subscribe', 'billing', 'register'] as const;
 export type ConnectStep = (typeof CONNECT_STEPS)[number];
 
+export const WA_WEBHOOK_STATUSES = ['ok', 'failed', 'unknown'] as const;
+export interface WaWebhookState {
+  status: (typeof WA_WEBHOOK_STATUSES)[number];
+  appSubscribed: boolean | null;
+  missingFields: string[];
+  checkedAt: Date | null;
+  fixedAt: Date | null;
+  error: string | null;
+}
+export const defaultWebhookState = (): WaWebhookState => ({
+  status: 'unknown',
+  appSubscribed: null,
+  missingFields: [],
+  checkedAt: null,
+  fixedAt: null,
+  error: null,
+});
+
 export interface WaStatusReason {
   code: string;
   message: string;
@@ -305,6 +323,11 @@ export interface WhatsAppChannelDoc {
     error: string | null;
     at: Date | null;
   };
+  /**
+   * SAC-T4: does Meta deliver this number's events to us? Our app subscribed to the WABA and
+   * the app webhook has the needed fields (`messages`, `calls`). Meta numbers only.
+   */
+  webhookCheck: WaWebhookState;
   metaPayer: MetaPayer;
   creditLine: {
     status: (typeof CREDIT_LINE_STATUSES)[number];
@@ -502,6 +525,14 @@ const schema = new Schema<WhatsAppChannelDoc>({
     status: { type: String, enum: [...SUBSCRIPTION_STATUSES, null], default: null },
     error: nullableString,
     at: { type: Date, default: null },
+  },
+  webhookCheck: {
+    status: { type: String, enum: WA_WEBHOOK_STATUSES, default: 'unknown' },
+    appSubscribed: { type: Boolean, default: null },
+    missingFields: { type: [String], default: [] },
+    checkedAt: { type: Date, default: null },
+    fixedAt: { type: Date, default: null },
+    error: nullableString,
   },
   metaPayer: { type: String, enum: META_PAYERS, required: true },
   creditLine: {

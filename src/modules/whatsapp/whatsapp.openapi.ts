@@ -10,6 +10,7 @@ import {
   WA_CALLING_UNAVAILABLE_REASONS,
   WA_CHANNEL_STATUSES,
   WA_LIMIT_TIERS,
+  WA_WEBHOOK_STATUSES,
   WA_MODES,
   WA_PROVIDERS,
   WA_QUALITY,
@@ -41,6 +42,21 @@ import {
 
 const iso = z.string().nullable();
 const s = z.string().nullable();
+
+/** SAC-T4: does Meta deliver this number's events (messages, calls) to us? */
+export const WebhookCheckSchema = z.object({
+  status: z.enum(WA_WEBHOOK_STATUSES),
+  appSubscribed: z.boolean().nullable(),
+  missingFields: z.array(z.string()),
+  checkedAt: z.string().nullable(),
+  fixedAt: z.string().nullable(),
+  error: z.string().nullable(),
+});
+const WebhookStepSchema = z.object({
+  key: z.enum(['app_subscribed', 'fields', 'fix_app', 'fix_fields']),
+  ok: z.boolean(),
+  detail: z.string().nullable(),
+});
 
 export const WhatsAppChannelSchema = registry.register(
   'WhatsAppChannel',
@@ -101,6 +117,7 @@ export const WhatsAppChannelSchema = registry.register(
     subscription: z.object({ status: z.enum(['subscribed', 'failed']).nullable() }),
     restriction: z.object({ type: z.string(), until: iso }).nullable(),
     webhook: z.object({ lastEventAt: iso, lastField: s }),
+    webhookCheck: WebhookCheckSchema,
     connectedBy: s,
     connectedAt: iso,
     syncedAt: iso,
@@ -236,6 +253,31 @@ registry.registerPath({
   security: bearer,
   request: { params: ChannelParams, ...json(RenameChannelBody) },
   responses: { 200: ok(WhatsAppChannelSchema), ...writes },
+});
+registry.registerPath({
+  method: 'get',
+  path: `${base}/channels/{id}/webhook`,
+  tags,
+  summary: "SAC-T4: the last check that Meta delivers this number's events to us (whatsapp.read)",
+  security: bearer,
+  request: { params: ChannelParams },
+  responses: {
+    200: ok(z.object({ provider: z.enum(['meta', 'pinnacle']), webhookCheck: WebhookCheckSchema })),
+    ...common,
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/channels/{id}/webhook/fix`,
+  tags,
+  summary:
+    'SAC-T4: Webhook check / Fix — subscribe our app to the WABA, add missing app webhook fields, check again (whatsapp.manage; 6 / 10 min / number)',
+  security: bearer,
+  request: { params: ChannelParams },
+  responses: {
+    200: ok(z.object({ webhookCheck: WebhookCheckSchema, steps: z.array(WebhookStepSchema) })),
+    ...writes,
+  },
 });
 for (const [path, summary, body] of [
   ['sync', 'Sync now — token check + Meta details (whatsapp.manage; 1 / min / number)', null],
@@ -616,6 +658,20 @@ registry.registerPath({
     409: errors[409],
     422: errors[422],
     502: partnerFailed,
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/whatsapp/channels/{id}/webhook/fix',
+  tags: adminTags,
+  summary: "SAC-T4: Webhook check / Fix of any account's Meta number (superadmin, audited)",
+  security: bearer,
+  request: { params: ChannelParams },
+  responses: {
+    200: ok(z.object({ webhookCheck: WebhookCheckSchema, steps: z.array(WebhookStepSchema) })),
+    ...admin,
+    404: errors[404],
+    409: errors[409],
   },
 });
 registry.registerPath({

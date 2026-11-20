@@ -156,6 +156,21 @@ export const createWhatsAppRouter = ({
       ok(res, await service.sync(accountOf(req), params.id, actorOf(req)));
     }),
   );
+  // SAC-T4: Webhook check / Fix
+  router.get(
+    '/channels/:id/webhook',
+    requirePermission('whatsapp.read'),
+    ...handle({ params: ChannelParams }, async ({ params, req, res }) => {
+      ok(res, await service.webhookStatus(accountOf(req), params.id));
+    }),
+  );
+  router.post(
+    '/channels/:id/webhook/fix',
+    ...manage,
+    ...handle({ params: ChannelParams }, async ({ params, req, res }) => {
+      ok(res, await service.fixWebhook(accountOf(req), params.id, actorOf(req)));
+    }),
+  );
   router.post(
     '/channels/:id/retry-setup',
     ...manage,
