@@ -105,7 +105,7 @@ export const builtInToolDefinition = (
     case 'schedule_callback':
       return {
         name,
-        description: `Schedule a call back when the customer asks to be called later (within ${b.scheduleCallback.maxDaysAhead} days).`,
+        description: `Schedule a call back when the customer asks to be called later (within ${b.scheduleCallback.maxDaysAhead} days). Confirm the day and the time with the customer first; only after this tool succeeds say that the call is scheduled.`,
         parameters: object(
           {
             date: { type: 'string', description: 'YYYY-MM-DD' },

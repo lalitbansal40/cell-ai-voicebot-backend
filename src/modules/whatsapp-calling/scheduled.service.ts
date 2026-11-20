@@ -1,3 +1,4 @@
+import { TZDate } from '@date-fns/tz';
 import { Types } from 'mongoose';
 
 import { availableMicros } from '../../core/billing/events';
@@ -5,6 +6,8 @@ import { getOrCreateWallet } from '../../core/billing/wallets';
 import { notifyAccount } from '../../core/realtime/notify';
 import { isDuplicateKeyError } from '../../db/errors';
 import { AccountModel } from '../../db/models/account.model';
+import { AiAgentModel } from '../../db/models/ai-agent.model';
+import { CallModel, type CallDoc } from '../../db/models/call.model';
 import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import { ConversationModel, type ConversationDoc } from '../../db/models/conversation.model';
 import {
@@ -639,8 +642,96 @@ export const createScheduledCalls = (deps: ScheduledDeps) => {
     return placed;
   };
 
+  /**
+   * SAC-T9: the AI agent's `schedule_callback` (the customer asked to be called later) becomes
+   * a scheduled AI call with the same program — only when the agent has the tool on. No time
+   * said → 11:00 that day in the account timezone. Every check runs again at that time.
+   */
+  const fromAiCallback = async (summary: CallEndedSummary): Promise<void> => {
+    const cb = summary.outcome.callback as { date?: unknown; time?: unknown } | null | undefined;
+    if (!cb || typeof cb.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(cb.date)) return;
+    const call = await CallModel.findById(summary.callId)
+      .select({
+        accountId: 1,
+        provider: 1,
+        mode: 1,
+        source: 1,
+        contactId: 1,
+        startedBy: 1,
+        whatsapp: 1,
+      })
+      .lean<CallDoc>();
+    const source = call?.source;
+    const programId =
+      source?.kind === 'agent' ? source.agentId : source?.kind === 'flow' ? source.flowId : null;
+    if (
+      !call ||
+      call.provider !== 'whatsapp' ||
+      call.mode !== 'ai' ||
+      !call.contactId ||
+      !call.whatsapp?.channelId ||
+      !source?.kind ||
+      !programId
+    ) {
+      return;
+    }
+    const program = { kind: source.kind, id: programId };
+    if (program.kind === 'agent') {
+      const agent = await AiAgentModel.findOne({ _id: program.id, accountId: call.accountId })
+        .select({ builtInTools: 1 })
+        .lean<{ builtInTools?: { scheduleCallback?: { enabled?: boolean } } }>();
+      if (!agent?.builtInTools?.scheduleCallback?.enabled) return;
+    }
+    const account = await AccountModel.findById(call.accountId)
+      .select({ timezone: 1, ownerId: 1 })
+      .lean<{ timezone?: string; ownerId?: Types.ObjectId | null }>();
+    const tz = account?.timezone ?? 'Asia/Kolkata';
+    const time = typeof cb.time === 'string' && /^\d{2}:\d{2}$/.test(cb.time) ? cb.time : '11:00';
+    const [y, mo, d] = cb.date.split('-').map(Number) as [number, number, number];
+    const [h, mi] = time.split(':').map(Number) as [number, number];
+    let dueAt = new Date(new TZDate(y, mo - 1, d, h, mi, 0, tz).getTime());
+    const earliest = now().getTime() + SCHEDULED_LIMITS.minLeadMs;
+    if (dueAt.getTime() < earliest) dueAt = new Date(earliest + 60_000);
+    const createdBy = call.startedBy ?? account?.ownerId ?? null;
+    if (!createdBy) return;
+    try {
+      await create(
+        { accountId: call.accountId, userId: createdBy },
+        {
+          channelId: call.whatsapp.channelId.toString(),
+          contactId: call.contactId.toString(),
+          conversationId: call.whatsapp.conversationId?.toString() ?? null,
+          program: { kind: program.kind, id: program.id.toString() },
+          purpose: 'Customer ne callback maanga (AI call)',
+          dueAt,
+          origin: 'ai_callback',
+          idempotencyKey: `ai-callback-${summary.callId}`,
+        },
+      );
+    } catch (err) {
+      deps.logger.warn(
+        { err, callId: summary.callId },
+        'scheduled call: the AI callback could not be scheduled',
+      );
+      await notify({
+        accountId: call.accountId,
+        userIds: [createdBy],
+        type: 'whatsapp.scheduled_call_failed',
+        title: 'AI callback not scheduled',
+        body:
+          err instanceof AppError && err.details?.[0]?.message
+            ? `The customer asked for a callback, but it could not be scheduled: ${err.details[0].message}`
+            : 'The customer asked for a callback, but it could not be scheduled.',
+        link: '/calls?tab=scheduled',
+      }).catch(() => undefined);
+    }
+  };
+
   /** The end of a scheduled call's call: done, retry later, or failed. */
   const onCallEnded = async (summary: CallEndedSummary): Promise<void> => {
+    await fromAiCallback(summary).catch((err: unknown) =>
+      deps.logger.warn({ err }, 'scheduled call: AI callback handling failed'),
+    );
     const callId = new Types.ObjectId(summary.callId);
     const d = await WhatsAppScheduledCallModel.findOne({
       callIds: callId,
@@ -704,7 +795,19 @@ export const createScheduledCalls = (deps: ScheduledDeps) => {
     await running;
   };
 
-  return { create, list, get, update, cancel, tick, onCallEnded, start, stop, warningsFor };
+  return {
+    create,
+    list,
+    get,
+    update,
+    cancel,
+    tick,
+    onCallEnded,
+    fromAiCallback,
+    start,
+    stop,
+    warningsFor,
+  };
 };
 
 export type ScheduledCallsService = ReturnType<typeof createScheduledCalls>;
