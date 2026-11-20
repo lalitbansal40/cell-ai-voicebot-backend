@@ -5,6 +5,7 @@ import type { StorageProvider } from '../../core/storage';
 import { AccountExportModel, type AccountExportDoc } from '../../db/models/account-export.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
 import { requireAuth } from '../../shared/auth/auth-context';
+import { isFullAccess } from '../../shared/auth/impersonation';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import { AppError, NotFoundError } from '../../shared/errors/app-error';
 import { auditRequest } from '../audit/audit.service';
@@ -13,8 +14,13 @@ import type { ContactJobs } from '../contacts/jobs';
 
 const LINK_SECONDS = 24 * 60 * 60;
 
-/** Big actions ask for the password again. */
-export const assertPassword = async (req: Request, password: string): Promise<void> => {
+/**
+ * Big actions ask for the password again. SAC: in a superadmin full access session the route's
+ * step-up (the superadmin's own password) stands in for the owner's.
+ */
+export const assertPassword = async (req: Request, password: string | undefined): Promise<void> => {
+  if (isFullAccess(req.auth)) return;
+  if (!password) throw new AppError('REAUTH_FAILED');
   const user = await UserModel.findById(requireAuth(req).userId)
     .select('+passwordHash')
     .lean<UserDoc>();
@@ -34,7 +40,7 @@ const toView = (e: AccountExportDoc) => ({
 
 export const requestAccountExport = async (
   req: Request,
-  body: { password: string; includeRecordings?: boolean | undefined },
+  body: { password?: string | undefined; includeRecordings?: boolean | undefined },
   jobs: ContactJobs,
 ) => {
   await assertPassword(req, body.password);

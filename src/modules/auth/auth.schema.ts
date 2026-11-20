@@ -47,8 +47,9 @@ export const ResetPasswordBody = z.strictObject({
   password: PasswordInputSchema,
 });
 
+/** `currentPassword` may be left out only in superadmin full access (after a step-up). */
 export const ChangePasswordBody = z.strictObject({
-  currentPassword: PasswordInputSchema,
+  currentPassword: PasswordInputSchema.optional(),
   newPassword: PasswordInputSchema,
 });
 

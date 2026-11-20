@@ -318,6 +318,7 @@ export const createCampaign = async (
   const c = await WhatsAppCampaignModel.create({
     accountId,
     createdBy: new Types.ObjectId(actingUserId(auth)),
+    createdByImpersonator: auth.impersonatorId ? new Types.ObjectId(auth.impersonatorId) : null,
     ...toDoc(input),
     headerLocation: input.headerLocation ?? null,
     headerMedia,

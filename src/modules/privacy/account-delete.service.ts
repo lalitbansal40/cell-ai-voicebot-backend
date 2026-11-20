@@ -42,7 +42,7 @@ export const assertNoHold = async (accountId: Types.ObjectId): Promise<void> => 
  */
 export const scheduleAccountDelete = async (
   req: Request,
-  body: { password: string; confirmName: string },
+  body: { password?: string | undefined; confirmName: string },
 ) => {
   await assertPassword(req, body.password);
   const auth = requireAuth(req);

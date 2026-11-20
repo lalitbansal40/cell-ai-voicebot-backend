@@ -11215,7 +11215,7 @@
                     "format": "password"
                   }
                 },
-                "required": ["currentPassword", "newPassword"],
+                "required": ["newPassword"],
                 "additionalProperties": false
               }
             }
@@ -23515,7 +23515,6 @@
                   "password": { "type": "string", "minLength": 1, "maxLength": 200 },
                   "includeRecordings": { "type": "boolean" }
                 },
-                "required": ["password"],
                 "additionalProperties": false
               }
             }
@@ -23649,7 +23648,7 @@
                   "password": { "type": "string", "minLength": 1, "maxLength": 200 },
                   "confirmName": { "type": "string", "minLength": 1, "maxLength": 80 }
                 },
-                "required": ["password", "confirmName"],
+                "required": ["confirmName"],
                 "additionalProperties": false
               }
             }
@@ -34504,7 +34503,7 @@
                     "format": "password"
                   }
                 },
-                "required": ["userId", "password"],
+                "required": ["userId"],
                 "additionalProperties": false
               }
             }

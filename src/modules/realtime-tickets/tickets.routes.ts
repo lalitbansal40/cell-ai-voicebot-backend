@@ -39,6 +39,10 @@ export const createWsTicketsRouter = (): Router => {
           userId: auth.userId ?? '',
           accountId: auth.accountId,
           channel: body.channel,
+          // SAC D6: login-as sockets don't ring unless "Ring me too"
+          ...(auth.impersonatorId && auth.sessionId
+            ? { impersonatorId: auth.impersonatorId, sessionId: auth.sessionId }
+            : {}),
         }),
       );
     }),

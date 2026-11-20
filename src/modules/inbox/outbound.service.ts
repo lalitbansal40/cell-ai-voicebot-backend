@@ -52,12 +52,18 @@ import type { SendMessageInput } from './outbound.schema';
 import { buildPreview } from './preview';
 import { applyReaction } from './reactions';
 
+/** SAC: the superadmin behind a full access send (stored next to `sentBy`). */
+const impersonatorOf = (actor: { impersonatorId?: string | Types.ObjectId | null }) =>
+  actor.impersonatorId ? new Types.ObjectId(actor.impersonatorId.toString()) : null;
+
 /** Statuses a number can send from (Meta decides for restricted ones and the error maps). */
 const SENDABLE = new Set(['connected', 'restricted']);
 
 export interface SendActor {
   accountId: Types.ObjectId;
   userId: Types.ObjectId;
+  /** SAC: a superadmin full access session sending as `userId`. */
+  impersonatorId?: string | Types.ObjectId | null;
 }
 
 const bad = (path: string, message: string) => new ValidationError([{ path, message }]);
@@ -596,6 +602,7 @@ export const sendMessage = async (
         origin: 'agent',
         status: 'sent',
         sentBy: actor.userId,
+        sentByImpersonator: impersonatorOf(actor),
         clientId: input.clientId,
         at: now,
       });
@@ -633,6 +640,7 @@ export const sendMessage = async (
     status: 'queued',
     // our own sends after a call have no person behind them
     sentBy: options.origin === 'system' ? null : actor.userId,
+    sentByImpersonator: options.origin === 'system' ? null : impersonatorOf(actor),
     clientId: input.clientId,
     at: now,
     statusHistory: [{ status: 'queued', at: now }],
@@ -748,6 +756,7 @@ export const retryMessage = async (
       ...(content as unknown as NewMessage),
       status: 'queued',
       sentBy: actor.userId,
+      sentByImpersonator: impersonatorOf(actor),
       retryOf: failed._id,
       clientId,
       at: now,

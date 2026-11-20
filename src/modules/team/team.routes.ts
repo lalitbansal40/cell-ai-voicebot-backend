@@ -8,6 +8,7 @@ import {
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
+import { requireStepUp } from '../auth/login-as-session';
 
 import {
   IdParams,
@@ -83,6 +84,7 @@ export const createTeamRouter = (): Router => {
   router.post(
     '/transfer-ownership',
     blockSensitiveWhenImpersonating(),
+    requireStepUp(),
     ...handle({ body: TransferOwnershipBody }, async ({ body, req, res }) => {
       ok(res, await transferOwnership(req, body));
     }),

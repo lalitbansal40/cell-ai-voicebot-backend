@@ -42,6 +42,9 @@ Every request also passes the global limit of 1,200 a minute per IP. API keys ha
 - `POST /api/v1/campaigns/{id}/resume`
 - `POST /api/v1/campaigns/{id}/cancel`
 - `POST /api/v1/campaigns/{id}/export`
+- `POST /api/v1/auth/login-as/extend`
+- `POST /api/v1/auth/login-as/step-up`
+- `PUT /api/v1/auth/login-as/ring-me-too`
 - `GET /api/v1/auth/mfa/status`
 - `POST /api/v1/auth/mfa/setup`
 - `POST /api/v1/auth/mfa/confirm`

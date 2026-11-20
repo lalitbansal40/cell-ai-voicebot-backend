@@ -9,6 +9,7 @@ import {
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
+import { requireStepUp } from '../auth/login-as-session';
 import type { ContactJobs } from '../contacts/jobs';
 
 import { cancelAccountDelete, scheduleAccountDelete } from './account-delete.service';
@@ -43,9 +44,12 @@ export const createContactEraseRouter = ({
     requirePermission('contacts.erase'),
     blockSensitiveWhenImpersonating(),
   ];
+  // SAC: erasing is permanent — full access confirms with a step-up (reads stay open)
+  const step = requireStepUp();
   router.post(
     '/bulk-erase',
     ...guard,
+    step,
     ...handle({ body: BulkEraseBody }, async ({ body, req, res }) => {
       accepted(res, await startBulkErase(req, body.ids, jobs));
     }),
@@ -60,6 +64,7 @@ export const createContactEraseRouter = ({
   router.post(
     '/:id/erase',
     ...guard,
+    step,
     ...handle({ params: EraseParams, body: EraseContactBody }, async ({ params, req, res }) => {
       if (!storage) throw new ProviderError('PROVIDER_UNAVAILABLE');
       ok(res, await eraseContact(req, params.id, storage));
@@ -82,10 +87,17 @@ export const createAccountPrivacyRouter = ({
   const router = Router();
   const auth = authenticate({ allowSuspended: true });
   const exporting = [auth, requirePermission('account.export'), blockSensitiveWhenImpersonating()];
-  const deleting = [auth, requirePermission('account.delete'), blockSensitiveWhenImpersonating()];
+  const deleting = [
+    auth,
+    requirePermission('account.delete'),
+    blockSensitiveWhenImpersonating(),
+    // SAC D2: full access confirms with a step-up
+    requireStepUp(),
+  ];
   router.post(
     '/export',
     ...exporting,
+    requireStepUp(),
     ...handle({ body: AccountExportBody }, async ({ body, req, res }) => {
       if (!storage) throw new ProviderError('PROVIDER_UNAVAILABLE');
       accepted(res, await requestAccountExport(req, body, jobs));
@@ -97,6 +109,7 @@ export const createAccountPrivacyRouter = ({
   router.get(
     '/exports/:id',
     ...exporting,
+    requireStepUp(),
     ...handle({ params: EraseParams }, async ({ params, req, res }) => {
       if (!storage) throw new ProviderError('PROVIDER_UNAVAILABLE');
       ok(res, await getAccountExport(req, params.id, storage));

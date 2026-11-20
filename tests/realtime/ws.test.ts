@@ -246,6 +246,46 @@ describe('/ws/events delivery', () => {
     expect(colleague.ws.readyState).toBe(WebSocket.OPEN);
   });
 
+  it('SAC: ring events skip login-as sockets unless their session rings too', async () => {
+    const inst = await startInstance();
+    const own = connect((await ticketUrl(inst, ACCOUNT_A, 'owner-1')).url);
+    const { ticket } = await inst.realtime.tickets.issue({
+      accountId: ACCOUNT_A,
+      userId: 'owner-1',
+      channel: 'events',
+      sessionId: 'imp_ring_a',
+      impersonatorId: 'sa-1',
+    });
+    const imp = connect(`${inst.url}/ws/events?ticket=${ticket}`);
+    await Promise.all([opened(own), opened(imp)]);
+    await ready(inst, 2);
+    await inst.realtime.pushToUser(
+      ACCOUNT_A,
+      'owner-1',
+      'whatsapp.call.incoming',
+      { n: 1 },
+      {
+        ringSessions: [],
+      },
+    );
+    await own.next((m) => m.type === 'whatsapp.call.incoming');
+    await inst.realtime.pushToUser(
+      ACCOUNT_A,
+      'owner-1',
+      'whatsapp.call.incoming',
+      { n: 2 },
+      {
+        ringSessions: ['imp_ring_a'],
+      },
+    );
+    await imp.next((m) => m.type === 'whatsapp.call.incoming');
+    // ordinary events still reach every socket of the user
+    await inst.realtime.pushToUser(ACCOUNT_A, 'owner-1', 'user.updated', {});
+    await imp.next((m) => m.type === 'user.updated');
+    const rings = imp.messages.filter((m) => m.type === 'whatsapp.call.incoming');
+    expect(rings.map((m) => (m.data as { n: number }).n)).toEqual([2]);
+  });
+
   it('isolates accounts', async () => {
     const inst = await startInstance();
     const a = connect((await ticketUrl(inst, ACCOUNT_A)).url);

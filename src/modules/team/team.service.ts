@@ -10,6 +10,7 @@ import { RoleModel, type RoleDoc } from '../../db/models/role.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
 import { withTransaction } from '../../db/transaction';
 import { requireAuth } from '../../shared/auth/auth-context';
+import { isFullAccess } from '../../shared/auth/impersonation';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import {
   AppError,
@@ -423,12 +424,19 @@ export const removeMember = async (req: Request, id: string): Promise<void> => {
  */
 export const transferOwnership = async (
   req: Request,
-  body: { userId: string; password: string },
+  body: { userId: string; password?: string | undefined },
 ): Promise<{ ownerId: string }> => {
   const auth = requireAuth(req);
   if (auth.roleKey !== 'owner') throw new ForbiddenError('Only the owner can transfer ownership.');
   const me = await UserModel.findById(auth.userId).lean<UserDoc>();
-  if (!me?.passwordHash || !(await verifyPassword(me.passwordHash, body.password)).ok) {
+  if (!me) throw new UnauthenticatedError('AUTH_INVALID_CREDENTIALS');
+  // SAC: full access proves the superadmin with a step-up instead of the owner's password
+  if (
+    !isFullAccess(auth) &&
+    (!me.passwordHash ||
+      !body.password ||
+      !(await verifyPassword(me.passwordHash, body.password)).ok)
+  ) {
     throw new UnauthenticatedError('AUTH_INVALID_CREDENTIALS');
   }
   const target = await findMember(req, body.userId);

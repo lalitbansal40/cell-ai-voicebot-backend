@@ -126,6 +126,8 @@ export interface WhatsAppCampaignDoc {
   /** Next time the tier allows a batch (`waiting_for_limit`). */
   nextBatchAt: Date | null;
   createdBy: Types.ObjectId;
+  /** SAC: the superadmin (full access) who created it as `createdBy`. */
+  createdByImpersonator: Types.ObjectId | null;
   startedAt: Date | null;
   finishedAt: Date | null;
   createdAt: Date;
@@ -179,6 +181,7 @@ const schema = new Schema<WhatsAppCampaignDoc>(
     },
     nextBatchAt: { type: Date, default: null },
     createdBy: { type: Schema.Types.ObjectId, required: true },
+    createdByImpersonator: { type: Schema.Types.ObjectId, default: null },
     startedAt: { type: Date, default: null },
     finishedAt: { type: Date, default: null },
   },

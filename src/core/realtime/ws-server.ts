@@ -10,6 +10,7 @@ import type { Logger } from '../../shared/logger';
 
 import { createEnvelope, type WsEventEnvelope } from './events';
 import { removePresence, touchPresence } from './presence';
+import { impersonationSocketId } from './ring-sessions';
 import { defaultAuthorizeTopic, parseTopic, type AuthorizeTopic } from './topics';
 import { WsTicketService } from './ws-tickets';
 
@@ -79,7 +80,7 @@ export interface Realtime {
     userId: string,
     type: string,
     data: T,
-    options?: { close?: boolean },
+    options?: { close?: boolean; ringSessions?: string[] },
   ) => Promise<WsEventEnvelope<T>>;
   connectionCount: () => number;
   close: () => Promise<void>;
@@ -90,6 +91,8 @@ interface Client {
   ws: WebSocket;
   accountId: string;
   userId: string;
+  /** SAC: set on a login-as session's socket. */
+  impersonation: { sessionId: string; impersonatorId: string } | null;
   topics: Set<string>;
   /** Last application message (ping / subscribe / …) — drives the idle timeout. */
   lastSeen: number;
@@ -100,7 +103,13 @@ interface Client {
 
 type FanoutTarget =
   | { accountId: string; userId?: undefined }
-  | { accountId: string; userId: string; close?: boolean }
+  | {
+      accountId: string;
+      userId: string;
+      close?: boolean;
+      /** SAC: a ring event — login-as sockets get it only when their session is listed. */
+      ringSessions?: string[];
+    }
   | { topic: string };
 type FanoutMessage = { target: FanoutTarget; event: WsEventEnvelope };
 
@@ -116,6 +125,12 @@ const rawToString = (raw: RawData): string => {
   if (Array.isArray(raw)) return Buffer.concat(raw).toString('utf8');
   return Buffer.from(raw).toString('utf8');
 };
+
+/** Presence lease id of a socket — login-as sockets are marked (SAC D6). */
+const presenceId = (client: Pick<Client, 'id' | 'impersonation'>): string =>
+  client.impersonation
+    ? impersonationSocketId(client.impersonation.sessionId, client.id)
+    : client.id;
 
 const send = (ws: WebSocket, payload: unknown): void => {
   if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
@@ -143,7 +158,7 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
       byAccount.set(client.accountId, set);
     }
     set.add(client);
-    void touchPresence(deps.redis, client.accountId, client.userId, client.id).catch(
+    void touchPresence(deps.redis, client.accountId, client.userId, presenceId(client)).catch(
       () => undefined,
     );
   };
@@ -151,7 +166,7 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
   const unregister = (client: Client): void => {
     const set = byAccount.get(client.accountId);
     set?.delete(client);
-    void removePresence(deps.redis, client.accountId, client.userId, client.id).catch(
+    void removePresence(deps.redis, client.accountId, client.userId, presenceId(client)).catch(
       () => undefined,
     );
     if (set?.size === 0) byAccount.delete(client.accountId);
@@ -161,8 +176,11 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
     if ('accountId' in msg.target) {
       const { userId } = msg.target;
       const close = 'close' in msg.target && msg.target.close === true;
+      const ring = 'ringSessions' in msg.target ? msg.target.ringSessions : undefined;
       for (const client of byAccount.get(msg.target.accountId) ?? []) {
         if (userId !== undefined && client.userId !== userId) continue;
+        if (ring && client.impersonation && !ring.includes(client.impersonation.sessionId))
+          continue;
         send(client.ws, msg.event);
         if (close) client.ws.close(WS_CLOSE.unauthorized, 'session revoked');
       }
@@ -231,7 +249,7 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
       );
       return;
     }
-    const { accountId, userId, channel: ticketChannel } = result.payload;
+    const { accountId, userId, channel: ticketChannel, sessionId, impersonatorId } = result.payload;
     if (ticketChannel !== 'events') {
       ws.close(WS_CLOSE.forbidden, 'wrong ticket channel');
       return;
@@ -248,6 +266,7 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
       ws,
       accountId,
       userId,
+      impersonation: sessionId && impersonatorId ? { sessionId, impersonatorId } : null,
       topics: new Set(),
       lastSeen: Date.now(),
       isAlive: true,
@@ -298,9 +317,13 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
         continue;
       }
       if (client.ws.readyState === WebSocket.OPEN) {
-        void touchPresence(deps.redis, client.accountId, client.userId, client.id, now).catch(
-          () => undefined,
-        );
+        void touchPresence(
+          deps.redis,
+          client.accountId,
+          client.userId,
+          presenceId(client),
+          now,
+        ).catch(() => undefined);
         client.isAlive = false;
         client.ws.ping();
       }
@@ -334,7 +357,16 @@ export const createRealtime = async (deps: RealtimeDeps): Promise<Realtime> => {
     pushToAccount: (accountId, type, data) => publish({ accountId }, type, data),
     pushToTopic: (topic, type, data) => publish({ topic: topic.toLowerCase() }, type, data),
     pushToUser: (accountId, userId, type, data, options = {}) =>
-      publish({ accountId, userId, ...(options.close ? { close: true } : {}) }, type, data),
+      publish(
+        {
+          accountId,
+          userId,
+          ...(options.close ? { close: true } : {}),
+          ...(options.ringSessions ? { ringSessions: options.ringSessions } : {}),
+        },
+        type,
+        data,
+      ),
     connectionCount: () => all().length,
     close: async () => {
       clearInterval(heartbeat);

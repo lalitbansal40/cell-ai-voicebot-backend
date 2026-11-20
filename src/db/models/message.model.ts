@@ -332,6 +332,8 @@ export interface MessageDoc {
   /** Outgoing idempotency key (uuid from the browser). */
   clientId: string | null;
   sentBy: Types.ObjectId | null;
+  /** SAC: the superadmin (full access) who sent it as `sentBy`. */
+  sentByImpersonator: Types.ObjectId | null;
   retryOf: Types.ObjectId | null;
   pricing: MessagePricing | null;
   template: MessageTemplateRef | null;
@@ -577,6 +579,7 @@ const schema = new Schema<MessageDoc>({
   waMessageId: { type: String, default: null, maxlength: 200 },
   clientId: { type: String, default: null, maxlength: 64 },
   sentBy: { type: Schema.Types.ObjectId, default: null },
+  sentByImpersonator: { type: Schema.Types.ObjectId, default: null },
   retryOf: { type: Schema.Types.ObjectId, default: null },
   pricing: {
     type: sub<MessagePricing>({

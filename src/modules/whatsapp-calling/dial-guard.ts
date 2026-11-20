@@ -27,8 +27,8 @@ export interface DialGuardInput {
   contact: ContactDoc | null;
   mode: 'human' | 'ai';
   program: CallProgram | null;
-  /** Impersonators may look, never call. */
-  impersonating: boolean;
+  /** A login-as `view` session may look, never call (SAC: `act` / `full` may call). */
+  viewOnly: boolean;
   /** Meta + our row, fresh (≤ 60 s) — `permissions.statusFor`. */
   permission: () => Promise<PermissionPanel>;
   /** Live calls of this process holding media / the most it takes (`WA_MEDIA_MAX_CALLS`). */
@@ -64,7 +64,7 @@ export const checkDial = async (input: DialGuardInput): Promise<DialGuardResult>
   // 2. the account / caller (permission checks run in the route)
   const account = await accountFacts(channel.accountId);
   if (account.status === 'suspended') return no('AUTH_ACCOUNT_SUSPENDED', 'account_suspended');
-  if (input.impersonating) return no('AUTH_FORBIDDEN', 'impersonating');
+  if (input.viewOnly) return no('AUTH_FORBIDDEN', 'impersonating');
   // 3. the customer + the calling window (TRAI 09:00–21:00 for every live call)
   if (!contact || contact.deletedAt) return no('RESOURCE_NOT_FOUND', 'contact_deleted');
   if (contact.dnd || (await isPhoneOnDnd(channel.accountId, [contact.phoneE164]))) {

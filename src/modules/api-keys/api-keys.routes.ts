@@ -9,6 +9,7 @@ import {
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
+import { requireStepUp } from '../auth/login-as-session';
 
 import {
   ApiKeyIdParams,
@@ -50,6 +51,7 @@ export const createApiKeysRouter = (): Router => {
     authenticate(),
     requirePermission('apikeys.manage'),
     blockSensitiveWhenImpersonating(),
+    requireStepUp(),
     ...handle({ body: CreateApiKeyBody }, async ({ body, req, res }) => {
       res.set('Cache-Control', 'no-store');
       created(res, await createApiKey(req, body));
@@ -60,6 +62,7 @@ export const createApiKeysRouter = (): Router => {
     authenticate(),
     requirePermission('apikeys.manage'),
     blockSensitiveWhenImpersonating(),
+    requireStepUp(),
     ...handle(
       { params: ApiKeyIdParams, body: UpdateApiKeyBody },
       async ({ params, body, req, res }) => {

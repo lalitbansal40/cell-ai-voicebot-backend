@@ -36,6 +36,7 @@ import {
   SignupBody,
   UpdateProfileBody,
 } from './auth.schema';
+import { requireStepUp } from './login-as-session';
 import { updateProfile } from './login.service';
 
 export interface AuthRouterDeps {
@@ -110,9 +111,16 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
     '/change-password',
     authenticate(),
     blockSensitiveWhenImpersonating(),
+    requireStepUp(),
     ...handle({ body: ChangePasswordBody }, changePasswordHandler),
   );
-  router.post('/logout-all', authenticate(), blockSensitiveWhenImpersonating(), logoutAllHandler);
+  router.post(
+    '/logout-all',
+    authenticate(),
+    blockSensitiveWhenImpersonating(),
+    requireStepUp(),
+    logoutAllHandler,
+  );
   router.get('/me', authenticate(), meHandler);
   router.patch(
     '/me',
@@ -126,6 +134,7 @@ export const createAuthRouter = (deps: AuthRouterDeps): Router => {
     '/sessions/:id',
     authenticate(),
     blockSensitiveWhenImpersonating(),
+    requireStepUp(),
     ...handle({ params: SessionIdParams }, revokeSessionHandler),
   );
   return router;

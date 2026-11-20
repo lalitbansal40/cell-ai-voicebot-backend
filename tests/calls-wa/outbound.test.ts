@@ -535,6 +535,29 @@ describe('business-initiated WhatsApp calls', () => {
     expect((await WalletModel.findOne({ accountId: actor.accountId }).lean())?.holdMicros).toBe(0);
   });
 
+  it('SAC: a superadmin full access session places the call as the owner (actedBy), view never', async () => {
+    const superadmin = new Types.ObjectId();
+    const never = await contactFor(customer(FAKE_CALL_KNOBS.neverAnswers));
+    const res = await calls().startOutbound(
+      { ...actor, impersonatorId: superadmin, impersonationMode: 'full' },
+      { channelId: state.channel._id.toString(), contactId: never._id.toString(), mode: 'human' },
+    );
+    const call = await callOf(res.callId);
+    expect(call?.actedBy).toEqual({ userId: actor.userId, impersonatorId: superadmin });
+    await ended(res.callId);
+    const other = await contactFor(customer(FAKE_CALL_KNOBS.rejects));
+    await expect(
+      calls().startOutbound(
+        { ...actor, impersonatorId: superadmin, impersonationMode: 'view' },
+        { channelId: state.channel._id.toString(), contactId: other._id.toString(), mode: 'human' },
+      ),
+    ).rejects.toMatchObject({ code: 'AUTH_FORBIDDEN' });
+    // a plain call has no actedBy
+    const plain = await start(other._id);
+    expect((await callOf(plain.callId))?.actedBy).toBeNull();
+    await ended(plain.callId);
+  });
+
   it('the customer hangs up after 5 s (00027): ended by Meta, 1 pulse charged', async () => {
     const contact = await contactFor(customer(FAKE_CALL_KNOBS.hangsUpAfter5s));
     const res = await start(contact._id, 'ai', { kind: 'agent', id: await agentId() });

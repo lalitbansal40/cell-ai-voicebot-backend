@@ -42,6 +42,7 @@ import { SegmentModel } from '../../db/models/segment.model';
 import { UserModel } from '../../db/models/user.model';
 import { WhatsAppTemplateModel } from '../../db/models/whatsapp-template.model';
 import { requireAuth } from '../../shared/auth/auth-context';
+import { impersonatorOfReq } from '../../shared/auth/impersonation';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import {
   AppError,
@@ -759,6 +760,7 @@ export const createCampaign = async (req: Request, body: z.infer<typeof CreateCa
         status: 'draft',
         stats: emptyCampaignStats(),
         createdBy: by,
+        createdByImpersonator: impersonatorOfReq(req),
         updatedBy: by,
         history: [{ at: new Date(), status: 'draft', pauseReason: null, by }],
       })
@@ -938,6 +940,7 @@ export const duplicateCampaign = async (req: Request, id: string) => {
       status: 'draft',
       stats: emptyCampaignStats(),
       createdBy: by,
+      createdByImpersonator: impersonatorOfReq(req),
       updatedBy: by,
       history: [{ at: new Date(), status: 'draft', pauseReason: null, by }],
     })

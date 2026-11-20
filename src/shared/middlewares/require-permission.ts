@@ -44,20 +44,39 @@ export const requirePlatformAdmin = (): RequestHandler => (req, _res, next) => {
 
 /**
  * Changes refused while **viewing** as a user (login-as `view`). A login-as `act` session
- * (Phase 19) may do them; sensitive ones use `blockSensitiveWhenImpersonating`.
+ * (Phase 19) and a superadmin `full` session (SAC) may do them; sensitive ones use
+ * `blockSensitiveWhenImpersonating`.
  */
 export const blockWhenImpersonating = (): RequestHandler => (req, _res, next) => {
-  if (req.auth?.impersonatorId && req.auth.impersonationMode !== 'act') {
+  if (req.auth?.impersonatorId && (req.auth.impersonationMode ?? 'view') === 'view') {
     throw new AppError('AUTH_IMPERSONATION_BLOCKED');
   }
   next();
 };
 
 /**
- * Phase 19: refused in **every** login-as session (view and act) — the owner's password, MFA
- * and sessions, API keys, ownership, account export / delete / erase, money and billing.
+ * Phase 19: refused in login-as `view` and `act` — the owner's password, MFA and sessions, API
+ * keys, ownership, account export / delete / erase, money and billing. SAC: a superadmin `full`
+ * session passes (danger actions add `requireStepUp()`; top-ups refuse `full` themselves).
  */
 export const blockSensitiveWhenImpersonating = (): RequestHandler => (req, _res, next) => {
-  if (req.auth?.impersonatorId) throw new AppError('AUTH_IMPERSONATION_BLOCKED');
+  if (req.auth?.impersonatorId && req.auth.impersonationMode !== 'full') {
+    throw new AppError('AUTH_IMPERSONATION_BLOCKED');
+  }
+  next();
+};
+
+/**
+ * SAC D4: real money (a Razorpay top-up) never from a login-as session — `view` / `act` as
+ * before, superadmin `full` gets `WALLET_TOPUP_IMPERSONATION` (Admin → Wallet → Adjust instead).
+ */
+export const blockTopupWhenImpersonating = (): RequestHandler => (req, _res, next) => {
+  if (req.auth?.impersonatorId) {
+    throw new AppError(
+      req.auth.impersonationMode === 'full'
+        ? 'WALLET_TOPUP_IMPERSONATION'
+        : 'AUTH_IMPERSONATION_BLOCKED',
+    );
+  }
   next();
 };

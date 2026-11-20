@@ -2,7 +2,7 @@ import type { Redis } from 'ioredis';
 import { Types } from 'mongoose';
 
 import { CALL_LIMITS } from '../../../config/limits';
-import { notifyUser } from '../../../core/realtime/notify';
+import { notifyRing, notifyUser } from '../../../core/realtime/notify';
 import { onlineUsers } from '../../../core/realtime/presence';
 import type { WsTicketService } from '../../../core/realtime/ws-tickets';
 import type { AttachResult, MediaAttachInput } from '../../../core/telephony/media-server';
@@ -329,7 +329,7 @@ export const createInboundSip = (deps: InboundSipDeps) => {
     });
     for (const id of targets) call.rang.add(id);
     for (const userId of targets)
-      notifyUser(call.accountId, userId, 'call.incoming', {
+      notifyRing(call.accountId, userId, 'call.incoming', {
         callId: call.callId,
         kind: 'sip',
         contactId: call.contact?._id.toString() ?? null,

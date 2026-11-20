@@ -33,9 +33,10 @@ export const UpdateMemberBody = z
   })
   .refine((b) => b.roleKey !== undefined || b.status !== undefined, 'Send roleKey and/or status');
 
+/** `password`: the owner's (left out in superadmin full access — a step-up instead). */
 export const TransferOwnershipBody = z.strictObject({
   userId: ObjectIdSchema,
-  password: PasswordInputSchema,
+  password: PasswordInputSchema.optional(),
 });
 
 export const IdParams = z.strictObject({ id: ObjectIdSchema });

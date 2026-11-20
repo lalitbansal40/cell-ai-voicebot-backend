@@ -2,6 +2,7 @@ import type { Request, RequestHandler } from 'express';
 
 import { getEnv } from '../../config/env';
 import { getAppRedis } from '../../core/queues/redis';
+import { clearRingSession, isRingSession, setRingSession } from '../../core/realtime/ring-sessions';
 import { AccountModel, type AccountDoc } from '../../db/models/account.model';
 import { RoleModel, type RoleDoc } from '../../db/models/role.model';
 import { UserModel, type UserDoc } from '../../db/models/user.model';
@@ -38,7 +39,6 @@ const redis = () => getAppRedis(getEnv().REDIS_URL, getLogger());
 
 const stepUpKey = (sessionId: string) => `auth:stepup:${sessionId}`;
 const stepUpFailKey = (impersonatorId: string) => `auth:stepup:fail:${impersonatorId}`;
-const ringMeTooKey = (sessionId: string) => `auth:ringme:${sessionId}`;
 
 /** The caller is a superadmin `full` login-as session (else 403). */
 const requireFull = (req: Request): AuthContext & { impersonatorId: string; sessionId: string } => {
@@ -59,8 +59,8 @@ export const hasStepUp = async (sessionId: string): Promise<boolean> =>
   (await redis().exists(stepUpKey(sessionId))) === 1;
 
 /** Ring this `full` session too (WhatsApp / phone incoming calls of the account). */
-export const isRingMeToo = async (sessionId: string): Promise<boolean> =>
-  (await redis().exists(ringMeTooKey(sessionId))) === 1;
+export const isRingMeToo = (sessionId: string): Promise<boolean> =>
+  isRingSession(redis(), sessionId);
 
 const audit = async (
   auth: AuthContext & { impersonatorId: string },
@@ -117,7 +117,12 @@ export const extendFullLoginAs = async (req: Request, now = new Date()): Promise
   });
   // the ring flag follows the session's new end
   if (await isRingMeToo(auth.sessionId)) {
-    await redis().pexpireat(ringMeTooKey(auth.sessionId), expiresAt.getTime());
+    await setRingSession(redis(), {
+      accountId: auth.accountId,
+      sessionId: auth.sessionId,
+      impersonatorId: auth.impersonatorId,
+      ttlMs: expiresAt.getTime() - now.getTime(),
+    });
   }
   await audit(auth, req, 'auth.login_as_full_extended', { expiresAt: expiresAt.toISOString() });
   return {
@@ -187,12 +192,15 @@ export const stepUpLoginAs = async (
 /** `PUT /auth/login-as/ring-me-too` — on until the session ends, off at once. */
 export const setRingMeToo = async (req: Request, on: boolean): Promise<{ ringMeToo: boolean }> => {
   const auth = requireFull(req);
-  const key = ringMeTooKey(auth.sessionId);
   if (on) {
-    const ttlMs = Math.max(60_000, (auth.tokenExpiresAt?.getTime() ?? Date.now()) - Date.now());
-    await redis().set(key, auth.impersonatorId, 'PX', ttlMs);
+    await setRingSession(redis(), {
+      accountId: auth.accountId,
+      sessionId: auth.sessionId,
+      impersonatorId: auth.impersonatorId,
+      ttlMs: Math.max(60_000, (auth.tokenExpiresAt?.getTime() ?? Date.now()) - Date.now()),
+    });
   } else {
-    await redis().del(key);
+    await clearRingSession(redis(), { accountId: auth.accountId, sessionId: auth.sessionId });
   }
   await audit(auth, req, 'auth.login_as_ring_me_too', { on });
   return { ringMeToo: on };

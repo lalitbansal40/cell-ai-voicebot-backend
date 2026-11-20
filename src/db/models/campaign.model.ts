@@ -318,6 +318,8 @@ export interface CampaignDoc {
   pausedAt: Date | null;
   startedBy: Types.ObjectId | null;
   createdBy: Types.ObjectId | null;
+  /** SAC: the superadmin (full access) who created it as `createdBy`. */
+  createdByImpersonator: Types.ObjectId | null;
   updatedBy: Types.ObjectId | null;
   revision: number;
   error: { code: string } | null;
@@ -445,6 +447,7 @@ const schema = new Schema<CampaignDoc>(
     pausedAt: { type: Date, default: null },
     startedBy: { type: Schema.Types.ObjectId, default: null },
     createdBy: { type: Schema.Types.ObjectId, default: null },
+    createdByImpersonator: { type: Schema.Types.ObjectId, default: null },
     updatedBy: { type: Schema.Types.ObjectId, default: null },
     revision: { type: Number, default: 1, min: 1 },
     error: { type: Schema.Types.Mixed, default: null },

@@ -7,7 +7,7 @@ import {
   type MetaCallEvent,
   type MetaCallsValue,
 } from '../../core/meta';
-import { notifyAccount, notifyUser } from '../../core/realtime/notify';
+import { notifyAccount, notifyRing, notifyUser } from '../../core/realtime/notify';
 import { onlineUsers } from '../../core/realtime/presence';
 import type { WsTicketService } from '../../core/realtime/ws-tickets';
 import type { StorageProvider } from '../../core/storage';
@@ -104,6 +104,8 @@ export interface CallActor extends AuditActorInput {
   accountId: Types.ObjectId;
   userId: Types.ObjectId;
   impersonatorId?: Types.ObjectId | null;
+  /** SAC: the login-as mode when `impersonatorId` is set (absent = view). */
+  impersonationMode?: 'view' | 'act' | 'full' | null;
   ip?: string | null;
 }
 
@@ -624,7 +626,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       contact,
       mode: input.mode,
       program,
-      impersonating: Boolean(actor.impersonatorId),
+      viewOnly: Boolean(actor.impersonatorId) && (actor.impersonationMode ?? 'view') === 'view',
       permission: () => deps.permissions.statusFor(actor.accountId, channel._id, input.contactId),
       capacity: capacity(),
       liveCalls: async () => (await deps.registry.liveCalls(actor.accountId.toString())).length,
@@ -689,6 +691,10 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         : {}),
       contactId: contact._id,
       startedBy: actor.userId,
+      // SAC D5: a superadmin full access session places the call as the owner
+      actedBy: actor.impersonatorId
+        ? { userId: actor.userId, impersonatorId: actor.impersonatorId }
+        : null,
       agentUserId: input.mode === 'human' ? actor.userId : null,
       timestamps: { queuedAt: now },
       whatsapp: {
@@ -1032,7 +1038,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       { $set: { 'whatsapp.ringUserIds': targets.map((id) => new Types.ObjectId(id)) } },
     );
     for (const userId of targets)
-      notifyUser(call.accountId, userId, 'whatsapp.call.incoming', {
+      notifyRing(call.accountId, userId, 'whatsapp.call.incoming', {
         callId: call.callId,
         conversationId: call.conversationId.toString(),
         contactId: call.contactId.toString(),

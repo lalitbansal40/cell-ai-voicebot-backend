@@ -265,6 +265,8 @@ export interface CallDoc {
   campaignContactId: Types.ObjectId | null;
   attempt: number | null;
   startedBy: Types.ObjectId | null;
+  /** SAC: a superadmin full access session started / answered this call as the owner. */
+  actedBy: { userId: Types.ObjectId; impersonatorId: Types.ObjectId } | null;
   status: CallStatus;
   endReason: CallEndReason | null;
   hangupCause: string | null;
@@ -417,6 +419,16 @@ const schema = new Schema<CallDoc>(
     campaignContactId: { type: Schema.Types.ObjectId, default: null },
     attempt: { type: Number, default: null, min: 1 },
     startedBy: { type: Schema.Types.ObjectId, default: null },
+    actedBy: {
+      type: new Schema(
+        {
+          userId: { type: Schema.Types.ObjectId, required: true },
+          impersonatorId: { type: Schema.Types.ObjectId, required: true },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     status: { type: String, enum: CALL_STATUSES, default: 'queued', required: true },
     endReason: { type: String, enum: [...CALL_END_REASONS, null], default: null },
     hangupCause: { type: String, default: null },

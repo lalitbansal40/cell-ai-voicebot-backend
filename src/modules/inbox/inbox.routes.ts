@@ -249,7 +249,8 @@ export const createInboxRouter = (deps: InboxRouterDeps): Router => {
       await markConversationRead(ix(), {
         ...actorOf(req),
         conversationId: params.id,
-        impersonating: Boolean(auth.impersonatorId),
+        // SAC D7: full access works for the customer, so the read receipt goes out
+        impersonating: Boolean(auth.impersonatorId) && auth.impersonationMode !== 'full',
       });
       noContent(res);
     }),

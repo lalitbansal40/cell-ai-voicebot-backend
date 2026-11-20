@@ -29,6 +29,7 @@ export type NewMessage = NormalizedContent &
       | 'waMessageId'
       | 'clientId'
       | 'sentBy'
+      | 'sentByImpersonator'
       | 'retryOf'
       | 'metaTimestamp'
       | 'statusHistory'

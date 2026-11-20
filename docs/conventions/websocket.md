@@ -22,6 +22,8 @@ JWTs are **never** put in a WebSocket URL (URLs end up in proxy/server logs).
 3. Client connects: `wss://<host>/ws/events?ticket=wst_…`.
 4. Server consumes the ticket (deletes it); invalid/expired → close `4001` / `4010`.
 
+**Login-as sockets (SAC):** a ticket issued with a login-as token carries `sessionId` and `impersonatorId`. Such a socket gets every event of the user except incoming-call rings (`whatsapp.call.incoming`, `call.incoming`), and makes nobody "online" for ringing — unless that superadmin Full access session switched on **Ring me too** (`PUT /api/v1/auth/login-as/ring-me-too`). Presence members of these sockets are `<userId>:imp:<sessionId>:<socketId>`.
+
 ## 3. Server → client envelope
 
 ```json

@@ -13,12 +13,13 @@ export const BulkEraseBody = z.strictObject({
   confirm: Confirm,
 });
 
+/** `password`: the owner's, again (left out in superadmin full access — a step-up instead). */
 export const AccountExportBody = z.strictObject({
-  password: z.string().min(1).max(200),
+  password: z.string().min(1).max(200).optional(),
   includeRecordings: z.boolean().optional(),
 });
 export const AccountDeleteBody = z.strictObject({
-  password: z.string().min(1).max(200),
+  password: z.string().min(1).max(200).optional(),
   confirmName: z.string().trim().min(1).max(80),
 });
 

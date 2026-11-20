@@ -48,6 +48,7 @@ const actor = (req: Request) => {
     userId,
     accountId: new Types.ObjectId(auth.accountId),
     impersonatorId: auth.impersonatorId ? new Types.ObjectId(auth.impersonatorId) : null,
+    impersonationMode: auth.impersonatorId ? (auth.impersonationMode ?? 'view') : null,
     ip: req.ip ?? null,
   };
 };
