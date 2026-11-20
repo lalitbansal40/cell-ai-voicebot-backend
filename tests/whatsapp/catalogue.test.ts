@@ -85,6 +85,8 @@ describe('Phase 9 catalogue', () => {
       // SAC-T4: Webhook check / Fix
       'whatsapp.webhook_fixed',
       'whatsapp.webhook_fix_failed',
+      // SAC-T6: the account default for incoming calls
+      'whatsapp.incoming_default_updated',
     ]);
   });
 

@@ -1335,7 +1335,9 @@
               "auth.login_as_step_up_failed",
               "auth.login_as_ring_me_too",
               "whatsapp.webhook_fixed",
-              "whatsapp.webhook_fix_failed"
+              "whatsapp.webhook_fix_failed",
+              "whatsapp.incoming_default_updated",
+              "whatsapp.ai_calls_stopped"
             ]
           },
           "actor": {
@@ -40806,6 +40808,201 @@
             }
           },
           "503": { "description": "WhatsApp calling or media capacity unavailable" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/incoming-default": {
+      "get": {
+        "tags": ["WhatsApp calling"],
+        "summary": "Who answers incoming WhatsApp calls on numbers connected from now on (calls.read)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "route": {
+                          "type": "string",
+                          "enum": ["team", "ai", "ai_then_team", "team_then_ai"]
+                        },
+                        "aiProgram": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["flow", "agent"] },
+                            "id": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                          },
+                          "required": ["kind", "id"]
+                        },
+                        "ringTimeoutSec": { "type": "integer", "minimum": 10, "maximum": 30 }
+                      },
+                      "required": ["route", "aiProgram", "ringTimeoutSec"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["WhatsApp calling"],
+        "summary": "Set the default — AI answers (ai / ai_then_team / team_then_ai, needs a program, call audio and wallet money) or the team (whatsapp.calling.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "route": {
+                    "type": "string",
+                    "enum": ["team", "ai", "ai_then_team", "team_then_ai"]
+                  },
+                  "aiProgram": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "kind": { "type": "string", "enum": ["flow", "agent"] },
+                      "id": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                    },
+                    "required": ["kind", "id"]
+                  },
+                  "ringTimeoutSec": { "type": "integer", "minimum": 10, "maximum": 30 }
+                },
+                "required": ["route", "aiProgram", "ringTimeoutSec"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "route": {
+                          "type": "string",
+                          "enum": ["team", "ai", "ai_then_team", "team_then_ai"]
+                        },
+                        "aiProgram": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "kind": { "type": "string", "enum": ["flow", "agent"] },
+                            "id": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" }
+                          },
+                          "required": ["kind", "id"]
+                        },
+                        "ringTimeoutSec": { "type": "integer", "minimum": 10, "maximum": 30 }
+                      },
+                      "required": ["route", "aiProgram", "ringTimeoutSec"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/channels/{id}/calling/stop-ai-calls": {
+      "post": {
+        "tags": ["WhatsApp calling"],
+        "summary": "End every live AI call on this number politely (calls with a person stay)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "schema": { "type": "string" }, "required": true, "name": "id", "in": "path" }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": { "stopped": { "type": "integer" } },
+                      "required": ["stopped"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
         }
       }
     },

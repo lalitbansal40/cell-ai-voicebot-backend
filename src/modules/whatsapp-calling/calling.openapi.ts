@@ -18,7 +18,7 @@ import {
   CallHoldBody,
   CallTransferBody,
 } from './calling-api.schema';
-import { CallAvailabilityBody, CallingSettingsPatch } from './calling.schema';
+import { CallAvailabilityBody, CallingSettingsPatch, IncomingDefaultBody } from './calling.schema';
 import { READINESS_KEYS } from './readiness';
 
 const tags = ['WhatsApp calling'];
@@ -233,4 +233,44 @@ registry.registerPath({
   summary: 'Set your availability for incoming calls (calls.answer)',
   request: { body: body(CallAvailabilityBody) },
   responses: { 200: ok(CallAvailabilityBody), ...failures },
+});
+
+// SAC-T6: incoming calls — the account default and "Stop live AI calls"
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/whatsapp/incoming-default',
+  tags,
+  summary: 'Who answers incoming WhatsApp calls on numbers connected from now on (calls.read)',
+  security: bearer,
+  responses: { 200: ok(IncomingDefaultBody), 401: errors[401], 403: errors[403] },
+});
+registry.registerPath({
+  method: 'put',
+  path: '/api/v1/whatsapp/incoming-default',
+  tags,
+  summary:
+    'Set the default — AI answers (ai / ai_then_team / team_then_ai, needs a program, call audio and wallet money) or the team (whatsapp.calling.manage)',
+  security: bearer,
+  request: { body: { content: { 'application/json': { schema: IncomingDefaultBody } } } },
+  responses: {
+    200: ok(IncomingDefaultBody),
+    401: errors[401],
+    403: errors[403],
+    422: errors[422],
+    429: errors[429],
+  },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/whatsapp/channels/{id}/calling/stop-ai-calls',
+  tags,
+  summary: 'End every live AI call on this number politely (calls with a person stay)',
+  security: bearer,
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    200: ok(z.object({ stopped: z.number().int() })),
+    401: errors[401],
+    403: errors[403],
+    404: errors[404],
+  },
 });

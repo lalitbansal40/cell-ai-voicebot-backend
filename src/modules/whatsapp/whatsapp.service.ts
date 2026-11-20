@@ -18,6 +18,7 @@ import { AccountModel, DEFAULT_ACCOUNT_WHATSAPP } from '../../db/models/account.
 import { MetaWebhookEventModel } from '../../db/models/meta-webhook-event.model';
 import {
   CONNECT_STEPS,
+  defaultCalling,
   defaultWebhookState,
   WA_ACTIVE_STATUSES,
   WhatsAppChannelModel,
@@ -35,6 +36,7 @@ import {
   ValidationError,
 } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
+import { inboundForNewChannel } from '../whatsapp-calling/incoming-default';
 
 import { setupBilling } from './billing-setup';
 import {
@@ -245,6 +247,17 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     if (ok === 'OK') return;
     const ttl = await redis.ttl(key);
     throw new AppError('RATE_LIMITED', message, undefined, { retryAfterSec: Math.max(ttl, 1) });
+  };
+
+  /** SAC-T6: copies the account's incoming-call default onto a new number. */
+  const withAccountIncoming = async (channel: WhatsAppChannelDoc): Promise<WhatsAppChannelDoc> => {
+    const inbound = await inboundForNewChannel(channel.accountId);
+    if (inbound.route === 'team' && !inbound.aiProgram) return channel;
+    await WhatsAppChannelModel.updateOne(
+      { _id: channel._id },
+      { $set: { 'calling.inbound': inbound } },
+    );
+    return { ...channel, calling: { ...(channel.calling ?? defaultCalling()), inbound } };
   };
 
   // ── loading ───────────────────────────────────────────────────────────────
@@ -698,6 +711,8 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
             history: [{ status: 'connecting', reason: null, at: now, by: input.actor.id }],
           });
           channel = created.toObject({ transform: false });
+          // SAC-T6: a new number answers incoming calls like the account default
+          channel = await withAccountIncoming(channel);
           emitChannelUpdated(channel);
         } catch (err) {
           if (!isDuplicateKeyError(err) || !picked) throw err;
@@ -1379,6 +1394,8 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
           history: [{ status: 'connecting', reason: null, at: now, by: input.actor.id }],
         });
         channel = created.toObject({ transform: false });
+        // SAC-T6: a new number answers incoming calls like the account default
+        channel = await withAccountIncoming(channel);
       } catch (err) {
         if (isDuplicateKeyError(err)) throw new AppError('WHATSAPP_NUMBER_IN_USE');
         throw err;

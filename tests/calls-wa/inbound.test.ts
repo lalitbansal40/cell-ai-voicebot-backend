@@ -279,11 +279,27 @@ describe('user-initiated WhatsApp calls', () => {
       { accountId: state.acc.account._id },
       { $set: { balanceMicros: 0, creditLimitMicros: 0 } },
     );
+    // SAC D15: the AI can't take it (no money) — the team is rung instead
     const poor = await incoming();
-    expect((await ended(poor.id)).endReason).toBe('wallet_empty');
+    await waitRing(poor.id);
+    expect((await query(poor.id))?.mode).toBe('human');
+    await command(poor.id, 'decline');
+    await command(poor.id, 'decline', users.manager.user._id.toString());
+    expect((await ended(poor.id)).endReason).toBe('no_agent_available');
     expect(
       (await WalletModel.findOne({ accountId: state.acc.account._id }).lean())?.holdMicros,
     ).toBe(0);
+    // a missed WhatsApp call is a callback task on Calls → Missed
+    await vi.waitFor(async () =>
+      expect((await query(poor.id))?.missed).toEqual({
+        reason: 'no_agents',
+        callback: { status: 'open', doneBy: null, doneAt: null },
+      }),
+    );
+    // closed hours: missed with its reason
+    await vi.waitFor(async () =>
+      expect((await query(closed.id))?.missed?.reason).toBe('after_hours'),
+    );
   });
 
   it('executes the selected published incoming flow and persists its real flow outcome', async () => {

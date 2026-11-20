@@ -37,9 +37,9 @@ import { clientFor, nowOf, phoneLast4, type WhatsAppContext } from '../whatsapp/
 import { callingUnavailableReason } from './availability';
 import type { CallingSettingsPatchInput } from './calling.schema';
 import { isPartnerCallingUnsupported, withCallErrors } from './errors';
+import { aiRouteProblems } from './incoming-default';
 import { callingView, type CallingView } from './json';
 import { CALLING_NOTIFICATIONS } from './notification-types';
-import { programProblems } from './program';
 import { blockingProblem, createCallingReadiness } from './readiness';
 
 /**
@@ -229,7 +229,21 @@ export const createCallingSettings = (deps: CallingDeps) => {
     const routeChanges =
       patch.inbound?.route !== undefined || patch.inbound?.aiProgram !== undefined;
     if (routeChanges && route !== 'team') {
-      problems.push(...(await programProblems(channel.accountId, program, 'inbound.aiProgram')));
+      // SAC D14: the program, call audio on this server, money in the wallet, calling on
+      problems.push(
+        ...(await aiRouteProblems(
+          ctx.env,
+          channel.accountId,
+          program ? { kind: program.kind, id: program.id.toString() } : null,
+          'inbound.aiProgram',
+        )),
+      );
+      if ((patch.status ?? calling.status) !== 'enabled') {
+        problems.push({
+          path: 'calling.status',
+          message: 'Turn on WhatsApp calling for this number first.',
+        });
+      }
     }
     const ring = patch.inbound?.ringUserIds;
     if (ring) {

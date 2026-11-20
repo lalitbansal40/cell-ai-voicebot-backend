@@ -235,6 +235,9 @@ export const AUDIT_ACTIONS = [
   // SAC-T4: the Meta webhook of a number (Webhook check / Fix)
   'whatsapp.webhook_fixed',
   'whatsapp.webhook_fix_failed',
+  // SAC-T6: incoming WhatsApp calls — the account default, stop live AI calls
+  'whatsapp.incoming_default_updated',
+  'whatsapp.ai_calls_stopped',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -27,6 +27,8 @@ export interface CallingRuntime {
   calls: WhatsAppCallsService | null;
   /** For `HandlerContext.calling` (the WhatsApp worker). */
   hooks: CallingHooks;
+  /** SAC-T6: install settings the incoming-call default checks (call audio). */
+  env: WhatsAppContext['env'];
 }
 
 export const createCallingRuntime = (deps: {
@@ -59,5 +61,5 @@ export const createCallingRuntime = (deps: {
     ...(calls ? { calls: (channel, value, event) => calls.onWebhook(channel, value, event) } : {}),
   });
   const bulk = createBulkPermissions({ permissions, ...(deps.jobs ? { jobs: deps.jobs } : {}) });
-  return { settings, permissions, bulk, calls, hooks };
+  return { settings, permissions, bulk, calls, hooks, env: deps.ctx.env };
 };

@@ -42,6 +42,16 @@ export const CallHoursBody = z.object({
 
 export const ProgramBody = z.object({ kind: z.enum(['flow', 'agent']), id: ObjectIdSchema });
 
+/**
+ * SAC-T6: `PUT /whatsapp/incoming-default` — who answers incoming calls on numbers connected
+ * from now on. `route` ≠ `team` needs `aiProgram`.
+ */
+export const IncomingDefaultBody = z.strictObject({
+  route: z.enum(INBOUND_ROUTES),
+  aiProgram: ProgramBody.nullable(),
+  ringTimeoutSec: z.number().int().min(10).max(WHATSAPP_CALL_LIMITS.uicRingTimeoutSec),
+});
+
 /** `PATCH /whatsapp/channels/:id/calling` — every field optional, at least one. */
 export const CallingSettingsPatch = z
   .object({

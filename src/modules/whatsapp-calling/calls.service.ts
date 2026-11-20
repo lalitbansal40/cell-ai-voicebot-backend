@@ -28,9 +28,11 @@ import {
 } from '../../db/models/account.model';
 import {
   CallModel,
+  LIVE_CALL_STATUSES,
   type CallDoc,
   type CallEndReason,
   type CallSource,
+  type MissedReason,
 } from '../../db/models/call.model';
 import { ContactModel, type ContactDoc } from '../../db/models/contact.model';
 import { ConversationModel, type ConversationDoc } from '../../db/models/conversation.model';
@@ -164,6 +166,15 @@ export const NO_AGENT_LINE =
 
 /** Wallet empty on a human call: the agent gets 30 s, then the call ends (plan §1i). */
 const HUMAN_WALLET_GRACE_MS = 30_000;
+
+/** SAC D15: why an incoming WhatsApp call was missed (the Calls → Missed reasons). */
+export const missedReasonOf = (reason: CallEndReason): MissedReason => {
+  if (reason === 'wallet_empty') return 'wallet_low';
+  if (reason === 'outside_call_hours') return 'after_hours';
+  if (reason === 'no_agent_available') return 'no_agents';
+  if (reason === 'customer_hangup') return 'caller_hung_up';
+  return 'no_answer';
+};
 
 export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
   const { ctx } = deps;
@@ -366,6 +377,20 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     const answered = call.answered;
     await bubble(call, s, answered);
     if (call.direction === 'in' && !answered) {
+      // SAC D15: a missed WhatsApp call is a callback task on Calls → Missed (like phone calls)
+      await CallModel.updateOne(
+        { _id: call.callId, missed: null },
+        {
+          $set: {
+            missed: {
+              reason: missedReasonOf(s.endReason),
+              callback: { status: 'open', doneBy: null, doneAt: null },
+            },
+          },
+        },
+      ).catch((err: unknown) =>
+        deps.logger.warn({ err, callId: call.callId }, 'whatsapp call: missed save failed'),
+      );
       const row = await CallModel.findById(call.callId)
         .select({ 'whatsapp.ringUserIds': 1 })
         .lean<CallDoc>();
@@ -1341,17 +1366,40 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
           ? 'outside_call_hours'
           : null;
     let teamThenAi: TeamThenAiScript | null = null;
+    let aiUnavailable = false;
     let choice: ScriptChoice = {
       script: call.bridge ?? new BridgeScript(),
       voice: 'coral',
       language: 'hinglish',
     };
     try {
-      if (!refusal) await billing.hold();
-      if (!refusal && mode === 'ai') {
-        choice = await deps.scriptFor(doc);
-        call.handoff = new HandoffScript(choice.script);
-        choice = { ...choice, script: call.handoff };
+      if (!refusal) {
+        try {
+          await billing.hold();
+          if (mode === 'ai') {
+            choice = await deps.scriptFor(doc);
+            call.handoff = new HandoffScript(choice.script);
+            choice = { ...choice, script: call.handoff };
+          }
+        } catch (err) {
+          // SAC D15: the AI can't take it (wallet, program, engine) — the team is rung instead
+          if (mode !== 'ai') throw err;
+          deps.logger.warn(
+            { callId: call.callId, errCode: err instanceof AppError ? err.code : 'error' },
+            'whatsapp call: AI unavailable, ringing the team',
+          );
+          await billing.release('ai_unavailable').catch(() => undefined);
+          call.mode = 'human';
+          call.programKind = null;
+          call.handoff = null;
+          call.bridge = new BridgeScript();
+          choice = { script: call.bridge, voice: 'coral', language: 'hinglish' };
+          aiUnavailable = true;
+          await CallModel.updateOne(
+            { _id: call.callId },
+            { $set: { mode: 'human', source: sourceOf('human', null) } },
+          );
+        }
       }
       if (!refusal && aiFallback && calling.inbound.aiProgram && call.bridge) {
         // prepared now: when nobody takes the call, the AI answers at once
@@ -1423,7 +1471,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         throw err;
       }
       if (call.terminated || call.session.ended) return;
-      if (mode === 'ai') await acceptInbound(call);
+      if (mode === 'ai' && !aiUnavailable) await acceptInbound(call);
       else
         void ringTeam(call, false)
           .then(async (connected) => {
@@ -1619,6 +1667,23 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     onCallEnded: (listener: (summary: CallEndedSummary) => Promise<void>) => {
       endedListeners.add(listener);
       return () => endedListeners.delete(listener);
+    },
+    /**
+     * SAC-T6: "Stop live AI calls" of a number — every AI call on it ends politely (wherever it
+     * runs). Calls with a person stay. Returns how many were asked to end.
+     */
+    stopAiCalls: async (accountId: Types.ObjectId, channelId: Types.ObjectId): Promise<number> => {
+      const rows = await CallModel.find({
+        accountId,
+        provider: PROVIDER,
+        'whatsapp.channelId': channelId,
+        mode: 'ai',
+        status: { $in: LIVE_CALL_STATUSES },
+      })
+        .select({ _id: 1 })
+        .lean<{ _id: Types.ObjectId }[]>();
+      await Promise.all(rows.map((row) => deps.bus.hangup(row._id.toString(), 'normal')));
+      return rows.length;
     },
     hangupCampaign: async (campaignId: string) => {
       const rows = await CallModel.find({ campaignId, _id: { $in: [...live.keys()] } })

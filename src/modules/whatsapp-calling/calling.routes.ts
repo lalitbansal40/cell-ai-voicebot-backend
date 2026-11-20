@@ -16,6 +16,7 @@ import {
   requirePermission,
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
+import { recordAudit } from '../audit/audit.service';
 import { findCall, viewOne } from '../calls/calls.service';
 
 import type { CallCommand } from './bus';
@@ -30,7 +31,8 @@ import {
   PermissionRequestBody,
   StartWhatsAppCallBody,
 } from './calling-api.schema';
-import { CallAvailabilityBody, CallingSettingsPatch } from './calling.schema';
+import { CallAvailabilityBody, CallingSettingsPatch, IncomingDefaultBody } from './calling.schema';
+import { getIncomingDefault, setIncomingDefault } from './incoming-default';
 import { callPricePreview } from './price.service';
 import type { CallingRuntime } from './runtime';
 
@@ -74,6 +76,7 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
   // mounted at /api/v1 next to other routers: authenticate only our own paths
   router.use(
     [
+      '/whatsapp/incoming-default',
       '/whatsapp/channels/:id/calling',
       '/whatsapp/call-permissions',
       '/whatsapp/calls',
@@ -131,6 +134,47 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
         ok(res, await runtime.settings.updateCalling(who, who.accountId, params.id, body));
       },
     ),
+  );
+  // SAC-T6: the account default for incoming calls ("AI se incoming calls uthao")
+  router.get('/whatsapp/incoming-default', read, async (req, res) => {
+    ok(res, await getIncomingDefault(actor(req).accountId));
+  });
+  router.put(
+    '/whatsapp/incoming-default',
+    ...manage,
+    settingsLimit,
+    ...handle({ body: IncomingDefaultBody }, async ({ req, res, body }) => {
+      const who = actor(req);
+      ok(
+        res,
+        await setIncomingDefault(runtime.env, who.accountId, body, {
+          type: 'user',
+          id: who.userId,
+          impersonatorId: who.impersonatorId,
+          ip: who.ip,
+        }),
+      );
+    }),
+  );
+  // SAC-T6: end every live AI call on the number (calls with a person stay)
+  router.post(
+    '/whatsapp/channels/:id/calling/stop-ai-calls',
+    ...manage,
+    ...handle({ params: CallingParams }, async ({ req, res, params }) => {
+      const who = actor(req);
+      if (!runtime.calls) throw new AppError('PROVIDER_UNAVAILABLE', 'Calls do not run here.');
+      const channel = await runtime.settings.getCalling(who.accountId, params.id);
+      const stopped = await runtime.calls.stopAiCalls(who.accountId, new Types.ObjectId(params.id));
+      await recordAudit({
+        accountId: who.accountId,
+        actor: { type: 'user', id: who.userId, impersonatorId: who.impersonatorId },
+        action: 'whatsapp.ai_calls_stopped',
+        target: { type: 'whatsapp_channel', id: params.id },
+        meta: { stopped, status: channel.status },
+        ip: who.ip,
+      });
+      ok(res, { stopped });
+    }),
   );
   router.post(
     '/whatsapp/channels/:id/calling/sync',

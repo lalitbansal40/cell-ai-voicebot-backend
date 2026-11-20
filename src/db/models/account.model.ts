@@ -124,6 +124,11 @@ export interface AccountSettings {
   templates?: AccountTemplateSettings;
   /** Phase 12 — absent on accounts created before migration 0013. */
   whatsappCalling?: AccountWhatsAppCallingSettings;
+  /**
+   * SAC-T6: who answers incoming WhatsApp calls on a number connected from now on (the
+   * account default; each number keeps its own copy, editable on its Calling page).
+   */
+  waIncoming?: AccountWaIncoming;
   /** Phase 14 — absent on accounts created before migration 0016. */
   insights?: AccountInsightsSettings;
   dispositions?: AccountDisposition[];
@@ -371,6 +376,19 @@ export const DEFAULT_ACCOUNT_WHATSAPP_BILLING: AccountWhatsAppBilling = {
   platformFeeMicros: null,
 };
 
+/** SAC-T6: the account's default for incoming WhatsApp calls (`team` = nobody's AI). */
+export interface AccountWaIncoming {
+  route: 'team' | 'ai' | 'ai_then_team' | 'team_then_ai';
+  aiProgram: { kind: 'flow' | 'agent'; id: Types.ObjectId } | null;
+  ringTimeoutSec: number;
+}
+
+export const DEFAULT_WA_INCOMING: AccountWaIncoming = {
+  route: 'team',
+  aiProgram: null,
+  ringTimeoutSec: 30,
+};
+
 /** WhatsApp call settings of the account (Phase 12, owner defaults §7 #6 / #10 / #14). */
 export interface AccountWhatsAppCallingSettings {
   /** Record WhatsApp calls on our server (AI and human), with the notice below. */
@@ -517,6 +535,29 @@ const schema = new Schema<AccountDoc>({
         type: String,
         default: DEFAULT_TEMPLATE_SETTINGS.defaultLanguage,
         maxlength: 20,
+      },
+    },
+    waIncoming: {
+      route: {
+        type: String,
+        enum: ['team', 'ai', 'ai_then_team', 'team_then_ai'],
+        default: DEFAULT_WA_INCOMING.route,
+      },
+      aiProgram: {
+        type: new Schema(
+          {
+            kind: { type: String, enum: ['flow', 'agent'], required: true },
+            id: { type: Schema.Types.ObjectId, required: true },
+          },
+          { _id: false },
+        ),
+        default: null,
+      },
+      ringTimeoutSec: {
+        type: Number,
+        default: DEFAULT_WA_INCOMING.ringTimeoutSec,
+        min: 10,
+        max: 60,
       },
     },
     whatsappCalling: {

@@ -18,6 +18,7 @@ import {
 } from '../../src/modules/whatsapp-calling/calling.schema';
 import { createCallingSettings } from '../../src/modules/whatsapp-calling/settings.service';
 import { createCallingHooks } from '../../src/modules/whatsapp-calling/webhooks';
+import { fund } from '../helpers/calls';
 import { useTestDb } from '../helpers/db';
 import { useCapturedEmail } from '../helpers/email';
 import { createAgentDoc } from '../helpers/flows';
@@ -219,6 +220,12 @@ describe('WhatsApp calling settings', () => {
   });
 
   it('AI routes need a runnable program (published flow / active agent)', async () => {
+    // SAC D14: an AI route also needs calling on and money in the wallet
+    await WhatsAppChannelModel.updateOne(
+      { _id: state.channel._id },
+      { $set: { 'calling.status': 'enabled' } },
+    );
+    await fund(accountId());
     const flow = await FlowModel.create({
       accountId: accountId(),
       name: 'Draft flow',

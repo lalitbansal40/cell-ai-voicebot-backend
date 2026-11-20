@@ -61,6 +61,30 @@ const failure = (p: Promise<unknown>) =>
 const metaWith = (over: Partial<MetaClient>): MetaClient => ({ ...w.fake, ...over });
 
 describe('connect — happy paths', () => {
+  it('SAC-T6: a new number answers incoming calls like the account default', async () => {
+    const agentId = new Types.ObjectId();
+    await AccountModel.updateOne(
+      { _id: acc.account._id },
+      {
+        $set: {
+          'settings.waIncoming': {
+            route: 'ai_then_team',
+            aiProgram: { kind: 'agent', id: agentId },
+            ringTimeoutSec: 25,
+          },
+        },
+      },
+    );
+    const result = await connect();
+    const stored = await WhatsAppChannelModel.findById(result.channel.id).lean();
+    expect(stored?.calling?.inbound).toMatchObject({
+      route: 'ai_then_team',
+      aiProgram: { kind: 'agent', id: agentId },
+      ringTimeoutSec: 25,
+      ringUserIds: null,
+    });
+  });
+
   it('Cloud API, platform credit line: subscribed, attached, registered; secrets sealed', async () => {
     const signup = fakeSignup();
     const ids = idsFor(signup);
