@@ -67,7 +67,7 @@ import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 12 catalogue', () => {
   it('has 83 error codes incl. the fourteen calling codes (exact texts and statuses)', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(142); // SAC: 2; PN: 8; Call modes: 4; Voice API unreachable: 1; Phase 20: 4; VAPI: 8; Phase 19: 7; Phase 18B: T18B.1 1; Phase 18: T18.7 4; Phase 16: T16.4 1, T16.5 1, T16.6 3, T16.9 2; + Phase 14: T14.3 3, T14.2 1, T14.4 1, T14.7 1, T14.8 1; Phase 15: T15.1 2, T15.3 2, T15.5 1, T15.6 1
+    expect(Object.keys(ERROR_CODES)).toHaveLength(144); // SAC: 4; PN: 8; Call modes: 4; Voice API unreachable: 1; Phase 20: 4; VAPI: 8; Phase 19: 7; Phase 18B: T18B.1 1; Phase 18: T18.7 4; Phase 16: T16.4 1, T16.5 1, T16.6 3, T16.9 2; + Phase 14: T14.3 3, T14.2 1, T14.4 1, T14.7 1, T14.8 1; Phase 15: T15.1 2, T15.3 2, T15.5 1, T15.6 1
     const added = {
       WHATSAPP_CALLING_DISABLED: [409, 'Calling is turned off for this WhatsApp number.'],
       WHATSAPP_CALLING_UNAVAILABLE: [409, "WhatsApp calling isn't available for this number."],
@@ -109,7 +109,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('has 127 audit actions incl. the nine Phase 12 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(220); // SAC: 9; credit line confirm + ES solution: 2; PN: 4; call modes: 2; account SIP trunk: 1; per-account Cell24x7: 2; Phase 20: 3; VAPI: 3; Phase 19: 20; Phase 18B: T18B.4 1; Phase 18: T18.6 2, T18.7 4; + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2; Phase 16: T16.3 1, T16.4 1, T16.5 2, T16.6 5, T16.7 2, T16.9 4; Phase 17: T17.6 2
+    expect(AUDIT_ACTIONS).toHaveLength(221); // SAC: 10; credit line confirm + ES solution: 2; PN: 4; call modes: 2; account SIP trunk: 1; per-account Cell24x7: 2; Phase 20: 3; VAPI: 3; Phase 19: 20; Phase 18B: T18B.4 1; Phase 18: T18.6 2, T18.7 4; + Phase 14: T14.3 4, T14.4 1, T14.7 4, T14.8 2; Phase 15: T15.1 1, T15.3 6, T15.5 3, T15.6 2; Phase 16: T16.3 1, T16.4 1, T16.5 2, T16.6 5, T16.7 2, T16.9 4; Phase 17: T17.6 2
     // positions move when an older phase adds an action mid-catalogue: find the block
     const at = AUDIT_ACTIONS.indexOf('whatsapp.calling_settings_updated');
     expect(AUDIT_ACTIONS.slice(at, at + 9)).toEqual([

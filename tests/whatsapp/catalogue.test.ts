@@ -87,6 +87,8 @@ describe('Phase 9 catalogue', () => {
       'whatsapp.webhook_fix_failed',
       // SAC-T6: the account default for incoming calls
       'whatsapp.incoming_default_updated',
+      // SAC-T11: a managed number moved to Meta direct
+      'whatsapp.channel_switched_to_meta',
     ]);
   });
 

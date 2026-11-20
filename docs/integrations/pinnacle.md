@@ -133,3 +133,16 @@ All routes below are superadmin only, refused while impersonating, and answer `5
 6. Does `setwebhook` override the panel's _Multiple Callback_, and is it allowed for numbers onboarded through their Embedded Signup? Does `getwebhook` echo our headers? We accept the read-back without headers.
 7. Callback source IPs.
 8. Pricing / conversation analytics for reconciliation.
+
+## Switch a managed number to Meta direct (SAC-T11)
+
+Calls and messages of a managed number go through Pinnacle's API. To use the Meta Graph API directly (our app's token, our webhook, WhatsApp calling over Graph), the number can switch on the same channel row — inbox, campaigns and scheduled calls keep their ids.
+
+1. The partner credit line must be **active** (`partner_active`): it keeps paying Meta after the switch (our own credit line is never attached).
+2. Number card → **Switch to Meta direct** → our Embedded Signup popup (with the Partner Solution ID) for the **same** WABA and number. Another WABA / number → `422 WHATSAPP_SWITCH_MISMATCH`.
+3. The server exchanges the code, subscribes our app to the WABA and checks the webhook (`webhookCheck`), sets `provider: meta`, keeps the credit line as `attached`, clears Pinnacle's webhook for the number (best effort, so events don't arrive twice) and archives the partner facts (`pinnacleArchived`, key last 4 only). Audit `whatsapp.channel_switched_to_meta`.
+4. A failed popup / code leaves the managed number exactly as it was.
+
+API: `POST /api/v1/whatsapp/channels/{id}/switch-to-meta` `{ code, wabaId, phoneNumberId, mode? }` (`whatsapp.manage`).
+
+Open question for Pinnacle: when a WABA is subscribed to both apps, Pinnacle must not answer `calls` events of a switched number.

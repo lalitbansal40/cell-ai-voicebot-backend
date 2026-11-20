@@ -238,6 +238,8 @@ export const AUDIT_ACTIONS = [
   // SAC-T6: incoming WhatsApp calls — the account default, stop live AI calls
   'whatsapp.incoming_default_updated',
   'whatsapp.ai_calls_stopped',
+  // SAC-T11: a managed number moved to Meta direct
+  'whatsapp.channel_switched_to_meta',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -36,6 +36,7 @@ import {
   SeedManagedNumberBody,
   SimulatedUserCallBody,
   SimulatorBody,
+  SwitchToMetaBody,
   WhatsAppBillingBody,
   WhatsAppSolutionIdBody,
 } from './whatsapp.schema';
@@ -253,6 +254,26 @@ registry.registerPath({
   security: bearer,
   request: { params: ChannelParams, ...json(RenameChannelBody) },
   responses: { 200: ok(WhatsAppChannelSchema), ...writes },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/channels/{id}/switch-to-meta`,
+  tags,
+  summary:
+    'SAC-T11: switch a managed (partner) number to Meta direct — our Embedded Signup for the same WABA and number; same channel id, the partner credit line keeps paying (whatsapp.manage)',
+  security: bearer,
+  request: { params: ChannelParams, ...json(SwitchToMetaBody) },
+  responses: {
+    200: ok(
+      z.object({
+        channel: WhatsAppChannelSchema,
+        outcome: z.string(),
+        partnerWebhookCleared: z.boolean(),
+      }),
+    ),
+    ...writes,
+    422: errors[422],
+  },
 });
 registry.registerPath({
   method: 'get',

@@ -1651,6 +1651,94 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     return { channel, token };
   };
 
+  // ── SAC-T11: a managed (Pinnacle) number moves to Meta direct ────────────
+  /**
+   * The customer runs our Embedded Signup (with the partner's Solution ID) for the same WABA
+   * and number: the same channel row (inbox, campaigns, scheduled calls keep their ids) gets
+   * our token, `provider: 'meta'`, our app's webhook (subscribe + check) and calls over the
+   * Graph API. The partner's credit line stays the payer (`attached`). The partner webhook
+   * is cleared best-effort so events don't arrive twice.
+   */
+  const switchToMeta = async (
+    accountId: Types.ObjectId,
+    id: string,
+    input: { code: string; wabaId: string; phoneNumberId: string; mode?: WaMode },
+    actor: WaActor,
+  ) => {
+    const channel = await load(accountId, id, true);
+    if (!isPinnacle(channel)) throw new AppError('WHATSAPP_SWITCH_NOT_MANAGED');
+    if (channel.wabaId !== input.wabaId || channel.phoneNumberId !== input.phoneNumberId) {
+      throw new AppError('WHATSAPP_SWITCH_MISMATCH');
+    }
+    if (channel.creditLine.status !== 'partner_active') {
+      throw new ConflictError(
+        'CONFLICT_INVALID_STATE',
+        'Activate the partner credit line first (it pays Meta after the switch).',
+      );
+    }
+    const partnerKey = tokenOf(channel);
+    const before = { status: channel.creditLine.status, metaPayer: channel.metaPayer };
+    // the partner's credit line already pays Meta for this WABA: setup must not attach ours
+    await WhatsAppChannelModel.updateOne(
+      { _id: channel._id },
+      {
+        $set: { 'creditLine.status': 'attached', 'creditLine.error': null, metaPayer: 'platform' },
+      },
+    );
+    let result: ConnectResult;
+    try {
+      result = await connect({
+        accountId,
+        actor,
+        mode: input.mode ?? 'cloud_api',
+        code: input.code,
+        sessionInfo: { wabaId: input.wabaId, phoneNumberId: input.phoneNumberId },
+      });
+    } catch (err) {
+      await WhatsAppChannelModel.updateOne(
+        { _id: channel._id, provider: 'pinnacle' },
+        { $set: { 'creditLine.status': before.status, metaPayer: before.metaPayer } },
+      );
+      throw err;
+    }
+    let partnerCleared = false;
+    if (partnerKey && ctx.pinnacle && channel.phoneNumberId) {
+      try {
+        await ctx.pinnacle.setWebhook(partnerKey, channel.phoneNumberId, '', {});
+        partnerCleared = true;
+      } catch (err) {
+        log().warn(
+          { err, channelId: id },
+          'whatsapp: partner webhook not cleared after the switch',
+        );
+      }
+    }
+    await WhatsAppChannelModel.updateOne(
+      { _id: channel._id },
+      {
+        $set: {
+          pinnacle: null,
+          pinnacleArchived: {
+            keyLast4: channel.pinnacle?.keyLast4 ?? null,
+            switchedAt: nowOf(ctx),
+            switchedBy: actor.id ? new Types.ObjectId(actor.id.toString()) : null,
+          },
+        },
+      },
+    );
+    resetManagedNumbersCache();
+    const updated = await load(accountId, id);
+    await auditChannel(updated, 'whatsapp.channel_switched_to_meta', actor, {
+      partnerWebhookCleared: partnerCleared,
+      outcome: result.outcome,
+    });
+    return {
+      channel: channelListItem(updated),
+      outcome: result.outcome,
+      partnerWebhookCleared: partnerCleared,
+    };
+  };
+
   // ── SAC-T4: the Meta webhook of a number ─────────────────────────────────
   const WEBHOOK_FIX_MAX = 6;
   const WEBHOOK_FIX_WINDOW_SEC = 600;
@@ -1733,6 +1821,7 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
   };
 
   return {
+    switchToMeta,
     webhookStatus,
     fixWebhook,
     connect,

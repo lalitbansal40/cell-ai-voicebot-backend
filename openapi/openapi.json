@@ -1337,7 +1337,8 @@
               "whatsapp.webhook_fixed",
               "whatsapp.webhook_fix_failed",
               "whatsapp.incoming_default_updated",
-              "whatsapp.ai_calls_stopped"
+              "whatsapp.ai_calls_stopped",
+              "whatsapp.channel_switched_to_meta"
             ]
           },
           "actor": {
@@ -10548,6 +10549,32 @@
         "type": "object",
         "properties": { "label": { "type": "string", "minLength": 1, "maxLength": 60 } },
         "required": ["label"],
+        "additionalProperties": false
+      },
+      "WhatsAppSwitchToMetaInput": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Code from FB.login (single use)"
+          },
+          "wabaId": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^(\\d+|fake_[a-z]+_[0-9a-f]{12})$",
+            "example": "106540352242922"
+          },
+          "phoneNumberId": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^(\\d+|fake_[a-z]+_[0-9a-f]{12})$",
+            "example": "106540352242922"
+          },
+          "mode": { "type": "string", "enum": ["cloud_api", "coexistence"] }
+        },
+        "required": ["code", "wabaId", "phoneNumberId"],
         "additionalProperties": false
       },
       "WhatsAppRegisterPinInput": {
@@ -41865,6 +41892,91 @@
                   "properties": {
                     "success": { "type": "boolean", "enum": [true] },
                     "data": { "$ref": "#/components/schemas/WhatsAppChannel" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Meta returned an error (META_API_ERROR)" },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/whatsapp/channels/{id}/switch-to-meta": {
+      "post": {
+        "tags": ["WhatsApp"],
+        "summary": "SAC-T11: switch a managed (partner) number to Meta direct — our Embedded Signup for the same WABA and number; same channel id, the partner credit line keeps paying (whatsapp.manage)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppSwitchToMetaInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "channel": { "$ref": "#/components/schemas/WhatsAppChannel" },
+                        "outcome": { "type": "string" },
+                        "partnerWebhookCleared": { "type": "boolean" }
+                      },
+                      "required": ["channel", "outcome", "partnerWebhookCleared"]
+                    }
                   },
                   "required": ["success", "data"]
                 }

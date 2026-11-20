@@ -18,6 +18,16 @@ const MetaId = z
 
 export const ChannelParams = z.strictObject({ id: ObjectIdSchema });
 
+/** SAC-T11: switch a managed number to Meta direct (our Embedded Signup for the same number). */
+export const SwitchToMetaBody = z
+  .strictObject({
+    code: z.string().min(1).max(2048).openapi({ description: 'Code from FB.login (single use)' }),
+    wabaId: MetaId,
+    phoneNumberId: MetaId,
+    mode: z.enum(WA_MODES).optional(),
+  })
+  .openapi('WhatsAppSwitchToMetaInput');
+
 export const EmbeddedSignupBody = z
   .strictObject({
     code: z.string().min(1).max(2048).openapi({ description: 'Code from FB.login (single use)' }),

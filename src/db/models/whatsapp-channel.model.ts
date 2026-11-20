@@ -352,6 +352,12 @@ export interface WhatsAppChannelDoc {
   webhook: { lastEventAt: Date | null; lastField: string | null };
   /** PN: managed (Pinnacle) numbers only; `null` otherwise. */
   pinnacle: WaPinnacle | null;
+  /** SAC-T11: the partner facts of a managed number switched to Meta direct (no secrets). */
+  pinnacleArchived?: {
+    keyLast4: string | null;
+    switchedAt: Date;
+    switchedBy: Types.ObjectId | null;
+  } | null;
   /** Last 10 volume pricing tier updates (Phase 11). */
   pricingTier?: WaPricingTier[];
   /** WhatsApp calling (Phase 12) — absent on channels created before migration 0013. */
@@ -572,6 +578,17 @@ const schema = new Schema<WhatsAppChannelDoc>({
   webhook: {
     lastEventAt: { type: Date, default: null },
     lastField: nullableString,
+  },
+  pinnacleArchived: {
+    type: new Schema(
+      {
+        keyLast4: { type: String, default: null },
+        switchedAt: { type: Date, required: true },
+        switchedBy: { type: Schema.Types.ObjectId, default: null },
+      },
+      { _id: false },
+    ),
+    default: null,
   },
   pinnacle: {
     type: new Schema<WaPinnacle>(
