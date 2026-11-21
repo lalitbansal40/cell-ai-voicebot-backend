@@ -225,6 +225,8 @@ describe('startServer (e2e)', () => {
       // Phase 12: the fake customers' WebRTC peers hang up with the status timers
       'fake-meta-calls',
       'calls',
+      // SAC-T8: the scheduled AI calls runner stops after the calls, before the worker
+      'wa-scheduled-calls',
       'whatsapp',
       // Phase 12: the call bus stops after the calls (their hangups no longer route)
       'call-bus',

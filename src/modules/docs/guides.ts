@@ -12,6 +12,7 @@ export const GUIDE_ORDER = [
   'whatsapp-messages',
   'calls',
   'whatsapp-calls',
+  'scheduled-calls',
   'campaigns',
   'reports-exports',
   'webhooks',

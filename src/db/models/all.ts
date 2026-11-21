@@ -68,6 +68,7 @@ import './webhook-endpoint.model';
 import './webhook-event.model';
 import './whatsapp-billing-daily.model';
 import './whatsapp-call-permission.model';
+import './whatsapp-scheduled-call.model';
 import './whatsapp-channel.model';
 import './whatsapp-rate-card.model';
 import './whatsapp-template.model';

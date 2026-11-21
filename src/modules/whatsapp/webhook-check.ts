@@ -43,7 +43,7 @@ const read = async (
 ) => {
   const apps = await meta.getSubscribedApps(token, wabaId);
   const appSubscribed = apps.some((a) => a.appId === ourAppId(ctx));
-  const subs = await meta.getAppSubscriptions();
+  const subs = await meta.getAppSubscriptions(); // meta-only: our app's webhook
   const waba = subs.find((s) => s.object === WEBHOOK_OBJECT && s.active);
   const have = new Set(waba?.fields ?? []);
   const missingFields = WEBHOOK_FIELDS.filter((f) => !have.has(f));
@@ -65,7 +65,7 @@ export const checkWebhook = async (
     facts = await read(ctx, meta, token, channel.wabaId);
     if (options.fix && !facts.appSubscribed) {
       try {
-        await meta.subscribeApp(token, channel.wabaId);
+        await meta.subscribeApp(token, channel.wabaId); // meta-only: our app's webhook
         steps.push({ key: 'fix_app', ok: true, detail: null });
       } catch (err) {
         if (isMetaApiError(err) && err.tokenInvalid) throw err;

@@ -12,6 +12,7 @@ import { WebhookDeliveryModel } from '../../src/db/models/webhook-delivery.model
 import { WebhookEndpointModel } from '../../src/db/models/webhook-endpoint.model';
 import { WhatsAppCampaignModel } from '../../src/db/models/whatsapp-campaign.model';
 import { WhatsAppChannelModel } from '../../src/db/models/whatsapp-channel.model';
+import { WhatsAppScheduledCallModel } from '../../src/db/models/whatsapp-scheduled-call.model';
 import { generateApiKey, PREFIX_LENGTH } from '../../src/modules/api-keys/api-keys.service';
 import { API_KEY_SCOPES, type ApiKeyScope } from '../../src/modules/api-keys/scopes';
 import { sha256Hex } from '../../src/modules/auth/hmac';
@@ -19,13 +20,15 @@ import type { CallManager } from '../../src/modules/calls/call.service';
 import type { CallRegistry } from '../../src/modules/calls/registry';
 import { buildPublicSpec, type OpenApiDoc } from '../../src/modules/docs/public-spec';
 import type { CallingRuntime } from '../../src/modules/whatsapp-calling/runtime';
+import { createScheduledCalls } from '../../src/modules/whatsapp-calling/scheduled.service';
 import { buildOpenApiDocument } from '../../src/openapi';
+import { createLogger } from '../../src/shared/logger';
 import { callDoc } from '../helpers/analytics';
 import { createTestAccount, type TestAccount } from '../helpers/auth';
 import { recordingContactJobs, useTempStorage } from '../helpers/contacts';
 import { useTestDb } from '../helpers/db';
 import { useInboxWorld } from '../helpers/inbox';
-import { buildTestApp } from '../helpers/test-app';
+import { buildTestApp, testEnv } from '../helpers/test-app';
 
 useTestDb();
 const storage = useTempStorage();
@@ -54,6 +57,8 @@ const ROUTES: Route[] = Object.entries(
 
 /** Bodies valid enough to pass validation, so the answer is about access only. */
 const BODIES: Record<string, object> = {
+  // SAC-T8
+  'patch /api/v1/whatsapp/scheduled-calls/{id}': { purpose: 'Reminder' },
   'patch /api/v1/contacts/{id}': { name: 'Changed' },
   'patch /api/v1/webhook-endpoints/{id}': { description: 'Changed' },
   'post /api/v1/webhook-endpoints/{id}/test': { type: 'call.completed' },
@@ -106,7 +111,8 @@ const ids = {} as Record<
   | 'endpoint'
   | 'delivery'
   | 'channel'
-  | 'waCampaign',
+  | 'waCampaign'
+  | 'scheduledCall',
   string
 >;
 
@@ -121,6 +127,7 @@ const idFor = (path: string): string => {
   if (path.startsWith('/api/v1/webhook-deliveries/')) return ids.delivery;
   if (path.startsWith('/api/v1/whatsapp/channels/')) return ids.channel;
   if (path.startsWith('/api/v1/whatsapp-campaigns/')) return ids.waCampaign;
+  if (path.startsWith('/api/v1/whatsapp/scheduled-calls/')) return ids.scheduledCall;
   throw new Error(`no record kind for ${path}`);
 };
 
@@ -128,6 +135,8 @@ beforeAll(async () => {
   app = buildTestApp(
     {},
     {
+      // the matrix sends hundreds of requests from one IP: the flood guard must not answer
+      rateLimit: { limit: 100_000 },
       storage,
       contactJobs: recordingContactJobs().jobs,
       calls,
@@ -137,7 +146,15 @@ beforeAll(async () => {
         inboxJobs: world.jobs,
         storage: world.storage,
         // access is decided before the calling runtime is touched
-        calling: {} as CallingRuntime,
+        calling: {
+          env: testEnv(),
+          // SAC-T8: scheduled calls are read from the database (no call media here)
+          scheduled: createScheduledCalls({
+            logger: createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }),
+            calls: null,
+            permissions: null,
+          }),
+        } as unknown as CallingRuntime,
       },
     },
   );
@@ -188,6 +205,24 @@ beforeAll(async () => {
   ).insertedId.toString();
   ids.channel = (
     await WhatsAppChannelModel.collection.insertOne({ accountId, status: 'connected' })
+  ).insertedId.toString();
+  ids.scheduledCall = (
+    await WhatsAppScheduledCallModel.collection.insertOne({
+      accountId,
+      channelId: new Types.ObjectId(ids.channel),
+      contactId: new Types.ObjectId(ids.contact),
+      conversationId: null,
+      program: { kind: 'agent', id: new Types.ObjectId() },
+      dueAt: new Date(Date.now() + 86_400_000),
+      timezone: 'Asia/Kolkata',
+      status: 'scheduled',
+      retry: { max: 0, gapMin: 30, on: [] },
+      attempts: [],
+      callIds: [],
+      createdBy: new Types.ObjectId(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
   ).insertedId.toString();
   ids.delivery = (
     await WebhookDeliveryModel.collection.insertOne({

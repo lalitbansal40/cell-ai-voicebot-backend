@@ -122,7 +122,7 @@ describe('public API docs (plan §7 #6)', () => {
       'utf8',
     );
     expect(committed).toBe(await renderGuidesModule(root));
-    expect(GUIDE_ORDER).toHaveLength(16);
+    expect(GUIDE_ORDER).toHaveLength(17); // SAC: scheduled-calls
     // generated tables (scopes, error codes) match the code
     for (const name of GUIDE_ORDER) {
       const file = path.join(root, 'docs', 'api', `${name}.md`);

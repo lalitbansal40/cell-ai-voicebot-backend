@@ -11,6 +11,16 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Superadmin full access + WhatsApp calling (SAC)** — 2026-11-21 · [ADR 0052](docs/adr/0052-superadmin-full-access-and-wa-calling.md)
+  - Superadmin **Full access** login-as (4 h, extend to 12 h): everything the owner can do, calls too; danger actions (account export / delete, contact erase, ownership, owner password / sessions, API keys) ask for the superadmin's own password + code (`STEP_UP_REQUIRED`); Add money stays refused; every write audited with the superadmin; login-as sockets don't ring unless **Ring me too**.
+  - Meta webhook verified and repaired at onboarding (`subscribed_apps` + app fields `messages`, `calls`); **Webhook check / Fix** on numbers and for superadmins; bell `whatsapp.webhook_missing`, healthwatch `wa-webhook-missing`. Migration `0029-wa-webhook-status`.
+  - **AI se incoming calls uthao**: the switch (AI first / AI only / advanced team first), validation (program, call audio, wallet, calling on), fallback to the team when the AI can't start, missed WhatsApp calls become callback tasks, account default for new numbers (`GET/PUT /whatsapp/incoming-default`, migration `0030-wa-incoming-default`), **Stop live AI calls**.
+  - **Schedule AI call** from the inbox / contacts (`/whatsapp/scheduled-calls`, migration `0031-wa-scheduled-calls`): exactly-once runner, dial checks at the time, one window shift, retries, skip reasons, chat lines, bells, webhooks `whatsapp_call.scheduled` / `.scheduled_skipped`; the AI agent's callback becomes a scheduled call.
+  - **Switch to Meta direct** for managed (Pinnacle) numbers on the same record (`POST /whatsapp/channels/:id/switch-to-meta`).
+  - Calling hardening: `metrics.firstAudioMs` + healthwatch `wa-ai-latency-high`, no redial after a connect Meta never answered (a late call is terminated), optional TURN relay (`WA_TURN_*`).
+  - Env: `LOGIN_AS_FULL_ENABLED`, `WA_SCHEDULED_CALLS_ENABLED`, `WA_TURN_URLS`, `WA_TURN_USERNAME`, `WA_TURN_CREDENTIAL`.
+  - Fixed: Pinnacle `getwebhook` answers a list (adding a managed number failed with `PINNACLE_WEBHOOK_NOT_SET`).
+
 - **An account's own SIP trunk (no env change)** — 2026-11-07
   - Admin → account → **SIP trunk**: host, port, transport, username + password or IP, caller ID, carrier IPs; saved (password sealed), pushed to Asterisk over ARI at once and after every restart (sorcery memory), status from Asterisk's check. The account moves to the phone line and gets the caller ID as a number; its calls dial `PJSIP/<number>@acc-<accountId>`. `SIP_HOST` in `asterisk.env` is optional now. `GET/PUT/DELETE /admin/accounts/:id/sip-trunk`; audit `account.sip_trunk_changed`.
 - **AI agents speak the customer's language** — 2026-11-07

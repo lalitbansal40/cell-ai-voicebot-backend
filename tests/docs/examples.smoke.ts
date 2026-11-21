@@ -20,7 +20,9 @@ import { buildPublicSpec, type OpenApiDoc } from '../../src/modules/docs/public-
 import { recordingTemplateJobs } from '../../src/modules/templates/jobs';
 import { createTemplate } from '../../src/modules/templates/template.service';
 import type { CallingRuntime } from '../../src/modules/whatsapp-calling/runtime';
+import { createScheduledCalls } from '../../src/modules/whatsapp-calling/scheduled.service';
 import { buildOpenApiDocument } from '../../src/openapi';
+import { createLogger } from '../../src/shared/logger';
 import { callDoc } from '../helpers/analytics';
 import { ensureRateCard, fund } from '../helpers/calls';
 import { recordingContactJobs, useTempStorage } from '../helpers/contacts';
@@ -182,7 +184,15 @@ beforeAll(async () => {
         jobs: { enqueueEvent: () => Promise.resolve() },
         inboxJobs: world.jobs,
         storage: world.storage,
-        calling: {} as CallingRuntime,
+        // SAC-T8: scheduled calls need only their service (no call media in the smoke run)
+        calling: {
+          env: world.w.ctx.env,
+          scheduled: createScheduledCalls({
+            logger: createLogger({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }),
+            calls: null,
+            permissions: null,
+          }),
+        } as unknown as CallingRuntime,
       },
     },
   );

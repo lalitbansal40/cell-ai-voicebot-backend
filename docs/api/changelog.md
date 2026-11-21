@@ -1,5 +1,10 @@
 # API changelog
 
+- **2026-11-21:**
+  - **Scheduled AI WhatsApp calls** (`calls:write` / `calls:read`): `POST /whatsapp/scheduled-calls`, `GET /whatsapp/scheduled-calls[/{id}]`, `PATCH /whatsapp/scheduled-calls/{id}`, `POST /whatsapp/scheduled-calls/{id}/cancel` — see [Scheduled AI WhatsApp calls](scheduled-calls.md).
+  - Webhooks: `whatsapp_call.scheduled`, `whatsapp_call.scheduled_skipped`.
+  - Calls: `metrics.firstAudioMs` (answer → first word).
+
 - **2026-11-05:**
   - **Account resources** (`resources:read`): `GET /resources/flows`, `/agents`, `/whatsapp-numbers`, `/contact-lists`, `/segments`, `/phone-line`, `/ivrs`, `/wallet`.
   - **WhatsApp bulk campaigns** with API keys (`whatsapp-campaigns:read` / `:write`): create, estimate, start, pause, resume, stop, retry failed, recipients, export, report.

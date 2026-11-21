@@ -75,7 +75,12 @@ describe('Phase 11 catalogue', () => {
   });
 
   it('has the twelve Phase 11 audit actions (count: Phase 12 catalogue test)', () => {
-    expect(AUDIT_ACTIONS.slice(106, 118)).toEqual([
+    // positions move when a later action is added mid-catalogue: find the block, skip it
+    const at = AUDIT_ACTIONS.indexOf('template.created');
+    const block = AUDIT_ACTIONS.slice(at, at + 13).filter(
+      (a) => a !== 'whatsapp.embedded_signup_solution_updated',
+    );
+    expect(block.slice(0, 12)).toEqual([
       'template.created',
       'template.submitted',
       'template.updated',
