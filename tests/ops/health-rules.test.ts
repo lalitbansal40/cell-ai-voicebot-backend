@@ -63,4 +63,17 @@ describe('healthwatch rules', () => {
       'wa-webhook-missing',
     );
   });
+
+  it('SAC-T12: slow first AI words (p95 > 2.5 s) raise wa-ai-latency-high', () => {
+    const wa = { mediaEnabled: true, publicIpSet: true, failedSetups15m: 0 };
+    expect(healthIssues(facts({ whatsappCalls: { ...wa, aiFirstAudioP95Ms: 3_100 } }))).toContain(
+      'wa-ai-latency-high',
+    );
+    expect(healthIssues(facts({ whatsappCalls: { ...wa, aiFirstAudioP95Ms: 900 } }))).not.toContain(
+      'wa-ai-latency-high',
+    );
+    expect(
+      healthIssues(facts({ whatsappCalls: { ...wa, aiFirstAudioP95Ms: null } })),
+    ).not.toContain('wa-ai-latency-high');
+  });
 });

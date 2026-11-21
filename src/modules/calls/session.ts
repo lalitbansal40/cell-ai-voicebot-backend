@@ -200,6 +200,10 @@ export class CallSession {
     leg.onOutgoing((frame) => {
       this.metrics.framesOut += 1;
       this.recorder?.bot(frame);
+      // SAC-T12: how long the customer waited for the first word after answering
+      if (this.metrics.firstAudioMs === undefined && this.answeredAt !== null) {
+        this.metrics.firstAudioMs = clock.now() - this.answeredAt;
+      }
       const ms = this.latency.botAudio(clock.now());
       if (ms !== null) this.event('latency', { ms });
     });

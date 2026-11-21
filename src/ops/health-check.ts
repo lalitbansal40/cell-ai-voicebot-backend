@@ -31,6 +31,9 @@ const SIP_TEXT: Record<string, string> = {
   'wa-media-no-public-ip':
     'WhatsApp call audio is on but WA_MEDIA_PUBLIC_IP is not set: customers will hear nothing.',
   'wa-call-setup-failing': '3 or more WhatsApp calls failed to connect in the last 15 minutes.',
+  // SAC-T12
+  'wa-ai-latency-high':
+    'AI WhatsApp calls take more than 2.5 s (p95, 30 min) to say their first word: check the AI provider and the server load.',
   // SAC-T4
   'wa-webhook-missing':
     "A WhatsApp number's events don't reach us (webhook check failed): press Webhook check / Fix on it.",

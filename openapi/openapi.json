@@ -1866,7 +1866,9 @@
                 "required": ["reason", "at"]
               },
               "failedSetups15m": { "type": "integer" },
-              "webhookMissing": { "type": "integer" }
+              "webhookMissing": { "type": "integer" },
+              "turnSet": { "type": "boolean" },
+              "aiFirstAudioP95Ms": { "type": ["number", "null"] }
             },
             "required": [
               "mediaEnabled",
@@ -1876,7 +1878,9 @@
               "lastSetupMs",
               "lastError",
               "failedSetups15m",
-              "webhookMissing"
+              "webhookMissing",
+              "turnSet",
+              "aiFirstAudioP95Ms"
             ],
             "description": "Phase 18B: WhatsApp call audio; null when WhatsApp is off"
           }
@@ -3122,6 +3126,7 @@
                 },
                 "required": ["setupMs", "packetsIn", "packetsOut", "lossPct", "jitterMs", "rttMs"]
               },
+              "firstAudioMs": { "type": "number" },
               "latency": {
                 "type": "object",
                 "properties": {

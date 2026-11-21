@@ -298,6 +298,8 @@ export const CallSchema = registry.register(
           rttMs: z.number().nullable(),
         })
         .optional(),
+      /** SAC-T12: answer → the first word we played, ms. */
+      firstAudioMs: z.number().optional(),
       latency: z.object({
         p50Ms: z.number().nullable(),
         p95Ms: z.number().nullable(),

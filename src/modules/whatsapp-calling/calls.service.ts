@@ -2,10 +2,11 @@ import { Types } from 'mongoose';
 
 import { CALL_LIMITS, CALL_LINES, WHATSAPP_CALL_LIMITS } from '../../config/limits';
 import {
-  callDurationSec,
-  callsValueSchema,
   type MetaCallEvent,
   type MetaCallsValue,
+  callDurationSec,
+  callsValueSchema,
+  isMetaApiError,
 } from '../../core/meta';
 import { notifyAccount, notifyRing, notifyUser } from '../../core/realtime/notify';
 import { onlineUsers } from '../../core/realtime/presence';
@@ -176,6 +177,10 @@ export const missedReasonOf = (reason: CallEndReason): MissedReason => {
   return 'no_answer';
 };
 
+/** SAC-T12: a connect Meta never answered (callId → marker, 2 minutes). */
+const UNCERTAIN_TTL_SEC = 120;
+const uncertainKey = (callId: string) => `call:wa:uncertain:${callId}`;
+
 export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
   const { ctx } = deps;
   const clock = deps.clock ?? systemClock;
@@ -234,6 +239,15 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       publicIp: ctx.env.WA_MEDIA_PUBLIC_IP ?? null,
       portRange: [ctx.env.WA_MEDIA_PORT_MIN, ctx.env.WA_MEDIA_PORT_MAX] as [number, number],
       stunUrls: ctx.meta.provider === 'fake' ? [] : [...ctx.env.WA_STUN_URLS],
+      ...(ctx.meta.provider !== 'fake' && ctx.env.WA_TURN_URLS.length
+        ? {
+            turn: {
+              urls: [...ctx.env.WA_TURN_URLS],
+              username: ctx.env.WA_TURN_USERNAME,
+              credential: ctx.env.WA_TURN_CREDENTIAL,
+            },
+          }
+        : {}),
     }),
   });
 
@@ -572,6 +586,38 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         kind,
       });
       if (where !== 'no_owner') continue;
+      // SAC-T12: an outbound call we gave up on (Meta never answered our connect) rings
+      // after all — end it at Meta so the customer isn't left with a call nobody is on
+      const late = (parsed.data.statuses ?? []).find(
+        (st) => (st as { id?: string }).id === waCallId,
+      ) as { biz_opaque_callback_data?: string | null; status?: string } | undefined;
+      const ours = late?.biz_opaque_callback_data;
+      if (
+        ours &&
+        (late.status ?? '').toUpperCase() !== 'REJECTED' &&
+        (await ctx.redis.del(uncertainKey(ours)).catch(() => 0)) === 1
+      ) {
+        await CallModel.updateOne(
+          { _id: ours, 'whatsapp.waCallId': null },
+          {
+            $set: { 'whatsapp.waCallId': waCallId },
+            $push: {
+              'whatsapp.timeline': { event: 'late_terminate', at: new Date(clock.now()) },
+            },
+          },
+        ).catch(() => undefined);
+        try {
+          const { token } = await deps.token(_channel._id);
+          await clientFor(ctx, _channel).terminateCall(
+            token,
+            _channel.phoneNumberId ?? '',
+            waCallId,
+          );
+        } catch (err) {
+          deps.logger.warn({ err, callId: ours }, 'whatsapp call: late terminate failed');
+        }
+        continue;
+      }
       const term = (parsed.data.calls ?? []).find(
         (e) => e.id === waCallId && e.event === 'terminate',
       );
@@ -921,6 +967,22 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
           : code === 'WHATSAPP_CALLING_RESTRICTED'
             ? 'calling_restricted'
             : 'meta_failed';
+      // SAC-T12 (D25): no answer from Meta (timeout / network / 5xx) — the call may still
+      // ring the customer. Never redial; remember it so a late event for it is terminated.
+      const uncertain = isMetaApiError(err) && err.retryable;
+      if (uncertain) {
+        await ctx.redis
+          .set(uncertainKey(entry.callId), '1', 'EX', UNCERTAIN_TTL_SEC)
+          .catch(() => undefined);
+        await CallModel.updateOne(
+          { _id: callId },
+          {
+            $push: {
+              'whatsapp.timeline': { event: 'connect_uncertain', at: new Date(clock.now()) },
+            },
+          },
+        ).catch(() => undefined);
+      }
       await billing.release('connect_failed');
       if (input.mode === 'human')
         await deps.bus.releaseAgent(entry.accountId, actor.userId.toString(), entry.callId);

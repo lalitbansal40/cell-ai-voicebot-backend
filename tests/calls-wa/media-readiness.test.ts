@@ -19,6 +19,7 @@ const env = (over: Partial<WhatsAppCallsEnv> = {}): WhatsAppCallsEnv => ({
   WA_MEDIA_PUBLIC_IP: '203.0.113.7',
   WA_MEDIA_PORT_MIN: 40_000,
   WA_MEDIA_PORT_MAX: 40_999,
+  WA_TURN_URLS: [],
   ...over,
 });
 const call = (over: Record<string, unknown>) => ({
@@ -64,6 +65,8 @@ describe('WhatsApp call media readiness (T18B.6)', () => {
       lastError: { reason: 'media_timeout', at: ago(10).toISOString() },
       failedSetups15m: 1,
       webhookMissing: 0,
+      turnSet: false,
+      aiFirstAudioP95Ms: null,
     });
     expect(
       await readWhatsAppCallsStatus(env({ WA_MEDIA_PUBLIC_IP: undefined }), now),
@@ -71,7 +74,14 @@ describe('WhatsApp call media readiness (T18B.6)', () => {
   });
 
   it('health rules: no public IP in production; 3 failed setups in 15 minutes', () => {
-    const wa = { mediaEnabled: true, publicIpSet: false, failedSetups15m: 0, webhookMissing: 0 };
+    const wa = {
+      mediaEnabled: true,
+      publicIpSet: false,
+      failedSetups15m: 0,
+      webhookMissing: 0,
+      turnSet: false,
+      aiFirstAudioP95Ms: null,
+    };
     expect(healthIssues({ ...base, env: 'production', whatsappCalls: wa })).toEqual([
       'wa-media-no-public-ip',
     ]);
@@ -88,13 +98,14 @@ describe('WhatsApp call media readiness (T18B.6)', () => {
       publicIpSet: true,
       failedSetups15m: 3,
       webhookMissing: 0,
+      aiFirstAudioP95Ms: null,
     };
     expect(HEALTH_LIMITS.waCallSetupFailures).toBe(3);
     expect(healthIssues({ ...base, whatsappCalls: failing })).toEqual(['wa-call-setup-failing']);
     expect(
       healthIssues({
         ...base,
-        whatsappCalls: { ...failing, failedSetups15m: 2, webhookMissing: 0 },
+        whatsappCalls: { ...failing, failedSetups15m: 2 },
       }),
     ).toEqual([]);
     expect(healthIssues({ ...base, whatsappCalls: null })).toEqual([]);

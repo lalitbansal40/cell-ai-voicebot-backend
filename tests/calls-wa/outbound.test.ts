@@ -7,7 +7,7 @@ import { Types } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { pulsesFor } from '../../src/core/billing/whatsapp-calls';
-import { FAKE_CALL_KNOBS } from '../../src/core/meta';
+import { FAKE_CALL_KNOBS, networkError } from '../../src/core/meta';
 import { setRealtime } from '../../src/core/realtime';
 import type { CallLeg, HangupCause, LegStatus } from '../../src/core/telephony/types';
 import { hasTone } from '../../src/core/telephony/whatsapp/tones';
@@ -491,6 +491,8 @@ describe('business-initiated WhatsApp calls', () => {
     const res = await start(contact._id, 'ai', { kind: 'agent', id: await agentId() });
     const done = await ended(res.callId);
     expect(done).toMatchObject({ status: 'completed', mode: 'ai', disposition: 'Paid' });
+    // SAC-T12: how long the customer waited for the first word
+    expect(typeof done.metrics.firstAudioMs).toBe('number');
     await vi.waitFor(
       async () => expect((await callOf(res.callId))?.billing.whatsapp?.status).toBe('settled'),
       {
@@ -576,6 +578,39 @@ describe('business-initiated WhatsApp calls', () => {
     expect(call?.scheduledCallId?.toString()).toBe(scheduled.id);
     expect(call?.attempt).toBe(1);
     await ended(first.callId);
+  });
+
+  it('SAC-T12: Meta never answers our connect → no redial; a late ringing call is terminated', async () => {
+    const contact = await contactFor(customer(FAKE_CALL_KNOBS.neverAnswers));
+    world.w.fake.failNext('startCall', networkError(true));
+    const before = await CallModel.countDocuments({ contactId: contact._id });
+    await expect(start(contact._id)).rejects.toBeTruthy();
+    const failed = await CallModel.findOne({ contactId: contact._id }).sort({ _id: -1 }).lean();
+    expect(await CallModel.countDocuments({ contactId: contact._id })).toBe(before + 1);
+    expect(failed?.whatsapp?.timeline.map((t) => t.event)).toContain('connect_uncertain');
+    // Meta did place it after all: its status arrives with our call id as biz opaque
+    const ops = world.w.fake.calls.length;
+    await calls().onWebhook(
+      state.channel,
+      {
+        messaging_product: 'whatsapp',
+        metadata: { phone_number_id: state.channel.phoneNumberId },
+        statuses: [
+          {
+            id: 'wacid.late.1',
+            type: 'call',
+            status: 'RINGING',
+            timestamp: String(Math.floor(Date.now() / 1000)),
+            recipient_id: customer(FAKE_CALL_KNOBS.neverAnswers),
+            biz_opaque_callback_data: failed!._id.toString(),
+          },
+        ],
+      },
+      { eventId: new Types.ObjectId().toString() },
+    );
+    expect(world.w.fake.calls.slice(ops).map((c) => c.op)).toContain('terminateCall');
+    const after = await callOf(failed!._id.toString());
+    expect(after?.whatsapp?.timeline.map((t) => t.event)).toContain('late_terminate');
   });
 
   it('the customer hangs up after 5 s (00027): ended by Meta, 1 pulse charged', async () => {

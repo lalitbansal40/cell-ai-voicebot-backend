@@ -191,6 +191,10 @@ export const toCallView = (c: CallDoc, names: Names) => {
     metrics: {
       ...(c.metrics.whatsapp ? { whatsapp: { ...c.metrics.whatsapp } } : {}),
       latency: { ...c.metrics.latency },
+      // SAC-T12: answer → the first word (absent on older calls)
+      ...(typeof c.metrics.firstAudioMs === 'number'
+        ? { firstAudioMs: c.metrics.firstAudioMs }
+        : {}),
       bargeIns: c.metrics.bargeIns,
       silencePrompts: c.metrics.silencePrompts,
       aiSeconds: c.metrics.aiSeconds,

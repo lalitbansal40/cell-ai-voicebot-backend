@@ -15,6 +15,8 @@ export interface HealthFacts {
     failedSetups15m: number;
     /** SAC-T4: Meta numbers whose webhook check failed (absent on older APIs). */
     webhookMissing?: number;
+    /** SAC-T12: p95 answer → first audio of AI calls, 30 min (null = too few calls). */
+    aiFirstAudioP95Ms?: number | null;
   } | null;
   /** `production` turns on the public IP rule. */
   env?: string;
@@ -31,6 +33,8 @@ export const HEALTH_LIMITS = {
   sipLossPct: 5,
   /** Failed WhatsApp call setups in 15 minutes at or above this → alert. */
   waCallSetupFailures: 3,
+  /** SAC-T12: p95 answer → first AI audio above this → alert. */
+  waAiFirstAudioMs: 2_500,
 } as const;
 
 export const failedTotal = (queues: HealthFacts['queues']): number =>
@@ -70,6 +74,8 @@ export const healthIssues = (f: HealthFacts): string[] => {
       issues.push('wa-call-setup-failing');
     }
     if ((f.whatsappCalls.webhookMissing ?? 0) > 0) issues.push('wa-webhook-missing');
+    const p95 = f.whatsappCalls.aiFirstAudioP95Ms ?? null;
+    if (p95 !== null && p95 > HEALTH_LIMITS.waAiFirstAudioMs) issues.push('wa-ai-latency-high');
   }
   return issues;
 };

@@ -501,6 +501,8 @@ export const SystemStatusSchema = registry.register(
         lastError: z.object({ reason: z.string(), at: z.string() }).nullable(),
         failedSetups15m: z.number().int(),
         webhookMissing: z.number().int(),
+        turnSet: z.boolean(),
+        aiFirstAudioP95Ms: z.number().nullable(),
       })
       .nullable()
       .openapi({ description: 'Phase 18B: WhatsApp call audio; null when WhatsApp is off' }),

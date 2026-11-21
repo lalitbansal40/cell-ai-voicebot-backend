@@ -51,6 +51,8 @@ export interface PeerOptions {
   publicIp?: string | null;
   portRange?: [number, number];
   stunUrls?: string[];
+  /** SAC-T12: a TURN relay (credential never logged). */
+  turn?: { urls: string[]; username?: string | undefined; credential?: string | undefined } | null;
 }
 
 export type PeerState = 'new' | 'connecting' | 'connected' | 'disconnected' | 'failed' | 'closed';
@@ -79,7 +81,14 @@ export class WhatsAppPeer {
   private closed = false;
 
   constructor(options: PeerOptions) {
-    const iceServers: RTCIceServer[] = (options.stunUrls ?? []).map((urls) => ({ urls }));
+    const iceServers: RTCIceServer[] = [
+      ...(options.stunUrls ?? []).map((urls) => ({ urls })),
+      ...(options.turn?.urls ?? []).map((urls) => ({
+        urls,
+        ...(options.turn?.username ? { username: options.turn.username } : {}),
+        ...(options.turn?.credential ? { credential: options.turn.credential } : {}),
+      })),
+    ];
     const loopback = options.bindAddress === '127.0.0.1';
     this.pc = new RTCPeerConnection({
       codecs: { audio: whatsappAudioCodecs() },

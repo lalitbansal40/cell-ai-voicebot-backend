@@ -210,6 +210,24 @@ const RawEnvSchema = z.object({
   WA_MEDIA_PORT_MAX: z.coerce.number().int().min(1024).max(65535).default(40_999),
   /** Comma list of `stun:host:port` (or `off`). Default Google's STUN; none in tests. */
   WA_STUN_URLS: optionalString,
+  /** SAC-T12: optional TURN relay for strict customer networks (comma-separated `turn:` URLs). */
+  WA_TURN_URLS: z
+    .string()
+    .optional()
+    .transform((v) =>
+      Object.freeze(
+        (v ?? '')
+          .split(',')
+          .map((u) => u.trim())
+          .filter(Boolean),
+      ),
+    )
+    .refine((list) => list.every((u) => /^turns?:/.test(u)), {
+      message: 'must be turn: or turns: URLs',
+    }),
+  WA_TURN_USERNAME: optionalString,
+  /** Secret: never logged. */
+  WA_TURN_CREDENTIAL: optionalString,
   /** WhatsApp calls with media per process. */
   WA_MEDIA_MAX_CALLS: z.coerce.number().int().min(1).max(1000).default(50),
   /**

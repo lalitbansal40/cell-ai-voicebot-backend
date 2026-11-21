@@ -140,6 +140,8 @@ export interface CallMetrics {
     rttMs: number | null;
   };
   latency: CallLatency;
+  /** SAC-T12: answer → the first audio we played (AI greeting / prompt), ms. */
+  firstAudioMs?: number | null;
   bargeIns: number;
   silencePrompts: number;
   framesIn: number;
