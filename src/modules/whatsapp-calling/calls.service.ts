@@ -60,7 +60,7 @@ import { emitConversation, emitMessageCreated } from '../inbox/events';
 import { blankContent, insertMessage } from '../inbox/message-store';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { publishCallCompleted } from '../webhooks/publish';
-import { clientFor, openSecret } from '../whatsapp/context';
+import { openSecret } from '../whatsapp/context';
 import { noteProviderError } from '../whatsapp/provider-alerts';
 
 import { activeRestrictions } from './availability';
@@ -73,7 +73,7 @@ import { HandoffScript } from './handoff';
 import type { CallPermissionsService } from './permissions.service';
 import type { CallProgram } from './program';
 import { selectRingTargets, withinCallHours } from './routing';
-import type { CallingDeps } from './settings.service';
+import { callingApiOf, type CallingDeps } from './settings.service';
 import { TeamThenAiScript } from './team-then-ai';
 
 /**
@@ -182,6 +182,11 @@ const UNCERTAIN_TTL_SEC = 120;
 const uncertainKey = (callId: string) => `call:wa:uncertain:${callId}`;
 
 export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
+  /**
+   * PMC (D5): the client + token for a calling API of a number — Meta Graph for a managed
+   * number with Meta calling on, the number's own provider otherwise.
+   */
+  const callApi = (channelId: Types.ObjectId | string) => callingApiOf(deps, channelId);
   const { ctx } = deps;
   const clock = deps.clock ?? systemClock;
   const live = new Map<string, LiveCall>();
@@ -607,12 +612,8 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
           },
         ).catch(() => undefined);
         try {
-          const { token } = await deps.token(_channel._id);
-          await clientFor(ctx, _channel).terminateCall(
-            token,
-            _channel.phoneNumberId ?? '',
-            waCallId,
-          );
+          const { token, api } = await callApi(_channel._id);
+          await api.terminateCall(token, _channel.phoneNumberId ?? '', waCallId);
         } catch (err) {
           deps.logger.warn({ err, callId: ours }, 'whatsapp call: late terminate failed');
         }
@@ -838,12 +839,8 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       signaling: {
         terminate: async () => {
           if (!entry.waCallId) return;
-          const { token } = await deps.token(channel._id);
-          await clientFor(ctx, channel).terminateCall(
-            token,
-            channel.phoneNumberId ?? '',
-            entry.waCallId,
-          );
+          const { token, api } = await callApi(channel._id);
+          await api.terminateCall(token, channel.phoneNumberId ?? '', entry.waCallId);
         },
         transfer: () => transferToTeam(entry),
       },
@@ -950,8 +947,8 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     let waCallId: string;
     try {
       const offer = await peer.createOffer();
-      const { token } = await deps.token(channel._id);
-      ({ waCallId } = await clientFor(ctx, channel).startCall(token, channel.phoneNumberId ?? '', {
+      const { token, api } = await callApi(channel._id);
+      ({ waCallId } = await api.startCall(token, channel.phoneNumberId ?? '', {
         to: waId,
         sdpOffer: offer,
         bizOpaque: entry.callId,
@@ -1098,9 +1095,9 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     if (call.session?.ended) return;
     call.leg.endedByMeta();
     await call.session?.end(reason);
-    const { token } = await deps.token(call.channel._id);
+    const { token, api } = await callApi(call.channel._id);
     if (call.waCallId && !call.terminated)
-      await ctx.meta
+      await api
         .rejectCall(token, call.channel.phoneNumberId ?? '', call.waCallId)
         .catch(() => undefined);
   };
@@ -1188,9 +1185,9 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       !call.waCallId
     )
       return;
-    const { token } = await deps.token(call.channel._id);
+    const { token, api } = await callApi(call.channel._id);
     try {
-      await clientFor(ctx, call.channel).acceptCall(
+      await api.acceptCall(
         token,
         call.channel.phoneNumberId ?? '',
         call.waCallId,
@@ -1220,8 +1217,8 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     if (await deps.bus.inboundClaimed(event.id)) return;
     if (await ctx.redis.exists(`call:wa:ended:${event.id}`)) return;
     if (!(await deps.bus.claimBusyRefusal(event.id))) return;
-    const { token } = await deps.token(channel._id);
-    await ctx.meta
+    const { token, api } = await callApi(channel._id);
+    await api
       .rejectCall(token, channel.phoneNumberId ?? '', event.id)
       .catch((err: unknown) => deps.logger.warn({ err }, 'whatsapp call: busy refusal failed'));
     const phone = event.from?.replace(/\D/g, '') ?? '';
@@ -1314,8 +1311,8 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       }).lean<ContactDoc>();
     if (!contact) {
       // An unidentified offer must never create a fabricated phone number.
-      const { token } = await deps.token(channel._id);
-      await clientFor(ctx, channel).rejectCall(token, channel.phoneNumberId ?? '', event.id);
+      const { token, api } = await callApi(channel._id);
+      await api.rejectCall(token, channel.phoneNumberId ?? '', event.id);
       return;
     }
     if (bsuid)
@@ -1399,12 +1396,8 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         waitForAnswer: true,
         signaling: {
           terminate: async () => {
-            const { token } = await deps.token(channel._id);
-            await clientFor(ctx, channel).terminateCall(
-              token,
-              channel.phoneNumberId ?? '',
-              event.id,
-            );
+            const { token, api } = await callApi(channel._id);
+            await api.terminateCall(token, channel.phoneNumberId ?? '', event.id);
           },
           transfer: () => transferToTeam(call),
         },
@@ -1537,15 +1530,10 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         return;
       }
       call.answerSdp = await peer.answer(event.session.sdp);
-      const { token } = await deps.token(channel._id);
+      const { token, api } = await callApi(channel._id);
       if (call.terminated || call.session.ended) return;
       try {
-        await clientFor(ctx, channel).preAcceptCall(
-          token,
-          channel.phoneNumberId ?? '',
-          event.id,
-          call.answerSdp,
-        );
+        await api.preAcceptCall(token, channel.phoneNumberId ?? '', event.id, call.answerSdp);
       } catch (err) {
         await noteProviderError(ctx, channel._id, err);
         throw err;

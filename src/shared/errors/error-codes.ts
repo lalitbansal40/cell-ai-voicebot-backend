@@ -261,6 +261,33 @@ export const ERROR_CODES = {
     status: 409,
     message: 'Only a managed (partner) number can switch to Meta direct.',
   },
+  WHATSAPP_META_CALLING_NOT_MANAGED: {
+    status: 409,
+    message: 'Calls over Meta direct are only for managed (partner) numbers.',
+  },
+  WHATSAPP_META_CALLING_MISMATCH: {
+    status: 422,
+    message:
+      "Meta didn't give access to this WhatsApp account and number — pick the same number in the popup.",
+  },
+  WHATSAPP_META_CALLING_SCOPES: {
+    status: 422,
+    message:
+      'The WhatsApp permissions were not granted — allow every permission in the Meta popup.',
+  },
+  WHATSAPP_META_CALLING_TOKEN_FORBIDDEN: {
+    status: 403,
+    message: 'Only the platform team can paste a Meta token — use Continue with Facebook.',
+  },
+  WA_META_CALLING_DISABLED: {
+    status: 409,
+    message: 'Calls over Meta direct are turned off on this server.',
+  },
+  WA_META_CALLING_BROKEN: {
+    status: 409,
+    message:
+      'The Meta access for calls on this number stopped working — open Number details → Calling and check it.',
+  },
   STEP_UP_REQUIRED: {
     status: 428,
     message: 'Confirm with your own password to do this in full access.',

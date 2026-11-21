@@ -32,11 +32,19 @@ import {
   SYSTEM_ACTOR,
   type WaActor,
 } from '../whatsapp/channel-status';
-import { clientFor, nowOf, phoneLast4, type WhatsAppContext } from '../whatsapp/context';
+import {
+  callingClientFor,
+  callingViaOf,
+  nowOf,
+  phoneLast4,
+  type WhatsAppContext,
+} from '../whatsapp/context';
+import { noteMetaCallingBroken } from '../whatsapp/meta-calling-alerts';
+import { resetManagedNumbersCache } from '../whatsapp/webhooks.service';
 
 import { callingUnavailableReason } from './availability';
 import type { CallingSettingsPatchInput } from './calling.schema';
-import { isPartnerCallingUnsupported, withCallErrors } from './errors';
+import { isMetaTokenInvalid, isPartnerCallingUnsupported, withCallErrors } from './errors';
 import { aiRouteProblems } from './incoming-default';
 import { callingView, type CallingView } from './json';
 import { CALLING_NOTIFICATIONS } from './notification-types';
@@ -55,6 +63,15 @@ export interface CallingDeps {
     channelId: Types.ObjectId | string,
   ) => Promise<{ channel: WhatsAppChannelDoc; token: string }>;
 }
+
+/**
+ * PMC (D5): the client + token for a calling API of a number (Meta Graph for a managed number
+ * with Meta calling on; the number's own provider otherwise).
+ */
+export const callingApiOf = async (deps: CallingDeps, channelId: Types.ObjectId | string) => {
+  const { channel, token } = await deps.token(channelId);
+  return callingClientFor(deps.ctx, channel, token);
+};
 
 const callingOf = (channel: WhatsAppChannelDoc): WaCalling => channel.calling ?? defaultCalling();
 
@@ -125,6 +142,7 @@ export const readBackMismatch = (
 
 export const createCallingSettings = (deps: CallingDeps) => {
   const { ctx } = deps;
+  const callApi = (channelId: Types.ObjectId | string) => callingApiOf(deps, channelId);
   const readinessCheck = createCallingReadiness({ ctx, token: deps.token });
 
   /** The readiness checklist of a number (T18B.2). */
@@ -147,6 +165,38 @@ export const createCallingSettings = (deps: CallingDeps) => {
       'calling.lastError': "The WhatsApp partner doesn't support calling on this number",
     });
 
+  /**
+   * PMC (D14): Meta refused the token of a managed number's calls → Meta calling `error`,
+   * calling unavailable until someone checks / turns it on again.
+   */
+  const markMetaCallingBroken = async (channel: WhatsAppChannelDoc) => {
+    const now = nowOf(ctx);
+    const flipped = await WhatsAppChannelModel.updateOne(
+      { _id: channel._id, 'metaCalling.status': 'on' },
+      {
+        $set: {
+          'metaCalling.status': 'error',
+          'metaCalling.checkedAt': now,
+          'metaCalling.error': {
+            code: 'token_invalid',
+            step: 'token',
+            message: 'Meta no longer accepts the access for calls on this number',
+          },
+        },
+      },
+    );
+    resetManagedNumbersCache();
+    const saved = await save(channel._id, {
+      'calling.status': 'unavailable',
+      'calling.unavailableReason': 'meta_calling_broken',
+      'calling.syncedAt': now,
+      'calling.lastError': 'The Meta access for calls on this number stopped working',
+    });
+    // one bell per on → error change
+    if (flipped.modifiedCount) await noteMetaCallingBroken(ctx, saved);
+    return saved;
+  };
+
   const syncCalling = async (
     channel: WhatsAppChannelDoc,
     options: { throwOnError?: boolean } = {},
@@ -156,15 +206,28 @@ export const createCallingSettings = (deps: CallingDeps) => {
     const unavailableReason = callingUnavailableReason(channel);
     let meta: MetaCallingSettings;
     try {
-      const { token } = await deps.token(channel._id);
-      meta = await withCallErrors(() =>
-        clientFor(ctx, channel).getPhoneSettings(token, channel.phoneNumberId ?? ''),
-      );
+      const { token, api } = await callApi(channel._id);
+      meta = await withCallErrors(() => api.getPhoneSettings(token, channel.phoneNumberId ?? ''));
     } catch (err) {
+      const via = callingViaOf(channel);
       // PN (D15): the partner can't do calling for this managed number
-      if (channel.provider === 'pinnacle' && isPartnerCallingUnsupported(err)) {
+      if (via === 'pinnacle' && isPartnerCallingUnsupported(err)) {
         const saved = await markPartnerUnsupported(channel);
         if (options.throwOnError) throw new AppError('WA_PROVIDER_UNSUPPORTED');
+        return saved;
+      }
+      // PMC (D14): Meta calling of a managed number is broken (or its token just failed)
+      const broken = err instanceof AppError && err.code === 'WA_META_CALLING_BROKEN';
+      if (broken || (via === 'meta_direct' && isMetaTokenInvalid(err))) {
+        const saved = broken
+          ? await save(channel._id, {
+              'calling.status': 'unavailable',
+              'calling.unavailableReason': 'meta_calling_broken',
+              'calling.syncedAt': now,
+              'calling.lastError': 'The Meta access for calls on this number stopped working',
+            })
+          : await markMetaCallingBroken(channel);
+        if (options.throwOnError) throw new AppError('WA_META_CALLING_BROKEN');
         return saved;
       }
       getLogger().warn(
@@ -323,20 +386,22 @@ export const createCallingSettings = (deps: CallingDeps) => {
     }
     const forMeta = metaUpdate(calling, patch);
     if (forMeta) {
-      const { token } = await deps.token(channel._id);
+      const { token, api } = await callApi(channel._id);
       try {
         await withCallErrors(() =>
-          clientFor(ctx, channel).updateCallingSettings(
-            token,
-            channel.phoneNumberId ?? '',
-            forMeta,
-          ),
+          api.updateCallingSettings(token, channel.phoneNumberId ?? '', forMeta),
         );
       } catch (err) {
+        const via = callingViaOf(channel);
         // PN (D15): the partner can't do calling for this managed number
-        if (channel.provider === 'pinnacle' && isPartnerCallingUnsupported(err)) {
+        if (via === 'pinnacle' && isPartnerCallingUnsupported(err)) {
           await markPartnerUnsupported(channel);
           throw new AppError('WA_PROVIDER_UNSUPPORTED');
+        }
+        // PMC (D14): Meta no longer accepts the token of this managed number's calls
+        if (via === 'meta_direct' && isMetaTokenInvalid(err)) {
+          await markMetaCallingBroken(channel);
+          throw new AppError('WA_META_CALLING_BROKEN');
         }
         throw err;
       }

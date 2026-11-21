@@ -72,7 +72,8 @@ const item = (f: ReadinessFacts, key: string) => readinessItems(f).find((i) => i
 describe('calling readiness (T18B.2)', () => {
   it('lists the ten items in a fixed order; a good number has nothing blocking', () => {
     const items = readinessItems(facts());
-    expect(items.map((i) => i.key)).toEqual([...READINESS_KEYS]);
+    // PMC: `meta_direct` is listed for managed numbers only
+    expect(items.map((i) => i.key)).toEqual(READINESS_KEYS.filter((k) => k !== 'meta_direct'));
     expect(blockingProblem(items)).toBeNull();
     expect(item(facts(), 'meta_status')).toMatchObject({
       ok: false,

@@ -53,6 +53,7 @@ describe('/whatsapp API', () => {
       graphVersion: w.env.META_GRAPH_VERSION,
       metaPayer: 'platform',
       solutionId: null,
+      metaCallingEnabled: true,
     });
     expect(
       await whatsappConfig(

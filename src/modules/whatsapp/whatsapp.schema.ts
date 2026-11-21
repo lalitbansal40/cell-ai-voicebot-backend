@@ -18,6 +18,39 @@ const MetaId = z
 
 export const ChannelParams = z.strictObject({ id: ObjectIdSchema });
 
+/**
+ * PMC: turn calls over Meta Graph on for a managed number — the Embedded Signup `code` for
+ * the same WABA / number, or (platform team only) a System User access token.
+ */
+export const MetaCallingBody = z
+  .union([
+    z.strictObject({
+      code: z
+        .string()
+        .min(1)
+        .max(2048)
+        .openapi({ description: 'Code from FB.login (single use, ~30 s)' }),
+      wabaId: MetaId.optional(),
+      phoneNumberId: MetaId.optional(),
+    }),
+    z.strictObject({
+      accessToken: z.string().min(20).max(4096).openapi({
+        description:
+          'A System User access token with this WABA (platform team only: admin route or superadmin full access)',
+      }),
+    }),
+  ])
+  .openapi('WhatsAppMetaCallingInput');
+
+export const MetaCallingOffBody = z
+  .strictObject({
+    turnOffAtWhatsApp: z
+      .boolean()
+      .optional()
+      .openapi({ description: 'Also turn calling off at WhatsApp (default false)' }),
+  })
+  .openapi('WhatsAppMetaCallingOffInput');
+
 /** SAC-T11: switch a managed number to Meta direct (our Embedded Signup for the same number). */
 export const SwitchToMetaBody = z
   .strictObject({

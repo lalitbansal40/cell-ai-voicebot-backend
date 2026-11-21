@@ -55,6 +55,12 @@ export const SEALED_FIELDS: SealedField[] = [
     path: 'pinnacle.webhookSecretSealed',
   },
   {
+    // PMC: our app's token for the calls of a managed number
+    name: 'whatsappChannels.metaCalling.tokenSealed',
+    collection: raw(WhatsAppChannelModel),
+    path: 'metaCalling.tokenSealed',
+  },
+  {
     name: 'metaWebhookEvents.payloadSealed',
     collection: raw(MetaWebhookEventModel),
     path: 'payloadSealed',

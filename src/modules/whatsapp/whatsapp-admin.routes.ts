@@ -20,6 +20,9 @@ import {
   type WhatsAppAdminDeps,
   updateWhatsAppSolutionId,
   whatsappStatus,
+  checkChannelMetaCalling,
+  disableChannelMetaCalling,
+  enableChannelMetaCalling,
 } from './whatsapp-admin.service';
 import {
   AdminDisconnectBody,
@@ -33,6 +36,8 @@ import {
   ManualConnectBody,
   WhatsAppBillingBody,
   WhatsAppSolutionIdBody,
+  MetaCallingBody,
+  MetaCallingOffBody,
 } from './whatsapp.schema';
 
 /**
@@ -127,6 +132,34 @@ export const createWhatsAppAdminRouter = ({
         ok(res, await replaceManagedKey(req, needPinnacle(), params.id, body.apiKey));
       },
     ),
+  );
+  // PMC: calls of a managed number over Meta Graph (any account; a System User token allowed)
+  router.post(
+    '/whatsapp/channels/:id/meta-calling',
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ChannelParams, body: MetaCallingBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await enableChannelMetaCalling(req, need(), params.id, body));
+      },
+    ),
+  );
+  router.delete(
+    '/whatsapp/channels/:id/meta-calling',
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ChannelParams, body: MetaCallingOffBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await disableChannelMetaCalling(req, need(), params.id, body));
+      },
+    ),
+  );
+  router.post(
+    '/whatsapp/channels/:id/meta-calling/check',
+    blockWhenImpersonating(),
+    ...handle({ params: ChannelParams }, async ({ params, req, res }) => {
+      ok(res, await checkChannelMetaCalling(req, need(), params.id));
+    }),
   );
   // SAC-T4: Webhook check / Fix for a Meta number of any account
   router.post(

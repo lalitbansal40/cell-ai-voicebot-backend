@@ -21,6 +21,7 @@ import { requireAuth } from '../../shared/auth/auth-context';
 import { AppError, ConflictError, NotFoundError } from '../../shared/errors/app-error';
 import { recordAudit } from '../audit/audit.service';
 
+import { channelListItem } from './channel-json';
 import { auditChannel, type WaActor } from './channel-status';
 import type { WhatsAppContext } from './context';
 import { getWhatsAppSolutionId, setWhatsAppSolutionId } from './embedded-signup-config';
@@ -343,4 +344,71 @@ export const manualConnect = async (
     manual: true,
     sessionInfo: { wabaId: input.wabaId, phoneNumberId: input.phoneNumberId },
   });
+};
+
+/** The account of a channel (admin routes take the channel id only). */
+const accountOfChannel = async (channelId: string): Promise<Types.ObjectId> => {
+  if (!Types.ObjectId.isValid(channelId)) throw new NotFoundError('WhatsApp number not found');
+  const channel = await WhatsAppChannelModel.findById(channelId)
+    .select({ accountId: 1 })
+    .lean<{ accountId: Types.ObjectId }>();
+  if (!channel) throw new NotFoundError('WhatsApp number not found');
+  return channel.accountId;
+};
+
+/** PMC: turn calls over Meta Graph on for a managed number of any account (token allowed). */
+export const enableChannelMetaCalling = async (
+  req: Request,
+  deps: WhatsAppAdminDeps,
+  channelId: string,
+  body:
+    | { code: string; wabaId?: string | undefined; phoneNumberId?: string | undefined }
+    | {
+        accessToken: string;
+      },
+) => {
+  const r = await deps.service.enableMetaCalling(
+    await accountOfChannel(channelId),
+    channelId,
+    body,
+    platformActor(req),
+    { allowToken: true, byAdmin: true },
+  );
+  return { channel: channelListItem(r.channel), steps: r.steps };
+};
+
+/** PMC: calls of a managed number back to the partner (any account). */
+export const disableChannelMetaCalling = async (
+  req: Request,
+  deps: WhatsAppAdminDeps,
+  channelId: string,
+  body: { turnOffAtWhatsApp?: boolean | undefined },
+) => {
+  const r = await deps.service.disableMetaCalling(
+    await accountOfChannel(channelId),
+    channelId,
+    body,
+    platformActor(req),
+    { byAdmin: true },
+  );
+  return {
+    channel: channelListItem(r.channel),
+    turnedOffAtWhatsApp: r.turnedOffAtWhatsApp,
+    unsubscribed: r.unsubscribed,
+  };
+};
+
+/** PMC: Check / Fix of a managed number's Meta calling (any account). */
+export const checkChannelMetaCalling = async (
+  req: Request,
+  deps: WhatsAppAdminDeps,
+  channelId: string,
+) => {
+  const r = await deps.service.checkMetaCalling(
+    await accountOfChannel(channelId),
+    channelId,
+    platformActor(req),
+    { byAdmin: true },
+  );
+  return { channel: channelListItem(r.channel), steps: r.steps };
 };

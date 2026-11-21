@@ -53,6 +53,46 @@ export const isPinnacle = (channel: Pick<WhatsAppChannelDoc, 'provider'>): boole
   channel.provider === 'pinnacle';
 
 /**
+ * PMC: how a number's calls reach WhatsApp — our app (`meta`), the partner (`pinnacle`, which
+ * can't call), or our app's token on a managed number (`meta_direct`).
+ */
+export type CallingVia = 'meta' | 'pinnacle' | 'meta_direct';
+
+export const callingViaOf = (
+  channel: Pick<WhatsAppChannelDoc, 'provider' | 'metaCalling'>,
+): CallingVia => {
+  if (!isPinnacle(channel)) return 'meta';
+  return channel.metaCalling?.status === 'on' ? 'meta_direct' : 'pinnacle';
+};
+
+/**
+ * PMC (D5): the client + token for **calling** APIs of a channel. A managed number with
+ * Meta calling on uses the Graph API with its own sealed token (messages stay on the
+ * partner); `error` refuses (`WA_META_CALLING_BROKEN`); everything else = `clientFor` and
+ * the channel token. Every call API of `modules/whatsapp-calling` goes through here.
+ */
+export const callingClientFor = (
+  ctx: Pick<WhatsAppContext, 'meta' | 'pinnacle' | 'key'>,
+  channel: Pick<WhatsAppChannelDoc, 'provider' | 'metaCalling'>,
+  channelToken: string,
+): { api: MetaClient; token: string; via: CallingVia } => {
+  if (isPinnacle(channel) && channel.metaCalling?.status === 'error') {
+    throw new AppError('WA_META_CALLING_BROKEN');
+  }
+  const via = callingViaOf(channel);
+  if (via !== 'meta_direct') return { api: clientFor(ctx, channel), token: channelToken, via };
+  const sealed = channel.metaCalling?.tokenSealed;
+  if (!sealed) throw new AppError('WA_META_CALLING_BROKEN');
+  let token: string;
+  try {
+    token = openSecret(ctx, sealed);
+  } catch {
+    throw new AppError('WA_META_CALLING_BROKEN');
+  }
+  return { api: ctx.meta, token, via };
+};
+
+/**
  * PN (D7): the API client for a channel — Pinnacle for managed numbers, Meta otherwise.
  * Every channel-bound call goes through here (`routing.guard.test.ts`).
  */

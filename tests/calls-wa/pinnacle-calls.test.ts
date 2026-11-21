@@ -346,11 +346,11 @@ describe('WhatsApp calling on a managed (Pinnacle) number (PN-T7)', () => {
   it('readiness: partner webhook / key items, never our Meta app checks', async () => {
     await managed();
     world.w.fake.calls.length = 0;
+    const ch = (await WhatsAppChannelModel.findById(state.channel._id).lean<WhatsAppChannelDoc>())!;
     const readiness = createCallingReadiness({
       ctx: world.w.ctx,
-      token: () => Promise.resolve({ token: apiKey }),
+      token: () => Promise.resolve({ channel: ch, token: apiKey }),
     });
-    const ch = (await WhatsAppChannelModel.findById(state.channel._id).lean<WhatsAppChannelDoc>())!;
     const { items } = await readiness.read(ch);
     expect(items.find((i) => i.key === 'calls_webhook')).toMatchObject({
       ok: true,

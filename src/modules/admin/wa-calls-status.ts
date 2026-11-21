@@ -23,6 +23,9 @@ export interface WhatsAppCallsStatus {
    * under 10 calls; health rule `wa-ai-latency-high` above 2.5 s).
    */
   aiFirstAudioP95Ms: number | null;
+  /** PMC: managed numbers with calls over Meta Graph — working / broken (`wa-meta-calling-broken`). */
+  metaCallingOn: number;
+  metaCallingBroken: number;
 }
 
 export type WhatsAppCallsEnv = Pick<
@@ -56,36 +59,47 @@ export const readWhatsAppCallsStatus = async (
     status: 'failed' as const,
     endReason: { $in: [...SETUP_FAILURE_REASONS] },
   };
-  const [liveCalls, latest, lastFailed, failedSetups15m, webhookMissing, firstAudio] =
-    await Promise.all([
-      CallModel.countDocuments({ provider: 'whatsapp', status: { $in: LIVE_CALL_STATUSES } }),
-      CallModel.findOne({ provider: 'whatsapp', 'timestamps.ringingAt': { $ne: null } })
-        .sort({ createdAt: -1 })
-        .select({ timestamps: 1 })
-        .lean<{ timestamps: { queuedAt: Date; ringingAt: Date | null } }>(),
-      CallModel.findOne({ ...failed, createdAt: { $gte: new Date(now.getTime() - 1_440 * MIN) } })
-        .sort({ createdAt: -1 })
-        .select({ endReason: 1, createdAt: 1 })
-        .lean<{ endReason: string; createdAt: Date }>(),
-      CallModel.countDocuments({
-        ...failed,
-        createdAt: { $gte: new Date(now.getTime() - 15 * MIN) },
-      }),
-      WhatsAppChannelModel.countDocuments({
-        provider: { $ne: 'pinnacle' },
-        status: { $in: ['connected', 'action_needed', 'restricted'] },
-        'webhookCheck.status': 'failed',
-      }),
-      CallModel.find({
-        provider: 'whatsapp',
-        mode: 'ai',
-        createdAt: { $gte: new Date(now.getTime() - 30 * MIN) },
-        'metrics.firstAudioMs': { $gte: 0 },
-      })
-        .select({ 'metrics.firstAudioMs': 1 })
-        .limit(500)
-        .lean<{ metrics?: { firstAudioMs?: number } }[]>(),
-    ]);
+  const live = { provider: 'pinnacle' as const, status: { $ne: 'disconnected' as const } };
+  const [
+    liveCalls,
+    latest,
+    lastFailed,
+    failedSetups15m,
+    webhookMissing,
+    firstAudio,
+    metaCallingOn,
+    metaCallingBroken,
+  ] = await Promise.all([
+    CallModel.countDocuments({ provider: 'whatsapp', status: { $in: LIVE_CALL_STATUSES } }),
+    CallModel.findOne({ provider: 'whatsapp', 'timestamps.ringingAt': { $ne: null } })
+      .sort({ createdAt: -1 })
+      .select({ timestamps: 1 })
+      .lean<{ timestamps: { queuedAt: Date; ringingAt: Date | null } }>(),
+    CallModel.findOne({ ...failed, createdAt: { $gte: new Date(now.getTime() - 1_440 * MIN) } })
+      .sort({ createdAt: -1 })
+      .select({ endReason: 1, createdAt: 1 })
+      .lean<{ endReason: string; createdAt: Date }>(),
+    CallModel.countDocuments({
+      ...failed,
+      createdAt: { $gte: new Date(now.getTime() - 15 * MIN) },
+    }),
+    WhatsAppChannelModel.countDocuments({
+      provider: { $ne: 'pinnacle' },
+      status: { $in: ['connected', 'action_needed', 'restricted'] },
+      'webhookCheck.status': 'failed',
+    }),
+    CallModel.find({
+      provider: 'whatsapp',
+      mode: 'ai',
+      createdAt: { $gte: new Date(now.getTime() - 30 * MIN) },
+      'metrics.firstAudioMs': { $gte: 0 },
+    })
+      .select({ 'metrics.firstAudioMs': 1 })
+      .limit(500)
+      .lean<{ metrics?: { firstAudioMs?: number } }[]>(),
+    WhatsAppChannelModel.countDocuments({ ...live, 'metaCalling.status': 'on' }),
+    WhatsAppChannelModel.countDocuments({ ...live, 'metaCalling.status': 'error' }),
+  ]);
   const samples = firstAudio.map((c) => c.metrics?.firstAudioMs ?? 0).sort((a, b) => a - b);
   const aiFirstAudioP95Ms =
     samples.length >= 10 ? (samples[Math.ceil(samples.length * 0.95) - 1] ?? null) : null;
@@ -106,5 +120,7 @@ export const readWhatsAppCallsStatus = async (
     failedSetups15m,
     webhookMissing,
     aiFirstAudioP95Ms,
+    metaCallingOn,
+    metaCallingBroken,
   };
 };

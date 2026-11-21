@@ -37,6 +37,9 @@ const SIP_TEXT: Record<string, string> = {
   // SAC-T4
   'wa-webhook-missing':
     "A WhatsApp number's events don't reach us (webhook check failed): press Webhook check / Fix on it.",
+  // PMC
+  'wa-meta-calling-broken':
+    "A managed WhatsApp number's calls over Meta stopped (token or webhook): open it → Calling → Check / Fix, or turn calling on again.",
 };
 
 /** Phase 18: a SIP problem also rings the superadmins' bell, once an hour per problem. */

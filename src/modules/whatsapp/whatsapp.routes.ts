@@ -5,6 +5,7 @@ import { Types } from 'mongoose';
 import { WHATSAPP_LIMITS } from '../../config/limits';
 import { AccountModel, DEFAULT_ACCOUNT_WHATSAPP } from '../../db/models/account.model';
 import { requireAuth } from '../../shared/auth/auth-context';
+import { isFullAccess } from '../../shared/auth/impersonation';
 import { AppError } from '../../shared/errors/app-error';
 import { ok } from '../../shared/http/envelope';
 import { authenticate } from '../../shared/middlewares/authenticate';
@@ -15,6 +16,7 @@ import {
 } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
+import { channelListItem } from './channel-json';
 import type { WaActor } from './channel-status';
 import type { WhatsAppContext } from './context';
 import { getWhatsAppSolutionId } from './embedded-signup-config';
@@ -23,6 +25,8 @@ import {
   EmbeddedSignupBody,
   ListChannelsQuery,
   RegisterPinBody,
+  MetaCallingBody,
+  MetaCallingOffBody,
   RenameChannelBody,
   SwitchToMetaBody,
 } from './whatsapp.schema';
@@ -68,6 +72,8 @@ export const whatsappConfig = async (ctx: WhatsAppContext, accountId: Types.Obje
     graphVersion: ctx.env.META_GRAPH_VERSION,
     metaPayer,
     solutionId: meta && metaPayer === 'platform' ? configuredSolutionId : null,
+    /** PMC: "Calling on karo (Meta direct)" on managed numbers. */
+    metaCallingEnabled: ctx.env.WA_META_CALLING_ENABLED,
   };
 };
 
@@ -168,6 +174,54 @@ export const createWhatsAppRouter = ({
         ok(res, await service.switchToMeta(accountOf(req), params.id, body, actorOf(req)));
       },
     ),
+  );
+  // PMC: calls of a managed number over Meta Graph (messages stay on the partner)
+  router.get(
+    '/channels/:id/meta-calling',
+    read,
+    ...handle({ params: ChannelParams }, async ({ params, req, res }) => {
+      ok(res, await service.metaCallingStatus(accountOf(req), params.id));
+    }),
+  );
+  router.post(
+    '/channels/:id/meta-calling',
+    ...manage,
+    ...handle(
+      { params: ChannelParams, body: MetaCallingBody },
+      async ({ params, body, req, res }) => {
+        const auth = requireAuth(req);
+        // D15: a pasted token only from a superadmin in full access
+        const allowToken =
+          isFullAccess(auth) && (auth.impersonatorKind ?? 'superadmin') === 'superadmin';
+        const r = await service.enableMetaCalling(accountOf(req), params.id, body, actorOf(req), {
+          allowToken,
+        });
+        ok(res, { channel: channelListItem(r.channel), steps: r.steps });
+      },
+    ),
+  );
+  router.delete(
+    '/channels/:id/meta-calling',
+    ...manage,
+    ...handle(
+      { params: ChannelParams, body: MetaCallingOffBody },
+      async ({ params, body, req, res }) => {
+        const r = await service.disableMetaCalling(accountOf(req), params.id, body, actorOf(req));
+        ok(res, {
+          channel: channelListItem(r.channel),
+          turnedOffAtWhatsApp: r.turnedOffAtWhatsApp,
+          unsubscribed: r.unsubscribed,
+        });
+      },
+    ),
+  );
+  router.post(
+    '/channels/:id/meta-calling/check',
+    ...manage,
+    ...handle({ params: ChannelParams }, async ({ params, req, res }) => {
+      const r = await service.checkMetaCalling(accountOf(req), params.id, actorOf(req));
+      ok(res, { channel: channelListItem(r.channel), steps: r.steps });
+    }),
   );
   // SAC-T4: Webhook check / Fix
   router.get(

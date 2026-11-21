@@ -67,7 +67,8 @@ export interface CallingHooks {
 
 export interface HandlerContext {
   ctx: WhatsAppContext;
-  service: Pick<WhatsAppService, 'syncChannel'>;
+  service: Pick<WhatsAppService, 'syncChannel'> &
+    Partial<Pick<WhatsAppService, 'sweepMetaCalling'>>;
   inbox?: InboxHooks;
   templates?: TemplateHooks;
   calling?: CallingHooks;

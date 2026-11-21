@@ -74,6 +74,11 @@ const RawEnvSchema = z.object({
     .enum(['true', 'false'], { message: 'must be true or false' })
     .default('true')
     .transform((v) => v === 'true'),
+  /** PMC: calls of a managed (partner) number over Meta Graph ("Calling on karo (Meta direct)"). */
+  WA_META_CALLING_ENABLED: z
+    .enum(['true', 'false'], { message: 'must be true or false' })
+    .default('true')
+    .transform((v) => v === 'true'),
   /** SAC: superadmin "Full access" login-as (acts as the owner everywhere, audited). */
   LOGIN_AS_FULL_ENABLED: z
     .enum(['true', 'false'], { message: 'must be true or false' })

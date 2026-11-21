@@ -34,6 +34,7 @@ import {
 } from '../../../modules/templates/jobs';
 import { processTemplateSync, queueDailyTemplateSyncs } from '../../../modules/templates/sync.job';
 import { createTemplateHooks } from '../../../modules/templates/webhooks';
+import { SYSTEM_ACTOR } from '../../../modules/whatsapp/channel-status';
 import type { WhatsAppContext } from '../../../modules/whatsapp/context';
 import { runHealthPass, WHATSAPP_HEALTH_CRON } from '../../../modules/whatsapp/health';
 import {
@@ -124,7 +125,11 @@ export const processWhatsAppJob =
       }
       if (job.name === CALLING_JOBS.settingsSync) {
         const data = job.data as Partial<CallingSettingsSyncJobData>;
-        if (!data.channelId) return cx.settings.syncAll();
+        if (!data.channelId) {
+          // PMC (D14): managed numbers with calls over Meta — token and webhook still good?
+          await h.service.sweepMetaCalling?.(SYSTEM_ACTOR).catch(() => undefined);
+          return cx.settings.syncAll();
+        }
         const channel = await WhatsAppChannelModel.findById(
           data.channelId,
         ).lean<WhatsAppChannelDoc>();

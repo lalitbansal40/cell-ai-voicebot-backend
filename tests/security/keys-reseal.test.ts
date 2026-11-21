@@ -51,6 +51,8 @@ const seed = async (keys = OLD) => {
       registration: { pinSealed: v(`${name}-pin`) },
       // PN: a managed number's partner webhook secret
       pinnacle: { webhookSecretSealed: v(`${name}-pinnacle`) },
+      // PMC: the Meta token for calls of a managed number
+      metaCalling: { status: 'on', tokenSealed: v(`${name}-meta-calling`) },
     });
   }
   await MetaWebhookEventModel.collection.insertOne({ payloadSealed: v('meta') });

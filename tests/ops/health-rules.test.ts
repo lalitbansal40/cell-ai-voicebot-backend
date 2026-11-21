@@ -64,6 +64,16 @@ describe('healthwatch rules', () => {
     );
   });
 
+  it('PMC: a managed number whose Meta calling broke raises wa-meta-calling-broken', () => {
+    const wa = { mediaEnabled: true, publicIpSet: true, failedSetups15m: 0 };
+    expect(healthIssues(facts({ whatsappCalls: { ...wa, metaCallingBroken: 1 } }))).toContain(
+      'wa-meta-calling-broken',
+    );
+    expect(healthIssues(facts({ whatsappCalls: { ...wa, metaCallingBroken: 0 } }))).not.toContain(
+      'wa-meta-calling-broken',
+    );
+  });
+
   it('SAC-T12: slow first AI words (p95 > 2.5 s) raise wa-ai-latency-high', () => {
     const wa = { mediaEnabled: true, publicIpSet: true, failedSetups15m: 0 };
     expect(healthIssues(facts({ whatsappCalls: { ...wa, aiFirstAudioP95Ms: 3_100 } }))).toContain(

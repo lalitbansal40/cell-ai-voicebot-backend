@@ -67,6 +67,8 @@ describe('WhatsApp call media readiness (T18B.6)', () => {
       webhookMissing: 0,
       turnSet: false,
       aiFirstAudioP95Ms: null,
+      metaCallingOn: 0,
+      metaCallingBroken: 0,
     });
     expect(
       await readWhatsAppCallsStatus(env({ WA_MEDIA_PUBLIC_IP: undefined }), now),

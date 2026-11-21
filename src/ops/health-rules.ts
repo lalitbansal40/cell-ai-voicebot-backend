@@ -17,6 +17,8 @@ export interface HealthFacts {
     webhookMissing?: number;
     /** SAC-T12: p95 answer → first audio of AI calls, 30 min (null = too few calls). */
     aiFirstAudioP95Ms?: number | null;
+    /** PMC: managed numbers whose Meta calling broke (absent on older APIs). */
+    metaCallingBroken?: number;
   } | null;
   /** `production` turns on the public IP rule. */
   env?: string;
@@ -74,6 +76,7 @@ export const healthIssues = (f: HealthFacts): string[] => {
       issues.push('wa-call-setup-failing');
     }
     if ((f.whatsappCalls.webhookMissing ?? 0) > 0) issues.push('wa-webhook-missing');
+    if ((f.whatsappCalls.metaCallingBroken ?? 0) > 0) issues.push('wa-meta-calling-broken');
     const p95 = f.whatsappCalls.aiFirstAudioP95Ms ?? null;
     if (p95 !== null && p95 > HEALTH_LIMITS.waAiFirstAudioMs) issues.push('wa-ai-latency-high');
   }

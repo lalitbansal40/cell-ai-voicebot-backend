@@ -289,6 +289,10 @@ export const createApiRouter = ({
             // Phase 12: read the new number's call settings from Meta
             await whatsapp.callingJobs?.enqueueSettingsSync(channel._id.toString(), 'connect');
           },
+          // PMC: calls of a managed number moved to / from Meta Graph
+          onMetaCallingChanged: async (channel) => {
+            await whatsapp.callingJobs?.enqueueSettingsSync(channel._id.toString(), 'manual');
+          },
         }),
       }
     : undefined;

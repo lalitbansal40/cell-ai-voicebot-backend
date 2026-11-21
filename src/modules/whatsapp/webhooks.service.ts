@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { WHATSAPP_LIMITS } from '../../config/limits';
 import {
+  META_DIRECT_FIELDS,
   metaAppSecret,
   phoneNumberIdOf,
   safeEqualString,
@@ -185,8 +186,8 @@ export const receiveSimulatedWebhook = async (
         provider: 'pinnacle',
         status: { $in: WA_ACTIVE_STATUSES },
       })
-        .select({ wabaId: 1, phoneNumberId: 1 })
-        .lean<Pick<WhatsAppChannelDoc, '_id' | 'wabaId' | 'phoneNumberId'>[]>()
+        .select({ wabaId: 1, phoneNumberId: 1, 'metaCalling.status': 1 })
+        .lean<Pick<WhatsAppChannelDoc, '_id' | 'wabaId' | 'phoneNumberId' | 'metaCalling'>[]>()
     : [];
   const total = { received: 0, duplicates: 0, ignored: false };
   const add = (r: WebhookReceipt) => {
@@ -204,27 +205,53 @@ export const receiveSimulatedWebhook = async (
 /** Where an envelope came from — Meta directly, or Pinnacle's relay for one managed number. */
 export type EnvelopeSource =
   | { source: 'meta' }
-  | { source: 'pinnacle'; channel: Pick<WhatsAppChannelDoc, '_id' | 'wabaId' | 'phoneNumberId'> };
+  | {
+      source: 'pinnacle';
+      channel: Pick<WhatsAppChannelDoc, '_id' | 'wabaId' | 'phoneNumberId' | 'metaCalling'>;
+    };
 
 /**
- * Phone number ids of active managed (Pinnacle) numbers — one query per 30 s per process
- * (Meta sends thousands of status webhooks). A stale moment is harmless: the same event
- * from both paths has the same idempotency key and is stored once.
+ * Active managed (Pinnacle) numbers — one query per 30 s per process (Meta sends thousands of
+ * status webhooks). A stale moment is harmless: the same event from both paths has the same
+ * idempotency key and is stored once.
+ * PMC: `metaDirect` = the number's calls run over Meta Graph (Meta's `calls` /
+ * `account_settings_update` are taken from Meta, the relay's `calls` are dropped). `wabas` =
+ * WABAs of such numbers with no Meta-direct number of ours — their WABA-level events
+ * (templates, account updates) come through the relay only.
  */
 const MANAGED_CACHE_MS = 30_000;
-let managedCache: { at: number; ids: Set<string> } | null = null;
-const managedNumbers = async (): Promise<Set<string>> => {
+interface ManagedNumbers {
+  numbers: Map<string, { metaDirect: boolean }>;
+  wabas: Set<string>;
+}
+let managedCache: { at: number; value: ManagedNumbers } | null = null;
+
+const managedNumbers = async (): Promise<ManagedNumbers> => {
   const now = Date.now();
-  if (managedCache && now - managedCache.at < MANAGED_CACHE_MS) return managedCache.ids;
+  if (managedCache && now - managedCache.at < MANAGED_CACHE_MS) return managedCache.value;
   const rows = await WhatsAppChannelModel.find({
     provider: 'pinnacle',
     status: { $in: WA_ACTIVE_STATUSES },
     phoneNumberId: { $type: 'string' },
   })
-    .select({ phoneNumberId: 1 })
-    .lean<{ phoneNumberId: string }[]>();
-  managedCache = { at: now, ids: new Set(rows.map((r) => r.phoneNumberId)) };
-  return managedCache.ids;
+    .select({ phoneNumberId: 1, wabaId: 1, 'metaCalling.status': 1 })
+    .lean<{ phoneNumberId: string; wabaId: string; metaCalling?: { status?: string } }[]>();
+  const numbers = new Map(
+    rows.map((r) => [r.phoneNumberId, { metaDirect: r.metaCalling?.status === 'on' }] as const),
+  );
+  const directWabas = [
+    ...new Set(rows.filter((r) => r.metaCalling?.status === 'on').map((r) => r.wabaId)),
+  ];
+  const ours = directWabas.length
+    ? await WhatsAppChannelModel.distinct('wabaId', {
+        wabaId: { $in: directWabas },
+        provider: { $ne: 'pinnacle' },
+        status: { $in: WA_ACTIVE_STATUSES },
+      })
+    : [];
+  const wabas = new Set(directWabas.filter((w) => !ours.includes(w)));
+  managedCache = { at: now, value: { numbers, wabas } };
+  return managedCache.value;
 };
 
 /** Forget the managed numbers cache (a number was added / disconnected here; tests). */
@@ -232,10 +259,15 @@ export const resetManagedNumbersCache = (): void => {
   managedCache = null;
 };
 
+const metaDirectField = (field: string): boolean =>
+  (META_DIRECT_FIELDS as readonly string[]).includes(field);
+
 /**
  * PN (D10): which changes of the envelope belong to this source. The Pinnacle relay may only
  * carry its own number's events; Meta's own deliveries for a managed number are dropped
  * (the relay brings them — one handler run per event).
+ * PMC (D9/D10): for a managed number with calls over Meta Graph, Meta's `calls` and
+ * `account_settings_update` are kept and the relay's `calls` are dropped.
  */
 const changesFor = async (envelope: WebhookEnvelope, from: EnvelopeSource) => {
   const all = envelope.entry.flatMap((entry) =>
@@ -260,12 +292,37 @@ const changesFor = async (envelope: WebhookEnvelope, from: EnvelopeSource) => {
         'pinnacle webhook: changes for another number dropped',
       );
     }
-    return kept;
+    if (channel.metaCalling?.status !== 'on') return kept;
+    const own = kept.filter(({ change }) => change.field !== 'calls');
+    if (own.length < kept.length) {
+      getLogger().info(
+        {
+          metric: 'pinnacle_webhook_calls_dropped',
+          dropped: kept.length - own.length,
+          channelId: channel._id.toString(),
+        },
+        'pinnacle webhook: calls of this number come from Meta directly',
+      );
+    }
+    return own;
   }
-  if (!all.some((c) => c.phoneNumberId)) return all;
-  const skip = await managedNumbers();
-  if (!skip.size) return all;
-  const kept = all.filter((c) => !c.phoneNumberId || !skip.has(c.phoneNumberId));
+  const managed = await managedNumbers();
+  if (!managed.numbers.size) return all;
+  let direct = 0;
+  const kept = all.filter(({ entry, change, phoneNumberId }) => {
+    if (!phoneNumberId) return !managed.wabas.has(entry.id);
+    const number = managed.numbers.get(phoneNumberId);
+    if (!number) return true;
+    const keep = number.metaDirect && metaDirectField(change.field);
+    if (keep) direct += 1;
+    return keep;
+  });
+  if (direct) {
+    getLogger().info(
+      { metric: 'meta_webhook_managed_kept', kept: direct },
+      'meta webhook: calls of a managed number taken from Meta directly',
+    );
+  }
   if (kept.length === all.length) return all;
   getLogger().info(
     { metric: 'meta_webhook_foreign_provider', dropped: all.length - kept.length },

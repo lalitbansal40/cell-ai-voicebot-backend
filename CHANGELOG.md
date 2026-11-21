@@ -11,6 +11,21 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **Calls via Meta direct for managed (Pinnacle) numbers (PMC)** — 2026-11-21 · [ADR 0053](docs/adr/0053-managed-number-meta-direct-calling.md)
+  - Number details → Calling → **Calling on karo (Meta direct)**:
+    - Our Embedded Signup for the same WABA / number. A superadmin can also paste a System User token.
+    - Token checks, our app subscribed with `calls`, calling ON at WhatsApp. Progress steps; **Check / Fix**, **Calling off**.
+  - Messages, templates, campaigns and the credit line stay on Pinnacle. Only calls (start, pre-accept, accept, reject, terminate, settings, permission status) use Graph (`callingClientFor`).
+  - Meta webhook keeps only `calls` / `account_settings_update` for such numbers, and the relay's `calls` copies are dropped (no duplicates).
+  - Token health:
+    - daily check; bell `whatsapp.meta_calling_broken`;
+    - healthwatch `wa-meta-calling-broken`;
+    - Admin → System counts;
+    - calling `unavailable / meta_calling_broken` while broken.
+  - API:
+    - `GET/POST/DELETE /whatsapp/channels/:id/meta-calling`, `POST …/meta-calling/check` (+ admin twins).
+    - Migration `0032-wa-meta-calling`, env `WA_META_CALLING_ENABLED`.
+
 - **Superadmin full access + WhatsApp calling (SAC)** — 2026-11-21 · [ADR 0052](docs/adr/0052-superadmin-full-access-and-wa-calling.md)
   - Superadmin **Full access** login-as (4 h, extend to 12 h): everything the owner can do, calls too; danger actions (account export / delete, contact erase, ownership, owner password / sessions, API keys) ask for the superadmin's own password + code (`STEP_UP_REQUIRED`); Add money stays refused; every write audited with the superadmin; login-as sockets don't ring unless **Ring me too**.
   - Meta webhook verified and repaired at onboarding (`subscribed_apps` + app fields `messages`, `calls`); **Webhook check / Fix** on numbers and for superadmins; bell `whatsapp.webhook_missing`, healthwatch `wa-webhook-missing`. Migration `0029-wa-webhook-status`.

@@ -51,6 +51,12 @@ export const withCallErrors = async <T>(
   }
 };
 
+/** PMC: Meta says the token no longer works (raw or mapped error). */
+export const isMetaTokenInvalid = (err: unknown): boolean => {
+  const raw = err instanceof AppError && isMetaApiError(err.cause) ? err.cause : err;
+  return isMetaApiError(raw) && raw.tokenInvalid;
+};
+
 /**
  * PN (D15): the partner API (managed number) can't do calling for it — its own
  * "unsupported", or a 404 on a calling path. Works on the raw or the mapped error.

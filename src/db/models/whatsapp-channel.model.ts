@@ -90,6 +90,46 @@ export const defaultWebhookState = (): WaWebhookState => ({
   error: null,
 });
 
+/**
+ * PMC: calls of a managed (Pinnacle) number over the Meta Graph API with our app's token.
+ * Messages, templates, campaigns and the credit line stay on the partner.
+ */
+export const META_CALLING_STATUSES = ['off', 'on', 'error'] as const;
+export type MetaCallingStatus = (typeof META_CALLING_STATUSES)[number];
+export const META_CALLING_METHODS = ['embedded_signup', 'system_user_token'] as const;
+export type MetaCallingMethod = (typeof META_CALLING_METHODS)[number];
+export interface WaMetaCalling {
+  status: MetaCallingStatus;
+  method: MetaCallingMethod | null;
+  /** Our app's token for this WABA — sealed, never returned. */
+  tokenSealed?: string | null;
+  tokenLast4: string | null;
+  /** From `debug_token` (null = never expires). */
+  tokenExpiresAt: Date | null;
+  scopes: string[];
+  /** Meta user that granted the token (deauthorize / data deletion callbacks). */
+  metaUserId: string | null;
+  webhookCheck: WaWebhookState;
+  enabledAt: Date | null;
+  enabledBy: Types.ObjectId | null;
+  checkedAt: Date | null;
+  error: { code: string; step: string | null; message: string } | null;
+}
+export const defaultMetaCalling = (): WaMetaCalling => ({
+  status: 'off',
+  method: null,
+  tokenSealed: null,
+  tokenLast4: null,
+  tokenExpiresAt: null,
+  scopes: [],
+  metaUserId: null,
+  webhookCheck: defaultWebhookState(),
+  enabledAt: null,
+  enabledBy: null,
+  checkedAt: null,
+  error: null,
+});
+
 export interface WaStatusReason {
   code: string;
   message: string;
@@ -116,6 +156,8 @@ export const WA_CALLING_UNAVAILABLE_REASONS = [
   'not_cloud_api',
   // PN: the partner API (managed number) refused calling
   'provider_unsupported',
+  // PMC: the Meta token for calls of a managed number stopped working
+  'meta_calling_broken',
 ] as const;
 export type WaCallingUnavailableReason = (typeof WA_CALLING_UNAVAILABLE_REASONS)[number];
 
@@ -358,6 +400,8 @@ export interface WhatsAppChannelDoc {
     switchedAt: Date;
     switchedBy: Types.ObjectId | null;
   } | null;
+  /** PMC: calls of a managed number over Meta Graph (absent before migration 0032). */
+  metaCalling?: WaMetaCalling;
   /** Last 10 volume pricing tier updates (Phase 11). */
   pricingTier?: WaPricingTier[];
   /** WhatsApp calling (Phase 12) — absent on channels created before migration 0013. */
@@ -605,6 +649,43 @@ const schema = new Schema<WhatsAppChannelDoc>({
     ),
     default: null,
   },
+  metaCalling: {
+    type: new Schema<WaMetaCalling>(
+      {
+        status: { type: String, enum: META_CALLING_STATUSES, default: 'off' },
+        method: { type: String, enum: [...META_CALLING_METHODS, null], default: null },
+        tokenSealed: { type: String, default: null, select: false },
+        tokenLast4: { type: String, default: null, maxlength: 4 },
+        tokenExpiresAt: { type: Date, default: null },
+        scopes: { type: [String], default: [] },
+        metaUserId: nullableString,
+        webhookCheck: {
+          status: { type: String, enum: WA_WEBHOOK_STATUSES, default: 'unknown' },
+          appSubscribed: { type: Boolean, default: null },
+          missingFields: { type: [String], default: [] },
+          checkedAt: { type: Date, default: null },
+          fixedAt: { type: Date, default: null },
+          error: nullableString,
+        },
+        enabledAt: { type: Date, default: null },
+        enabledBy: { type: Schema.Types.ObjectId, default: null },
+        checkedAt: { type: Date, default: null },
+        error: {
+          type: new Schema(
+            {
+              code: { type: String, required: true, maxlength: 60 },
+              step: { type: String, default: null, maxlength: 40 },
+              message: { type: String, required: true, maxlength: 300 },
+            },
+            { _id: false },
+          ),
+          default: null,
+        },
+      },
+      { _id: false },
+    ),
+    default: () => defaultMetaCalling(),
+  },
   pricingTier: {
     type: [
       new Schema<WaPricingTier>(
@@ -668,6 +749,7 @@ schema.index(
 );
 schema.index({ metaUserId: 1 });
 schema.index({ provider: 1, status: 1 });
+schema.index({ 'metaCalling.status': 1 }, { sparse: true });
 
 /** A WhatsApp Business number connected to an account (PHASE_9_PLAN §1e). */
 export const WhatsAppChannelModel: Model<WhatsAppChannelDoc> =

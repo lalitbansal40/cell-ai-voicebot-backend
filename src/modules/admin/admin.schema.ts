@@ -503,6 +503,12 @@ export const SystemStatusSchema = registry.register(
         webhookMissing: z.number().int(),
         turnSet: z.boolean(),
         aiFirstAudioP95Ms: z.number().nullable(),
+        metaCallingOn: z.number().int().openapi({
+          description: 'PMC: managed numbers with calls over Meta Graph',
+        }),
+        metaCallingBroken: z.number().int().openapi({
+          description: 'PMC: managed numbers whose Meta calling broke (wa-meta-calling-broken)',
+        }),
       })
       .nullable()
       .openapi({ description: 'Phase 18B: WhatsApp call audio; null when WhatsApp is off' }),

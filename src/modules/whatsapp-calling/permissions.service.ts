@@ -36,12 +36,12 @@ import { upsertConversation } from '../inbox/conversation-store';
 import { isWindowOpen, sendMessage } from '../inbox/outbound.service';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { numberName } from '../whatsapp/channel-status';
-import { clientFor, nowOf } from '../whatsapp/context';
+import { nowOf } from '../whatsapp/context';
 
 import { activeRestrictions, bicCountryBlocked } from './availability';
 import { withCallErrors } from './errors';
 import { CALLING_NOTIFICATIONS } from './notification-types';
-import type { CallingDeps } from './settings.service';
+import { callingApiOf, type CallingDeps } from './settings.service';
 
 /**
  * Call permissions (PHASE_12_PLAN §1e, PHASE_12_PROMPT T12.5). Meta's
@@ -129,6 +129,7 @@ const historyPush = (entry: CallPermissionHistoryEntry) => ({
 
 export const createCallPermissions = (deps: PermissionDeps) => {
   const { ctx } = deps;
+  const callApi = (channelId: Types.ObjectId | string) => callingApiOf(deps, channelId);
 
   /** Meta's view (cached `permissionCacheSec`); `fresh` skips the cache. */
   const metaPermission = async (
@@ -154,9 +155,9 @@ export const createCallPermissions = (deps: PermissionDeps) => {
         };
       }
     }
-    const { token } = await deps.token(channel._id);
+    const { token, api } = await callApi(channel._id);
     const fresh = await withCallErrors(() =>
-      clientFor(ctx, channel).getCallPermissions(token, channel.phoneNumberId ?? '', waId),
+      api.getCallPermissions(token, channel.phoneNumberId ?? '', waId),
     ).catch((err: unknown) => {
       // an API problem never lets a call / request through
       if (err instanceof AppError && err.code !== 'WHATSAPP_CALL_PERMISSION_CHECK_FAILED') {

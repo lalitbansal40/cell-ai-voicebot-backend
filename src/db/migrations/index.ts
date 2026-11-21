@@ -31,6 +31,7 @@ import { pinnacleProviderMigration } from './0028-pinnacle-provider';
 import { waWebhookStatusMigration } from './0029-wa-webhook-status';
 import { waIncomingDefaultMigration } from './0030-wa-incoming-default';
 import { waScheduledCallsMigration } from './0031-wa-scheduled-calls';
+import { waMetaCallingMigration } from './0032-wa-meta-calling';
 
 /** Ordered migration registry. Add new files here (no fs globbing — keeps builds simple). */
 export const MIGRATIONS: Migration[] = [
@@ -65,4 +66,5 @@ export const MIGRATIONS: Migration[] = [
   waWebhookStatusMigration,
   waIncomingDefaultMigration,
   waScheduledCallsMigration,
+  waMetaCallingMigration,
 ];

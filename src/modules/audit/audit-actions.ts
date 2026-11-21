@@ -240,6 +240,11 @@ export const AUDIT_ACTIONS = [
   'whatsapp.ai_calls_stopped',
   // SAC-T11: a managed number moved to Meta direct
   'whatsapp.channel_switched_to_meta',
+  // PMC: calls of a managed number over Meta Graph
+  'whatsapp.meta_calling_enabled',
+  'whatsapp.meta_calling_disabled',
+  'whatsapp.meta_calling_failed',
+  'whatsapp.meta_calling_checked',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

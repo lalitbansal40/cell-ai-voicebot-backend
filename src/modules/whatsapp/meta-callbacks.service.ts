@@ -6,6 +6,7 @@ import { WHATSAPP_LIMITS } from '../../config/limits';
 import { metaAppSecret, parseSignedRequest, SignedRequestInvalid } from '../../core/meta';
 import { MetaDeletionRequestModel } from '../../db/models/meta-deletion-request.model';
 import {
+  defaultMetaCalling,
   WA_ACTIVE_STATUSES,
   WhatsAppChannelModel,
   type WaStatusReason,
@@ -84,6 +85,21 @@ export const handleDeauthorize = async (
     status: { $in: WA_ACTIVE_STATUSES },
   }).lean<WhatsAppChannelDoc[]>();
   for (const c of channels) await markNeedsReconnect(ctx, c, DEAUTHORIZED, SYSTEM_ACTOR);
+  // PMC: calls of a managed number over Meta used this user's grant → broken until turned on again
+  await WhatsAppChannelModel.updateMany(
+    { 'metaCalling.metaUserId': userId, 'metaCalling.status': { $ne: 'off' } },
+    {
+      $set: {
+        'metaCalling.status': 'error',
+        'metaCalling.tokenSealed': null,
+        'metaCalling.error': {
+          code: 'deauthorized',
+          step: 'token',
+          message: 'The Facebook user removed our app — turn calling on again',
+        },
+      },
+    },
+  );
   await auditAccounts(channels, 'meta.deauthorized', {});
   return { channels: channels.length };
 };
@@ -119,6 +135,11 @@ export const handleDataDeletion = async (
   await WhatsAppChannelModel.updateMany(
     { metaUserId: userId },
     { $set: { tokenSealed: null, 'registration.pinSealed': null, metaUserId: null } },
+  );
+  // PMC: a managed number's Meta calling token granted by this user
+  await WhatsAppChannelModel.updateMany(
+    { 'metaCalling.metaUserId': userId },
+    { $set: { metaCalling: defaultMetaCalling() } },
   );
   await MetaDeletionRequestModel.updateOne(
     { _id: request._id },

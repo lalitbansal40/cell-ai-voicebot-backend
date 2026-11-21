@@ -146,3 +146,26 @@ Calls and messages of a managed number go through Pinnacle's API. To use the Met
 API: `POST /api/v1/whatsapp/channels/{id}/switch-to-meta` `{ code, wabaId, phoneNumberId, mode? }` (`whatsapp.manage`).
 
 Open question for Pinnacle: when a WABA is subscribed to both apps, Pinnacle must not answer `calls` events of a switched number.
+
+## Calls via Meta direct, messages on the partner (PMC)
+
+Pinnacle carries no calling (no `calls` webhooks, no calling settings or call control). A managed number can keep **everything else** on Pinnacle (messages, templates, campaigns, media, profile, credit line) and run **only calls** over the Meta Graph API with our app's token. [ADR 0053](../adr/0053-managed-number-meta-direct-calling.md).
+
+1. Number details → **Calling** → **Calling on karo (Meta direct)**. Our Embedded Signup popup opens. Pick the **same** WABA and number (the dialog shows its last 4 digits). A superadmin in Full access, or on the admin route, can instead paste a **System User token** that has the WABA assigned (Advanced).
+2. The server checks the token (valid, `whatsapp_business_management` + `whatsapp_business_messaging`, this WABA, this number), subscribes our app to the WABA, makes sure the app webhook has `calls`, and turns calling ON at WhatsApp. Each step shows ✅ / ❌. A failed step can be retried with **Check / Fix** (the token is kept).
+3. From then on:
+   - Meta sends this number's `calls` and `account_settings_update` straight to `/api/v1/webhooks/meta`. Its messages and statuses from Meta are ignored, because they come through the relay.
+   - The relay's `calls` copies are dropped.
+   - Call control and calling settings use Graph.
+4. **Calling off** removes the token. Our app leaves the WABA when no other number of ours uses it. Calling can also be turned off at WhatsApp.
+5. A token Meta stops accepting turns the number to `error`: calling becomes unavailable, owners get the bell `whatsapp.meta_calling_broken`, and healthwatch raises `wa-meta-calling-broken`.
+
+Meta bills the calls to the WABA's payment method, the partner's credit line. Our wallet charges calls as before.
+
+API:
+
+- `GET` / `POST` / `DELETE /api/v1/whatsapp/channels/{id}/meta-calling`, plus `POST …/meta-calling/check` (`whatsapp.manage`; 6 / 10 min / number).
+- Admin twins under `/api/v1/admin/whatsapp/channels/{id}/meta-calling`.
+- Env `WA_META_CALLING_ENABLED`.
+
+Tell Pinnacle that our app is also subscribed to the WABA. They must not answer or terminate its calls.

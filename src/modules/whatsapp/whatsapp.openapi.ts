@@ -2,6 +2,8 @@ import { WHATSAPP_LIMITS } from '../../config/limits';
 import { META_EVENT_STATUSES } from '../../db/models/meta-webhook-event.model';
 import {
   CONNECT_STEPS,
+  META_CALLING_METHODS,
+  META_CALLING_STATUSES,
   META_PAYERS,
   REGISTRATION_STATUSES,
   CREDIT_LINE_STATUSES,
@@ -31,6 +33,8 @@ import {
   ManagedKeyBody,
   ManagedNumberBody,
   ManualConnectBody,
+  MetaCallingBody,
+  MetaCallingOffBody,
   RegisterPinBody,
   RenameChannelBody,
   SeedManagedNumberBody,
@@ -58,6 +62,23 @@ const WebhookStepSchema = z.object({
   ok: z.boolean(),
   detail: z.string().nullable(),
 });
+
+/** PMC: calls of a managed number over Meta Graph with our app's token (never the token). */
+export const MetaCallingSchema = registry.register(
+  'WhatsAppMetaCalling',
+  z.object({
+    status: z.enum(META_CALLING_STATUSES).openapi({
+      description: '`on` = calls go over Meta Graph; messages stay on the partner',
+    }),
+    method: z.enum(META_CALLING_METHODS).nullable(),
+    tokenLast4: s,
+    tokenExpiresAt: iso,
+    webhookCheck: WebhookCheckSchema,
+    enabledAt: iso,
+    checkedAt: iso,
+    error: z.object({ code: z.string(), step: s, message: z.string() }).nullable(),
+  }),
+);
 
 export const WhatsAppChannelSchema = registry.register(
   'WhatsAppChannel',
@@ -119,6 +140,7 @@ export const WhatsAppChannelSchema = registry.register(
     restriction: z.object({ type: z.string(), until: iso }).nullable(),
     webhook: z.object({ lastEventAt: iso, lastField: s }),
     webhookCheck: WebhookCheckSchema,
+    metaCalling: MetaCallingSchema,
     connectedBy: s,
     connectedAt: iso,
     syncedAt: iso,
@@ -175,6 +197,9 @@ export const WhatsAppConfigSchema = registry.register(
     metaPayer: z.enum(META_PAYERS),
     solutionId: s.openapi({
       description: 'Partner Solution id for this platform-payer account; null otherwise',
+    }),
+    metaCallingEnabled: z.boolean().openapi({
+      description: 'PMC: "Calling on karo (Meta direct)" is offered on managed numbers',
     }),
   }),
 );
@@ -299,6 +324,69 @@ registry.registerPath({
     200: ok(z.object({ webhookCheck: WebhookCheckSchema, steps: z.array(WebhookStepSchema) })),
     ...writes,
   },
+});
+// PMC: calls of a managed number over Meta Graph
+const MetaCallingStepSchema = z.object({
+  key: z.enum(['token', 'verify', 'app_subscribed', 'fields', 'calling_on']),
+  ok: z.boolean(),
+  detail: z.string().nullable(),
+});
+const MetaCallingResultSchema = z.object({
+  channel: WhatsAppChannelSchema,
+  steps: z.array(MetaCallingStepSchema),
+});
+const MetaCallingOffResultSchema = z.object({
+  channel: WhatsAppChannelSchema,
+  turnedOffAtWhatsApp: z.boolean(),
+  unsubscribed: z
+    .boolean()
+    .openapi({ description: 'Our app left the WABA (no other number of ours uses it)' }),
+});
+registry.registerPath({
+  method: 'get',
+  path: `${base}/channels/{id}/meta-calling`,
+  tags,
+  summary:
+    "PMC: a managed number's calls over Meta Graph — the last state, never the token (whatsapp.read)",
+  security: bearer,
+  request: { params: ChannelParams },
+  responses: { 200: ok(MetaCallingSchema), ...common },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/channels/{id}/meta-calling`,
+  tags,
+  summary:
+    'PMC: Calling on (Meta direct) — Embedded Signup code for the same WABA / number (a System User token only from a superadmin in full access); subscribes our app + `calls`, turns calling on at WhatsApp. Messages stay on the partner (whatsapp.manage; 6 / 10 min / number)',
+  security: bearer,
+  request: {
+    params: ChannelParams,
+    body: { content: { 'application/json': { schema: MetaCallingBody } } },
+  },
+  responses: { 200: ok(MetaCallingResultSchema), ...writes },
+});
+registry.registerPath({
+  method: 'delete',
+  path: `${base}/channels/{id}/meta-calling`,
+  tags,
+  summary:
+    'PMC: Calling off (Meta direct) — token removed, our app leaves the WABA when unused, calls back to the partner (whatsapp.manage)',
+  security: bearer,
+  request: {
+    params: ChannelParams,
+    body: { content: { 'application/json': { schema: MetaCallingOffBody } } },
+  },
+  responses: { 200: ok(MetaCallingOffResultSchema), ...writes },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${base}/channels/{id}/meta-calling/check`,
+  tags,
+  summary:
+    'PMC: Check / Fix — token, WABA / number access, our app + `calls` webhook (repaired), call settings (whatsapp.manage; 6 / 10 min / number)',
+  security: bearer,
+  request: { params: ChannelParams },
+  responses: { 200: ok(MetaCallingResultSchema), ...writes },
 });
 for (const [path, summary, body] of [
   ['sync', 'Sync now — token check + Meta details (whatsapp.manage; 1 / min / number)', null],
@@ -695,6 +783,49 @@ registry.registerPath({
     409: errors[409],
   },
 });
+for (const [method, path, summary, schema, body] of [
+  [
+    'post',
+    '/api/v1/admin/whatsapp/channels/{id}/meta-calling',
+    "PMC: Calling on (Meta direct) for any account's managed number — code or System User token (superadmin, audited)",
+    MetaCallingResultSchema,
+    MetaCallingBody,
+  ],
+  [
+    'delete',
+    '/api/v1/admin/whatsapp/channels/{id}/meta-calling',
+    "PMC: Calling off (Meta direct) for any account's managed number (superadmin, audited)",
+    MetaCallingOffResultSchema,
+    MetaCallingOffBody,
+  ],
+  [
+    'post',
+    '/api/v1/admin/whatsapp/channels/{id}/meta-calling/check',
+    "PMC: Check / Fix of any account's Meta calling (superadmin, audited)",
+    MetaCallingResultSchema,
+    null,
+  ],
+] as const) {
+  registry.registerPath({
+    method,
+    path,
+    tags: adminTags,
+    summary,
+    security: bearer,
+    request: {
+      params: ChannelParams,
+      ...(body ? { body: { content: { 'application/json': { schema: body } } } } : {}),
+    },
+    responses: {
+      200: ok(schema),
+      ...admin,
+      404: errors[404],
+      409: errors[409],
+      422: errors[422],
+      429: errors[429],
+    },
+  });
+}
 registry.registerPath({
   method: 'post',
   path: '/api/v1/admin/whatsapp/channels/{id}/managed/webhook',

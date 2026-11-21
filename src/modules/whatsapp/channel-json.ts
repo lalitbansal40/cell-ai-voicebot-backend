@@ -1,6 +1,8 @@
 import { getEnv } from '../../config/env';
 import {
+  defaultMetaCalling,
   defaultWebhookState,
+  type WaMetaCalling,
   type WaWebhookState,
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
@@ -21,6 +23,21 @@ export const webhookCheckJson = (w: WaWebhookState | null | undefined) => {
 };
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
+
+/** PMC: calls of a managed number over Meta Graph — never the token. */
+export const metaCallingJson = (m: WaMetaCalling | null | undefined) => {
+  const v = m ?? defaultMetaCalling();
+  return {
+    status: v.status,
+    method: v.method,
+    tokenLast4: v.tokenLast4,
+    tokenExpiresAt: iso(v.tokenExpiresAt),
+    webhookCheck: webhookCheckJson(v.webhookCheck),
+    enabledAt: iso(v.enabledAt),
+    checkedAt: iso(v.checkedAt),
+    error: v.error ? { code: v.error.code, step: v.error.step, message: v.error.message } : null,
+  };
+};
 const idOf = (v: { toString(): string } | null | undefined) => (v ? v.toString() : null);
 
 /** Per-field webhook counts of the last 24 h (detail view). */
@@ -103,6 +120,8 @@ export const channelListItem = (c: WhatsAppChannelDoc) => ({
   webhook: { lastEventAt: iso(c.webhook.lastEventAt), lastField: c.webhook.lastField },
   /** SAC-T4: our last check that Meta delivers this number's events (Webhook check / Fix). */
   webhookCheck: webhookCheckJson(c.webhookCheck),
+  /** PMC: a managed number's calls over Meta Graph ("Calling on karo (Meta direct)"). */
+  metaCalling: metaCallingJson(c.metaCalling),
   connectedBy: idOf(c.connectedBy),
   connectedAt: iso(c.connectedAt),
   syncedAt: iso(c.syncedAt),

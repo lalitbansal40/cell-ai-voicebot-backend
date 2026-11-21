@@ -8,7 +8,7 @@ import {
   PLACEHOLDER_CALLING_RATE_CARD_NOTE,
   WhatsAppRateCardModel,
 } from '../../db/models/whatsapp-rate-card.model';
-import type { WhatsAppContext } from '../whatsapp/context';
+import { callingClientFor, type WhatsAppContext } from '../whatsapp/context';
 
 import { activeRestrictions, LOW_TIERS } from './availability';
 
@@ -30,6 +30,8 @@ export const READINESS_KEYS = [
   'last_calls_webhook',
   'media',
   'prices',
+  // PMC: a managed number's calls run over Meta Graph (managed numbers only)
+  'meta_direct',
 ] as const;
 export type ReadinessKey = (typeof READINESS_KEYS)[number];
 
@@ -47,6 +49,7 @@ export const BLOCKING_KEYS: readonly ReadinessKey[] = [
   'messaging_limit',
   'calls_webhook',
   'media',
+  'meta_direct',
 ];
 
 const CACHE_SEC = 3600;
@@ -69,7 +72,7 @@ export interface ReadinessFacts {
     | 'businessVerificationStatus'
     | 'calling'
   > &
-    Partial<Pick<WhatsAppChannelDoc, 'provider'>>;
+    Partial<Pick<WhatsAppChannelDoc, 'provider' | 'metaCalling'>>;
   callsWebhook: boolean | null;
   appPermission: boolean | null;
   media: {
@@ -100,7 +103,9 @@ export const readinessItems = (f: ReadinessFacts): ReadinessItem[] => {
   const m = f.media;
   const mediaOk = m.enabled && (!m.publicIpNeeded || m.publicIpSet) && m.portFree !== false;
   const verified = c.businessVerificationStatus ?? null;
-  return [
+  const managed = c.provider === 'pinnacle';
+  const direct = managed ? (c.metaCalling?.status ?? 'off') : null;
+  const items: ReadinessItem[] = [
     {
       key: 'cloud_api',
       ok: cloud,
@@ -134,53 +139,84 @@ export const readinessItems = (f: ReadinessFacts): ReadinessItem[] => {
           ? 'Verify the business in Meta Business Settings → Security Centre; it also raises the messaging limit.'
           : null,
     },
-    // PN (D16): a managed number's events and access come from the partner (Pinnacle)
-    f.channel.provider === 'pinnacle'
+    // PMC (D19): a managed number with calls over Meta Graph — our app's webhook and token
+    direct === 'on' || direct === 'error'
       ? {
-          key: 'calls_webhook',
-          ok: f.callsWebhook,
-          detail: f.callsWebhook
-            ? 'Partner webhook set — calls events reach us'
-            : 'The partner webhook is not set for this number',
-          fix: f.callsWebhook ? null : 'Ask support to reset the partner webhook for this number.',
-        }
-      : {
           key: 'calls_webhook',
           ok: f.callsWebhook,
           detail:
             f.callsWebhook === null
-              ? 'Could not read the app’s webhook fields'
+              ? 'Not checked yet'
               : f.callsWebhook
-                ? 'The app receives `calls` events'
-                : 'The app is not subscribed to `calls`',
-          fix:
-            f.callsWebhook === false
-              ? 'Press "Webhook check / Fix" on the number (or Meta App Dashboard → WhatsApp → Configuration → Webhook fields: subscribe to "calls").'
-              : null,
-        },
-    f.channel.provider === 'pinnacle'
-      ? {
-          key: 'app_permission',
-          ok: f.appPermission,
-          detail: f.appPermission
-            ? 'Partner API key valid'
-            : 'The partner API key was rejected or not checked yet',
-          fix: f.appPermission ? null : 'Ask support to replace the partner API key.',
+                ? 'Meta sends this number’s `calls` events to us directly'
+                : 'Meta does not send `calls` events to us yet',
+          fix: f.callsWebhook
+            ? null
+            : 'Number details → Calling → "Check / Fix" (subscribes our app and adds the `calls` field).',
         }
-      : {
+      : // PN (D16): a managed number's events and access come from the partner (Pinnacle)
+        f.channel.provider === 'pinnacle'
+        ? {
+            key: 'calls_webhook',
+            ok: f.callsWebhook,
+            detail: f.callsWebhook
+              ? 'Partner webhook set — calls events reach us'
+              : 'The partner webhook is not set for this number',
+            fix: f.callsWebhook
+              ? null
+              : 'Ask support to reset the partner webhook for this number.',
+          }
+        : {
+            key: 'calls_webhook',
+            ok: f.callsWebhook,
+            detail:
+              f.callsWebhook === null
+                ? 'Could not read the app’s webhook fields'
+                : f.callsWebhook
+                  ? 'The app receives `calls` events'
+                  : 'The app is not subscribed to `calls`',
+            fix:
+              f.callsWebhook === false
+                ? 'Press "Webhook check / Fix" on the number (or Meta App Dashboard → WhatsApp → Configuration → Webhook fields: subscribe to "calls").'
+                : null,
+          },
+    direct === 'on' || direct === 'error'
+      ? {
           key: 'app_permission',
           ok: f.appPermission,
           detail:
             f.appPermission === null
-              ? 'Could not check the number’s access'
+              ? 'Could not check the Meta access for calls'
               : f.appPermission
-                ? 'whatsapp_business_messaging granted'
-                : 'whatsapp_business_messaging missing',
-          fix:
-            f.appPermission === false
-              ? 'Connect the number again and allow every permission in the Meta popup.'
-              : null,
-        },
+                ? 'Meta access for calls valid (whatsapp_business_messaging)'
+                : 'The Meta access for calls was rejected',
+          fix: f.appPermission
+            ? null
+            : 'Number details → Calling → "Calling on karo (Meta direct)" again.',
+        }
+      : f.channel.provider === 'pinnacle'
+        ? {
+            key: 'app_permission',
+            ok: f.appPermission,
+            detail: f.appPermission
+              ? 'Partner API key valid'
+              : 'The partner API key was rejected or not checked yet',
+            fix: f.appPermission ? null : 'Ask support to replace the partner API key.',
+          }
+        : {
+            key: 'app_permission',
+            ok: f.appPermission,
+            detail:
+              f.appPermission === null
+                ? 'Could not check the number’s access'
+                : f.appPermission
+                  ? 'whatsapp_business_messaging granted'
+                  : 'whatsapp_business_messaging missing',
+            fix:
+              f.appPermission === false
+                ? 'Connect the number again and allow every permission in the Meta popup.'
+                : null,
+          },
     {
       key: 'meta_status',
       ok: calling.status === 'enabled',
@@ -232,6 +268,25 @@ export const readinessItems = (f: ReadinessFacts): ReadinessItem[] => {
         : "Superadmin → WhatsApp billing → Calling rates: import Meta's INR card.",
     },
   ];
+  if (managed) {
+    items.push({
+      key: 'meta_direct',
+      ok: direct === 'on',
+      detail:
+        direct === 'on'
+          ? 'Calls via Meta direct — messages stay on the partner'
+          : direct === 'error'
+            ? `Calls via Meta direct stopped: ${c.metaCalling?.error?.message ?? 'check it'}`
+            : 'The partner can’t carry calls — calls need Meta direct',
+      fix:
+        direct === 'on'
+          ? null
+          : direct === 'error'
+            ? 'Number details → Calling → "Check / Fix", or turn calling on again.'
+            : 'Number details → Calling → "Calling on karo (Meta direct)".',
+    });
+  }
+  return items;
 };
 
 export const blockingProblem = (items: ReadinessItem[]): ReadinessItem | null =>
@@ -255,8 +310,12 @@ const portBindable = (port: number): Promise<boolean | null> =>
   });
 
 export interface ReadinessDeps {
-  ctx: Pick<WhatsAppContext, 'meta' | 'redis' | 'env'> & { now?: () => Date };
-  token: (channelId: Types.ObjectId | string) => Promise<{ token: string }>;
+  ctx: Pick<WhatsAppContext, 'meta' | 'pinnacle' | 'redis' | 'env' | 'key'> & {
+    now?: () => Date;
+  };
+  token: (
+    channelId: Types.ObjectId | string,
+  ) => Promise<{ channel: WhatsAppChannelDoc; token: string }>;
 }
 
 type MediaEnv = Pick<
@@ -297,6 +356,19 @@ export const createCallingReadiness = (deps: ReadinessDeps) => {
       return info.isValid && info.scopes.includes('whatsapp_business_messaging');
     });
 
+  /** PMC (D19): the Meta token of a managed number's calls (never cached across a turn-on). */
+  const directPermission = (channel: WhatsAppChannelDoc) =>
+    cached(
+      `wa:readiness:direct-scope:${channel._id.toString()}:${channel.metaCalling?.tokenLast4 ?? ''}`,
+      async () => {
+        const { channel: row, token: channelToken } = await deps.token(channel._id);
+        const { token } = callingClientFor(deps.ctx, row, channelToken);
+        // meta-only: our Meta app (managed numbers: see `read`)
+        const info = await meta.debugToken(token);
+        return info.isValid && info.scopes.includes('whatsapp_business_messaging');
+      },
+    );
+
   const pricesImported = async (): Promise<boolean | null> => {
     const card = await WhatsAppRateCardModel.findOne({ kind: 'calling' })
       .sort({ effectiveFrom: -1 })
@@ -310,13 +382,27 @@ export const createCallingReadiness = (deps: ReadinessDeps) => {
   ): Promise<{ ready: boolean; items: ReadinessItem[] }> => {
     const now = deps.ctx.now?.() ?? new Date();
     const managed = channel.provider === 'pinnacle';
+    const direct = managed && channel.metaCalling?.status === 'on';
+    const broken = managed && channel.metaCalling?.status === 'error';
+    const directHook = (): boolean | null => {
+      const status = channel.metaCalling?.webhookCheck?.status ?? 'unknown';
+      return status === 'unknown' ? null : status === 'ok';
+    };
     const [hook, scope, prices, port] = await Promise.all([
-      managed ? Promise.resolve(Boolean(channel.pinnacle?.webhookSetAt)) : callsWebhook(),
-      managed
-        ? Promise.resolve(
-            Boolean(channel.pinnacle?.keyCheckedAt) && channel.status !== 'needs_reconnect',
-          )
-        : appPermission(channel._id.toString()),
+      direct || broken
+        ? Promise.resolve(directHook())
+        : managed
+          ? Promise.resolve(Boolean(channel.pinnacle?.webhookSetAt))
+          : callsWebhook(),
+      direct
+        ? directPermission(channel)
+        : broken
+          ? Promise.resolve(false)
+          : managed
+            ? Promise.resolve(
+                Boolean(channel.pinnacle?.keyCheckedAt) && channel.status !== 'needs_reconnect',
+              )
+            : appPermission(channel._id.toString()),
       pricesImported(),
       env.WA_MEDIA_ENABLED ? portBindable(env.WA_MEDIA_PORT_MAX) : Promise.resolve(null),
     ]);

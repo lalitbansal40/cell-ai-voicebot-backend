@@ -18,9 +18,14 @@ export const BIC_EXCLUDED_CALLING_CODES = ['1', '20', '84', '234'] as const;
 export const LOW_TIERS = new Set(['TIER_50', 'TIER_250', 'TIER_1K']);
 
 export const callingUnavailableReason = (
-  channel: Pick<WhatsAppChannelDoc, 'mode' | 'isOnBizApp' | 'platformType' | 'messagingLimitTier'>,
+  channel: Pick<WhatsAppChannelDoc, 'mode' | 'isOnBizApp' | 'platformType' | 'messagingLimitTier'> &
+    Partial<Pick<WhatsAppChannelDoc, 'provider' | 'metaCalling'>>,
 ): WaCallingUnavailableReason | null => {
   if (channel.mode === 'coexistence' || channel.isOnBizApp) return 'coexistence';
+  // PMC (D14): the Meta token for a managed number's calls stopped working
+  if (channel.provider === 'pinnacle' && channel.metaCalling?.status === 'error') {
+    return 'meta_calling_broken';
+  }
   if (channel.platformType && channel.platformType.toUpperCase() !== 'CLOUD_API') {
     return 'not_cloud_api';
   }

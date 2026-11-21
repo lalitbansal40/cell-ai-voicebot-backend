@@ -294,6 +294,12 @@ export const WEBHOOK_FIELDS = [
 ] as const;
 export type WebhookField = (typeof WEBHOOK_FIELDS)[number];
 
+/**
+ * PMC: the fields Meta delivers straight to us for a managed number whose calls run over
+ * Meta Graph. Everything else (messages, statuses, templates) comes through the partner relay.
+ */
+export const META_DIRECT_FIELDS = ['calls', 'account_settings_update'] as const;
+
 export const WEBHOOK_OBJECT = 'whatsapp_business_account';
 
 export const webhookChangeSchema = z.looseObject({

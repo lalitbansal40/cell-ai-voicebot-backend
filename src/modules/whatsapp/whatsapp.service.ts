@@ -19,6 +19,7 @@ import { MetaWebhookEventModel } from '../../db/models/meta-webhook-event.model'
 import {
   CONNECT_STEPS,
   defaultCalling,
+  defaultMetaCalling,
   defaultWebhookState,
   WA_ACTIVE_STATUSES,
   WhatsAppChannelModel,
@@ -74,12 +75,14 @@ import {
   type WhatsAppContext,
 } from './context';
 import { metaApiError, notReady, signupError, signupFailed } from './errors';
+import { createMetaCallingService } from './meta-calling.service';
 import { PINNACLE_SECRET_HEADER, pinnacleWebhookUrl } from './pinnacle-webhooks.service';
 import { noteProviderError } from './provider-alerts';
 import { checkWebhook, type WebhookStep } from './webhook-check';
 import { resetManagedNumbersCache } from './webhooks.service';
 
-const SECRET_FIELDS = '+tokenSealed +registration.pinSealed +pinnacle.webhookSecretSealed';
+const SECRET_FIELDS =
+  '+tokenSealed +registration.pinSealed +pinnacle.webhookSecretSealed +metaCalling.tokenSealed';
 /** Fields the `phone` step sets (dropped when the number turns out to be taken). */
 const PHONE_KEYS = ['phoneNumberId', 'displayPhoneNumber', 'phoneE164', 'verifiedName'] as const;
 
@@ -204,6 +207,8 @@ const RESTRICTED_PHONE_STATUSES = new Set(['BANNED', 'RESTRICTED']);
 /** Optional effects of the service (Phase 11: a template sync after a successful connect). */
 export interface WhatsAppServiceHooks {
   onConnected?: (channel: WhatsAppChannelDoc) => Promise<void>;
+  /** PMC: a managed number's Meta calling changed — read its call settings again. */
+  onMetaCallingChanged?: (channel: WhatsAppChannelDoc) => Promise<void>;
 }
 
 export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServiceHooks = {}) => {
@@ -221,6 +226,11 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     }
   };
   const { meta, redis } = ctx;
+  // PMC: calls of a managed number over Meta Graph
+  const metaCalling = createMetaCallingService(
+    ctx,
+    hooks.onMetaCallingChanged ? { onChanged: hooks.onMetaCallingChanged } : {},
+  );
 
   // ── locks / rate limits ───────────────────────────────────────────────────
   const RELEASE = `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end`;
@@ -1075,6 +1085,8 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
     const updated = await transition(ctx, channel, 'disconnected', why, actor, {
       tokenSealed: null,
       'registration.pinSealed': null,
+      // PMC: the Meta token for calls goes with the number
+      metaCalling: defaultMetaCalling(),
       ...(isPinnacle(channel) && channel.pinnacle
         ? { 'pinnacle.webhookSecretSealed': null, 'pinnacle.webhookSetAt': null }
         : {}),
@@ -1718,6 +1730,8 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
       {
         $set: {
           pinnacle: null,
+          // PMC (D18): the main token now carries calls too
+          metaCalling: defaultMetaCalling(),
           pinnacleArchived: {
             keyLast4: channel.pinnacle?.keyLast4 ?? null,
             switchedAt: nowOf(ctx),
@@ -1821,6 +1835,12 @@ export const createWhatsAppService = (ctx: WhatsAppContext, hooks: WhatsAppServi
   };
 
   return {
+    // PMC: calls of a managed number over Meta Graph
+    enableMetaCalling: metaCalling.enable,
+    disableMetaCalling: metaCalling.disable,
+    checkMetaCalling: metaCalling.check,
+    sweepMetaCalling: metaCalling.sweep,
+    metaCallingStatus: metaCalling.status,
     switchToMeta,
     webhookStatus,
     fixWebhook,
