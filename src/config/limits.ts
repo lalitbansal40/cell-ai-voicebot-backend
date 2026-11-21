@@ -13,6 +13,15 @@ export const GLOBAL_RATE_LIMIT = { windowMs: 60_000, limit: 1200 } as const;
 /** Preset for sensitive routes (login, password reset, OTP) — mounted in Phase 2. */
 export const STRICT_RATE_LIMIT = { windowMs: 15 * 60_000, limit: 10 } as const;
 
+/** WhatsApp Meta call diagnostics and their storage / rate limits (WCF). */
+export const META_CALL_DIAG = {
+  errorTtlDays: 7,
+  listLimit: 50,
+  throttleSec: 10,
+  diagnosePer10Min: 6,
+  healthErrorsPerHour: 5,
+} as const;
+
 /** Paths never rate-limited or access-logged (health checks land in T1.9). */
 export const UNLIMITED_PATHS: readonly string[] = ['/health', '/ready'];
 
@@ -524,6 +533,10 @@ export const WHATSAPP_BILLING_LIMITS = {
 
 /** WhatsApp calling (Phase 12): Meta's limits + our timings (PHASE_12_PLAN §1d / §1h). */
 export const WHATSAPP_CALL_LIMITS = {
+  /** Meta accepts inbound calls without pre_accept; keep switch for rollback. */
+  preAcceptRequired: false,
+  /** Normalize local SDP to the documented Meta audio profile before signaling. */
+  metaSdpStrict: true,
   permissionRequestsPerDay: 1,
   permissionRequestsPerWeek: 2,
   temporaryPermissionDays: 7,

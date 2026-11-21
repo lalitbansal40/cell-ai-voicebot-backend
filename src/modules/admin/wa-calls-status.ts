@@ -1,5 +1,6 @@
 import type { Env } from '../../config/env';
 import { CallModel, LIVE_CALL_STATUSES, type CallEndReason } from '../../db/models/call.model';
+import { MetaCallErrorModel } from '../../db/models/meta-call-error.model';
 import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
 
 /** Admin → System (Phase 18B): is WhatsApp call audio ready on this install. No secrets. */
@@ -26,6 +27,7 @@ export interface WhatsAppCallsStatus {
   /** PMC: managed numbers with calls over Meta Graph — working / broken (`wa-meta-calling-broken`). */
   metaCallingOn: number;
   metaCallingBroken: number;
+  metaCallErrors1h: number;
 }
 
 export type WhatsAppCallsEnv = Pick<
@@ -69,6 +71,7 @@ export const readWhatsAppCallsStatus = async (
     firstAudio,
     metaCallingOn,
     metaCallingBroken,
+    metaCallErrors1h,
   ] = await Promise.all([
     CallModel.countDocuments({ provider: 'whatsapp', status: { $in: LIVE_CALL_STATUSES } }),
     CallModel.findOne({ provider: 'whatsapp', 'timestamps.ringingAt': { $ne: null } })
@@ -99,6 +102,7 @@ export const readWhatsAppCallsStatus = async (
       .lean<{ metrics?: { firstAudioMs?: number } }[]>(),
     WhatsAppChannelModel.countDocuments({ ...live, 'metaCalling.status': 'on' }),
     WhatsAppChannelModel.countDocuments({ ...live, 'metaCalling.status': 'error' }),
+    MetaCallErrorModel.countDocuments({ at: { $gte: new Date(now.getTime() - 60 * MIN) } }),
   ]);
   const samples = firstAudio.map((c) => c.metrics?.firstAudioMs ?? 0).sort((a, b) => a - b);
   const aiFirstAudioP95Ms =
@@ -122,5 +126,6 @@ export const readWhatsAppCallsStatus = async (
     aiFirstAudioP95Ms,
     metaCallingOn,
     metaCallingBroken,
+    metaCallErrors1h,
   };
 };

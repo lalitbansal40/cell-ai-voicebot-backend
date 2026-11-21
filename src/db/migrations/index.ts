@@ -32,6 +32,7 @@ import { waWebhookStatusMigration } from './0029-wa-webhook-status';
 import { waIncomingDefaultMigration } from './0030-wa-incoming-default';
 import { waScheduledCallsMigration } from './0031-wa-scheduled-calls';
 import { waMetaCallingMigration } from './0032-wa-meta-calling';
+import { metaCallErrorsMigration } from './0033-meta-call-errors';
 
 /** Ordered migration registry. Add new files here (no fs globbing — keeps builds simple). */
 export const MIGRATIONS: Migration[] = [
@@ -67,4 +68,5 @@ export const MIGRATIONS: Migration[] = [
   waIncomingDefaultMigration,
   waScheduledCallsMigration,
   waMetaCallingMigration,
+  metaCallErrorsMigration,
 ];

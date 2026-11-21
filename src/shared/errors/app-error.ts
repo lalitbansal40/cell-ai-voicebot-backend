@@ -21,6 +21,8 @@ export interface ErrorDetail {
   metaCode?: number;
   metaSubcode?: number;
   fbtraceId?: string;
+  /** The Graph operation associated with the failure (when known). */
+  op?: string;
 }
 
 /**

@@ -243,6 +243,7 @@ export const AUDIT_ACTIONS = [
   // PMC: calls of a managed number over Meta Graph
   'whatsapp.meta_calling_enabled',
   'whatsapp.meta_calling_disabled',
+  'whatsapp.calling_diagnosed',
   'whatsapp.meta_calling_failed',
   'whatsapp.meta_calling_checked',
 ] as const;

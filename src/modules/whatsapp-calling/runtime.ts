@@ -13,6 +13,7 @@ import {
   type WhatsAppCallsDeps,
   type WhatsAppCallsService,
 } from './calls.service';
+import { createCallingDiagnose } from './diagnose.service';
 import type { CallingJobs } from './jobs';
 import { createCallPermissions, type CallPermissionsService } from './permissions.service';
 import { createScheduledCalls, type ScheduledCallsService } from './scheduled.service';
@@ -33,6 +34,8 @@ export interface CallingRuntime {
   env: WhatsAppContext['env'];
   /** SAC-T8: scheduled AI calls (placed here when `calls` runs here). */
   scheduled: ScheduledCallsService;
+  /** WCF: read-only, panel-visible checks of the number's calling API. */
+  diagnose: ReturnType<typeof createCallingDiagnose>;
 }
 
 export const createCallingRuntime = (deps: {
@@ -71,5 +74,6 @@ export const createCallingRuntime = (deps: {
     permissions,
     ...(deps.ctx.now ? { now: deps.ctx.now } : {}),
   });
-  return { settings, permissions, bulk, calls, hooks, env: deps.ctx.env, scheduled };
+  const diagnose = createCallingDiagnose(deps.ctx, token);
+  return { settings, permissions, bulk, calls, hooks, env: deps.ctx.env, scheduled, diagnose };
 };

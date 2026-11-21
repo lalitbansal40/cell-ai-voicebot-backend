@@ -509,6 +509,9 @@ export const SystemStatusSchema = registry.register(
         metaCallingBroken: z.number().int().openapi({
           description: 'PMC: managed numbers whose Meta calling broke (wa-meta-calling-broken)',
         }),
+        metaCallErrors1h: z.number().int().openapi({
+          description: 'WCF: failed Meta call actions recorded during the last hour',
+        }),
       })
       .nullable()
       .openapi({ description: 'Phase 18B: WhatsApp call audio; null when WhatsApp is off' }),

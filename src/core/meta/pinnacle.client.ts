@@ -277,6 +277,10 @@ export const createPinnacleClient = (options: PinnacleClientOptions): PinnacleCl
       return toPhone(raw);
     },
 
+    getPhoneCallingFacts() {
+      return Promise.reject(providerUnsupported('phone calling facts'));
+    },
+
     async getBusinessProfile(key, phoneNumberId) {
       const raw = await bearer(
         'phone.profile_get',

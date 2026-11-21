@@ -124,3 +124,28 @@ export const CallMediaTicketSchema = registry.register(
     wsPath: z.string(),
   }),
 );
+
+export const CallingDiagnoseBody = z
+  .strictObject({
+    contactPhone: z
+      .string()
+      .regex(/^\+[1-9]\d{6,14}$/, 'Use the +91… format')
+      .optional(),
+  })
+  .openapi('WhatsAppCallingDiagnoseInput');
+
+export const CallingDiagnoseSchema = registry.register(
+  'WhatsAppCallingDiagnose',
+  z.object({
+    channelId: z.string(),
+    checkedAt: z.string(),
+    steps: z.array(
+      z.object({
+        key: z.enum(['token', 'phone', 'settings', 'webhook', 'permission']),
+        ok: z.boolean(),
+        detail: z.string(),
+        metaCode: z.number().nullable(),
+      }),
+    ),
+  }),
+);

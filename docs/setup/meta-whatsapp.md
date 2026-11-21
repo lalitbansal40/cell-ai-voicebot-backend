@@ -183,3 +183,9 @@ From **Contacts** (selection, a list or a segment) → **Ask for WhatsApp call p
 7. Latency: measure mouth-to-ear on both sides (target < 400 ms) and note it in the Phase 13 report.
 8. Charges: Meta's call duration in **WhatsApp Manager → Insights** matches our pulses for the BIC calls (± 1 pulse); the wallet shows the previewed per-minute price.
 9. Server logs for the session contain no SDP lines (`v=0`, `a=candidate`, `a=fingerprint`, `ice-pwd`), phone numbers, names or digits.
+
+# When a call fails
+
+On a number's Calling page, run **Test calling API** for safe read-only checks. It never places a call; an optional customer number checks call permission. The call popup and Call details show Meta's masked error message, operation, code/subcode and `fbtraceId`. Superadmins can review recent failures under Admin → WhatsApp → Meta call errors. Errors are retained for seven days.
+
+Common signals: 190/200/10 indicate Meta access or permission; 100/131009 indicate a rejected request or audio offer; 138xxx indicates a calling restriction. A low messaging tier can make calling unavailable. Use the per-number diagnose results and the original Meta message to identify the exact cause.

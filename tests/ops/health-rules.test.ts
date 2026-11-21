@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { META_CALL_DIAG } from '../../src/config/limits';
 import { parseFailedBefore } from '../../src/ops/health-check';
 import { failedTotal, healthIssues, HEALTH_LIMITS } from '../../src/ops/health-rules';
 
@@ -72,6 +73,22 @@ describe('healthwatch rules', () => {
     expect(healthIssues(facts({ whatsappCalls: { ...wa, metaCallingBroken: 0 } }))).not.toContain(
       'wa-meta-calling-broken',
     );
+  });
+
+  it('WCF: Meta call error volume raises wa-meta-call-errors at the configured threshold', () => {
+    const wa = { mediaEnabled: true, publicIpSet: true, failedSetups15m: 0 };
+    expect(
+      healthIssues(
+        facts({ whatsappCalls: { ...wa, metaCallErrors1h: META_CALL_DIAG.healthErrorsPerHour } }),
+      ),
+    ).toContain('wa-meta-call-errors');
+    expect(
+      healthIssues(
+        facts({
+          whatsappCalls: { ...wa, metaCallErrors1h: META_CALL_DIAG.healthErrorsPerHour - 1 },
+        }),
+      ),
+    ).not.toContain('wa-meta-call-errors');
   });
 
   it('SAC-T12: slow first AI words (p95 > 2.5 s) raise wa-ai-latency-high', () => {

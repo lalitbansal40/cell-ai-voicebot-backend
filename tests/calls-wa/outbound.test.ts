@@ -23,6 +23,7 @@ import { ContactModel } from '../../src/db/models/contact.model';
 import { FlowRunModel } from '../../src/db/models/flow-run.model';
 import { LedgerEntryModel } from '../../src/db/models/ledger-entry.model';
 import { MessageModel } from '../../src/db/models/message.model';
+import { MetaCallErrorModel } from '../../src/db/models/meta-call-error.model';
 import { WalletModel } from '../../src/db/models/wallet.model';
 import { WhatsAppCallPermissionModel } from '../../src/db/models/whatsapp-call-permission.model';
 import { WhatsAppChannelModel } from '../../src/db/models/whatsapp-channel.model';
@@ -672,7 +673,19 @@ describe('business-initiated WhatsApp calls', () => {
     const fails = await contactFor(customer(FAKE_CALL_KNOBS.connectFails));
     await expect(start(fails._id)).rejects.toMatchObject({ code: 'WHATSAPP_CALL_FAILED' });
     const failed = await CallModel.findOne({ contactId: fails._id }).lean<CallDoc>();
-    expect(failed).toMatchObject({ status: 'failed', endReason: 'meta_failed' });
+    expect(failed).toMatchObject({
+      status: 'failed',
+      endReason: 'meta_failed',
+      error: { meta: { op: 'calls.connect', metaCode: 138004, message: 'Connection error' } },
+    });
+    expect(failed?.whatsapp?.timeline.some((event) => event.event === 'meta_error')).toBe(true);
+    expect(
+      await MetaCallErrorModel.exists({
+        channelId: state.channel._id,
+        op: 'calls.connect',
+        metaCode: 138004,
+      }),
+    ).toBeTruthy();
     expect(failed?.billing.whatsapp?.status).toBe('released');
     expect((await WalletModel.findOne({ accountId: actor.accountId }).lean())?.holdMicros).toBe(0);
 

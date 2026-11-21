@@ -69,6 +69,7 @@ const randomU32 = (): number => Math.floor(Math.random() * 0xffff_ffff) >>> 0;
 
 export class WhatsAppPeer {
   readonly pc: RTCPeerConnection;
+  iceGatheringTimedOut = false;
   private readonly track = new MediaStreamTrack({ kind: 'audio' });
   private readonly transceiver: RTCRtpTransceiver;
   private readonly ssrc = randomU32();
@@ -139,12 +140,21 @@ export class WhatsAppPeer {
   private async gathered(): Promise<string> {
     if (this.pc.iceGatheringState !== 'complete') {
       await new Promise<void>((resolve) => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          sub.unSubscribe();
+          resolve();
+        };
         const sub = this.pc.iceGatheringStateChange.subscribe((state) => {
-          if (state === 'complete') {
-            sub.unSubscribe();
-            resolve();
-          }
+          if (state === 'complete') finish();
         });
+        const timer = setTimeout(() => {
+          this.iceGatheringTimedOut = true;
+          finish();
+        }, 5000);
       });
     }
     return withPtime(this.pc.localDescription?.sdp ?? '');

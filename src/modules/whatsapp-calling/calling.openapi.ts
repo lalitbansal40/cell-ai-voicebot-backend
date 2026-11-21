@@ -17,6 +17,8 @@ import {
   StartWhatsAppCallBody,
   CallHoldBody,
   CallTransferBody,
+  CallingDiagnoseBody,
+  CallingDiagnoseSchema,
 } from './calling-api.schema';
 import {
   CallAvailabilityBody,
@@ -91,6 +93,24 @@ registry.registerPath({
   summary: 'What calling on this number needs and what to fix (whatsapp.read)',
   request: { params: CallingParams },
   responses: { 200: ok(CallingReadinessSchema), ...failures },
+});
+registry.registerPath({
+  method: 'post',
+  path: `${settingsPath}/diagnose`,
+  tags,
+  security: bearer,
+  summary: 'Run safe, read-only checks against this number calling API (whatsapp.manage)',
+  request: { params: CallingParams, body: body(CallingDiagnoseBody) },
+  responses: { 200: ok(CallingDiagnoseSchema), ...failures },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/whatsapp/channels/{id}/calling/diagnose',
+  tags: ['Admin'],
+  security: bearer,
+  summary: 'Run read-only calling checks on a channel as a superadmin',
+  request: { params: CallingParams, body: body(CallingDiagnoseBody) },
+  responses: { 200: ok(CallingDiagnoseSchema), ...failures },
 });
 registry.registerPath({
   method: 'post',

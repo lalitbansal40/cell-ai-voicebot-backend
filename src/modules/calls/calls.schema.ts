@@ -206,7 +206,13 @@ export const CallSchema = registry.register(
         metaDuration: z.number().nullable(),
         answeredBy: z.string().nullable(),
         transferredTo: z.string().nullable(),
-        timeline: z.array(z.object({ event: z.string(), at: z.string() })),
+        timeline: z.array(
+          z.object({
+            event: z.string(),
+            at: z.string(),
+            data: z.record(z.string(), z.unknown()).optional(),
+          }),
+        ),
       })
       .nullable(),
     isTest: z.boolean(),
@@ -330,7 +336,22 @@ export const CallSchema = registry.register(
       })
       .nullable(),
     flowRunId: z.string().nullable(),
-    error: z.object({ code: z.string() }).nullable(),
+    error: z
+      .object({
+        code: z.string(),
+        meta: z
+          .object({
+            op: z.string(),
+            metaCode: z.number().nullable(),
+            metaSubcode: z.number().nullable(),
+            type: z.string().nullable(),
+            message: z.string(),
+            fbtraceId: z.string().nullable(),
+            at: z.string(),
+          })
+          .optional(),
+      })
+      .nullable(),
     createdAt: z.string(),
   }),
 );

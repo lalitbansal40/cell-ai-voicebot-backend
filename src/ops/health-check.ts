@@ -40,6 +40,8 @@ const SIP_TEXT: Record<string, string> = {
   // PMC
   'wa-meta-calling-broken':
     "A managed WhatsApp number's calls over Meta stopped (token or webhook): open it → Calling → Check / Fix, or turn calling on again.",
+  'wa-meta-call-errors':
+    'At least five Meta WhatsApp call actions failed in the last hour; inspect Admin → WhatsApp → Meta call errors.',
 };
 
 /** Phase 18: a SIP problem also rings the superadmins' bell, once an hour per problem. */

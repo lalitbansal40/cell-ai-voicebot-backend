@@ -34,6 +34,7 @@ export const ErrorDetailSchema = registry.register(
       .openapi({ description: "On META_API_ERROR: Meta's error code" }),
     metaSubcode: z.number().int().optional().openapi({ description: 'On META_API_ERROR: subcode' }),
     fbtraceId: z.string().optional().openapi({ description: 'On META_API_ERROR: Meta trace id' }),
+    op: z.string().optional().openapi({ description: 'On META_API_ERROR: Graph operation' }),
   }),
 );
 

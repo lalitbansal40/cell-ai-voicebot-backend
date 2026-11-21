@@ -6,6 +6,7 @@ import { Redis } from 'ioredis';
 import { Types } from 'mongoose';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { graphError } from '../../src/core/meta';
 import { WebCallLeg } from '../../src/core/telephony/webcall';
 import { systemClock } from '../../src/core/voice/clock';
 import { FakeTts } from '../../src/core/voice/providers';
@@ -303,6 +304,7 @@ describe('user-initiated WhatsApp calls', () => {
   });
 
   it('executes the selected published incoming flow and persists its real flow outcome', async () => {
+    world.w.fake.failNext('preAcceptCall');
     const flowId = await publishedWhatsAppFlow(state.acc.account._id);
     await WhatsAppChannelModel.updateOne(
       { _id: state.channel._id },
@@ -326,6 +328,7 @@ describe('user-initiated WhatsApp calls', () => {
       await FlowRunModel.exists({ callId: call.id, flowId, status: 'ended', mode: 'call' }),
     ).toBeTruthy();
     expect(done.billing.whatsapp?.status).toBe('free');
+    expect(done.whatsapp?.timeline.some((event) => event.event === 'meta_error')).toBe(true);
   });
 
   it('answers AI calls and transfers an AI call to a browser agent on the same recording/session', async () => {
@@ -534,6 +537,61 @@ describe('user-initiated WhatsApp calls', () => {
     expect(views.find((v) => v.waCallId === call.waCallId)?.state).not.toBe('ended');
     await world.w.fake.userHangup(call.waCallId);
     await ended(call.id);
+  });
+
+  it('keeps ringing the team after pre_accept fails and records Meta detail', async () => {
+    world.w.fake.failNext('preAcceptCall');
+    const call = await incoming();
+    await waitRing(call.id);
+    await vi.waitFor(async () =>
+      expect((await query(call.id))?.whatsapp?.timeline.some((e) => e.event === 'meta_error')).toBe(
+        true,
+      ),
+    );
+    expect((await query(call.id))?.status).toBe('ringing');
+    await command(call.id, 'answer');
+    expect(await attach(call.id)).toEqual({ ok: true });
+    await vi.waitFor(async () => expect((await query(call.id))?.status).toBe('in_progress'));
+    expect(world.w.fake.calls.map((item) => item.op)).toContain('acceptCall');
+    await world.w.fake.userHangup(call.waCallId);
+    await ended(call.id);
+  });
+
+  it('accept failure saves Meta detail, ends the call, then attempts reject', async () => {
+    world.w.fake.failNext(
+      'acceptCall',
+      graphError(400, {
+        error: { code: 138004, message: 'Call accept was rejected', fbtrace_id: 'WCF-ACCEPT' },
+      }),
+    );
+    const call = await incoming();
+    await waitRing(call.id);
+    await command(call.id, 'answer');
+    await attach(call.id);
+    const endedCall = await ended(call.id);
+    expect(endedCall.endReason).toBe('meta_failed');
+    expect(endedCall.error).toMatchObject({
+      code: 'META_API_ERROR',
+      meta: { metaCode: 138004, message: 'Call accept was rejected', fbtraceId: 'WCF-ACCEPT' },
+    });
+    expect(world.w.fake.calls.map((item) => item.op)).toContain('rejectCall');
+  });
+
+  it('reject failure is recorded and terminate is attempted as fallback', async () => {
+    world.w.fake.failNext(
+      'rejectCall',
+      graphError(400, {
+        error: { code: 138004, message: 'Reject was refused', fbtrace_id: 'WCF-REJECT' },
+      }),
+    );
+    const call = await incoming();
+    await waitRing(call.id);
+    await command(call.id, 'decline');
+    await command(call.id, 'decline', users.manager.user._id.toString());
+    await ended(call.id);
+    const row = await query(call.id);
+    expect(row?.error).toMatchObject({ meta: { op: 'calls.reject', metaCode: 138004 } });
+    expect(world.w.fake.calls.map((item) => item.op)).toContain('terminateCall');
   });
 
   it('a terminate before the claim: the late connect starts nothing', async () => {

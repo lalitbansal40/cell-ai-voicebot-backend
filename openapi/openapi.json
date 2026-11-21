@@ -48,7 +48,8 @@
           "edgeId": { "type": "string", "description": "On FLOW_INVALID: the edge" },
           "metaCode": { "type": "integer", "description": "On META_API_ERROR: Meta's error code" },
           "metaSubcode": { "type": "integer", "description": "On META_API_ERROR: subcode" },
-          "fbtraceId": { "type": "string", "description": "On META_API_ERROR: Meta trace id" }
+          "fbtraceId": { "type": "string", "description": "On META_API_ERROR: Meta trace id" },
+          "op": { "type": "string", "description": "On META_API_ERROR: Graph operation" }
         },
         "required": ["path", "message"]
       },
@@ -1341,6 +1342,7 @@
               "whatsapp.channel_switched_to_meta",
               "whatsapp.meta_calling_enabled",
               "whatsapp.meta_calling_disabled",
+              "whatsapp.calling_diagnosed",
               "whatsapp.meta_calling_failed",
               "whatsapp.meta_calling_checked"
             ]
@@ -1880,6 +1882,10 @@
               "metaCallingBroken": {
                 "type": "integer",
                 "description": "PMC: managed numbers whose Meta calling broke (wa-meta-calling-broken)"
+              },
+              "metaCallErrors1h": {
+                "type": "integer",
+                "description": "WCF: failed Meta call actions recorded during the last hour"
               }
             },
             "required": [
@@ -1894,7 +1900,8 @@
               "turnSet",
               "aiFirstAudioP95Ms",
               "metaCallingOn",
-              "metaCallingBroken"
+              "metaCallingBroken",
+              "metaCallErrors1h"
             ],
             "description": "Phase 18B: WhatsApp call audio; null when WhatsApp is off"
           }
@@ -2908,7 +2915,11 @@
                 "type": "array",
                 "items": {
                   "type": "object",
-                  "properties": { "event": { "type": "string" }, "at": { "type": "string" } },
+                  "properties": {
+                    "event": { "type": "string" },
+                    "at": { "type": "string" },
+                    "data": { "type": "object", "additionalProperties": {} }
+                  },
                   "required": ["event", "at"]
                 }
               }
@@ -3198,7 +3209,22 @@
           "flowRunId": { "type": ["string", "null"] },
           "error": {
             "type": ["object", "null"],
-            "properties": { "code": { "type": "string" } },
+            "properties": {
+              "code": { "type": "string" },
+              "meta": {
+                "type": "object",
+                "properties": {
+                  "op": { "type": "string" },
+                  "metaCode": { "type": ["number", "null"] },
+                  "metaSubcode": { "type": ["number", "null"] },
+                  "type": { "type": ["string", "null"] },
+                  "message": { "type": "string" },
+                  "fbtraceId": { "type": ["string", "null"] },
+                  "at": { "type": "string" }
+                },
+                "required": ["op", "metaCode", "metaSubcode", "type", "message", "fbtraceId", "at"]
+              }
+            },
             "required": ["code"]
           },
           "createdAt": { "type": "string" }
@@ -8886,6 +8912,30 @@
         },
         "required": ["callId", "mediaTicket", "expiresAt", "wsPath"]
       },
+      "WhatsAppCallingDiagnose": {
+        "type": "object",
+        "properties": {
+          "channelId": { "type": "string" },
+          "checkedAt": { "type": "string" },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "enum": ["token", "phone", "settings", "webhook", "permission"]
+                },
+                "ok": { "type": "boolean" },
+                "detail": { "type": "string" },
+                "metaCode": { "type": ["number", "null"] }
+              },
+              "required": ["key", "ok", "detail", "metaCode"]
+            }
+          }
+        },
+        "required": ["channelId", "checkedAt", "steps"]
+      },
       "WhatsAppCallingReadiness": {
         "type": "object",
         "properties": {
@@ -9562,6 +9612,43 @@
           "channelId",
           "receivedAt",
           "processedAt"
+        ]
+      },
+      "AdminMetaCallError": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "accountId": { "type": "string" },
+          "accountName": { "type": "string" },
+          "channelId": { "type": "string" },
+          "numberLast4": { "type": "string" },
+          "callId": { "type": ["string", "null"] },
+          "op": { "type": "string" },
+          "metaCode": { "type": ["number", "null"] },
+          "metaSubcode": { "type": ["number", "null"] },
+          "type": { "type": ["string", "null"] },
+          "message": { "type": "string" },
+          "fbtraceId": { "type": ["string", "null"] },
+          "httpStatus": { "type": ["number", "null"] },
+          "via": { "type": "string", "enum": ["meta", "meta_direct", "pinnacle"] },
+          "at": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "accountId",
+          "accountName",
+          "channelId",
+          "numberLast4",
+          "callId",
+          "op",
+          "metaCode",
+          "metaSubcode",
+          "type",
+          "message",
+          "fbtraceId",
+          "httpStatus",
+          "via",
+          "at"
         ]
       },
       "VoiceCredentialsBody": {
@@ -10585,6 +10672,11 @@
           },
           "permissionRequestBody": { "type": "string", "minLength": 1, "maxLength": 1024 }
         }
+      },
+      "WhatsAppCallingDiagnoseInput": {
+        "type": "object",
+        "properties": { "contactPhone": { "type": "string", "pattern": "^\\+[1-9]\\d{6,14}$" } },
+        "additionalProperties": false
       },
       "CallAvailability": {
         "type": "object",
@@ -40186,6 +40278,158 @@
         }
       }
     },
+    "/api/v1/whatsapp/channels/{id}/calling/diagnose": {
+      "post": {
+        "tags": ["WhatsApp calling"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Run safe, read-only checks against this number calling API (whatsapp.manage)",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppCallingDiagnoseInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCallingDiagnose" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp calling or media capacity unavailable" }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp/channels/{id}/calling/diagnose": {
+      "post": {
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "summary": "Run read-only calling checks on a channel as a superadmin",
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WhatsAppCallingDiagnoseInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/WhatsAppCallingDiagnose" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp calling or media capacity unavailable" }
+        }
+      }
+    },
     "/api/v1/whatsapp/channels/{id}/calling/sync": {
       "post": {
         "tags": ["WhatsApp calling"],
@@ -43498,6 +43742,72 @@
                     "data": {
                       "type": "array",
                       "items": { "$ref": "#/components/schemas/MetaWebhookEventRow" }
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "503": { "description": "WhatsApp isn't set up on this server (WHATSAPP_NOT_CONFIGURED)" }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp/meta-call-errors": {
+      "get": {
+        "tags": ["Superadmin"],
+        "summary": "Recent, masked Meta calling errors across accounts (superadmin only)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "accountId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 50 },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AdminMetaCallError" }
                     }
                   },
                   "required": ["success", "data"]

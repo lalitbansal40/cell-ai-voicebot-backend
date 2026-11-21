@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ## [Unreleased]
 
+### Added
+
+- **WhatsApp call error diagnostics and resilient Meta calling (WCF)** — 2026-11-21 · [ADR 0054](docs/adr/0054-meta-call-errors-and-resilient-calls.md)
+  - Show masked Meta code, message, operation and trace id in call records and panel; superadmin error list and read-only Test calling API checks.
+  - Continue inbound team/AI routing when `pre_accept` fails, terminate after failed reject/connect, and normalize Meta call SDP.
+  - Seven-day `metaCallErrors` retention, account export/erase support and healthwatch counter. Migration `0033-meta-call-errors`; no env changes.
+
 ### Fixed
 
 - Inbound messages and delivery statuses no longer scan an account's messages (partial indexes were not used).

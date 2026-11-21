@@ -1043,6 +1043,13 @@ export const createFakeMetaClient = ({
       return toPhone(phoneSchema.parse(await rawPhone(identity)));
     },
 
+    async getPhoneCallingFacts(token, phoneNumberId) {
+      track('getPhoneCallingFacts', phoneNumberId);
+      const identity = await owned(token, phoneNumberId, 'phone');
+      if (!(await hasNumber(identity))) throw notFound('the phone number');
+      return toPhone(phoneSchema.parse(await rawPhone(identity)));
+    },
+
     async subscribeApp(token, wabaId) {
       track('subscribeApp', wabaId);
       const identity = await owned(token, wabaId, 'waba');

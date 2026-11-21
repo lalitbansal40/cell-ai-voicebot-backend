@@ -30,6 +30,7 @@ import {
   PermissionQuery,
   PermissionRequestBody,
   StartWhatsAppCallBody,
+  CallingDiagnoseBody,
 } from './calling-api.schema';
 import {
   CallAvailabilityBody,
@@ -131,6 +132,30 @@ export const createCallingRouter = ({ runtime, stores = {} }: CallingRouterDeps)
     ...handle({ params: CallingParams }, async ({ req, res, params }) => {
       ok(res, await runtime.settings.readiness(actor(req).accountId, params.id));
     }),
+  );
+  router.post(
+    '/whatsapp/channels/:id/calling/diagnose',
+    requirePermission('whatsapp.manage'),
+    blockWhenImpersonating(),
+    ...handle(
+      { params: CallingParams, body: CallingDiagnoseBody },
+      async ({ req, res, params, body }) => {
+        const who = actor(req);
+        ok(
+          res,
+          await runtime.diagnose.diagnose(
+            who.accountId,
+            params.id,
+            {
+              type: 'user',
+              id: who.userId,
+              impersonatorId: who.impersonatorId,
+            },
+            body,
+          ),
+        );
+      },
+    ),
   );
   router.patch(
     '/whatsapp/channels/:id/calling',

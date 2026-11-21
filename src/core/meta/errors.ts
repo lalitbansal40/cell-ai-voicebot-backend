@@ -37,6 +37,15 @@ const SDP_PATTERNS: RegExp[] = [
 /** Media URLs (they authorise a download for a while) are never kept in messages. */
 const MEDIA_URL = /https?:\/\/[^\s"]*(?:fbsbx|fbcdn|whatsapp\.net)[^\s"]*/gi;
 
+/** Phone-like digit runs are customer data; preserve only the last four digits. */
+export const maskMetaDetail = (text: string): string =>
+  scrubSecrets(text)
+    .replace(/\+?\d[\d\s().-]{6,}\d/g, (phone) => {
+      const digits = phone.replace(/\D/g, '');
+      return digits.length >= 8 ? `…${digits.slice(-4)}` : phone;
+    })
+    .slice(0, 300);
+
 /** Removes credentials Meta may echo in error messages / URLs. */
 export const scrubSecrets = (text: string): string =>
   SECRET_PATTERNS.reduce(
@@ -62,6 +71,8 @@ interface GraphErrorBody {
   code?: unknown;
   error_subcode?: unknown;
   fbtrace_id?: unknown;
+  error_user_msg?: unknown;
+  error_data?: { details?: unknown };
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -84,12 +95,19 @@ export const graphError = (status: number, body: unknown): MetaApiError => {
   const code = num(err.code);
   const subcode = num(err.error_subcode);
   const type = str(err.type);
+  const detail = maskMetaDetail(
+    str(err.error_data?.details) ??
+      str(err.error_user_msg) ??
+      str(err.message) ??
+      `Meta request failed (HTTP ${String(status)})`,
+  );
   return new MetaApiError({
     status,
     code,
     subcode,
     type,
-    message: scrubSecrets(str(err.message) ?? `Meta request failed (HTTP ${String(status)})`),
+    message: detail,
+    detail,
     fbtraceId: str(err.fbtrace_id),
     retryable: status >= 500 || (code !== null && RETRYABLE_GRAPH_CODES.has(code)),
     tokenInvalid: isTokenInvalid(code, subcode, type),
@@ -155,6 +173,7 @@ export const metaErrorMeta = (err: MetaApiError) => ({
   subcode: err.subcode,
   type: err.type,
   fbtraceId: err.fbtraceId,
+  message: err.detail ?? err.message,
 });
 
 /** What a failed send means for the message and the channel (PHASE_10_PLAN §1d). */

@@ -533,6 +533,23 @@ export const createGraphMetaClient = (options: GraphMetaClientOptions): MetaClie
       return toPhone(raw);
     },
 
+    async getPhoneCallingFacts(token, phoneNumberId) {
+      const raw = await bearer(
+        'phone.calling_facts',
+        'GET',
+        seg(phoneNumberId),
+        token,
+        phoneSchema,
+        {
+          query: {
+            fields:
+              'messaging_limit_tier,quality_rating,platform_type,name_status,throughput,code_verification_status',
+          },
+        },
+      );
+      return toPhone(raw);
+    },
+
     async subscribeApp(token, wabaId) {
       await bearer(
         'waba.subscribe',

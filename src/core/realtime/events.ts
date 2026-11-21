@@ -43,6 +43,7 @@ export interface WsEventMap {
     durationSec: number;
     disposition: string | null;
     costMicros: number;
+    error?: { code: string; metaCode: number | null; message: string; op?: string };
   };
   /** CM: a team campaign's calling session changed (who joined, states) — refetch the board. */
   'campaign.session': { campaignId: string };

@@ -83,7 +83,7 @@ export interface CallWhatsApp {
   direction: WaCallDirection;
   conversationId: Types.ObjectId | null;
   permissionId: Types.ObjectId | null;
-  timeline: { event: string; at: Date }[];
+  timeline: { event: string; at: Date; data?: Record<string, unknown> }[];
   metaStatus: string | null;
   metaDuration: number | null;
   metaStartTime: Date | null;
@@ -317,7 +317,18 @@ export interface CallDoc {
   flowRunId: Types.ObjectId | null;
   /** Next CallEvent / TranscriptTurn sequence numbers. */
   seq: { events: number; transcript: number };
-  error: { code: string } | null;
+  error: {
+    code: string;
+    meta?: {
+      op: string;
+      metaCode: number | null;
+      metaSubcode: number | null;
+      type: string | null;
+      message: string;
+      fbtraceId: string | null;
+      at: Date;
+    };
+  } | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -364,6 +375,7 @@ const whatsappSchema = new Schema<CallWhatsApp>(
           {
             event: { type: String, required: true, maxlength: 40 },
             at: { type: Date, required: true },
+            data: { type: Schema.Types.Mixed, default: undefined },
           },
           { _id: false },
         ),

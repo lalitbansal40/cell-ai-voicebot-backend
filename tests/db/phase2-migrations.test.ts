@@ -94,7 +94,8 @@ describe('phase 2 migrations', () => {
     await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);
-    // PMC: 0032 (calls of a managed number over Meta)
+    // WCF: 0033 (Meta call errors), PMC: 0032 (calls of a managed number over Meta)
+    await migrateDown(db(), MIGRATIONS, logger);
     await migrateDown(db(), MIGRATIONS, logger);
     expect(await AccountModel.countDocuments({ slug: 'platform' })).toBe(0);
   });

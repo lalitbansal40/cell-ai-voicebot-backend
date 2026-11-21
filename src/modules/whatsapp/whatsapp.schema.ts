@@ -167,6 +167,12 @@ export const ListEventsQuery = z.strictObject({
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
+export const ListMetaCallErrorsQuery = z.strictObject({
+  accountId: ObjectIdSchema.optional(),
+  channelId: ObjectIdSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(50),
+});
+
 // ── dev simulator ──────────────────────────────────────────────────────────
 
 /** Phase 9 kinds + the Phase 10 inbox kinds + the Phase 11 template / billing kinds (one endpoint). */

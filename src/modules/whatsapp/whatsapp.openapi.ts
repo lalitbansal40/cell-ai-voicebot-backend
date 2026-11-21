@@ -29,6 +29,7 @@ import {
   EventParams,
   ListChannelsQuery,
   ListEventsQuery,
+  ListMetaCallErrorsQuery,
   ManagedCreditLineBody,
   ManagedKeyBody,
   ManagedNumberBody,
@@ -652,6 +653,35 @@ registry.registerPath({
   security: bearer,
   request: { query: ListEventsQuery },
   responses: { 200: ok(z.array(MetaWebhookEventRowSchema)), ...admin, 422: errors[422] },
+});
+export const MetaCallErrorRowSchema = registry.register(
+  'AdminMetaCallError',
+  z.object({
+    id: z.string(),
+    accountId: z.string(),
+    accountName: z.string(),
+    channelId: z.string(),
+    numberLast4: z.string(),
+    callId: z.string().nullable(),
+    op: z.string(),
+    metaCode: z.number().nullable(),
+    metaSubcode: z.number().nullable(),
+    type: z.string().nullable(),
+    message: z.string(),
+    fbtraceId: z.string().nullable(),
+    httpStatus: z.number().nullable(),
+    via: z.enum(['meta', 'meta_direct', 'pinnacle']),
+    at: z.string(),
+  }),
+);
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/whatsapp/meta-call-errors',
+  tags: adminTags,
+  summary: 'Recent, masked Meta calling errors across accounts (superadmin only)',
+  security: bearer,
+  request: { query: ListMetaCallErrorsQuery },
+  responses: { 200: ok(z.array(MetaCallErrorRowSchema)), ...admin, 422: errors[422] },
 });
 registry.registerPath({
   method: 'post',

@@ -355,6 +355,8 @@ export interface MetaClient {
   getWaba(token: string, wabaId: string): Promise<MetaWaba>;
   listPhoneNumbers(token: string, wabaId: string): Promise<MetaPhoneSummary[]>;
   getPhoneNumber(token: string, phoneNumberId: string): Promise<MetaPhone>;
+  /** WCF diagnose check: non-mutating calling eligibility fields for a phone number. */
+  getPhoneCallingFacts(token: string, phoneNumberId: string): Promise<MetaPhone>;
   subscribeApp(token: string, wabaId: string): Promise<void>;
   unsubscribeApp(token: string, wabaId: string): Promise<void>;
   /** The app's webhook subscriptions (app token) — Phase 18B readiness (`calls` field). */
@@ -505,6 +507,8 @@ export interface MetaApiErrorInit {
   subcode: number | null;
   type: string | null;
   message: string;
+  /** Scrubbed Meta diagnostic detail, safe to retain with a failed call. */
+  detail?: string | null;
   fbtraceId: string | null;
   retryable: boolean;
   tokenInvalid: boolean;
@@ -517,6 +521,7 @@ export class MetaApiError extends Error implements MetaApiErrorInit {
   readonly subcode: number | null;
   readonly type: string | null;
   readonly fbtraceId: string | null;
+  readonly detail: string | null;
   readonly retryable: boolean;
   readonly tokenInvalid: boolean;
 
@@ -528,6 +533,7 @@ export class MetaApiError extends Error implements MetaApiErrorInit {
     this.subcode = init.subcode;
     this.type = init.type;
     this.fbtraceId = init.fbtraceId;
+    this.detail = init.detail ?? null;
     this.retryable = init.retryable;
     this.tokenInvalid = init.tokenInvalid;
   }

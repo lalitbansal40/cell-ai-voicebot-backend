@@ -1,10 +1,13 @@
 import { Router } from 'express';
 
-import { AppError } from '../../shared/errors/app-error';
+import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
+import { AppError, NotFoundError } from '../../shared/errors/app-error';
 import { created, ok } from '../../shared/http/envelope';
 import { blockWhenImpersonating } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 import { updateAccountWhatsAppBilling } from '../whatsapp-billing/admin.service';
+import { CallingDiagnoseBody } from '../whatsapp-calling/calling-api.schema';
+import { listMetaCallErrors, createCallingDiagnose } from '../whatsapp-calling/diagnose.service';
 
 import {
   addManagedNumber,
@@ -23,6 +26,7 @@ import {
   checkChannelMetaCalling,
   disableChannelMetaCalling,
   enableChannelMetaCalling,
+  platformActor,
 } from './whatsapp-admin.service';
 import {
   AdminDisconnectBody,
@@ -38,6 +42,7 @@ import {
   WhatsAppSolutionIdBody,
   MetaCallingBody,
   MetaCallingOffBody,
+  ListMetaCallErrorsQuery,
 } from './whatsapp.schema';
 
 /**
@@ -59,6 +64,28 @@ export const createWhatsAppAdminRouter = ({
   router.get('/whatsapp/status', async (_req, res) => {
     ok(res, await whatsappStatus(need().ctx.env));
   });
+  router.get(
+    '/whatsapp/meta-call-errors',
+    ...handle({ query: ListMetaCallErrorsQuery }, async ({ query, res }) => {
+      ok(res, await listMetaCallErrors(query));
+    }),
+  );
+  router.post(
+    '/whatsapp/channels/:id/calling/diagnose',
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ChannelParams, body: CallingDiagnoseBody },
+      async ({ params, body, req, res }) => {
+        const deps = need();
+        const channel = await WhatsAppChannelModel.findById(params.id)
+          .select({ accountId: 1 })
+          .lean();
+        if (!channel) throw new NotFoundError('WhatsApp number not found');
+        const diagnose = createCallingDiagnose(deps.ctx, (id) => deps.service.getChannelToken(id));
+        ok(res, await diagnose.diagnose(channel.accountId, params.id, platformActor(req), body));
+      },
+    ),
+  );
   router.patch(
     '/whatsapp/solution-id',
     blockWhenImpersonating(),

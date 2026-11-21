@@ -120,7 +120,11 @@ export const toCallView = (c: CallDoc, names: Names) => {
           metaDuration: c.whatsapp.metaDuration,
           answeredBy: c.whatsapp.answeredBy?.toString() ?? null,
           transferredTo: c.whatsapp.transferredTo?.toString() ?? null,
-          timeline: c.whatsapp.timeline.map((e) => ({ event: e.event, at: e.at.toISOString() })),
+          timeline: c.whatsapp.timeline.map((e) => ({
+            event: e.event,
+            at: e.at.toISOString(),
+            ...(e.data ? { data: e.data } : {}),
+          })),
         }
       : null,
     isTest: c.isTest,
@@ -211,7 +215,12 @@ export const toCallView = (c: CallDoc, names: Names) => {
         }
       : null,
     flowRunId: c.flowRunId?.toString() ?? null,
-    error: c.error ? { code: c.error.code } : null,
+    error: c.error
+      ? {
+          code: c.error.code,
+          ...(c.error.meta ? { meta: { ...c.error.meta, at: c.error.meta.at.toISOString() } } : {}),
+        }
+      : null,
     createdAt: c.createdAt.toISOString(),
   };
 };

@@ -20,6 +20,7 @@ import { ImportJobModel } from '../../db/models/import-job.model';
 import { InboxUploadModel } from '../../db/models/inbox-upload.model';
 import { LedgerEntryModel } from '../../db/models/ledger-entry.model';
 import { MessageModel } from '../../db/models/message.model';
+import { MetaCallErrorModel } from '../../db/models/meta-call-error.model';
 import { MetaWebhookEventModel } from '../../db/models/meta-webhook-event.model';
 import { NotificationModel } from '../../db/models/notification.model';
 import { PostCallMessageModel } from '../../db/models/post-call-message.model';
@@ -341,6 +342,12 @@ const byCalls = (ctx: EraseContext) => ({ accountId: ctx.accountId, callId: { $i
  * purge share this list. The contact goes last, so a stopped run can start again.
  */
 export const ERASE_MAP: EraseEntry[] = [
+  {
+    store: 'metaCallErrors',
+    action: 'delete',
+    run: async (ctx) =>
+      deleted(await MetaCallErrorModel.collection.deleteMany({ accountId: ctx.accountId })),
+  },
   { store: 'messages', action: 'delete', run: eraseMessages },
   {
     store: 'conversationSummaries',

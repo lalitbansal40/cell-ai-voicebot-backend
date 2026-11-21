@@ -169,3 +169,7 @@ API:
 - Env `WA_META_CALLING_ENABLED`.
 
 Tell Pinnacle that our app is also subscribed to the WABA. They must not answer or terminate its calls.
+
+# Meta direct calling troubleshooting
+
+Managed Pinnacle numbers can route calls directly through Meta while messaging stays on Pinnacle. When direct calling is enabled, use the number's **Test calling API** read-only checks, then inspect Call details or Admin → WhatsApp → Meta call errors for the operation, Meta code/message and trace id. A failed inbound `pre_accept` no longer blocks team/AI ringing; failures to accept still end the call and are recorded.

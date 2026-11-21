@@ -16,7 +16,9 @@ import type { MediaAttachInput, AttachResult } from '../../core/telephony/media-
 import { MEDIA_CLOSE } from '../../core/telephony/media-server';
 import type { CallLeg } from '../../core/telephony/types';
 import { WhatsAppCallLeg } from '../../core/telephony/whatsapp/leg';
+import { forMeta } from '../../core/telephony/whatsapp/meta-sdp';
 import { WhatsAppPeer, type PeerOptions } from '../../core/telephony/whatsapp/peer';
+import { describeSdp } from '../../core/telephony/whatsapp/sdp';
 import type { Clock } from '../../core/voice/clock';
 import { systemClock } from '../../core/voice/clock';
 import type { TtsCache } from '../../core/voice/tts-cache';
@@ -60,7 +62,7 @@ import { emitConversation, emitMessageCreated } from '../inbox/events';
 import { blankContent, insertMessage } from '../inbox/message-store';
 import { notify, usersWithPermission } from '../notifications/notifications.service';
 import { publishCallCompleted } from '../webhooks/publish';
-import { openSecret } from '../whatsapp/context';
+import { callingViaOf, openSecret } from '../whatsapp/context';
 import { noteProviderError } from '../whatsapp/provider-alerts';
 
 import { activeRestrictions } from './availability';
@@ -68,8 +70,9 @@ import { LATE_TERMINATE_GRACE_MS, quoteCall, WhatsAppCallBilling, type CallQuote
 import { BridgeScript } from './bridge';
 import type { BusMessage, CallCommand, CallControlBus } from './bus';
 import { assertDial } from './dial-guard';
-import { callError } from './errors';
+import { callError, type metaCallErrorOf } from './errors';
 import { HandoffScript } from './handoff';
+import { recordMetaCallError } from './meta-errors';
 import type { CallPermissionsService } from './permissions.service';
 import type { CallProgram } from './program';
 import { selectRingTargets, withinCallHours } from './routing';
@@ -203,11 +206,56 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     return true;
   });
 
-  const timeline = (callId: string, event: string) =>
+  const timeline = (callId: string, event: string, data?: Record<string, unknown>) =>
     CallModel.updateOne(
       { _id: new Types.ObjectId(callId) },
-      { $push: { 'whatsapp.timeline': { event, at: new Date(clock.now()) } } },
+      {
+        $push: {
+          'whatsapp.timeline': {
+            event,
+            at: new Date(clock.now()),
+            ...(data ? { data } : {}),
+          },
+        },
+      },
     );
+
+  const storeMetaFailure = async (
+    channel: WhatsAppChannelDoc,
+    callId: string,
+    op: Parameters<typeof metaCallErrorOf>[1],
+    err: unknown,
+  ) => {
+    const via = callingViaOf(channel);
+    const shape = await recordMetaCallError(ctx, { channel, callId, op, err, via });
+    await CallModel.updateOne(
+      { _id: new Types.ObjectId(callId) },
+      {
+        $set: {
+          error: {
+            code: 'META_API_ERROR',
+            meta: {
+              op: shape.op,
+              metaCode: shape.metaCode,
+              metaSubcode: shape.metaSubcode,
+              type: shape.type,
+              message: shape.message.slice(0, 300),
+              fbtraceId: shape.fbtraceId,
+              at: new Date(clock.now()),
+            },
+          },
+        },
+        $push: {
+          'whatsapp.timeline': {
+            event: 'meta_error',
+            at: new Date(clock.now()),
+            data: { op: shape.op, metaCode: shape.metaCode },
+          },
+        },
+      },
+    ).catch(() => undefined);
+    return shape;
+  };
 
   const loadChannel = async (accountId: Types.ObjectId, channelId: string) => {
     const channel = await WhatsAppChannelModel.findOne({
@@ -615,6 +663,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
           const { token, api } = await callApi(_channel._id);
           await api.terminateCall(token, _channel.phoneNumberId ?? '', waCallId);
         } catch (err) {
+          await storeMetaFailure(_channel, ours, 'calls.terminate', err);
           deps.logger.warn({ err, callId: ours }, 'whatsapp call: late terminate failed');
         }
         continue;
@@ -839,8 +888,13 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       signaling: {
         terminate: async () => {
           if (!entry.waCallId) return;
-          const { token, api } = await callApi(channel._id);
-          await api.terminateCall(token, channel.phoneNumberId ?? '', entry.waCallId);
+          try {
+            const { token, api } = await callApi(channel._id);
+            await api.terminateCall(token, channel.phoneNumberId ?? '', entry.waCallId);
+          } catch (err) {
+            await storeMetaFailure(channel, entry.callId, 'calls.terminate', err);
+            throw err;
+          }
         },
         transfer: () => transferToTeam(entry),
       },
@@ -944,19 +998,47 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     entry.session = session;
 
     // Meta: connect with our offer (bizOpaque = our call id)
-    let waCallId: string;
+    let waCallId: string | null = null;
     try {
-      const offer = await peer.createOffer();
+      const rawOffer = await peer.createOffer();
+      const offer = WHATSAPP_CALL_LIMITS.metaSdpStrict
+        ? forMeta(rawOffer, 'offer', { publicIp: ctx.env.WA_MEDIA_PUBLIC_IP ?? null })
+        : rawOffer;
+      if (WHATSAPP_CALL_LIMITS.metaSdpStrict) {
+        await timeline(entry.callId, 'sdp_shape', {
+          before: describeSdp(rawOffer),
+          after: describeSdp(offer),
+          kind: 'offer',
+          iceGatheringTimedOut: peer.iceGatheringTimedOut,
+        });
+      }
       const { token, api } = await callApi(channel._id);
-      ({ waCallId } = await api.startCall(token, channel.phoneNumberId ?? '', {
+      const started = await api.startCall(token, channel.phoneNumberId ?? '', {
         to: waId,
         sdpOffer: offer,
         bizOpaque: entry.callId,
-      }));
+      });
+      waCallId = started.waCallId;
     } catch (err) {
       // PN (D13): the partner wallet is empty (managed numbers) — superadmins hear about it
       await noteProviderError(ctx, channel._id, err);
-      const mapped = callError(err);
+      const mapped = callError(err, undefined, 'calls.connect');
+      const diagnostic = await storeMetaFailure(channel, entry.callId, 'calls.connect', err);
+      if (waCallId) {
+        const { token, api } = await callApi(channel._id).catch(() => ({ token: '', api: null }));
+        if (api) {
+          try {
+            await api.rejectCall(token, channel.phoneNumberId ?? '', waCallId);
+          } catch (rejectErr) {
+            await storeMetaFailure(channel, entry.callId, 'calls.reject', rejectErr);
+            try {
+              await api.terminateCall(token, channel.phoneNumberId ?? '', waCallId);
+            } catch (terminateErr) {
+              await storeMetaFailure(channel, entry.callId, 'calls.terminate', terminateErr);
+            }
+          }
+        }
+      }
       const code = mapped instanceof AppError ? mapped.code : 'META_API_ERROR';
       const reason: CallEndReason =
         code === 'WHATSAPP_CALL_PERMISSION_MISSING'
@@ -991,7 +1073,18 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
             endReason: reason,
             'timestamps.endedAt': new Date(clock.now()),
             'billing.whatsapp.status': 'released',
-            error: { code },
+            error: {
+              code,
+              meta: {
+                op: diagnostic.op,
+                metaCode: diagnostic.metaCode,
+                metaSubcode: diagnostic.metaSubcode,
+                type: diagnostic.type,
+                message: diagnostic.message,
+                fbtraceId: diagnostic.fbtraceId,
+                at: new Date(clock.now()),
+              },
+            },
           },
           $push: { 'whatsapp.timeline': { event: 'connect_failed', at: new Date(clock.now()) } },
         },
@@ -1007,6 +1100,12 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         durationSec: 0,
         disposition: null,
         costMicros: 0,
+        error: {
+          code,
+          metaCode: diagnostic.metaCode,
+          message: diagnostic.message,
+          op: diagnostic.op,
+        },
       });
       await publishCallCompleted(entry.callId);
       throw mapped;
@@ -1092,14 +1191,23 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
   };
 
   const rejectInbound = async (call: LiveCall, reason: CallEndReason): Promise<void> => {
-    if (call.session?.ended) return;
+    if (call.session?.ended && call.terminated) return;
     call.leg.endedByMeta();
-    await call.session?.end(reason);
-    const { token, api } = await callApi(call.channel._id);
-    if (call.waCallId && !call.terminated)
-      await api
-        .rejectCall(token, call.channel.phoneNumberId ?? '', call.waCallId)
-        .catch(() => undefined);
+    await call.session?.end(reason).catch(() => undefined);
+    if (!call.waCallId || call.terminated) return;
+    try {
+      const { token, api } = await callApi(call.channel._id);
+      await api.rejectCall(token, call.channel.phoneNumberId ?? '', call.waCallId);
+      return;
+    } catch (rejectErr) {
+      await storeMetaFailure(call.channel, call.callId, 'calls.reject', rejectErr);
+    }
+    try {
+      const { token, api } = await callApi(call.channel._id);
+      await api.terminateCall(token, call.channel.phoneNumberId ?? '', call.waCallId);
+    } catch (terminateErr) {
+      await storeMetaFailure(call.channel, call.callId, 'calls.terminate', terminateErr);
+    }
   };
 
   const ringTeam = async (
@@ -1196,7 +1304,24 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       );
     } catch (err) {
       await noteProviderError(ctx, call.channel._id, err);
-      throw err;
+      await rejectInbound(call, 'meta_failed');
+      const diagnostic = await storeMetaFailure(call.channel, call.callId, 'calls.accept', err);
+      notifyAccount(call.accountId, 'call.ended', {
+        callId: call.callId,
+        provider: PROVIDER,
+        status: 'failed',
+        endReason: 'meta_failed',
+        durationSec: 0,
+        disposition: null,
+        costMicros: 0,
+        error: {
+          code: 'META_API_ERROR',
+          metaCode: diagnostic.metaCode,
+          message: diagnostic.message,
+          op: diagnostic.op,
+        },
+      });
+      return;
     }
     if (call.terminated || call.session?.ended) return;
     call.answered = true;
@@ -1213,6 +1338,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     event: MetaCallEvent,
     value: MetaCallsValue,
   ): Promise<void> => {
+    const failures: Awaited<ReturnType<typeof recordMetaCallError>>[] = [];
     await new Promise((resolve) => setTimeout(resolve, BUSY_REFUSAL_WAIT_MS));
     if (await deps.bus.inboundClaimed(event.id)) return;
     if (await ctx.redis.exists(`call:wa:ended:${event.id}`)) return;
@@ -1220,7 +1346,29 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     const { token, api } = await callApi(channel._id);
     await api
       .rejectCall(token, channel.phoneNumberId ?? '', event.id)
-      .catch((err: unknown) => deps.logger.warn({ err }, 'whatsapp call: busy refusal failed'));
+      .catch(async (err: unknown) => {
+        failures.push(
+          await recordMetaCallError(ctx, {
+            channel,
+            op: 'calls.reject',
+            err,
+            via: callingViaOf(channel),
+          }),
+        );
+        try {
+          await api.terminateCall(token, channel.phoneNumberId ?? '', event.id);
+        } catch (terminateErr) {
+          failures.push(
+            await recordMetaCallError(ctx, {
+              channel,
+              op: 'calls.terminate',
+              err: terminateErr,
+              via: callingViaOf(channel),
+            }),
+          );
+        }
+        deps.logger.warn({ err }, 'whatsapp call: busy refusal failed');
+      });
     const phone = event.from?.replace(/\D/g, '') ?? '';
     const contact = phone
       ? await findOrCreateWhatsAppContact({
@@ -1247,6 +1395,22 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
       source: { kind: null },
       status: 'no_answer',
       endReason: 'line_busy',
+      ...(failures.length
+        ? {
+            error: {
+              code: 'META_API_ERROR',
+              meta: {
+                op: failures.at(-1)!.op,
+                metaCode: failures.at(-1)!.metaCode,
+                metaSubcode: failures.at(-1)!.metaSubcode,
+                type: failures.at(-1)!.type,
+                message: failures.at(-1)!.message,
+                fbtraceId: failures.at(-1)!.fbtraceId,
+                at: failures.at(-1)!.at,
+              },
+            },
+          }
+        : {}),
       charged: false,
       timestamps: { queuedAt: now, ringingAt: now, answeredAt: null, endedAt: now },
       whatsapp: {
@@ -1256,7 +1420,14 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         conversationId: conversation._id,
         ctaPayload: null,
         deeplinkPayload: null,
-        timeline: [{ event: 'busy_refused', at: now }],
+        timeline: [
+          { event: 'busy_refused', at: now },
+          ...failures.map((failure) => ({
+            event: 'meta_error',
+            at: failure.at,
+            data: { op: failure.op, metaCode: failure.metaCode },
+          })),
+        ],
       },
     }).catch((err: unknown) => {
       // the same call id twice (a retried webhook): already recorded
@@ -1312,7 +1483,26 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     if (!contact) {
       // An unidentified offer must never create a fabricated phone number.
       const { token, api } = await callApi(channel._id);
-      await api.rejectCall(token, channel.phoneNumberId ?? '', event.id);
+      try {
+        await api.rejectCall(token, channel.phoneNumberId ?? '', event.id);
+      } catch (err) {
+        await recordMetaCallError(ctx, {
+          channel,
+          op: 'calls.reject',
+          err,
+          via: callingViaOf(channel),
+        });
+        try {
+          await api.terminateCall(token, channel.phoneNumberId ?? '', event.id);
+        } catch (terminateErr) {
+          await recordMetaCallError(ctx, {
+            channel,
+            op: 'calls.terminate',
+            err: terminateErr,
+            via: callingViaOf(channel),
+          });
+        }
+      }
       return;
     }
     if (bsuid)
@@ -1396,8 +1586,13 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         waitForAnswer: true,
         signaling: {
           terminate: async () => {
-            const { token, api } = await callApi(channel._id);
-            await api.terminateCall(token, channel.phoneNumberId ?? '', event.id);
+            try {
+              const { token, api } = await callApi(channel._id);
+              await api.terminateCall(token, channel.phoneNumberId ?? '', event.id);
+            } catch (err) {
+              await storeMetaFailure(channel, call.callId, 'calls.terminate', err);
+              throw err;
+            }
           },
           transfer: () => transferToTeam(call),
         },
@@ -1529,14 +1724,29 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
         await rejectInbound(call, refusal ?? 'customer_hangup');
         return;
       }
-      call.answerSdp = await peer.answer(event.session.sdp);
+      const rawAnswer = await peer.answer(event.session.sdp);
+      call.answerSdp = WHATSAPP_CALL_LIMITS.metaSdpStrict
+        ? forMeta(rawAnswer, 'answer', { publicIp: ctx.env.WA_MEDIA_PUBLIC_IP ?? null })
+        : rawAnswer;
+      if (WHATSAPP_CALL_LIMITS.metaSdpStrict) {
+        await timeline(call.callId, 'sdp_shape', {
+          before: describeSdp(rawAnswer),
+          after: describeSdp(call.answerSdp),
+          kind: 'answer',
+          iceGatheringTimedOut: peer.iceGatheringTimedOut,
+        });
+      }
       const { token, api } = await callApi(channel._id);
       if (call.terminated || call.session.ended) return;
       try {
         await api.preAcceptCall(token, channel.phoneNumberId ?? '', event.id, call.answerSdp);
       } catch (err) {
         await noteProviderError(ctx, channel._id, err);
-        throw err;
+        await storeMetaFailure(channel, call.callId, 'calls.pre_accept', err);
+        if (WHATSAPP_CALL_LIMITS.preAcceptRequired) {
+          await rejectInbound(call, 'meta_failed');
+          return;
+        }
       }
       if (call.terminated || call.session.ended) return;
       if (mode === 'ai' && !aiUnavailable) await acceptInbound(call);

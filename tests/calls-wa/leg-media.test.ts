@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { FakeWaUser } from '../../src/core/telephony/whatsapp/fake-user';
 import { WhatsAppCallLeg } from '../../src/core/telephony/whatsapp/leg';
+import { forMeta } from '../../src/core/telephony/whatsapp/meta-sdp';
 import { WhatsAppPeer, type ReceivedPacket } from '../../src/core/telephony/whatsapp/peer';
 import { hasTone } from '../../src/core/telephony/whatsapp/tones';
 import { tone } from '../../src/core/voice/audio/pcm';
@@ -64,7 +65,8 @@ const rig = async (opts: { dropEvery?: number; mediaTimeoutMs?: number } = {}): 
     ...(opts.mediaTimeoutMs ? { mediaTimeoutMs: opts.mediaTimeoutMs } : {}),
   });
   r.leg.onAudio((f) => r.heard.push(f));
-  const answer = await r.user.answer(await peer.createOffer());
+  const offer = forMeta(await peer.createOffer(), 'offer');
+  const answer = forMeta(await r.user.answer(offer), 'answer');
   await peer.applyAnswer(answer);
   await Promise.all([peer.connected, r.user.connected]);
   rigs.push(r);

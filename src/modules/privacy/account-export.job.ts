@@ -48,6 +48,7 @@ export const EXPORT_STORES = [
   'whatsappCallPermissions',
   'whatsappScheduledCalls',
   'whatsappChannels',
+  'metaCallErrors',
   'whatsappTemplates',
   'webhookEndpoints',
   'wallets',

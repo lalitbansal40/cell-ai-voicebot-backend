@@ -12,8 +12,8 @@ export type SignupStep = 'exchange' | 'verify' | 'waba' | 'phone';
 export const signupFailed = (step: SignupStep, message: string): AppError =>
   new AppError('WHATSAPP_SIGNUP_FAILED', message, [{ path: 'step', message: step }]);
 
-/** `502 META_API_ERROR` with Meta's code / subcode / trace id (message already scrubbed). */
-export const metaApiError = (err: MetaApiError): AppError =>
+/** `502 META_API_ERROR` with Meta's scrubbed diagnostic detail and trace id. */
+export const metaApiError = (err: MetaApiError, op?: string): AppError =>
   // PN: errors of the Pinnacle partner API (managed numbers)
   err.type === PROVIDER_ERROR_TYPES.balanceLow
     ? new AppError('WA_PROVIDER_BALANCE_LOW', undefined, undefined, { cause: err })
@@ -32,10 +32,11 @@ export const metaApiError = (err: MetaApiError): AppError =>
             [
               {
                 path: 'meta',
-                message: err.message,
+                message: err.detail ?? err.message,
                 ...(err.code !== null ? { metaCode: err.code } : {}),
                 ...(err.subcode !== null ? { metaSubcode: err.subcode } : {}),
                 ...(err.fbtraceId ? { fbtraceId: err.fbtraceId } : {}),
+                ...(op ? { op } : {}),
               },
             ],
             { cause: err },

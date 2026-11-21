@@ -19,6 +19,7 @@ export interface HealthFacts {
     aiFirstAudioP95Ms?: number | null;
     /** PMC: managed numbers whose Meta calling broke (absent on older APIs). */
     metaCallingBroken?: number;
+    metaCallErrors1h?: number;
   } | null;
   /** `production` turns on the public IP rule. */
   env?: string;
@@ -37,6 +38,7 @@ export const HEALTH_LIMITS = {
   waCallSetupFailures: 3,
   /** SAC-T12: p95 answer → first AI audio above this → alert. */
   waAiFirstAudioMs: 2_500,
+  /** Meta Graph calling failures in the last hour. */
 } as const;
 
 export const failedTotal = (queues: HealthFacts['queues']): number =>
@@ -77,8 +79,11 @@ export const healthIssues = (f: HealthFacts): string[] => {
     }
     if ((f.whatsappCalls.webhookMissing ?? 0) > 0) issues.push('wa-webhook-missing');
     if ((f.whatsappCalls.metaCallingBroken ?? 0) > 0) issues.push('wa-meta-calling-broken');
+    if ((f.whatsappCalls.metaCallErrors1h ?? 0) >= META_CALL_DIAG.healthErrorsPerHour)
+      issues.push('wa-meta-call-errors');
     const p95 = f.whatsappCalls.aiFirstAudioP95Ms ?? null;
     if (p95 !== null && p95 > HEALTH_LIMITS.waAiFirstAudioMs) issues.push('wa-ai-latency-high');
   }
   return issues;
 };
+import { META_CALL_DIAG } from '../config/limits';

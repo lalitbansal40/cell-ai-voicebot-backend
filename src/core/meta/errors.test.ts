@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -65,9 +68,26 @@ describe('graphError', () => {
       subcode: 460,
       type: 'OAuthException',
       fbtraceId: 'trace1',
+      message: 'bad token access_token=***',
     });
     expect(graphError(503, {}).message).toBe('Meta request failed (HTTP 503)');
     expect(isMetaApiError(new Error('x'))).toBe(false);
+  });
+
+  it.each([
+    ['graph-error-call-restricted.json', 138006],
+    ['graph-error-call-parameter.json', 131009],
+    ['graph-error-call-invalid.json', 100],
+    ['graph-error-call-token.json', 190],
+  ])('keeps safe detail from %s', async (file, code) => {
+    const body = JSON.parse(
+      await readFile(join(process.cwd(), 'tests/fixtures/meta', file), 'utf8'),
+    ) as unknown;
+    const err = graphError(400, body);
+    expect(err.code).toBe(code);
+    expect(err.detail).toContain('…0123');
+    expect(err.detail).toHaveLength(Math.min(err.detail?.length ?? 0, 300));
+    expect(err.detail).not.toMatch(/202555/);
   });
 
   it('network / invalid / not configured errors', () => {
