@@ -8924,7 +8924,7 @@
               "properties": {
                 "key": {
                   "type": "string",
-                  "enum": ["token", "phone", "settings", "webhook", "permission"]
+                  "enum": ["token", "phone", "settings", "webhook", "send", "permission"]
                 },
                 "ok": { "type": "boolean" },
                 "detail": { "type": "string" },

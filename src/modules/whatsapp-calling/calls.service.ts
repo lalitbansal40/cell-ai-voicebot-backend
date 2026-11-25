@@ -43,6 +43,7 @@ import { MetaWebhookEventModel } from '../../db/models/meta-webhook-event.model'
 import { UserModel } from '../../db/models/user.model';
 import {
   defaultCalling,
+  WA_ACTIVE_STATUSES,
   WhatsAppChannelModel,
   type WhatsAppChannelDoc,
 } from '../../db/models/whatsapp-channel.model';
@@ -179,6 +180,17 @@ export const missedReasonOf = (reason: CallEndReason): MissedReason => {
   if (reason === 'customer_hangup') return 'caller_hung_up';
   return 'no_answer';
 };
+
+/**
+ * WCF: the number a `calls` event belongs to — an active row of that phone number id, like the
+ * webhook worker's `routeEvent`. An old disconnected row of the same number (re-added as a
+ * managed number) must never take the call: it has no token and calling off, so the call was
+ * refused as "calling paused" and nobody was rung.
+ */
+export const inboundChannelFor = (phoneNumberId: string) =>
+  WhatsAppChannelModel.findOne({ phoneNumberId, status: { $in: WA_ACTIVE_STATUSES } })
+    .sort({ updatedAt: -1 })
+    .lean<WhatsAppChannelDoc>();
 
 /** SAC-T12: a connect Meta never answered (callId → marker, 2 minutes). */
 const UNCERTAIN_TTL_SEC = 120;
@@ -1856,9 +1868,7 @@ export const createWhatsAppCalls = (deps: WhatsAppCallsDeps) => {
     if (message.type !== 'calls_event') return;
     const value = await loadEvent(message.eventId);
     if (!value) return;
-    const channel = await WhatsAppChannelModel.findOne({
-      phoneNumberId: value.metadata.phone_number_id,
-    }).lean<WhatsAppChannelDoc>();
+    const channel = await inboundChannelFor(value.metadata.phone_number_id);
     if (channel) await onWebhook(channel, value, { eventId: message.eventId });
   });
 

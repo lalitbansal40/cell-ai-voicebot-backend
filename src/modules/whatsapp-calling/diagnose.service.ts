@@ -17,11 +17,21 @@ import { metaCallErrorOf } from './errors';
 import { recordMetaCallError } from './meta-errors';
 
 export interface CallingDiagnoseStep {
-  key: 'token' | 'phone' | 'settings' | 'webhook' | 'permission';
+  key: 'token' | 'phone' | 'settings' | 'webhook' | 'send' | 'permission';
   ok: boolean;
   detail: string;
   metaCode: number | null;
 }
+
+/** A call id that never exists: the "send" probe of Test calling API places nothing. */
+export const SEND_PROBE_CALL_ID = 'wacid.notifynow-permission-probe';
+
+/** Meta's "you may not send on behalf of this WABA" family (code 10 / 200). */
+export const isSendPermissionError = (metaCode: number | null): boolean =>
+  metaCode === 10 || metaCode === 200;
+
+export const SEND_PERMISSION_HINT =
+  "our Meta app may read this WhatsApp account but not place / answer calls on it. Check that the app's whatsapp_business_messaging permission has Advanced access (App Review) and, for a number billed on a partner's credit line, that our app and the partner are in one Multi-Partner Solution for this WABA.";
 
 export const createCallingDiagnose = (
   ctx: WhatsAppContext,
@@ -70,7 +80,13 @@ export const createCallingDiagnose = (
     };
 
     if (api.provider === 'pinnacle') {
-      const unsupported: CallingDiagnoseStep['key'][] = ['token', 'phone', 'settings', 'webhook'];
+      const unsupported: CallingDiagnoseStep['key'][] = [
+        'token',
+        'phone',
+        'settings',
+        'webhook',
+        'send',
+      ];
       if (input.contactPhone) unsupported.push('permission');
       for (const key of unsupported)
         steps.push({ key, ok: false, detail: 'provider_unsupported', metaCode: null });
@@ -145,6 +161,37 @@ export const createCallingDiagnose = (
           ok: callsField && subscribed,
           detail: `App subscribed: ${subscribed ? 'yes' : 'no'}; calls webhook field: ${callsField ? 'yes' : 'no'}.`,
         };
+      });
+      // WCF: may our app act on calls of this WABA? A terminate of a call id that doesn't exist
+      // places nothing: Meta answers a permission error (10 / 200) when our app may not "send on
+      // behalf" of the WABA, any other error (unknown call) when it may.
+      await run('send', 'calls.terminate', async () => {
+        try {
+          await api.terminateCall(token, channel.phoneNumberId ?? '', SEND_PROBE_CALL_ID);
+          return { ok: true, detail: 'Meta accepts call actions from our app on this number.' };
+        } catch (err) {
+          const diag = metaCallErrorOf(err, 'calls.terminate');
+          if (isSendPermissionError(diag.metaCode)) {
+            await recordMetaCallError(ctx, { channel, op: 'calls.terminate', err, via });
+            return {
+              ok: false,
+              metaCode: diag.metaCode,
+              detail: `${diag.message.slice(0, 200)} — ${SEND_PERMISSION_HINT}`,
+            };
+          }
+          if (diag.metaCode === 190) {
+            return {
+              ok: false,
+              metaCode: 190,
+              detail: 'The calling token is invalid — Calls via Meta direct → Check / Fix.',
+            };
+          }
+          return {
+            ok: true,
+            metaCode: diag.metaCode,
+            detail: 'Meta accepts call actions from our app on this number (test call id unknown).',
+          };
+        }
       });
       if (input.contactPhone) {
         const waId = input.contactPhone.replace(/\D/g, '');

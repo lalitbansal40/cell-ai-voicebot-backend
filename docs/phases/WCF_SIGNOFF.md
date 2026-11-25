@@ -13,3 +13,13 @@ Release changes: backend migration `0033-meta-call-errors`; no environment varia
 | 5   | Admin → WhatsApp → **Meta call errors**                                | Failures include operation, code/message, trace id, number suffix and time.             |
 
 Capture the displayed codes and `fbtraceId` for any failure. Do not send unmasked customer numbers or SDP.
+
+## Live findings (21–25 Nov 2026)
+
+- **Incoming:** the calls fast path picked the disconnected "Cell24x7" row of +91 87797 21034 (the same phone number id as the managed "Cell").
+  - So the call ended as `calling_restricted`, and `calls.terminate` failed with `AppError` (no token on that row).
+  - Fixed: `inboundChannelFor` takes the active row only.
+- **Outgoing:** `calls.connect` → Meta `10 / 2593180` "You do not have the necessary permissions required to send messages on behalf of this WhatsApp Business Account".
+  - Our Tech Provider app has read / manage access to the partner's WABA, not "send on behalf". Code can't fix it.
+  - Meta side: App Review → `whatsapp_business_messaging` **Advanced access**, and a **Multi-Partner Solution** with Pinnacle for this WABA (then Calling off → Calling on karo again).
+  - **Test calling API → send** shows it.

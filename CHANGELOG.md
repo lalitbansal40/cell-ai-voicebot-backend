@@ -13,6 +13,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Fixed
 
+- **Incoming WhatsApp calls reached a disconnected copy of the number** — 2026-11-25
+  - A number connected before (now disconnected) and added again as a managed number has two rows with one phone number id. The calls fast path took the first row it found.
+  - On the old row, every incoming call was refused as "Calling paused by WhatsApp": no token, so terminate failed with `AppError`. The team was never rung, the AI never answered, and the chat opened on the old number.
+  - It now takes the active row only, as the webhook worker already did.
+- **Test calling API** has a new **send** check: a terminate of a call id that doesn't exist (no call is placed). Meta's `10` / `200` there means our app may read the WhatsApp account but not place or answer calls on it. The fix is App Review Advanced access for `whatsapp_business_messaging`, plus a Multi-Partner Solution with the partner for a number on the partner's credit line.
+
 - Inbound messages and delivery statuses no longer scan an account's messages (partial indexes were not used).
 - Sends no longer answer 500 when many hit one wallet at once.
 

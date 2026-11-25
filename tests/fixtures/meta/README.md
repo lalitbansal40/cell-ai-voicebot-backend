@@ -39,6 +39,7 @@ Shapes copied from Meta's documented sample payloads; every id, number, name and
 | `graph-call-permissions.json` | whatsapp/calling/user-call-permissions (`GET call_permissions`: `permission`, `actions[].limits`) |
 | `graph-phone-settings.json` | whatsapp/calling/call-settings (`GET settings`: `calling` + `restrictions.restrictions_list`) |
 | `graph-call-connect.json`, `graph-error-call-permission.json` | whatsapp/calling/reference (`connect` answer) + troubleshooting (138006) |
+| `graph-error-call-invalid.json`, `graph-error-call-parameter.json`, `graph-error-call-restricted.json`, `graph-error-call-token.json` | WCF: Meta calling error bodies (invalid call id, bad parameter / SDP, restricted, token) — `graphError` + masking tests |
 | `graph-call-analytics.json` | whatsapp/analytics (`call_analytics`: daily points with `count`, `cost`, `average_duration`; cost left out on one point) |
 | `webhook-template-status.json`            | whatsapp/business-management-api/webhooks/components (template status)      |
 | `messages-*.json` (Phase 10) | whatsapp/cloud-api/webhooks/payload-examples — text (link), image, video, audio, voice (`audio.voice: true`), document, sticker (+ animated), location, contacts, interactive `button_reply` / `list_reply` / `nfm_reply`, template `button`, reaction (+ removed), reply `context`, forwarded, ad `referral`, order, system (number changed), unsupported (`errors`) |

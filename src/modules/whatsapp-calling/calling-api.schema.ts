@@ -141,7 +141,7 @@ export const CallingDiagnoseSchema = registry.register(
     checkedAt: z.string(),
     steps: z.array(
       z.object({
-        key: z.enum(['token', 'phone', 'settings', 'webhook', 'permission']),
+        key: z.enum(['token', 'phone', 'settings', 'webhook', 'send', 'permission']),
         ok: z.boolean(),
         detail: z.string(),
         metaCode: z.number().nullable(),
