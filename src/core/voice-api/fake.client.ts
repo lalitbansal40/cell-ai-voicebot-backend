@@ -151,9 +151,17 @@ export class FakeVoiceClient implements VoiceApiClient {
     const req = JSON.parse(text) as FakeRequest;
     const final = this.now() >= req.createdAt + this.options.delayMs;
     const slice = req.numbers.slice((page - 1) * LIMIT, page * LIMIT);
+    const rows = slice.map((receiver) => this.row(receiver, req, final));
     return {
-      rows: slice.map((receiver) => this.row(receiver, req, final)),
+      rows,
       hasMore: page * LIMIT < req.numbers.length,
+      // the provider's own field names (IVR-T3 "Last provider answer")
+      raw: rows.slice(0, 3).map((r) => ({
+        receiver: r.receiver,
+        status: r.status,
+        duration: r.durationSec,
+        retry_count: r.retryCount,
+      })),
     };
   }
 

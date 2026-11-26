@@ -21,6 +21,8 @@ export interface HealthFacts {
     metaCallingBroken?: number;
     metaCallErrors1h?: number;
   } | null;
+  /** IVR-T8: recorded voice (absent / null = not read). */
+  voiceApi?: { unreachable1h: number; uncertainBatches30m: number } | null;
   /** `production` turns on the public IP rule. */
   env?: string;
 }
@@ -83,6 +85,10 @@ export const healthIssues = (f: HealthFacts): string[] => {
       issues.push('wa-meta-call-errors');
     const p95 = f.whatsappCalls.aiFirstAudioP95Ms ?? null;
     if (p95 !== null && p95 > HEALTH_LIMITS.waAiFirstAudioMs) issues.push('wa-ai-latency-high');
+  }
+  if (f.voiceApi) {
+    if (f.voiceApi.unreachable1h > 0) issues.push('voice-api-unreachable');
+    if (f.voiceApi.uncertainBatches30m > 0) issues.push('voice-api-uncertain');
   }
   return issues;
 };

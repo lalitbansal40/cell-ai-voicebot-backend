@@ -27,11 +27,17 @@ import {
   voiceClientFor,
 } from '../../voice-api/clients';
 import {
+  noteUnknownVoiceStatus,
+  noteVoiceNoCredits,
+  recordVoiceShape,
+} from '../../voice-api/diagnostics';
+import {
   notifyAccountProviderError,
   recordProviderError,
   recordWebhookSeen,
 } from '../../voice-api/status';
 import { VoiceWebhookBody } from '../../voice-api/voice-api.schema';
+import { publishCallCompleted } from '../../webhooks/publish';
 import { completeIfDone, moveStats } from '../dispatcher';
 import { publishProgress } from '../progress';
 
@@ -173,6 +179,8 @@ export const applyVoiceResult = async (event: VoiceResultEvent): Promise<ApplyOu
   const status = event.status.trim().toUpperCase();
   const campaignId = cc.campaignId.toString();
   if (!VOICE_API_FINAL_STATUSES.has(status)) {
+    // IVR-T3: a status we don't map is kept as "dialing" and reported once a day
+    await noteUnknownVoiceStatus(status);
     await CampaignContactModel.updateOne(
       { _id: cc._id, status: 'calling', 'voiceApi.finalAt': null },
       { $set: { 'voiceApi.providerStatus': status } },
@@ -238,6 +246,8 @@ export const applyVoiceResult = async (event: VoiceResultEvent): Promise<ApplyOu
   const callId = await recordCall(cc, campaign, mapped, { ...event, receiver }, cost);
   if (callId) {
     await CampaignContactModel.updateOne({ _id: cc._id }, { $set: { lastCallId: callId } });
+    // IVR-T4: `call.completed` carries the provider status and the key pressed
+    if (outcome === 'final') await publishCallCompleted(callId.toString());
   }
   if (outcome === 'final') {
     await ContactModel.updateOne(
@@ -300,6 +310,12 @@ export const pollVoiceCampaign = async (
     try {
       for (let page = 1; page <= pages; page += 1) {
         const result = await client.details(batch.requestId as string, page);
+        if (page === 1)
+          await recordVoiceShape(
+            own ? campaign.accountId.toString() : 'platform',
+            'details',
+            result.raw ?? [],
+          );
         for (const row of result.rows) {
           rows += 1;
           // one bad row must not hold back the others
@@ -315,6 +331,8 @@ export const pollVoiceCampaign = async (
       }
     } catch (err) {
       const code = err instanceof VoiceApiError ? err.code : 'unknown';
+      if (code === 'VOICE_API_NO_CREDITS')
+        await noteVoiceNoCredits(own ? campaign.accountId.toString() : 'platform');
       if (code === 'VOICE_API_AUTH' || code === 'VOICE_API_NO_CREDITS') {
         if (own) await notifyAccountProviderError(campaign.accountId, code);
         else await recordProviderError(code);
@@ -379,6 +397,7 @@ export const acceptVoiceResult = async (event: VoiceResultEvent): Promise<void> 
 export const handleVoiceWebhook = async (secret: string, body: unknown): Promise<boolean> => {
   if (!secretMatches(secret)) return false;
   await recordWebhookSeen();
+  await recordVoiceShape('platform', 'webhook', [body]);
   const event = toVoiceEvent(body);
   if (event) await acceptVoiceResult(event);
   return true;
@@ -394,6 +413,7 @@ export const handleAccountVoiceWebhook = async (
   body: unknown,
 ): Promise<boolean> => {
   if (!(await accountWebhookMatches(accountId, key))) return false;
+  await recordVoiceShape(accountId, 'webhook', [body]);
   const event = toVoiceEvent(body);
   if (event) await acceptVoiceResult({ ...event, accountId });
   return true;

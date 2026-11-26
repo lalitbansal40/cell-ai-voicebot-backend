@@ -1346,7 +1346,9 @@
               "whatsapp.meta_calling_failed",
               "whatsapp.meta_calling_checked",
               "whatsapp.managed_key_revealed",
-              "whatsapp.partner_api_called"
+              "whatsapp.partner_api_called",
+              "voice_api.connection_tested",
+              "voice_api.test_call_sent"
             ]
           },
           "actor": {
@@ -1531,6 +1533,97 @@
           "lastWebhookAt",
           "lastError",
           "uncertainBatches"
+        ]
+      },
+      "VoiceApiDiagnostics": {
+        "type": "object",
+        "properties": {
+          "lastCheck": {
+            "type": ["object", "null"],
+            "properties": {
+              "ok": { "type": "boolean" },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "timeout",
+                  "dns",
+                  "tls",
+                  "refused",
+                  "network",
+                  "auth",
+                  "no_credits",
+                  "error"
+                ]
+              },
+              "httpStatus": { "type": ["number", "null"] },
+              "ivrs": { "type": ["number", "null"] },
+              "at": { "type": "string" }
+            },
+            "required": ["ok", "reason", "httpStatus", "ivrs", "at"]
+          },
+          "lastTestCall": {
+            "type": ["object", "null"],
+            "properties": {
+              "requestId": { "type": "string" },
+              "phoneLast4": { "type": "string" },
+              "content": { "type": "string", "enum": ["audio", "ivr"] },
+              "at": { "type": "string" }
+            },
+            "required": ["requestId", "phoneLast4", "content", "at"]
+          },
+          "lastShape": {
+            "type": "object",
+            "properties": {
+              "details": {
+                "type": ["object", "null"],
+                "properties": {
+                  "source": { "type": "string" },
+                  "keys": { "type": "array", "items": { "type": "string" } },
+                  "statusValues": { "type": "array", "items": { "type": "string" } },
+                  "sample": {},
+                  "at": { "type": "string" }
+                },
+                "required": ["source", "keys", "statusValues", "at"]
+              },
+              "webhook": {
+                "type": ["object", "null"],
+                "properties": {
+                  "source": { "type": "string" },
+                  "keys": { "type": "array", "items": { "type": "string" } },
+                  "statusValues": { "type": "array", "items": { "type": "string" } },
+                  "sample": {},
+                  "at": { "type": "string" }
+                },
+                "required": ["source", "keys", "statusValues", "at"]
+              }
+            },
+            "required": ["details", "webhook"]
+          },
+          "unknownStatuses": { "type": "array", "items": { "type": "string" } },
+          "noCredits24h": { "type": "number" },
+          "incoming": { "type": "string", "enum": ["not_available"] },
+          "audio": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "durationMs": { "type": "number" }
+              },
+              "required": ["id", "name", "durationMs"]
+            }
+          }
+        },
+        "required": [
+          "lastCheck",
+          "lastTestCall",
+          "lastShape",
+          "unknownStatuses",
+          "noCredits24h",
+          "incoming",
+          "audio"
         ]
       },
       "AccountLimits": {
@@ -1906,6 +1999,16 @@
               "metaCallErrors1h"
             ],
             "description": "Phase 18B: WhatsApp call audio; null when WhatsApp is off"
+          },
+          "voiceApi": {
+            "type": ["object", "null"],
+            "properties": {
+              "accountsOn": { "type": "integer" },
+              "unreachable1h": { "type": "integer" },
+              "uncertainBatches30m": { "type": "integer" }
+            },
+            "required": ["accountsOn", "unreachable1h", "uncertainBatches30m"],
+            "description": "IVR-T8: recorded voice (Cell24x7) health"
           }
         },
         "required": [
@@ -1922,7 +2025,8 @@
           "certificate",
           "superadminsWithoutMfa",
           "sip",
-          "whatsappCalls"
+          "whatsappCalls",
+          "voiceApi"
         ]
       },
       "AgentFunction": {
@@ -3857,6 +3961,7 @@
                     "required": ["kind", "flowAudioId", "ivrId", "name"]
                   },
                   "audioSec": { "type": "number" },
+                  "ivrDigits": { "type": "object", "additionalProperties": { "type": "integer" } },
                   "retries": { "type": "integer" },
                   "retryIntervalMin": { "type": "integer" },
                   "batches": {
@@ -9759,6 +9864,40 @@
           }
         ]
       },
+      "VoiceTestCallInput": {
+        "type": "object",
+        "properties": {
+          "phone": { "type": "string", "minLength": 10, "maxLength": 16, "example": "9876543210" },
+          "content": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string", "enum": ["audio"] },
+                  "flowAudioId": { "type": "string", "pattern": "^[a-f0-9]{24}$" }
+                },
+                "required": ["kind", "flowAudioId"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string", "enum": ["ivr"] },
+                  "ivrId": { "type": "integer", "exclusiveMinimum": 0 }
+                },
+                "required": ["kind", "ivrId"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "ownerApproved": {
+            "type": "boolean",
+            "description": "Ticked only with the account owner's OK"
+          }
+        },
+        "required": ["phone", "content", "ownerApproved"],
+        "additionalProperties": false
+      },
       "InboundSettingsBody": {
         "type": "object",
         "properties": {
@@ -14581,6 +14720,325 @@
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }
           }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/voice-api/test-connection": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "IVR: Test connection — GET /ivrs with the account's Cell24x7 login; reachable / key valid, or why not (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": { "type": "boolean" },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "timeout",
+                            "dns",
+                            "tls",
+                            "refused",
+                            "network",
+                            "auth",
+                            "no_credits",
+                            "error"
+                          ]
+                        },
+                        "httpStatus": { "type": ["number", "null"] },
+                        "ivrs": { "type": ["number", "null"] },
+                        "at": { "type": "string" }
+                      },
+                      "required": ["ok", "reason", "httpStatus", "ivrs", "at"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Cell24x7 refused (VOICE_API_*)" }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/voice-api/test-call": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "IVR: Send test call — one 10-digit mobile, audio or IVR, owner's OK required; Cell24x7 credits used, wallet not charged; 3 / hour (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/VoiceTestCallInput" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": { "type": "string" },
+                        "phoneLast4": { "type": "string" },
+                        "content": { "type": "string", "enum": ["audio", "ivr"] },
+                        "at": { "type": "string" }
+                      },
+                      "required": ["requestId", "phoneLast4", "content", "at"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Cell24x7 refused (VOICE_API_*)" }
+        }
+      },
+      "get": {
+        "tags": ["Admin"],
+        "summary": "IVR: the last test call's result read from Cell24x7 /details (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "test": {
+                          "type": "object",
+                          "properties": {
+                            "requestId": { "type": "string" },
+                            "phoneLast4": { "type": "string" },
+                            "content": { "type": "string", "enum": ["audio", "ivr"] },
+                            "at": { "type": "string" }
+                          },
+                          "required": ["requestId", "phoneLast4", "content", "at"]
+                        },
+                        "result": {
+                          "type": ["object", "null"],
+                          "properties": {
+                            "status": { "type": "string" },
+                            "durationSec": { "type": "number" },
+                            "retryCount": { "type": "number" },
+                            "keyPressed": { "type": ["string", "null"] },
+                            "ivrDisposition": { "type": ["string", "null"] }
+                          },
+                          "required": [
+                            "status",
+                            "durationSec",
+                            "retryCount",
+                            "keyPressed",
+                            "ivrDisposition"
+                          ]
+                        }
+                      },
+                      "required": ["test", "result"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Cell24x7 refused (VOICE_API_*)" }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/voice-api/diagnostics": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "IVR: last connection check, last test call, last provider answer (field names, statuses, masked sample), unknown statuses, 402s in 24 h (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/VoiceApiDiagnostics" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "502": { "description": "Cell24x7 refused (VOICE_API_*)" }
         }
       }
     },
@@ -21223,6 +21681,12 @@
             "required": false,
             "name": "q",
             "in": "query"
+          },
+          {
+            "schema": { "type": "string", "pattern": "^([0-9*#]{1,8}|none)$" },
+            "required": false,
+            "name": "digit",
+            "in": "query"
           }
         ],
         "responses": {
@@ -25463,9 +25927,9 @@
     },
     "/api/v1/flow-audio": {
       "get": {
-        "tags": ["Call flows"],
+        "tags": ["Call flows", "Public API"],
         "summary": "Audio files of the account for play_audio nodes and audio prompts (flows.read)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "minLength": 1, "maxLength": 80 },
@@ -25508,9 +25972,9 @@
         }
       },
       "post": {
-        "tags": ["Call flows"],
+        "tags": ["Call flows", "Public API"],
         "summary": "Upload one WAV / MP3 (≤ 5 MB, ≤ 120 s, ≤ 200 per account, 20 uploads / h / account; flows.write)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "content": {
             "multipart/form-data": {

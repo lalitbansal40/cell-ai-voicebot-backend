@@ -66,6 +66,8 @@ export interface VoiceResultRow {
 export interface VoiceDetailsPage {
   rows: VoiceResultRow[];
   hasMore: boolean;
+  /** IVR-T3: the first raw rows as Cell24x7 sent them (field names for the admin view). */
+  raw?: unknown[];
 }
 
 export interface VoiceIvr {

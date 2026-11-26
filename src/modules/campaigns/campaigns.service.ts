@@ -725,12 +725,26 @@ const userOf = (req: Request): Types.ObjectId | null => {
 const walletAvailable = async (accountId: Types.ObjectId) =>
   availableMicros(await getOrCreateWallet(accountId));
 
-const view = async (campaign: CampaignDoc) =>
-  toCampaignView(
+/** IVR-T4: final numbers of a recorded-voice campaign per key pressed (`none` = no key). */
+export const voiceIvrDigits = async (
+  campaignId: Types.ObjectId,
+): Promise<Record<string, number>> => {
+  const rows = await CampaignContactModel.aggregate<{ _id: string; n: number }>([
+    { $match: { campaignId, 'voiceApi.finalAt': { $ne: null } } },
+    { $group: { _id: { $ifNull: ['$voiceApi.dtmf', 'none'] }, n: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((r) => [String(r._id), r.n]));
+};
+
+const view = async (campaign: CampaignDoc) => {
+  const v = toCampaignView(
     campaign,
     await loadNames(campaign.accountId, [campaign]),
     await walletAvailable(campaign.accountId),
   );
+  if (!v.voiceApi || campaign.voiceApi?.content?.kind !== 'ivr') return v;
+  return { ...v, voiceApi: { ...v.voiceApi, ivrDigits: await voiceIvrDigits(campaign._id) } };
+};
 
 const target = (c: CampaignDoc) => ({ type: 'campaign', id: c._id.toString() });
 
@@ -990,6 +1004,7 @@ export const listCampaignContacts = async (
   if (query.disposition) filter.disposition = query.disposition;
   if (query.skipReason) filter.skipReason = query.skipReason;
   if (query.q) filter.name = { $regex: escapeRegex(query.q), $options: 'i' };
+  if (query.digit) filter['voiceApi.dtmf'] = query.digit === 'none' ? null : query.digit;
   if (query.cursor) {
     const after = await CampaignContactModel.findOne({
       _id: new Types.ObjectId(decodeCursor(query.cursor).id),

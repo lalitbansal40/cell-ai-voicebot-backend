@@ -91,6 +91,18 @@ describe('healthwatch rules', () => {
     ).not.toContain('wa-meta-call-errors');
   });
 
+  it('IVR-T8: a failed Cell24x7 check or a stuck uncertain batch raises its rule', () => {
+    expect(
+      healthIssues(facts({ voiceApi: { unreachable1h: 1, uncertainBatches30m: 0 } })),
+    ).toContain('voice-api-unreachable');
+    expect(
+      healthIssues(facts({ voiceApi: { unreachable1h: 0, uncertainBatches30m: 2 } })),
+    ).toContain('voice-api-uncertain');
+    expect(
+      healthIssues(facts({ voiceApi: { unreachable1h: 0, uncertainBatches30m: 0 } })),
+    ).not.toEqual(expect.arrayContaining(['voice-api-unreachable']));
+  });
+
   it('SAC-T12: slow first AI words (p95 > 2.5 s) raise wa-ai-latency-high', () => {
     const wa = { mediaEnabled: true, publicIpSet: true, failedSetups15m: 0 };
     expect(healthIssues(facts({ whatsappCalls: { ...wa, aiFirstAudioP95Ms: 3_100 } }))).toContain(

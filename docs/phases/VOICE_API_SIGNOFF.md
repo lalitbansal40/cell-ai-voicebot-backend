@@ -41,3 +41,13 @@ Set `VOICE_API_PROVIDER=cell24x7`, `CELL24X7_WEBHOOK_SECRET` on the server (the 
 the local `.env` only), register the webhook, price + enable a test account, send a 1-number
 campaign to the owner's phone. The PDF does not name every `/details` field: confirm parsing
 on that first live check. See [cell24x7-voice.md](../integrations/cell24x7-voice.md).
+
+## Live check (IVR-T11 — owner present, panel only; not run yet)
+
+| #   | Check                                              | Expected                                                                                                                  | Result |
+| --- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | Admin → account → Cell24x7 → **Test connection**   | ✅ reachable, key valid                                                                                                   |        |
+| 2   | **Send test call** to the owner's phone (owner OK) | the phone rings, plays the audio; Refresh result shows answered + duration (no wallet charge — test calls are not billed) |        |
+| 3   | IVR test call, press 1                             | key pressed "1" on the card; in a 1-number IVR campaign the report shows "1"                                              |        |
+| 4   | **Last provider answer**                           | field names recorded → parser fix commit if needed                                                                        |        |
+| 5   | `/report` reconcile                                | not built (no `/report` in the PDF)                                                                                       | n/a    |

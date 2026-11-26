@@ -8,7 +8,7 @@ import { decodedCacheKey } from '../../core/voice/audio/decode';
 import { isDuplicateKeyError } from '../../db/errors';
 import { FlowAudioModel, type FlowAudioDoc } from '../../db/models/flow-audio.model';
 import { UserModel } from '../../db/models/user.model';
-import { requireAuth } from '../../shared/auth/auth-context';
+import { actingUserId, requireAuth } from '../../shared/auth/auth-context';
 import { tenantFilter, toObjectId } from '../../shared/auth/tenant';
 import {
   AppError,
@@ -145,7 +145,8 @@ export const uploadAudio = async (
     ext: probe.format,
   });
   await storage.put(key, file.buffer, { contentType: CONTENT_TYPES[probe.format] });
-  const userId = new Types.ObjectId(requireAuth(req).userId);
+  // IVR-T7: an API key uploads as the user who created the key
+  const userId = new Types.ObjectId(actingUserId(requireAuth(req)));
   let doc: FlowAudioDoc;
   try {
     doc = (

@@ -396,7 +396,7 @@ describe('results export (PHASE_8_PLAN §1n)', () => {
     expect(file.subarray(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
     const lines = file.toString('utf8').slice(1).split('\r\n');
     expect(lines[0]).toBe(
-      'Name,Phone,Status,Attempts,Last result,Disposition,Promise date,Promise amount,Callback,Last call at (IST),Duration (s),Cost (₹),Skip reason,Call id,Amount due',
+      'Name,Phone,Status,Attempts,Last result,Disposition,Promise date,Promise amount,Callback,Last call at (IST),Duration (s),Cost (₹),Skip reason,Call id,Key pressed,Amount due',
     );
     expect(lines[1]).toMatch(/^'=SUM\(1\+1\),\+919000300001,pending,0,/);
     expect(lines[2]).toContain(

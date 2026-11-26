@@ -5,12 +5,10 @@ import multer, { memoryStorage, MulterError } from 'multer';
 import { FLOW_LIMITS } from '../../config/limits';
 import { AppError, ValidationError } from '../../shared/errors/app-error';
 import { created, noContent, ok } from '../../shared/http/envelope';
+import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
-import {
-  blockWhenImpersonating,
-  requirePermission,
-} from '../../shared/middlewares/require-permission';
+import { blockWhenImpersonating } from '../../shared/middlewares/require-permission';
 import { handle } from '../../shared/middlewares/validate';
 
 import {
@@ -56,26 +54,39 @@ const uploadFile: RequestHandler = (req, res, next) => {
 /** `/api/v1/flow-audio` — account audio library for call flows. */
 export const createFlowAudioRouter = (deps: FlowAudioDeps & { uploadStore?: Store }): Router => {
   const router = Router();
-  router.use(authenticate());
-  const read = requirePermission('flows.read');
-  const write = [requirePermission('flows.write'), blockWhenImpersonating()];
+  // IVR-T7: list + upload open to API keys (recorded-voice campaigns use `flowAudioId`)
+  router.use(authenticate({ apiKeys: true }));
+  const read = access({ permission: 'flows.read' });
+  const write = [access({ permission: 'flows.write' }), blockWhenImpersonating()];
+  const keyRead = access({
+    permission: 'flows.read',
+    scope: ['campaigns:read', 'campaigns:write'],
+  });
+  const keyUpload = [
+    access({ permission: 'flows.write', scope: 'campaigns:write' }),
+    blockWhenImpersonating(),
+  ];
   const uploadLimiter = createRateLimiter({
     windowMs: 60 * 60_000,
     limit: FLOW_LIMITS.audioUploadsPerHour,
-    keyGenerator: (req) => `flowaudio:${req.auth?.accountId ?? 'anonymous'}`,
+    // IVR-T7: an API key has its own budget; dashboard users share the account's
+    keyGenerator: (req) =>
+      req.auth?.apiKeyId
+        ? `flowaudio:key:${req.auth.apiKeyId}`
+        : `flowaudio:${req.auth?.accountId ?? 'anonymous'}`,
     ...(deps.uploadStore ? { store: deps.uploadStore } : {}),
   });
 
   router.get(
     '/',
-    read,
+    keyRead,
     ...handle({ query: ListAudioQuery }, async ({ query, req, res }) => {
       ok(res, await listAudio(req, query.q));
     }),
   );
   router.post(
     '/',
-    ...write,
+    ...keyUpload,
     uploadLimiter,
     uploadFile,
     ...handle({ body: UploadAudioFields }, async ({ body, req, res }) => {

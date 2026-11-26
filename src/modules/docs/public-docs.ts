@@ -164,6 +164,19 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
     scope: 'templates:read',
     description: `Templates of the account with status (\`APPROVED\`, \`PENDING\`, \`REJECTED\`…), category, language, the WhatsApp number(s) that can send them (\`channelId\` filter) and the variables they need. List rows carry no bodies. Only \`APPROVED\` templates can be sent. A \`templates:read\` key sees approved templates only; a \`templates:write\` key may filter by any \`status\` (e.g. its \`PENDING\` ones). ${READ}`,
   },
+  // IVR-T7: the audio library for recorded-voice campaigns
+  'GET /api/v1/flow-audio': {
+    operationId: 'listAudio',
+    area: 'Campaigns',
+    scope: 'campaigns:read',
+    description: `The account's audio files (\`id\`, name, format, length). Use an \`id\` as \`voiceApi.content.flowAudioId\` of a recorded-voice campaign (\`line: voice_api\`). \`q\` filters by name. Keys with \`campaigns:read\` or \`campaigns:write\`. ${READ}`,
+  },
+  'POST /api/v1/flow-audio': {
+    operationId: 'uploadAudio',
+    area: 'Campaigns',
+    scope: 'campaigns:write',
+    description: `Uploads one WAV or MP3 (multipart \`file\`, optional \`name\`; ≤ 5 MB). The length is measured on our server. For a recorded-voice campaign keep it ≤ 120 s; Cell24x7 charges per started 15 s per number. \`curl -F file=@reminder.mp3 -F name="EMI reminder"\`. Then create the campaign with \`voiceApi.content: { kind: "audio", flowAudioId }\`. ${WRITE}`,
+  },
   // TPL: templates by API key (`templates:write`)
   'POST /api/v1/whatsapp/templates': {
     operationId: 'createTemplate',
@@ -435,7 +448,7 @@ If the template was saved but Meta refused the submit, the answer is still \`201
     operationId: 'getCampaign',
     area: 'Campaigns',
     scope: 'campaigns:read',
-    description: `One campaign: settings, status / pause reason, live stats (pending, calling, completed, failed, answered, dispositions, skipped by reason, spend in micros), the last estimate, \`waitingUntil\` when outside the window, and for recorded voice the batches sent to the provider. ${READ}`,
+    description: `One campaign: settings, status / pause reason, live stats (pending, calling, completed, failed, answered, dispositions, skipped by reason, spend in micros), the last estimate, \`waitingUntil\` when outside the window, and for recorded voice the batches sent to the provider. IVR campaigns add \`voiceApi.ivrDigits\` — final numbers per key pressed, e.g. \`{ "1": 12, "2": 4, "none": 30 }\`. ${READ}`,
   },
   'POST /api/v1/campaigns/{id}/estimate': {
     operationId: 'estimateCampaign',
@@ -472,7 +485,7 @@ If the template was saved but Meta refused the submit, the answer is still \`201
     operationId: 'listCampaignContacts',
     area: 'Campaigns',
     scope: 'campaigns:read',
-    description: `Per-contact results: status, attempts, last result, disposition, promise to pay, callback, skip / wait reason, cost; recorded voice adds the provider status, duration and key pressed (\`voice\`). Phones are the last 4 digits only. Filters: status, lastResult, disposition, skipReason, name. ${CURSOR} ${READ}`,
+    description: `Per-contact results: status, attempts, last result, disposition, promise to pay, callback, skip / wait reason, cost; recorded voice adds the provider status, duration and key pressed (\`voice\`). Phones are the last 4 digits only. Filters: status, lastResult, disposition, skipReason, name, and \`digit\` (IVR: the key pressed, \`none\` = no key). ${CURSOR} ${READ}`,
   },
   'GET /api/v1/campaigns/{id}/runs': {
     operationId: 'listCampaignRuns',

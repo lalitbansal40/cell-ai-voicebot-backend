@@ -139,6 +139,8 @@ The `data` of each event (made-up values). Fields marked personal — `phone`, `
 
 ### `call.completed`
 
+Recorded-voice calls (`provider: voice_api`) also carry `voiceApi`: `{ status, keyPressed, ivrDisposition }` — the provider status (`ANSWERED`, `NO ANSWER`…), the IVR key the customer pressed (null = none).
+
 ```json
 {
   "callId": "6720f0a1b2c3d4e5f6a7b8c9",

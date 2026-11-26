@@ -8,6 +8,8 @@ import mongoose from 'mongoose';
 import type { Env } from '../../config/env';
 import { QUEUES } from '../../core/queues/names';
 import { DEFAULT_QUEUE_PREFIX } from '../../core/queues/queue-factory';
+import { AccountModel } from '../../db/models/account.model';
+import { CampaignModel } from '../../db/models/campaign.model';
 import { UserModel } from '../../db/models/user.model';
 import { readOpsStatus, type OpsStatus } from '../ops/ops-status';
 
@@ -33,7 +35,38 @@ export interface SystemStatus extends OpsStatus {
   sip: SipStatus | null;
   /** Phase 18B: WhatsApp call audio; `null` when WhatsApp is off. */
   whatsappCalls: WhatsAppCallsStatus | null;
+  /** IVR-T8: recorded voice (Cell24x7): accounts on, failed checks (1 h), stuck uncertain batches. */
+  voiceApi: VoiceApiHealth | null;
 }
+
+export interface VoiceApiHealth {
+  accountsOn: number;
+  unreachable1h: number;
+  uncertainBatches30m: number;
+}
+
+/** IVR-T8: facts for `voice-api-unreachable` / `voice-api-uncertain`. */
+export const readVoiceApiHealth = async (now: Date): Promise<VoiceApiHealth> => {
+  const hourAgo = new Date(now.getTime() - 3_600_000).toISOString();
+  const [accountsOn, unreachable1h, uncertainBatches30m] = await Promise.all([
+    AccountModel.countDocuments({ 'voiceApi.enabled': true }),
+    AccountModel.countDocuments({
+      'voiceApi.enabled': true,
+      'voiceApi.lastCheck.ok': false,
+      'voiceApi.lastCheck.at': { $gte: hourAgo },
+    }),
+    CampaignModel.countDocuments({
+      line: 'voice_api',
+      'voiceApi.batches': {
+        $elemMatch: {
+          state: 'uncertain',
+          createdAt: { $lt: new Date(now.getTime() - 30 * 60_000) },
+        },
+      },
+    }),
+  ]);
+  return { accountsOn, unreachable1h, uncertainBatches30m };
+};
 
 export interface SystemDeps {
   env: Pick<Env, 'NODE_ENV' | 'TLS_CERT_PATH'> & SipStatusEnv & WhatsAppCallsEnv;
@@ -113,25 +146,35 @@ export const createSystemStatus = (deps: SystemDeps) => {
 
   const read = async (now = new Date()): Promise<SystemStatus> => {
     if (cached && now.getTime() - cached.at < CACHE_MS) return cached.value;
-    const [mongo, redis, queueState, ops, certificate, superadminsWithoutMfa, sip, whatsappCalls] =
-      await Promise.all([
-        mongoStatus(),
-        redisStatus(deps.redis),
-        queueCounts(),
-        readOpsStatus().catch(() => ({
-          lastBackup: null,
-          lastRestoreDrill: null,
-          lastRelease: null,
-        })),
-        certificateDays(deps.env.TLS_CERT_PATH, now),
-        UserModel.countDocuments({
-          platformRole: 'superadmin',
-          status: { $ne: 'disabled' },
-          'mfa.enabledAt': { $in: [null] },
-        }).catch(() => -1),
-        readSipStatus(deps.env, deps.redis, now).catch(() => null),
-        readWhatsAppCallsStatus(deps.env, now).catch(() => null),
-      ]);
+    const [
+      mongo,
+      redis,
+      queueState,
+      ops,
+      certificate,
+      superadminsWithoutMfa,
+      sip,
+      whatsappCalls,
+      voiceApi,
+    ] = await Promise.all([
+      mongoStatus(),
+      redisStatus(deps.redis),
+      queueCounts(),
+      readOpsStatus().catch(() => ({
+        lastBackup: null,
+        lastRestoreDrill: null,
+        lastRelease: null,
+      })),
+      certificateDays(deps.env.TLS_CERT_PATH, now),
+      UserModel.countDocuments({
+        platformRole: 'superadmin',
+        status: { $ne: 'disabled' },
+        'mfa.enabledAt': { $in: [null] },
+      }).catch(() => -1),
+      readSipStatus(deps.env, deps.redis, now).catch(() => null),
+      readWhatsAppCallsStatus(deps.env, now).catch(() => null),
+      readVoiceApiHealth(now).catch(() => null),
+    ]);
     const value: SystemStatus = {
       commit: deps.build.commit,
       builtAt: deps.build.builtAt,
@@ -145,6 +188,7 @@ export const createSystemStatus = (deps: SystemDeps) => {
       superadminsWithoutMfa,
       sip,
       whatsappCalls,
+      voiceApi,
     };
     cached = { at: now.getTime(), value };
     return value;

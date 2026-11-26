@@ -121,6 +121,8 @@ export interface CallCompletedData extends CallStartedData {
   disposition: string | null;
   dispositionSource: string | null;
   recording: boolean;
+  /** IVR-T4: recorded-voice calls (`provider: voice_api`): the provider status and key pressed. */
+  voiceApi?: { status: string | null; keyPressed: string | null; ivrDisposition: string | null };
 }
 
 export interface InsightsReadyData {
@@ -273,6 +275,12 @@ export const publishCallStarted = (callId: string): Promise<void> =>
  * `call.completed` (+ `whatsapp.call.ended` / `.missed`): the call ended and its money
  * is settled — read from the stored call so every end path sends the same payload.
  */
+const voiceOutcomeOf = (call: CallDoc) => {
+  const v = (call.outcome as { voiceApi?: Record<string, unknown> } | null)?.voiceApi ?? {};
+  const str = (x: unknown) => (typeof x === 'string' && x ? x : null);
+  return { status: str(v.status), keyPressed: str(v.dtmf), ivrDisposition: str(v.ivrDisposition) };
+};
+
 export const publishCallCompleted = (callId: string): Promise<void> =>
   safely('call.completed', async () => {
     const call = await loadCall(callId);
@@ -290,6 +298,7 @@ export const publishCallCompleted = (callId: string): Promise<void> =>
         disposition: call.disposition,
         dispositionSource: call.dispositionSource ?? null,
         recording: Boolean(call.recording),
+        ...(call.provider === 'voice_api' ? { voiceApi: voiceOutcomeOf(call) } : {}),
       },
       `call.completed:${callId}`,
     );

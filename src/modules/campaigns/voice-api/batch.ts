@@ -105,18 +105,34 @@ const bufferOf = async (stream: Readable): Promise<Buffer> => {
 const MIME = { wav: 'audio/wav', mp3: 'audio/mpeg' } as const;
 
 /** Audio for the submit: the cached Cell24x7 id, else the file itself. */
-const audioFor = async (
+const audioFor = (
   campaign: CampaignDoc,
   storage: StorageProvider | undefined,
   useCache: boolean,
   ownToken: boolean,
+): Promise<{ audio: VoiceApiAudio; audioDoc: FlowAudioDoc | null }> =>
+  voiceAudioFor(
+    campaign.accountId,
+    campaign.voiceApi?.content ?? null,
+    storage,
+    useCache,
+    ownToken,
+  );
+
+/** IVR: the audio of a voice content (a campaign's, or an admin test call's). */
+export const voiceAudioFor = async (
+  accountId: Types.ObjectId,
+  content:
+    { kind: 'ivr'; ivrId: number } | { kind: 'audio'; flowAudioId: Types.ObjectId | string } | null,
+  storage: StorageProvider | undefined = defaultStorage,
+  useCache = true,
+  ownToken = false,
 ): Promise<{ audio: VoiceApiAudio; audioDoc: FlowAudioDoc | null }> => {
-  const content = campaign.voiceApi?.content;
   if (!content) throw new AppError('VOICE_API_AUDIO_INVALID');
   if (content.kind === 'ivr') return { audio: { kind: 'ivr', id: content.ivrId }, audioDoc: null };
   const audioDoc = await FlowAudioModel.findOne({
     _id: content.flowAudioId,
-    accountId: campaign.accountId,
+    accountId,
   }).lean<FlowAudioDoc>();
   if (!audioDoc) throw new AppError('VOICE_API_AUDIO_INVALID');
   // an uploaded id belongs to one Cell24x7 login: the platform's or the account's own

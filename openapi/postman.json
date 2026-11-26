@@ -1746,7 +1746,7 @@
               "path": ["api", "v1", "campaigns", ":id"],
               "variable": [{ "key": "id", "value": "" }]
             },
-            "description": "One campaign: settings, status / pause reason, live stats (pending, calling, completed, failed, answered, dispositions, skipped by reason, spend in micros), the last estimate, `waitingUntil` when outside the window, and for recorded voice the batches sent to the provider. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
+            "description": "One campaign: settings, status / pause reason, live stats (pending, calling, completed, failed, answered, dispositions, skipped by reason, spend in micros), the last estimate, `waitingUntil` when outside the window, and for recorded voice the batches sent to the provider. IVR campaigns add `voiceApi.ivrDigits` — final numbers per key pressed, e.g. `{ \"1\": 12, \"2\": 4, \"none\": 30 }`. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
           },
           "response": [
             {
@@ -1760,7 +1760,7 @@
                   "path": ["api", "v1", "campaigns", ":id"],
                   "variable": [{ "key": "id", "value": "" }]
                 },
-                "description": "One campaign: settings, status / pause reason, live stats (pending, calling, completed, failed, answered, dispositions, skipped by reason, spend in micros), the last estimate, `waitingUntil` when outside the window, and for recorded voice the batches sent to the provider. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
+                "description": "One campaign: settings, status / pause reason, live stats (pending, calling, completed, failed, answered, dispositions, skipped by reason, spend in micros), the last estimate, `waitingUntil` when outside the window, and for recorded voice the batches sent to the provider. IVR campaigns add `voiceApi.ivrDigits` — final numbers per key pressed, e.g. `{ \"1\": 12, \"2\": 4, \"none\": 30 }`. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
               },
               "status": "OK",
               "code": 200,
@@ -1971,11 +1971,12 @@
                 { "key": "lastResult", "value": "", "disabled": true },
                 { "key": "disposition", "value": "", "disabled": true },
                 { "key": "skipReason", "value": "", "disabled": true },
-                { "key": "q", "value": "", "disabled": true }
+                { "key": "q", "value": "", "disabled": true },
+                { "key": "digit", "value": "", "disabled": true }
               ],
               "variable": [{ "key": "id", "value": "" }]
             },
-            "description": "Per-contact results: status, attempts, last result, disposition, promise to pay, callback, skip / wait reason, cost; recorded voice adds the provider status, duration and key pressed (`voice`). Phones are the last 4 digits only. Filters: status, lastResult, disposition, skipReason, name. Cursor pagination: pass `meta.nextCursor` back as `cursor` until `hasMore` is false. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
+            "description": "Per-contact results: status, attempts, last result, disposition, promise to pay, callback, skip / wait reason, cost; recorded voice adds the provider status, duration and key pressed (`voice`). Phones are the last 4 digits only. Filters: status, lastResult, disposition, skipReason, name, and `digit` (IVR: the key pressed, `none` = no key). Cursor pagination: pass `meta.nextCursor` back as `cursor` until `hasMore` is false. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
           },
           "response": [
             {
@@ -1994,11 +1995,12 @@
                     { "key": "lastResult", "value": "", "disabled": true },
                     { "key": "disposition", "value": "", "disabled": true },
                     { "key": "skipReason", "value": "", "disabled": true },
-                    { "key": "q", "value": "", "disabled": true }
+                    { "key": "q", "value": "", "disabled": true },
+                    { "key": "digit", "value": "", "disabled": true }
                   ],
                   "variable": [{ "key": "id", "value": "" }]
                 },
-                "description": "Per-contact results: status, attempts, last result, disposition, promise to pay, callback, skip / wait reason, cost; recorded voice adds the provider status, duration and key pressed (`voice`). Phones are the last 4 digits only. Filters: status, lastResult, disposition, skipReason, name. Cursor pagination: pass `meta.nextCursor` back as `cursor` until `hasMore` is false. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
+                "description": "Per-contact results: status, attempts, last result, disposition, promise to pay, callback, skip / wait reason, cost; recorded voice adds the provider status, duration and key pressed (`voice`). Phones are the last 4 digits only. Filters: status, lastResult, disposition, skipReason, name, and `digit` (IVR: the key pressed, `none` = no key). Cursor pagination: pass `meta.nextCursor` back as `cursor` until `hasMore` is false. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
               },
               "status": "Campaign contacts",
               "code": 200,
@@ -2039,6 +2041,74 @@
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
               "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"name\": \"Asha Verma\",\n      \"mode\": \"dry_run\",\n      \"status\": \"draft\",\n      \"pauseReason\": \"manual\",\n      \"waitingUntil\": \"2026-11-05T09:30:00.000Z\",\n      \"line\": \"phone\",\n      \"voice\": {\n        \"kind\": \"audio\",\n        \"name\": \"Asha Verma\"\n      },\n      \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"program\": {\n        \"kind\": \"flow\",\n        \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n        \"name\": \"Asha Verma\"\n      },\n      \"talkMode\": \"ai\",\n      \"team\": {\n        \"agentUserIds\": [\n          \"string\"\n        ],\n        \"wrapUpSec\": 94\n      },\n      \"askPermissionFirst\": {\n        \"templateId\": \"6720f0a1b2c3d4e5f6a7b8c9\"\n      },\n      \"flow\": {\n        \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n        \"name\": \"Asha Verma\",\n        \"version\": 1\n      },\n      \"stats\": {\n        \"total\": 12,\n        \"pending\": 1,\n        \"queued\": 1,\n        \"calling\": 1,\n        \"waiting\": 1,\n        \"completed\": 1,\n        \"failed\": 1,\n        \"skipped\": 1,\n        \"canceled\": 1,\n        \"answered\": 1,\n        \"attempts\": 1,\n        \"dispositions\": {},\n        \"skippedBy\": {},\n        \"spentMicros\": 1250000,\n        \"virtualCostMicros\": 1250000,\n        \"failureStreak\": 1\n      },\n      \"progressPct\": 50,\n      \"spentMicros\": 1250000,\n      \"virtualCostMicros\": 1250000,\n      \"nextRunAt\": \"2026-11-05T09:30:00.000Z\",\n      \"parentId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"runNumber\": 1,\n      \"recurring\": true,\n      \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n      \"startedAt\": \"2026-11-05T09:30:00.000Z\",\n      \"completedAt\": \"2026-11-05T09:30:00.000Z\"\n    }\n  ]\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Audio files of the account for play_audio nodes and audio prompts (flows.read)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/flow-audio",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "flow-audio"],
+              "query": [{ "key": "q", "value": "", "disabled": true }]
+            },
+            "description": "The account's audio files (`id`, name, format, length). Use an `id` as `voiceApi.content.flowAudioId` of a recorded-voice campaign (`line: voice_api`). `q` filters by name. Keys with `campaigns:read` or `campaigns:write`. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/flow-audio",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "flow-audio"],
+                  "query": [{ "key": "q", "value": "", "disabled": true }]
+                },
+                "description": "The account's audio files (`id`, name, format, length). Use an `id` as `voiceApi.content.flowAudioId` of a recorded-voice campaign (`line: voice_api`). `q` filters by name. Keys with `campaigns:read` or `campaigns:write`. Read limit class (600 / min per key).\n\nScope: `campaigns:read`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"name\": \"Asha Verma\",\n      \"format\": \"wav\",\n      \"bytes\": 1,\n      \"durationMs\": 94,\n      \"sampleRate\": 1,\n      \"channels\": 1,\n      \"uploadedBy\": {\n        \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n        \"name\": \"Asha Verma\"\n      },\n      \"createdAt\": \"2026-11-05T09:30:00.000Z\"\n    }\n  ]\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Upload one WAV / MP3 (≤ 5 MB, ≤ 120 s, ≤ 200 per account, 20 uploads / h / account; flows.write)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/flow-audio",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "flow-audio"]
+            },
+            "description": "Uploads one WAV or MP3 (multipart `file`, optional `name`; ≤ 5 MB). The length is measured on our server. For a recorded-voice campaign keep it ≤ 120 s; Cell24x7 charges per started 15 s per number. `curl -F file=@reminder.mp3 -F name=\"EMI reminder\"`. Then create the campaign with `voiceApi.content: { kind: \"audio\", flowAudioId }`. Write limit class (60 / min per key).\n\nScope: `campaigns:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/flow-audio",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "flow-audio"]
+                },
+                "description": "Uploads one WAV or MP3 (multipart `file`, optional `name`; ≤ 5 MB). The length is measured on our server. For a recorded-voice campaign keep it ≤ 120 s; Cell24x7 charges per started 15 s per number. `curl -F file=@reminder.mp3 -F name=\"EMI reminder\"`. Then create the campaign with `voiceApi.content: { kind: \"audio\", flowAudioId }`. Write limit class (60 / min per key).\n\nScope: `campaigns:write`"
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"name\": \"Asha Verma\",\n    \"format\": \"wav\",\n    \"bytes\": 1,\n    \"durationMs\": 94,\n    \"sampleRate\": 1,\n    \"channels\": 1,\n    \"uploadedBy\": {\n      \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"name\": \"Asha Verma\"\n    },\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
               "_postman_previewlanguage": "json"
             }
           ]

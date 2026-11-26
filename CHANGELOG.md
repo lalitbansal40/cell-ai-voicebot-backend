@@ -21,12 +21,22 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   - **Try it:** read-only operations run by our server (key never in the browser, phones masked), 20 / 10 min, audit `whatsapp.partner_api_called`.
   - New error code `PARTNER_API_OP_NOT_ALLOWED`. Refused for everyone else; never in the public spec.
 
+- **Recorded voice (Cell24x7) checks, key-press report and health (IVR)** — 2026-11-26
+  - Admin → account → Recorded voice: **Test connection**, **Send test call** (owner OK, 3 / h, not billed), **Refresh result**, **Last provider answer** (masked field shape), unknown statuses and 402 count. Audit `voice_api.connection_tested`, `voice_api.test_call_sent`.
+  - IVR campaigns: key-press counts (`voiceApi.ivrDigits`), results filter `?digit=`, CSV column **Key pressed**; `call.completed` carries `voiceApi { status, keyPressed, ivrDisposition }`.
+  - `GET/POST /flow-audio` open to API keys (`campaigns:read` / `campaigns:write`) and in the public docs.
+  - Admin → System → Recorded voice; healthwatch rules `voice-api-unreachable`, `voice-api-uncertain`; a bell for unknown provider statuses.
+  - Incoming calls are not available on Cell24x7 (documented). No env change, no migration.
+
 - **WhatsApp call error diagnostics and resilient Meta calling (WCF)** — 2026-11-21 · [ADR 0054](docs/adr/0054-meta-call-errors-and-resilient-calls.md)
   - Show masked Meta code, message, operation and trace id in call records and panel; superadmin error list and read-only Test calling API checks.
   - Continue inbound team/AI routing when `pre_accept` fails, terminate after failed reject/connect, and normalize Meta call SDP.
   - Seven-day `metaCallErrors` retention, account export/erase support and healthwatch counter. Migration `0033-meta-call-errors`; no env changes.
 
 ### Fixed
+
+- **Meta error logs never carry the request token** — 2026-11-26: Meta sometimes quotes the token in its error text; the warn log now redacts it (WCF follow-up).
+- **Production index step includes Meta call errors** — 2026-11-26: `db:sync-indexes` now registers `MetaCallError`, so its 7-day retention index is built on deploy (WCF follow-up).
 
 - **Incoming WhatsApp calls reached a disconnected copy of the number** — 2026-11-25
   - A number connected before (now disconnected) and added again as a managed number has two rows with one phone number id. The calls fast path took the first row it found.

@@ -89,6 +89,8 @@ describe('Phase 9 catalogue', () => {
       'whatsapp.incoming_default_updated',
       // SAC-T11: a managed number moved to Meta direct
       'whatsapp.channel_switched_to_meta',
+      // PIN: a superadmin revealed a managed number's partner API key
+      'whatsapp.managed_key_revealed',
     ]);
   });
 

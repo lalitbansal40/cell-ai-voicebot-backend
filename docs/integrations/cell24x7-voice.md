@@ -91,6 +91,57 @@ What changes for an own-token account:
 
 Back to **Platform token** removes the account's token. Audit: `voice_api.credentials_changed`, `voice_api.account_webhook_registered`.
 
+## Checks from the panel (IVR, superadmin only — no server access needed)
+
+Admin → Accounts → account → **Recorded voice (Cell24x7)**:
+
+- **Test connection** (`POST /admin/accounts/:id/voice-api/test-connection`) — calls `GET /ivrs` with the
+  account's key (or the platform key) from our server. Saved on the account as `voiceApi.lastCheck`
+  (`ok`, `reason`: `ok` / `auth` / `no_credits` / `timeout` / `dns` / `tls` / `refused` / `network` /
+  `error`, HTTP status, IVR count). Audit `voice_api.connection_tested`. The token is never shown.
+- **Send test call** (`POST …/voice-api/test-call`) — one number (a 10-digit Indian mobile), the
+  account's audio or an IVR id. The **owner OK** box is required (the call really rings a phone).
+  At most 3 an hour per account. It is a direct provider submit: **not charged to the wallet** and
+  no campaign row (the cost shows only in the Cell24x7 panel). Audit `voice_api.test_call_sent`.
+  **Refresh result** (`GET …/voice-api/test-call`) reads `/details` for that broadcast.
+- **Last provider answer** (`GET …/voice-api/diagnostics`) — the field names and up to 3 masked sample
+  rows of the last `/details` page, poll and webhook (Redis, 7 days; phone numbers as the last 4
+  digits). Used to confirm the parser on the first live call because the PDF does not name every field.
+  The same answer lists unknown provider statuses (also a bell `voice_api.provider_error`, once a
+  day per status) and `noCredits24h` — how many 402 answers came back in 24 h.
+
+## IVR key-press report
+
+For IVR campaigns the campaign view has `voiceApi.ivrDigits` (`{ "1": 12, "2": 4, "none": 30 }`,
+final numbers only). The results list filters with `?digit=1` (`none` = no key pressed) and the CSV
+export has a **Key pressed** column. `call.completed` webhooks of recorded-voice calls carry
+`voiceApi: { status, keyPressed, ivrDisposition }`.
+
+## Audio by API key
+
+`GET /api/v1/flow-audio` (scopes `campaigns:read` or `campaigns:write`) and `POST /api/v1/flow-audio`
+(multipart `file`, scope `campaigns:write`) — upload a recorded-voice file and use its id as
+`flowAudioId` in a campaign. Rename / delete / signed URL stay in the panel.
+
+## Health
+
+Admin → System → **Recorded voice** and two healthwatch rules (bell + incident row in
+[incidents.md](../ops/incidents.md)):
+
+- `voice-api-unreachable` — an account's last Test connection / poll in the last hour got no answer;
+- `voice-api-uncertain` — an uncertain batch not resolved for 30 min (resolve it on the account).
+
+## Incoming calls
+
+**Not available on Cell24x7.** The partner API only places outgoing broadcasts (recorded voice / IVR);
+there is no incoming-call or number-routing endpoint. Incoming calls come in on the phone line (SIP)
+or WhatsApp. The Cell24x7 card and the campaign wizard say so. No code path exists for it.
+
+## Not built
+
+- `/report` reconciliation (IVR-T5): the provider PDF does not name a `/report` endpoint.
+- Credits balance (IVR-T6): no balance endpoint; only the 402 count above.
+
 ## "This server cannot reach Cell24x7"
 
 The key check calls `GET /ivrs` from **our server**. When nothing comes back (firewall, DNS, TLS, timeout) the key is still saved as _not checked_ and the card shows why. Fix on the server, then press **Save and connect** again (no new key needed):

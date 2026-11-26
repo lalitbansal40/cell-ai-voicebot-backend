@@ -11,6 +11,7 @@ import { CampaignContactModel } from '../../src/db/models/campaign-contact.model
 import { CampaignModel, type CampaignDoc } from '../../src/db/models/campaign.model';
 import { FlowAudioModel } from '../../src/db/models/flow-audio.model';
 import { LedgerEntryModel } from '../../src/db/models/ledger-entry.model';
+import { WebhookEventModel } from '../../src/db/models/webhook-event.model';
 import {
   cancelCampaign,
   estimateCampaignCost,
@@ -135,6 +136,16 @@ describe('recorded-voice campaigns (Cell24x7)', () => {
     expect(calls.map((x) => x.provider)).toEqual(Array(5).fill('voice_api'));
     expect(calls.filter((x) => x.status === 'completed')).toHaveLength(2);
     expect(calls.every((x) => x.insights?.status === 'skipped')).toBe(true);
+    // IVR: call.completed carries the provider status for recorded-voice calls
+    const completedEvents = await WebhookEventModel.find({
+      accountId: w.accountId,
+      type: 'call.completed',
+    }).lean();
+    expect(completedEvents).toHaveLength(5);
+    expect(completedEvents[0]?.data).toMatchObject({
+      provider: 'voice_api',
+      voiceApi: { status: expect.any(String), keyPressed: null },
+    });
     const ledger = await LedgerEntryModel.find({
       accountId: w.accountId,
       type: 'voice_broadcast_charge',

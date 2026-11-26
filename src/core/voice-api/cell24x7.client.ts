@@ -205,7 +205,7 @@ export class Cell24x7VoiceClient implements VoiceApiClient {
     );
     const raw = listOf(data);
     const rows = raw.map(parseResultRow).filter((r): r is VoiceResultRow => r !== null);
-    return { rows, hasMore: raw.length >= LIMIT };
+    return { rows, hasMore: raw.length >= LIMIT, raw: raw.slice(0, 3) };
   }
 
   async ivrs(): Promise<VoiceIvr[]> {

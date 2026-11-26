@@ -61,6 +61,8 @@ const TEMPLATE_READS = new Set([
   'GET /api/v1/whatsapp/templates',
   'GET /api/v1/whatsapp/templates/{id}',
 ]);
+/** IVR-T7: the audio list is read by both campaign scopes (a writer picks `flowAudioId`). */
+const AUDIO_READS = new Set(['GET /api/v1/flow-audio']);
 
 /** Bodies valid enough to pass validation, so the answer is about access only. */
 const BODIES: Record<string, object> = {
@@ -316,6 +318,10 @@ describe('Phase 15 public API routes (security)', () => {
       // TPL: template reads open to a read key and to a key that manages templates
       if (TEMPLATE_READS.has(name)) {
         expect(matrix[name]?.sort(), name).toEqual(['templates:read', 'templates:write']);
+        continue;
+      }
+      if (AUDIO_READS.has(name)) {
+        expect(matrix[name]?.sort(), name).toEqual(['campaigns:read', 'campaigns:write']);
         continue;
       }
       expect(matrix[name], name).toHaveLength(1);

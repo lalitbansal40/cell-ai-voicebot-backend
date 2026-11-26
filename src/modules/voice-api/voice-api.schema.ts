@@ -281,3 +281,126 @@ registry.registerPath({
   },
   responses: { 200: ok(z.object({ received: z.boolean() })), 404: errors[404] },
 });
+
+// ── IVR: Cell24x7 checks from the panel (superadmin) ──
+export const VoiceTestCallBody = z
+  .strictObject({
+    phone: z.string().min(10).max(16).openapi({ example: '9876543210' }),
+    content: z.discriminatedUnion('kind', [
+      z.strictObject({ kind: z.literal('audio'), flowAudioId: objectId }),
+      z.strictObject({ kind: z.literal('ivr'), ivrId: z.number().int().positive() }),
+    ]),
+    ownerApproved: z.boolean().openapi({ description: "Ticked only with the account owner's OK" }),
+  })
+  .openapi('VoiceTestCallInput');
+
+const VoiceLastCheckSchema = z.object({
+  ok: z.boolean(),
+  reason: z.enum([
+    'ok',
+    'timeout',
+    'dns',
+    'tls',
+    'refused',
+    'network',
+    'auth',
+    'no_credits',
+    'error',
+  ]),
+  httpStatus: z.number().nullable(),
+  ivrs: z.number().nullable(),
+  at: z.string(),
+});
+const VoiceTestCallSchema = z.object({
+  requestId: z.string(),
+  phoneLast4: z.string(),
+  content: z.enum(['audio', 'ivr']),
+  at: z.string(),
+});
+const shape = z
+  .object({
+    source: z.string(),
+    keys: z.array(z.string()),
+    statusValues: z.array(z.string()),
+    sample: z.unknown(),
+    at: z.string(),
+  })
+  .nullable();
+const VoiceDiagnosticsSchema = registry.register(
+  'VoiceApiDiagnostics',
+  z.object({
+    lastCheck: VoiceLastCheckSchema.nullable(),
+    lastTestCall: VoiceTestCallSchema.nullable(),
+    lastShape: z.object({ details: shape, webhook: shape }),
+    unknownStatuses: z.array(z.string()),
+    noCredits24h: z.number(),
+    incoming: z.literal('not_available'),
+    audio: z.array(z.object({ id: z.string(), name: z.string(), durationMs: z.number() })),
+  }),
+);
+const adminErrors = {
+  403: errors[403],
+  404: errors[404],
+  409: errors[409],
+  422: errors[422],
+  429: errors[429],
+  502: { description: 'Cell24x7 refused (VOICE_API_*)' },
+};
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/voice-api/test-connection',
+  tags: adminTags,
+  summary:
+    "IVR: Test connection — GET /ivrs with the account's Cell24x7 login; reachable / key valid, or why not (superadmin)",
+  security: bearer,
+  request: { params: VoiceAccountParams },
+  responses: { 200: ok(VoiceLastCheckSchema), ...adminErrors },
+});
+registry.registerPath({
+  method: 'post',
+  path: '/api/v1/admin/accounts/{id}/voice-api/test-call',
+  tags: adminTags,
+  summary:
+    "IVR: Send test call — one 10-digit mobile, audio or IVR, owner's OK required; Cell24x7 credits used, wallet not charged; 3 / hour (superadmin)",
+  security: bearer,
+  request: {
+    params: VoiceAccountParams,
+    body: { content: { 'application/json': { schema: VoiceTestCallBody } } },
+  },
+  responses: { 200: ok(VoiceTestCallSchema), ...adminErrors },
+});
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/accounts/{id}/voice-api/test-call',
+  tags: adminTags,
+  summary: "IVR: the last test call's result read from Cell24x7 /details (superadmin)",
+  security: bearer,
+  request: { params: VoiceAccountParams },
+  responses: {
+    200: ok(
+      z.object({
+        test: VoiceTestCallSchema,
+        result: z
+          .object({
+            status: z.string(),
+            durationSec: z.number(),
+            retryCount: z.number(),
+            keyPressed: z.string().nullable(),
+            ivrDisposition: z.string().nullable(),
+          })
+          .nullable(),
+      }),
+    ),
+    ...adminErrors,
+  },
+});
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/admin/accounts/{id}/voice-api/diagnostics',
+  tags: adminTags,
+  summary:
+    'IVR: last connection check, last test call, last provider answer (field names, statuses, masked sample), unknown statuses, 402s in 24 h (superadmin)',
+  security: bearer,
+  request: { params: VoiceAccountParams },
+  responses: { 200: ok(VoiceDiagnosticsSchema), ...adminErrors },
+});

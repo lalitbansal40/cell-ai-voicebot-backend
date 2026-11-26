@@ -15,12 +15,19 @@ import { resolveVoiceBatch } from '../campaigns/voice-api/batch';
 import { handleAccountVoiceWebhook, handleVoiceWebhook } from '../campaigns/voice-api/results';
 
 import {
+  sendVoiceTestCall,
+  testVoiceConnection,
+  voiceDiagnostics,
+  voiceTestCallResult,
+} from './diagnostics';
+import {
   AccountVoiceApiBody,
   AccountVoiceWebhookParams,
   VoiceCredentialsBody,
   ResolveVoiceBatchBody,
   VoiceAccountParams,
   VoiceBatchParams,
+  VoiceTestCallBody,
   VoiceWebhookParams,
 } from './voice-api.schema';
 import {
@@ -64,6 +71,38 @@ export const createVoiceApiAdminRouter = (): Router => {
     ...guard,
     ...handle({ params: VoiceAccountParams }, async ({ params, req, res }) => {
       ok(res, await registerAccountVoiceWebhook(req, params.id));
+    }),
+  );
+  // IVR: Cell24x7 checks from the panel (no server access needed)
+  router.post(
+    '/accounts/:id/voice-api/test-connection',
+    ...guard,
+    ...handle({ params: VoiceAccountParams }, async ({ params, req, res }) => {
+      ok(res, await testVoiceConnection(req, params.id));
+    }),
+  );
+  router.post(
+    '/accounts/:id/voice-api/test-call',
+    ...guard,
+    ...handle(
+      { params: VoiceAccountParams, body: VoiceTestCallBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await sendVoiceTestCall(req, params.id, body));
+      },
+    ),
+  );
+  router.get(
+    '/accounts/:id/voice-api/test-call',
+    ...guard,
+    ...handle({ params: VoiceAccountParams }, async ({ params, res }) => {
+      ok(res, await voiceTestCallResult(params.id));
+    }),
+  );
+  router.get(
+    '/accounts/:id/voice-api/diagnostics',
+    ...guard,
+    ...handle({ params: VoiceAccountParams }, async ({ params, res }) => {
+      ok(res, await voiceDiagnostics(params.id));
     }),
   );
   router.get('/voice-api/status', ...guard, async (_req, res) => {

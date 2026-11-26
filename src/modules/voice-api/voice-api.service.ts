@@ -164,7 +164,12 @@ const customerAccount = async (id: string): Promise<AccountDoc> => {
 
 const platformAudit = async (
   req: Request,
-  action: 'account.voice_api_changed' | 'voice_api.webhook_registered' | 'voice_api.batch_resolved',
+  action:
+    | 'account.voice_api_changed'
+    | 'voice_api.webhook_registered'
+    | 'voice_api.batch_resolved'
+    | 'voice_api.connection_tested'
+    | 'voice_api.test_call_sent',
   target: { type: string; id: string },
   meta: Record<string, unknown>,
   accountId?: Types.ObjectId,

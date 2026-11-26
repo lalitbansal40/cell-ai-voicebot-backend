@@ -13,4 +13,6 @@ export const VOICE_API_CONFIG = Object.freeze({
   lines: 4,
   pollSec: 120,
   fakeDelayMs: 2000,
+  /** IVR-T2: admin test calls per account per hour (Cell24x7 credits are used). */
+  testCallsPerHour: 3,
 });

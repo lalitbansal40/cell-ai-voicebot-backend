@@ -1,7 +1,14 @@
 import { FLOW_LIMITS } from '../../config/limits';
 import { AUDIO_FORMATS } from '../../db/models/flow-audio.model';
 import { registry } from '../../shared/openapi/registry';
-import { bearer, errors, noContentResponse, ok } from '../../shared/openapi/responses';
+import {
+  bearer,
+  bearerOrKey,
+  errors,
+  noContentResponse,
+  ok,
+  PUBLIC_API_TAG,
+} from '../../shared/openapi/responses';
 import { z } from '../../shared/openapi/zod';
 import { ObjectIdSchema } from '../../shared/validation/schemas';
 
@@ -33,6 +40,8 @@ export const FlowAudioUrlSchema = registry.register(
 );
 
 const tags = ['Call flows'];
+/** IVR-T7: list + upload are open to API keys (recorded-voice campaigns). */
+const publicTags = [...tags, PUBLIC_API_TAG];
 const read = { 401: errors[401], 403: errors[403] };
 const write = { ...read, 404: errors[404], 409: errors[409], 422: errors[422] };
 const base = '/api/v1/flow-audio';
@@ -40,18 +49,18 @@ const base = '/api/v1/flow-audio';
 registry.registerPath({
   method: 'get',
   path: base,
-  tags,
+  tags: publicTags,
   summary: 'Audio files of the account for play_audio nodes and audio prompts (flows.read)',
-  security: bearer,
+  security: bearerOrKey,
   request: { query: ListAudioQuery },
   responses: { 200: ok(z.array(FlowAudioSchema)), ...read },
 });
 registry.registerPath({
   method: 'post',
   path: base,
-  tags,
+  tags: publicTags,
   summary: `Upload one WAV / MP3 (≤ 5 MB, ≤ ${String(FLOW_LIMITS.audioMaxMs / 1000)} s, ≤ ${String(FLOW_LIMITS.audiosPerAccount)} per account, ${String(FLOW_LIMITS.audioUploadsPerHour)} uploads / h / account; flows.write)`,
-  security: bearer,
+  security: bearerOrKey,
   request: {
     body: {
       content: {

@@ -42,6 +42,11 @@ const SIP_TEXT: Record<string, string> = {
     "A managed WhatsApp number's calls over Meta stopped (token or webhook): open it → Calling → Check / Fix, or turn calling on again.",
   'wa-meta-call-errors':
     'At least five Meta WhatsApp call actions failed in the last hour; inspect Admin → WhatsApp → Meta call errors.',
+  // IVR-T8
+  'voice-api-unreachable':
+    "Recorded voice: an account's Test connection to Cell24x7 failed in the last hour — open Admin → account → Cell24x7.",
+  'voice-api-uncertain':
+    'Recorded voice: a batch is "uncertain" for over 30 minutes — check the Cell24x7 dashboard and resolve it in Admin → System.',
 };
 
 /** Phase 18: a SIP problem also rings the superadmins' bell, once an hour per problem. */
@@ -60,7 +65,11 @@ export const bellSuperadmins = async (issues: string[], redis: Redis): Promise<n
       accountId: platform,
       userIds: admins.map((a) => a._id),
       type: 'sip.trunk_down',
-      title: issue.startsWith('wa-') ? 'WhatsApp calling problem' : 'Phone line problem',
+      title: issue.startsWith('wa-')
+        ? 'WhatsApp calling problem'
+        : issue.startsWith('voice-api-')
+          ? 'Recorded voice problem'
+          : 'Phone line problem',
       body: SIP_TEXT[issue] ?? issue,
       link: '/admin/system',
     });
@@ -89,11 +98,14 @@ export const main: OpMain = async (args) => {
       now: new Date(),
       sip: status.sip,
       whatsappCalls: status.whatsappCalls,
+      voiceApi: status.voiceApi,
       env: status.env,
     });
     for (const issue of issues) say(issue);
     await bellSuperadmins(
-      issues.filter((i) => i.startsWith('sip-') || i.startsWith('wa-')),
+      issues.filter(
+        (i) => i.startsWith('sip-') || i.startsWith('wa-') || i.startsWith('voice-api-'),
+      ),
       getAppRedis(env.REDIS_URL, logger),
     );
   } finally {

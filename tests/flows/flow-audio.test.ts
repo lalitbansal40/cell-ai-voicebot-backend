@@ -6,9 +6,12 @@ import request from 'supertest';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { FLOW_LIMITS } from '../../src/config/limits';
+import { ApiKeyModel } from '../../src/db/models/api-key.model';
 import { AuditLogModel } from '../../src/db/models/audit-log.model';
 import { FlowAudioModel } from '../../src/db/models/flow-audio.model';
 import { FlowModel } from '../../src/db/models/flow.model';
+import { generateApiKey } from '../../src/modules/api-keys/api-keys.service';
+import { sha256Hex } from '../../src/modules/auth/hmac';
 import { purgeDeletedAudio } from '../../src/modules/flow-audio/flow-audio.service';
 import { createTestAccount, tokenFor, type TestAccount, type TestUser } from '../helpers/auth';
 import { useTempStorage } from '../helpers/contacts';
@@ -226,5 +229,71 @@ describe('flow audio', () => {
       .set(auth(manager))
       .attach('file', fixture('tone-8k-mono.wav'), 't.wav');
     expect(res.status).toBe(500);
+  });
+});
+
+describe('flow audio with an API key (IVR-T7)', () => {
+  let k: TestAccount;
+  let kOwner: TestUser;
+  beforeAll(async () => {
+    k = await createTestAccount({ name: 'Key audio' });
+    kOwner = await k.addUser('owner');
+  });
+  const makeKey = async (account: TestAccount, scopes: string[]) => {
+    const key = generateApiKey(false);
+    await ApiKeyModel.create({
+      accountId: account.account._id,
+      name: `audio ${scopes.join(' ')}`,
+      prefix: key.slice(0, 13),
+      keyHash: sha256Hex(key),
+      scopes,
+      createdBy: kOwner.user._id,
+    });
+    return { 'X-API-Key': key };
+  };
+
+  it('campaigns:write uploads and lists; campaigns:read only lists; other keys and accounts stay out', async () => {
+    const write = await makeKey(k, ['campaigns:write']);
+    const up = await request(app)
+      .post(BASE)
+      .set(write)
+      .field('name', `key upload ${Date.now()}`)
+      .attach('file', fixture('tone-8k-mono.wav'), 'tone-8k-mono.wav');
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
+    const id = up.body.data.id as string;
+    const readKey = await makeKey(k, ['campaigns:read']);
+    const list = await request(app).get(BASE).set(readKey);
+    expect(list.status).toBe(200);
+    expect(list.body.data.map((a: { id: string }) => a.id)).toContain(id);
+    const upRead = await request(app)
+      .post(BASE)
+      .set(readKey)
+      .attach('file', fixture('tone-8k-mono.wav'), 'tone-8k-mono.wav');
+    expect(upRead.status).toBe(403);
+    const other = await makeKey(k, ['contacts:read']);
+    expect((await request(app).get(BASE).set(other)).status).toBe(403);
+    // rename / delete / url stay user-only
+    expect((await request(app).delete(`${BASE}/${id}`).set(write)).status).toBe(403);
+    const elsewhere = await createTestAccount({ name: 'Other audio' });
+    await elsewhere.addUser('owner');
+    const foreign = await request(app)
+      .get(BASE)
+      .set(await makeKey(elsewhere, ['campaigns:read']));
+    expect(foreign.body.data.map((a: { id: string }) => a.id)).not.toContain(id);
+  });
+
+  it('the upload limit is per key (another key still uploads)', async () => {
+    const one = await makeKey(k, ['campaigns:write']);
+    const two = await makeKey(k, ['campaigns:write']);
+    const keyed = buildTestApp({}, { storage, flowRateLimitStores: { audio: new MemoryStore() } });
+    const send = (h: Record<string, string>) =>
+      request(keyed)
+        .post(BASE)
+        .set(h)
+        .attach('file', fixture('tone-8k-mono.wav'), `t${String(Math.random())}.wav`);
+    let last = 0;
+    for (let i = 0; i <= FLOW_LIMITS.audioUploadsPerHour; i += 1) last = (await send(one)).status;
+    expect(last).toBe(429);
+    expect((await send(two)).status).toBe(201);
   });
 });

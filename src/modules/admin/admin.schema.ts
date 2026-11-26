@@ -515,6 +515,14 @@ export const SystemStatusSchema = registry.register(
       })
       .nullable()
       .openapi({ description: 'Phase 18B: WhatsApp call audio; null when WhatsApp is off' }),
+    voiceApi: z
+      .object({
+        accountsOn: z.number().int(),
+        unreachable1h: z.number().int(),
+        uncertainBatches30m: z.number().int(),
+      })
+      .nullable()
+      .openapi({ description: 'IVR-T8: recorded voice (Cell24x7) health' }),
   }),
 );
 

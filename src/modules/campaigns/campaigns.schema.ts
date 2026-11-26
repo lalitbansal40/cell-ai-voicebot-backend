@@ -242,6 +242,11 @@ export const ListCampaignContactsQuery = z.strictObject({
   disposition: z.enum(DISPOSITIONS).optional(),
   skipReason: z.enum(SKIP_REASONS).optional(),
   q: z.string().trim().min(1).max(100).optional(),
+  /** IVR-T4: recorded-voice IVR numbers that pressed this key (`none` = no key). */
+  digit: z
+    .string()
+    .regex(/^([0-9*#]{1,8}|none)$/)
+    .optional(),
 });
 
 // ── responses ───────────────────────────────────────────────────────────────
@@ -400,6 +405,8 @@ export const CampaignSchema = registry.register(
           })
           .nullable(),
         audioSec: z.number(),
+        /** IVR-T4: final numbers per key pressed (`none` = no key), IVR campaigns. */
+        ivrDigits: z.record(z.string(), z.number().int()).optional(),
         retries: z.number().int(),
         retryIntervalMin: z.number().int(),
         batches: z.array(

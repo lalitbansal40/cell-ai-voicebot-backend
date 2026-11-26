@@ -109,7 +109,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('has 127 audit actions incl. the nine Phase 12 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(228); // PIN: 2; WCF: calling diagnose 1; PMC: 4; SAC: 10; credit line confirm + ES solution: 2; PN: 4; call modes: 4; account SIP trunk: 1; per-account Cell24x7: 2; Phase 20: 3; VAPI: 8; Phase 19: 20; Phase 18B: T18B.4 1; Phase 18: T18.6 2, T18.7 4; Phase 14 / 15 / 16 / 17 actions as catalogued below
+    expect(AUDIT_ACTIONS).toHaveLength(230); // IVR: 2; PIN: 2; WCF: calling diagnose 1; PMC: 4; SAC: 10; credit line confirm + ES solution: 2; PN: 4; call modes: 4; account SIP trunk: 1; per-account Cell24x7: 2; Phase 20: 3; VAPI: 8; Phase 19: 20; Phase 18B: T18B.4 1; Phase 18: T18.6 2, T18.7 4; Phase 14 / 15 / 16 / 17 actions as catalogued below
     expect(AUDIT_ACTIONS).toContain('whatsapp.calling_diagnosed');
     // positions move when an older phase adds an action mid-catalogue: find the block
     const at = AUDIT_ACTIONS.indexOf('whatsapp.calling_settings_updated');

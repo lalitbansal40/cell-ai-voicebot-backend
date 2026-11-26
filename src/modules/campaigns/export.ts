@@ -56,6 +56,8 @@ export const RESULT_HEADERS = [
   'Cost (₹)',
   'Skip reason',
   'Call id',
+  // IVR-T4: the key pressed on a recorded-voice IVR call
+  'Key pressed',
 ] as const;
 
 const LOCK = 'campaign-export';
@@ -157,6 +159,7 @@ export const resultRow = (
     formatInr(cc.costMicros),
     cc.skipReason ?? '',
     callId,
+    safeCell(cc.voiceApi?.dtmf ?? ''),
     ...ctx.variableKeys.map((k) => safeCell(cc.variables[k] ?? '')),
   ];
 };
