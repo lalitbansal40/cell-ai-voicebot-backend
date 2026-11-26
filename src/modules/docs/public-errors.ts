@@ -24,6 +24,15 @@ export const PUBLIC_ERRORS: Record<string, string> = {
   TEMPLATE_NOT_APPROVED: 'Only `APPROVED` templates can be sent.',
   TEMPLATE_PAUSED: 'WhatsApp paused this template — use another one.',
   TEMPLATE_VARIABLES_MISSING: 'Give every template variable a value.',
+  // TPL: creating / editing templates by API
+  TEMPLATE_NAME_TAKEN:
+    'A template with this name and language exists (or was deleted < 30 days ago) — pick another name.',
+  TEMPLATE_LIMIT_REACHED:
+    "WhatsApp's template limit for the account is reached — delete unused ones.",
+  TEMPLATE_EDIT_NOT_ALLOWED:
+    'This template cannot be edited now — read the message (status, or when the next edit is possible).',
+  WHATSAPP_CHANNEL_NOT_READY:
+    'The WhatsApp number is not connected — check `GET /resources/whatsapp-numbers`.',
   CALL_LIMIT_REACHED: 'Too many calls at once for the account — retry later.',
   CALL_CAPACITY: 'The server is busy — retry later.',
   LINE_BUSY: 'Every phone line is in use — retry later (campaigns wait by themselves).',

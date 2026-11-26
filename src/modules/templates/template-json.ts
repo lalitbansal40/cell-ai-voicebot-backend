@@ -69,6 +69,8 @@ export const templateDetail = (t: WhatsAppTemplateDoc, now = new Date()) => ({
   nextEditAt: iso(nextEditAt(t, now)),
   deletedAt: iso(t.deletedAt),
   createdBy: t.createdBy?.toString() ?? null,
+  /** TPL: created with an API key (its id). */
+  createdByApiKeyId: t.createdByApiKeyId?.toString() ?? null,
 });
 
 export type TemplateListItem = ReturnType<typeof templateListItem>;

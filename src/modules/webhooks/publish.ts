@@ -31,6 +31,22 @@ export interface WebhookEventMap {
   'whatsapp_campaign.paused': WhatsAppCampaignEventData;
   'whatsapp_call.scheduled': ScheduledCallEventData;
   'whatsapp_call.scheduled_skipped': ScheduledCallEventData;
+  'template.status_changed': TemplateStatusEventData;
+}
+
+/** TPL: a template's review status changed at Meta (no bodies, no personal data). */
+export interface TemplateStatusEventData {
+  templateId: string;
+  name: string;
+  language: string;
+  category: string;
+  status: string;
+  previousStatus: string;
+  /** Meta's reason code (e.g. `INVALID_FORMAT`), null when approved. */
+  reason: string | null;
+  channelIds: string[];
+  wabaId: string;
+  at: string;
 }
 
 /** SAC-T8: a scheduled AI WhatsApp call was created, or skipped at its time (no personal data). */
@@ -519,5 +535,41 @@ export const publishScheduledCallEvent = (
         attempt: c.attempt,
       },
       `${type}:${c._id.toString()}:${String(c.attempt)}`,
+    );
+  });
+
+/** TPL: `template.status_changed` — once per status change (the event key carries both). */
+export const publishTemplateStatus = (
+  t: {
+    _id: Types.ObjectId;
+    accountId: Types.ObjectId;
+    name: string;
+    language: string;
+    category: string;
+    status: string;
+    wabaId: string;
+    channelIds: Types.ObjectId[];
+  },
+  previousStatus: string,
+  reason: string | null,
+  at: Date,
+): Promise<void> =>
+  safely('template.status_changed', async () => {
+    await publish(
+      t.accountId,
+      'template.status_changed',
+      {
+        templateId: t._id.toString(),
+        name: t.name,
+        language: t.language,
+        category: t.category,
+        status: t.status,
+        previousStatus,
+        reason,
+        channelIds: t.channelIds.map(String),
+        wabaId: t.wabaId,
+        at: at.toISOString(),
+      },
+      `template.status_changed:${t._id.toString()}:${previousStatus}:${t.status}:${String(at.getTime())}`,
     );
   });

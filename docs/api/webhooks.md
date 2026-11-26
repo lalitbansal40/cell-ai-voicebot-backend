@@ -108,6 +108,7 @@ By default payloads carry ids, statuses, outcomes and amounts only. Turn on **In
 | `contact.opted_out` · `contact.opted_in`                                 | STOP / START or a do-not-call change                                        |
 | `whatsapp_campaign.completed` · `whatsapp_campaign.paused`               | a WhatsApp bulk campaign finished, or paused (by a person or automatically) |
 | `whatsapp_call.scheduled` · `whatsapp_call.scheduled_skipped`            | an AI WhatsApp call was scheduled, or not placed at its time (with why)     |
+| `template.status_changed`                                                | a WhatsApp template was approved, rejected, paused or disabled by Meta      |
 
 The `data` of each event, with samples, is listed in [Event payloads](#event-payloads).
 
@@ -408,5 +409,24 @@ The call was not placed at its time. `skipReason`: `no_permission`, `dnd`, `opte
     "id": "6740a1b2c3d4e5f6a7b8c9d1"
   },
   "attempt": 0
+}
+```
+
+### `template.status_changed`
+
+Meta reviewed or changed a template (API-created templates wait for this). `status` / `previousStatus`: `PENDING`, `APPROVED`, `REJECTED`, `PAUSED`, `DISABLED`, `IN_APPEAL`, `DELETED`…; `reason` is Meta's code (null when approved). No template text.
+
+```json
+{
+  "templateId": "6740a1b2c3d4e5f6a7b8c9e0",
+  "name": "payment_reminder",
+  "language": "en",
+  "category": "UTILITY",
+  "status": "APPROVED",
+  "previousStatus": "PENDING",
+  "reason": null,
+  "channelIds": ["6720f0a1b2c3d4e5f6a7b8cf"],
+  "wabaId": "102290129340398",
+  "at": "2026-11-25T09:30:00.000Z"
 }
 ```

@@ -13,6 +13,7 @@ import {
   type WhatsAppTemplateDoc,
 } from '../../db/models/whatsapp-template.model';
 import { getLogger } from '../../shared/logger';
+import { publishTemplateStatus } from '../webhooks/publish';
 import { SYSTEM_ACTOR } from '../whatsapp/channel-status';
 import { WebhookSchemaError, type TemplateHooks } from '../whatsapp/webhook-handlers';
 
@@ -141,6 +142,8 @@ const statusUpdate = async (
     to: status,
     reasonCode,
   });
+  // TPL: the account's webhook endpoints hear about it (API-created templates wait for this)
+  await publishTemplateStatus(updated, t.status, status === 'APPROVED' ? null : reasonCode, at);
   const notice = NOTICE[status];
   if (notice) {
     const detail =

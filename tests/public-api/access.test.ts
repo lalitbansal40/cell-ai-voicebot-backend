@@ -122,13 +122,15 @@ const send = (route: (typeof ROUTES)[number], headers: Record<string, string>) =
 };
 
 describe('scopes', () => {
-  it('has 16 scopes in 7 groups, each mapped to real permissions', () => {
-    expect(API_KEY_SCOPES).toHaveLength(16);
+  it('has 17 scopes in 7 groups, each mapped to real permissions', () => {
+    // TPL: templates:write
+    expect(API_KEY_SCOPES).toHaveLength(17);
     expect(API_KEY_SCOPES).toEqual(
       expect.arrayContaining([
         'messages:read',
         'messages:write',
         'templates:read',
+        'templates:write',
         'whatsapp-calls:write',
         'reports:read',
         'exports:write',

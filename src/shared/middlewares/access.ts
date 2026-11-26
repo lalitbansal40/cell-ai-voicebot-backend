@@ -31,16 +31,18 @@ export const access =
     scope,
   }: {
     permission: Permission | Permission[];
-    scope?: ApiKeyScope;
+    /** One scope, or a list — the key needs at least one (TPL: read with read or write). */
+    scope?: ApiKeyScope | ApiKeyScope[];
   }): RequestHandler =>
   (req, res, next) => {
     const auth = requireAuth(req);
     if (auth.kind === 'api_key') {
       rememberRoute(req, res);
       if (!scope) throw new ForbiddenError();
-      if (!auth.scopes?.has(scope)) {
+      const scopes = Array.isArray(scope) ? scope : [scope];
+      if (!scopes.some((s) => auth.scopes?.has(s))) {
         throw new AppError('AUTH_FORBIDDEN', undefined, [
-          { path: 'scope', message: `${scope} is required` },
+          { path: 'scope', message: `${scopes.join(' or ')} is required` },
         ]);
       }
       next();

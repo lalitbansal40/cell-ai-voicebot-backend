@@ -21,7 +21,8 @@ import { nowOf, phoneLast4, type WhatsAppContext } from './context';
 
 /** Who changed a channel: a user (maybe impersonated / a superadmin) or the system (jobs, webhooks). */
 export interface WaActor {
-  type: 'user' | 'system';
+  /** TPL: `api_key` — `id` is the key's id (templates created by API). */
+  type: 'user' | 'system' | 'api_key';
   id: Types.ObjectId | null;
   impersonatorId?: Types.ObjectId | null;
   /** A superadmin acting from the platform account. */
@@ -30,6 +31,10 @@ export interface WaActor {
 }
 
 export const SYSTEM_ACTOR: WaActor = { type: 'system', id: null };
+
+/** The team member behind an actor (`createdBy` / `updatedBy`): none for keys and the system. */
+export const userIdOf = (actor: WaActor): Types.ObjectId | null =>
+  actor.type === 'user' ? actor.id : null;
 
 export const NUMBERS_LINK = '/whatsapp/numbers';
 

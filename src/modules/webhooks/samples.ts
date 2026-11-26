@@ -131,6 +131,18 @@ export const SAMPLE_DATA: Record<WebhookEventType, Record<string, unknown>> = {
     program: { kind: 'agent', id: '6740a1b2c3d4e5f6a7b8c9d1' },
     attempt: 0,
   },
+  'template.status_changed': {
+    templateId: '6740a1b2c3d4e5f6a7b8c9e0',
+    name: 'payment_reminder',
+    language: 'en',
+    category: 'UTILITY',
+    status: 'APPROVED',
+    previousStatus: 'PENDING',
+    reason: null,
+    channelIds: [ID.channel],
+    wabaId: '102290129340398',
+    at: '2026-11-25T09:30:00.000Z',
+  },
   'whatsapp_campaign.paused': {
     campaignId: ID.campaign,
     name: 'November EMI reminder',

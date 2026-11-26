@@ -10,6 +10,7 @@ import { AppError, ValidationError } from '../../shared/errors/app-error';
 import { created, ok } from '../../shared/http/envelope';
 import { access } from '../../shared/middlewares/access';
 import { authenticate } from '../../shared/middlewares/authenticate';
+import { idempotency } from '../../shared/middlewares/idempotency';
 import { createRateLimiter } from '../../shared/middlewares/rate-limit';
 import {
   blockWhenImpersonating,
@@ -59,6 +60,14 @@ export interface TemplatesRouterDeps {
 
 const actorOf = (req: Request): WaActor => {
   const auth = requireAuth(req);
+  // TPL: an API key acts as itself (audit `api_key`, `createdByApiKeyId`)
+  if (auth.kind === 'api_key') {
+    return {
+      type: 'api_key',
+      id: auth.apiKeyId ? new Types.ObjectId(auth.apiKeyId) : null,
+      ip: req.ip ?? null,
+    };
+  }
   return {
     type: 'user',
     id: new Types.ObjectId(auth.userId),
@@ -104,17 +113,28 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
     jobs: deps.jobs,
     ...(deps.storage ? { storage: deps.storage } : {}),
   };
-  const read = requirePermission('templates.read');
   const limit = createRateLimiter({
     windowMs: 60 * 60 * 1000,
     limit: TEMPLATE_LIMITS.createsPerHourPerUser,
-    keyGenerator: (req) => `templates:${req.auth?.userId ?? 'anonymous'}`,
+    // per user, or per API key (two keys never share it)
+    keyGenerator: (req) =>
+      `templates:${req.auth?.apiKeyId ? `key:${req.auth.apiKeyId}` : (req.auth?.userId ?? 'anonymous')}`,
     ...(deps.rateLimitStore ? { store: deps.rateLimitStore } : {}),
   });
   const manage = [
     requirePermission('templates.manage'),
     blockWhenImpersonating(),
   ] as RequestHandler[];
+  /**
+   * TPL: open to API keys with `templates:write`; dashboard sessions still need
+   * `templates.manage` and are refused in a view login-as.
+   */
+  const write = [
+    access({ permission: 'templates.manage', scope: 'templates:write' }),
+    blockWhenImpersonating(),
+  ] as RequestHandler[];
+  const once = idempotency({ required: false, scope: (req) => req.auth?.accountId });
+  const isKey = (req: Request) => req.auth?.kind === 'api_key';
   const syncLimit = createRateLimiter({
     windowMs: 60 * 1000,
     limit: TEMPLATE_LIMITS.syncPerMinutePerWaba,
@@ -127,12 +147,16 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
 
   router.get(
     '/templates',
-    access({ permission: 'templates.read', scope: 'templates:read' }),
+    access({ permission: 'templates.read', scope: ['templates:read', 'templates:write'] }),
     ...handle({ query: ListTemplatesQuery }, async ({ query, req, res }) => {
-      // API keys see approved templates only (the ones they can send)
+      // API keys see approved templates only (the ones they can send); TPL: a key that
+      // manages templates (`templates:write`) may filter by any status
+      const writer = req.auth?.scopes?.has('templates:write') ?? false;
       const keyQuery =
         req.auth?.kind === 'api_key'
-          ? { ...query, status: ['APPROVED' as const], includeDeleted: false }
+          ? writer
+            ? { ...query, includeDeleted: false }
+            : { ...query, status: ['APPROVED' as const], includeDeleted: false }
           : query;
       ok(res, await listTemplates(accountOf(req), keyQuery));
     }),
@@ -140,10 +164,16 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
   // static paths before `/:id`
   router.post(
     '/templates',
-    ...manage,
+    ...write,
     limit,
+    once,
     ...handle({ body: CreateTemplateBody }, async ({ body, req, res }) => {
-      created(res, await createTemplate(tx, accountOf(req), actorOf(req), body));
+      created(
+        res,
+        await createTemplate(tx, accountOf(req), actorOf(req), body, {
+          keepDraftOnSubmitError: isKey(req),
+        }),
+      );
     }),
   );
   router.post(
@@ -167,14 +197,14 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
   );
   router.get(
     '/templates/:id',
-    read,
+    access({ permission: 'templates.read', scope: ['templates:read', 'templates:write'] }),
     ...handle({ params: TemplateParams }, async ({ params, req, res }) => {
       ok(res, await getTemplate(accountOf(req), params.id));
     }),
   );
   router.patch(
     '/templates/:id',
-    ...manage,
+    ...write,
     limit,
     ...handle(
       { params: TemplateParams, body: EditTemplateBody },
@@ -185,8 +215,9 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
   );
   router.post(
     '/templates/:id/submit',
-    ...manage,
+    ...write,
     limit,
+    once,
     ...handle(
       { params: TemplateParams, body: SubmitTemplateBody },
       async ({ params, body, req, res }) => {
@@ -196,7 +227,7 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
   );
   router.delete(
     '/templates/:id',
-    ...manage,
+    ...write,
     ...handle(
       { params: TemplateParams, query: DeleteTemplateQuery },
       async ({ params, query, req, res }) => {
@@ -215,7 +246,7 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
   );
   router.patch(
     '/templates/:id/variables',
-    ...manage,
+    ...write,
     ...handle(
       { params: TemplateParams, body: VariableSourcesBody },
       async ({ params, body, req, res }) => {
@@ -225,13 +256,16 @@ export const createTemplatesRouter = (deps: TemplatesRouterDeps): Router => {
   );
   router.post(
     '/templates/:id/media',
-    ...manage,
+    ...write,
     uploadExample,
     ...handle(
       { params: TemplateParams, body: SubmitTemplateBody },
       async ({ params, body, req, res }) => {
-        if (!req.file)
+        if (!req.file) {
+          // another account's id answers 404 before the missing file (no record is revealed)
+          await getTemplate(accountOf(req), params.id);
           throw new ValidationError([{ path: 'file', message: 'Upload one file named "file"' }]);
+        }
         ok(
           res,
           await uploadHeaderExample(

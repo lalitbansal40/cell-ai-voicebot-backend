@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { Types } from 'mongoose';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ConversationModel, type ConversationDoc } from '../../src/db/models/conversation.model';
@@ -14,7 +15,7 @@ import { downloadInboundMedia } from '../../src/modules/inbox/media.service';
 import { sendMessage } from '../../src/modules/inbox/outbound.service';
 import { processReadReceipt } from '../../src/modules/inbox/receipts';
 import { processSend } from '../../src/modules/inbox/send.job';
-import { syncTemplates } from '../../src/modules/templates/template.service';
+import { createTemplate, syncTemplates } from '../../src/modules/templates/template.service';
 import { clientFor, sealSecret } from '../../src/modules/whatsapp/context';
 import { receivePinnacleWebhook } from '../../src/modules/whatsapp/pinnacle-webhooks.service';
 import {
@@ -167,6 +168,26 @@ describe('per-channel routing (PN D7)', () => {
       expect.arrayContaining(['getBusinessProfile', 'updateBusinessProfile']),
     );
     onlyViaPinnacle('listTemplates', 'getBusinessProfile', 'updateBusinessProfile');
+  });
+
+  it('TPL: an API-key template create submits through Pinnacle', async () => {
+    await createTemplate(
+      { wa: world.w.ctx, jobs: { enqueueSync: () => Promise.resolve() } as never },
+      state.acc.account._id,
+      { type: 'api_key', id: new Types.ObjectId() },
+      {
+        channelId: state.channel._id.toString(),
+        name: `managed_api_${randomUUID().slice(0, 6)}_slow`,
+        language: 'en',
+        category: 'UTILITY',
+        components: [
+          { type: 'BODY', text: 'Hi {{1}}, your EMI is due.', example: { body_text: [['A']] } },
+        ],
+      },
+      { keepDraftOnSubmitError: true },
+    );
+    expect(pinOps()).toContain('createTemplate');
+    onlyViaPinnacle('createTemplate');
   });
 
   it('a customer message relayed by Pinnacle lands in the inbox (worker path)', async () => {

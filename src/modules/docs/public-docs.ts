@@ -162,7 +162,141 @@ export const PUBLIC_DOCS: Record<string, PublicOpDocs> = {
     operationId: 'listTemplates',
     area: 'WhatsApp templates',
     scope: 'templates:read',
-    description: `Templates of the account with status (\`APPROVED\`, \`PENDING\`, \`REJECTED\`…), category, language, the WhatsApp number(s) that can send them (\`channelId\` filter) and the variables they need. List rows carry no bodies. Only \`APPROVED\` templates can be sent. ${READ}`,
+    description: `Templates of the account with status (\`APPROVED\`, \`PENDING\`, \`REJECTED\`…), category, language, the WhatsApp number(s) that can send them (\`channelId\` filter) and the variables they need. List rows carry no bodies. Only \`APPROVED\` templates can be sent. A \`templates:read\` key sees approved templates only; a \`templates:write\` key may filter by any \`status\` (e.g. its \`PENDING\` ones). ${READ}`,
+  },
+  // TPL: templates by API key (`templates:write`)
+  'POST /api/v1/whatsapp/templates': {
+    operationId: 'createTemplate',
+    area: 'WhatsApp templates',
+    scope: 'templates:write',
+    description: `Creates a WhatsApp template on a connected number's WhatsApp account (\`channelId\`) and submits it to Meta for review (status \`PENDING\`), or keeps a \`DRAFT\` with \`submit: false\` (needed for a media header: upload the example with \`POST /whatsapp/templates/{id}/media\`, then \`POST /whatsapp/templates/{id}/submit\`).
+
+Rules (the same as the dashboard): \`name\` lowercase letters, digits and \`_\` (≤ 512); \`category\` \`UTILITY\` or \`MARKETING\` (authentication templates are refused); one \`BODY\` (≤ 1,024 characters) with an \`example\` for every variable; optional \`HEADER\` (TEXT ≤ 60 characters, IMAGE / VIDEO / DOCUMENT / LOCATION), \`FOOTER\` (≤ 60, no variables) and \`BUTTONS\` (quick replies, URL with one suffix variable, phone, copy code); positional (\`{{1}}\`) or named (\`{{customer_name}}\`, \`parameterFormat: named\`) variables. Meta allows 250 / 6,000 templates per WhatsApp account and its own review — the result arrives as the \`template.status_changed\` webhook (or poll \`GET /whatsapp/templates/{id}\`). Managed (partner) numbers work the same way.
+
+If the template was saved but Meta refused the submit, the answer is still \`201\` with \`status: DRAFT\` and \`submitError\` — fix it with \`PATCH\` and submit again. Errors: \`VALIDATION_FAILED\` (field paths), \`TEMPLATE_NAME_TAKEN\`, \`TEMPLATE_LIMIT_REACHED\`, \`WHATSAPP_CHANNEL_NOT_READY\`. 20 creates / hour per key. Optional \`Idempotency-Key\`. ${WRITE}`,
+    requestExamples: {
+      utility: {
+        summary: 'Utility template with variables, a footer and quick replies (submitted at once)',
+        value: {
+          channelId: ID,
+          name: 'payment_reminder',
+          language: 'en',
+          category: 'UTILITY',
+          components: [
+            {
+              type: 'BODY',
+              text: 'Hi {{1}}, your EMI of {{2}} is due on {{3}}.',
+              example: { body_text: [['Asha', '₹4,500', '5 Dec']] },
+            },
+            { type: 'FOOTER', text: 'Reply STOP to opt out' },
+            {
+              type: 'BUTTONS',
+              buttons: [
+                { type: 'QUICK_REPLY', text: 'Paid' },
+                { type: 'QUICK_REPLY', text: 'Call me' },
+              ],
+            },
+          ],
+        },
+      },
+      imageHeader: {
+        summary: 'Marketing template with an image header — a draft first, then media + submit',
+        value: {
+          channelId: ID,
+          name: 'diwali_offer',
+          language: 'en',
+          category: 'MARKETING',
+          submit: false,
+          components: [
+            { type: 'HEADER', format: 'IMAGE' },
+            {
+              type: 'BODY',
+              text: 'Hello {{1}}, use code {{2}} for 20% off this week.',
+              example: { body_text: [['Asha', 'DIWALI20']] },
+            },
+            {
+              type: 'BUTTONS',
+              buttons: [
+                {
+                  type: 'URL',
+                  text: 'Shop now',
+                  url: 'https://shop.example.com/p/{{1}}',
+                  example: ['https://shop.example.com/p/42'],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      named: {
+        summary: 'Named variables',
+        value: {
+          channelId: ID,
+          name: 'order_update',
+          language: 'en',
+          category: 'UTILITY',
+          parameterFormat: 'named',
+          components: [
+            {
+              type: 'BODY',
+              text: 'Hi {{customer_name}}, your order {{order_id}} has shipped.',
+              example: {
+                body_text_named_params: [
+                  { param_name: 'customer_name', example: 'Asha' },
+                  { param_name: 'order_id', example: 'A-1042' },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    },
+  },
+  'GET /api/v1/whatsapp/templates/{id}': {
+    operationId: 'getTemplate',
+    area: 'WhatsApp templates',
+    scope: 'templates:read',
+    description: `One template with its components, variables, status history (with Meta's reason when rejected or paused), usage and the edit window. Keys with \`templates:read\` or \`templates:write\`. ${READ}`,
+  },
+  'PATCH /api/v1/whatsapp/templates/{id}': {
+    operationId: 'editTemplate',
+    area: 'WhatsApp templates',
+    scope: 'templates:write',
+    description: `Edits a template. A \`DRAFT\` changes freely; an approved / rejected / paused template is edited at Meta (approved: at most once per 24 h and 10 times per 30 days, the category can't change) and goes back to review. Send only the fields that change. Errors: \`TEMPLATE_EDIT_NOT_ALLOWED\` (with when the next edit is possible), \`VALIDATION_FAILED\`. ${WRITE}`,
+    request: {
+      components: [
+        {
+          type: 'BODY',
+          text: 'Hi {{1}}, your EMI of {{2}} is due on {{3}}. Pay with the link below.',
+          example: { body_text: [['Asha', '₹4,500', '5 Dec']] },
+        },
+      ],
+    },
+  },
+  'POST /api/v1/whatsapp/templates/{id}/submit': {
+    operationId: 'submitTemplate',
+    area: 'WhatsApp templates',
+    scope: 'templates:write',
+    description: `Submits a \`DRAFT\` to Meta for review → \`PENDING\`. A media header needs its example uploaded first. \`channelId\` (optional) picks the number of the same WhatsApp account to submit with. Optional \`Idempotency-Key\`. ${WRITE}`,
+    request: {},
+  },
+  'POST /api/v1/whatsapp/templates/{id}/media': {
+    operationId: 'uploadTemplateMedia',
+    area: 'WhatsApp templates',
+    scope: 'templates:write',
+    description: `Uploads the example file of a media header (multipart \`file\`): JPEG / PNG ≤ 5 MB for IMAGE, MP4 ≤ 16 MB for VIDEO, PDF ≤ 100 MB for DOCUMENT. Then submit the draft. \`curl -F file=@banner.jpg\`. ${WRITE}`,
+  },
+  'DELETE /api/v1/whatsapp/templates/{id}': {
+    operationId: 'deleteTemplate',
+    area: 'WhatsApp templates',
+    scope: 'templates:write',
+    description: `Deletes the template at Meta — this language, or every language of the name with \`?scope=name\`. The record stays with status \`DELETED\`; Meta locks the name for 30 days. ${WRITE}`,
+  },
+  'PATCH /api/v1/whatsapp/templates/{id}/variables': {
+    operationId: 'setTemplateVariableSources',
+    area: 'WhatsApp templates',
+    scope: 'templates:write',
+    description: `Sets the default value source of each variable (contact name / phone / email, a custom field, a fixed text, or ask each time) — used by campaigns and the dashboard when no value is sent. ${WRITE}`,
   },
   'POST /api/v1/whatsapp/calls': {
     errors: ['503'],

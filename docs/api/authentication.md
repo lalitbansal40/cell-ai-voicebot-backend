@@ -30,6 +30,7 @@ Send your key in the `X-API-Key` header on every request. Keys start with `cav_l
 | `messages:read`            | WhatsApp  | Read WhatsApp messages sent by the API                                                                |
 | `messages:write`           | WhatsApp  | Send WhatsApp messages and templates                                                                  |
 | `templates:read`           | WhatsApp  | Read approved WhatsApp templates                                                                      |
+| `templates:write`          | WhatsApp  | Create, submit, edit and delete WhatsApp templates                                                    |
 | `reports:read`             | Reports   | Read report numbers                                                                                   |
 | `exports:write`            | Reports   | Create and download exports                                                                           |
 | `webhooks:manage`          | Webhooks  | Manage outbound webhooks                                                                              |

@@ -47,10 +47,10 @@ registry.registerPath({
 registry.registerPath({
   method: 'post',
   path: base,
-  tags,
+  tags: publicTags,
   summary:
-    'Create a template: draft (`submit: false`) or submitted to Meta (templates.manage, rl:templates: 20 / h / user)',
-  security: bearer,
+    'Create a template: draft (`submit: false`) or submitted to Meta (templates.manage / key `templates:write`, rl:templates: 20 / h per user or key)',
+  security: bearerOrKey,
   request: json(CreateTemplateBody),
   responses: { 201: ok(TemplateDetailSchema, 'Created'), ...writes },
 });
@@ -76,59 +76,59 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: `${base}/{id}`,
-  tags,
+  tags: publicTags,
   summary:
     'Template detail: components, variables + sources, history, usage, edit window (templates.read)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: TemplateParams },
   responses: { 200: ok(TemplateDetailSchema), ...reads },
 });
 registry.registerPath({
   method: 'patch',
   path: `${base}/{id}`,
-  tags,
+  tags: publicTags,
   summary:
     'Edit — drafts freely; Meta templates when approved / rejected / paused (approved: 1 / 24 h, 10 / 30 days, category fixed) (templates.manage)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: TemplateParams, ...json(EditTemplateBody) },
   responses: { 200: ok(TemplateDetailSchema), ...writes },
 });
 registry.registerPath({
   method: 'post',
   path: `${base}/{id}/submit`,
-  tags,
+  tags: publicTags,
   summary: 'Submit a draft to Meta for review using an owned same-WABA sender (templates.manage)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: TemplateParams, ...json(SubmitTemplateBody) },
   responses: { 200: ok(TemplateDetailSchema), ...writes },
 });
 registry.registerPath({
   method: 'delete',
   path: `${base}/{id}`,
-  tags,
+  tags: publicTags,
   summary:
     'Delete at Meta — this language or every language of the name; rows stay as DELETED, the name is locked 30 days (templates.manage)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: TemplateParams, query: DeleteTemplateQuery },
   responses: { 200: ok(z.object({ deleted: z.number() })), ...writes },
 });
 registry.registerPath({
   method: 'patch',
   path: `${base}/{id}/variables`,
-  tags,
+  tags: publicTags,
   summary:
     'Default source per variable: contact name / phone / email, a custom field, a text, ask (templates.manage)',
-  security: bearer,
+  security: bearerOrKey,
   request: { params: TemplateParams, ...json(VariableSourcesBody) },
   responses: { 200: ok(TemplateDetailSchema), ...writes },
 });
 registry.registerPath({
   method: 'post',
   path: `${base}/{id}/media`,
-  tags,
+  tags: publicTags,
   summary:
     'Media header example (multipart `file`: JPEG / PNG 5 MB, MP4 16 MB, PDF 100 MB) → storage + Meta handle (templates.manage)',
-  security: bearer,
+  security: bearerOrKey,
   request: {
     params: TemplateParams,
     body: {

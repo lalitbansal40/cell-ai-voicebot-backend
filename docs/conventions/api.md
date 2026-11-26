@@ -227,6 +227,7 @@ Both use the **same `/api/v1/...` paths, services and envelopes** (ADR 0045 — 
 | WhatsApp  | `messages:read`        | `GET /messages/:id`                                                                                                                            |
 | WhatsApp  | `messages:write`       | `POST /messages/template`, `POST /messages/text`                                                                                               |
 | WhatsApp  | `templates:read`       | `GET /whatsapp/templates` (approved only for keys)                                                                                             |
+| WhatsApp  | `templates:write`      | `POST /whatsapp/templates`, `GET/PATCH/DELETE /whatsapp/templates/{id}`, `/{id}/submit`, `/{id}/media`, `/{id}/variables`                      |
 | Reports   | `reports:read`         | `GET /reports/:tab`                                                                                                                            |
 | Reports   | `exports:write`        | `POST /exports/calls\|messages\|report`, `GET /exports/:id` (never phone numbers)                                                              |
 | Webhooks  | `webhooks:manage`      | `/webhook-endpoints/*`, `POST /webhook-deliveries/:id/replay`                                                                                  |

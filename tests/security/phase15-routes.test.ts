@@ -13,6 +13,7 @@ import { WebhookEndpointModel } from '../../src/db/models/webhook-endpoint.model
 import { WhatsAppCampaignModel } from '../../src/db/models/whatsapp-campaign.model';
 import { WhatsAppChannelModel } from '../../src/db/models/whatsapp-channel.model';
 import { WhatsAppScheduledCallModel } from '../../src/db/models/whatsapp-scheduled-call.model';
+import { WhatsAppTemplateModel } from '../../src/db/models/whatsapp-template.model';
 import { generateApiKey, PREFIX_LENGTH } from '../../src/modules/api-keys/api-keys.service';
 import { API_KEY_SCOPES, type ApiKeyScope } from '../../src/modules/api-keys/scopes';
 import { sha256Hex } from '../../src/modules/auth/hmac';
@@ -55,8 +56,19 @@ const ROUTES: Route[] = Object.entries(
   Object.keys(item).map((method) => ({ method: method as Method, path })),
 );
 
+/** TPL: reads that both template scopes may run. */
+const TEMPLATE_READS = new Set([
+  'GET /api/v1/whatsapp/templates',
+  'GET /api/v1/whatsapp/templates/{id}',
+]);
+
 /** Bodies valid enough to pass validation, so the answer is about access only. */
 const BODIES: Record<string, object> = {
+  // TPL
+  'patch /api/v1/whatsapp/templates/{id}': {
+    components: [{ type: 'BODY', text: 'Hi {{1}}, a test.', example: { body_text: [['A']] } }],
+  },
+  'patch /api/v1/whatsapp/templates/{id}/variables': { sources: [{ key: '1', kind: 'ask' }] },
   // SAC-T8
   'patch /api/v1/whatsapp/scheduled-calls/{id}': { purpose: 'Reminder' },
   'patch /api/v1/contacts/{id}': { name: 'Changed' },
@@ -112,7 +124,8 @@ const ids = {} as Record<
   | 'delivery'
   | 'channel'
   | 'waCampaign'
-  | 'scheduledCall',
+  | 'scheduledCall'
+  | 'template',
   string
 >;
 
@@ -128,6 +141,8 @@ const idFor = (path: string): string => {
   if (path.startsWith('/api/v1/whatsapp/channels/')) return ids.channel;
   if (path.startsWith('/api/v1/whatsapp-campaigns/')) return ids.waCampaign;
   if (path.startsWith('/api/v1/whatsapp/scheduled-calls/')) return ids.scheduledCall;
+  // TPL: templates by API key
+  if (path.startsWith('/api/v1/whatsapp/templates/')) return ids.template;
   throw new Error(`no record kind for ${path}`);
 };
 
@@ -224,6 +239,23 @@ beforeAll(async () => {
       updatedAt: new Date(),
     })
   ).insertedId.toString();
+  ids.template = (
+    await WhatsAppTemplateModel.collection.insertOne({
+      accountId,
+      wabaId: 'iso_waba',
+      channelIds: [],
+      name: 'iso_template',
+      language: 'en',
+      category: 'UTILITY',
+      status: 'DRAFT',
+      components: [],
+      variables: [],
+      statusHistory: [],
+      editsLog: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+  ).insertedId.toString();
   ids.delivery = (
     await WebhookDeliveryModel.collection.insertOne({
       accountId,
@@ -281,6 +313,11 @@ describe('Phase 15 public API routes (security)', () => {
     for (const route of ROUTES) {
       const name = `${route.method.toUpperCase()} ${route.path}`;
       if (route.path === '/api/v1/api-keys/whoami') continue; // any valid key
+      // TPL: template reads open to a read key and to a key that manages templates
+      if (TEMPLATE_READS.has(name)) {
+        expect(matrix[name]?.sort(), name).toEqual(['templates:read', 'templates:write']);
+        continue;
+      }
       expect(matrix[name], name).toHaveLength(1);
     }
     expect(Object.fromEntries(Object.entries(matrix).sort())).toMatchSnapshot();

@@ -181,6 +181,21 @@ export const TemplateDetailSchema = TemplateListItemSchema.extend({
   nextEditAt: iso,
   deletedAt: iso,
   createdBy: z.string().nullable(),
+  createdByApiKeyId: z
+    .string()
+    .nullable()
+    .openapi({ description: 'The API key that created the template (null = a team member)' }),
+  submitError: z
+    .object({
+      code: z.string(),
+      message: z.string(),
+      details: z.array(z.record(z.string(), z.unknown())),
+    })
+    .optional()
+    .openapi({
+      description:
+        'API keys only: the template was saved as a DRAFT but the submit to Meta failed (fix and `POST /{id}/submit`)',
+    }),
 }).openapi('WhatsAppTemplate');
 
 export const SyncResultSchema = z

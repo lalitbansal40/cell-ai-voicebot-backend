@@ -10,7 +10,7 @@ import {
 } from '../../db/models/whatsapp-template.model';
 import { AppError, ValidationError } from '../../shared/errors/app-error';
 import { mimeAgrees, sniff } from '../inbox/sniff';
-import type { WaActor } from '../whatsapp/channel-status';
+import { userIdOf, type WaActor } from '../whatsapp/channel-status';
 
 import { templateMetaError, templateToken, templateChannel } from './channel';
 import { headerFormat } from './components';
@@ -115,7 +115,7 @@ export const uploadHeaderExample = async (
           handle,
           handleAt: now,
         },
-        updatedBy: actor.id,
+        updatedBy: userIdOf(actor),
       },
     },
     { returnDocument: 'after' },

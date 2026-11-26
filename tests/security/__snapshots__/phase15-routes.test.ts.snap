@@ -8,6 +8,9 @@ exports[`Phase 15 public API routes (security) > scope × route matrix (each rou
   "DELETE /api/v1/whatsapp-campaigns/{id}": [
     "whatsapp-campaigns:write",
   ],
+  "DELETE /api/v1/whatsapp/templates/{id}": [
+    "templates:write",
+  ],
   "GET /api/v1/api-keys/whoami": [
     "calls:read",
     "calls:write",
@@ -19,6 +22,7 @@ exports[`Phase 15 public API routes (security) > scope × route matrix (each rou
     "messages:read",
     "messages:write",
     "templates:read",
+    "templates:write",
     "reports:read",
     "exports:write",
     "webhooks:manage",
@@ -148,6 +152,11 @@ exports[`Phase 15 public API routes (security) > scope × route matrix (each rou
   ],
   "GET /api/v1/whatsapp/templates": [
     "templates:read",
+    "templates:write",
+  ],
+  "GET /api/v1/whatsapp/templates/{id}": [
+    "templates:read",
+    "templates:write",
   ],
   "PATCH /api/v1/contacts/{id}": [
     "contacts:write",
@@ -160,6 +169,12 @@ exports[`Phase 15 public API routes (security) > scope × route matrix (each rou
   ],
   "PATCH /api/v1/whatsapp/scheduled-calls/{id}": [
     "calls:write",
+  ],
+  "PATCH /api/v1/whatsapp/templates/{id}": [
+    "templates:write",
+  ],
+  "PATCH /api/v1/whatsapp/templates/{id}/variables": [
+    "templates:write",
   ],
   "POST /api/v1/calls": [
     "calls:write",
@@ -247,6 +262,15 @@ exports[`Phase 15 public API routes (security) > scope × route matrix (each rou
   ],
   "POST /api/v1/whatsapp/scheduled-calls/{id}/cancel": [
     "calls:write",
+  ],
+  "POST /api/v1/whatsapp/templates": [
+    "templates:write",
+  ],
+  "POST /api/v1/whatsapp/templates/{id}/media": [
+    "templates:write",
+  ],
+  "POST /api/v1/whatsapp/templates/{id}/submit": [
+    "templates:write",
   ],
 }
 `;

@@ -30,6 +30,8 @@ export const WEBHOOK_EVENT_TYPES = [
   // SAC-T8: scheduled AI WhatsApp calls
   'whatsapp_call.scheduled',
   'whatsapp_call.scheduled_skipped',
+  // TPL: a WhatsApp template's status changed at Meta (approved, rejected, paused…)
+  'template.status_changed',
 ] as const;
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
 

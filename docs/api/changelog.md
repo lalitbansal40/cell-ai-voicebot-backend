@@ -1,5 +1,10 @@
 # API changelog
 
+- **2026-11-26:**
+  - **WhatsApp templates by API** (`templates:write`): `POST /whatsapp/templates` (create + submit, or a draft), `GET/PATCH/DELETE /whatsapp/templates/{id}`, `POST /whatsapp/templates/{id}/submit`, `POST /whatsapp/templates/{id}/media`, `PATCH /whatsapp/templates/{id}/variables` — see [WhatsApp templates by API](whatsapp-templates.md).
+  - Webhook: `template.status_changed`.
+  - A `templates:write` key may list templates of any `status`.
+
 - **2026-11-21:**
   - **Scheduled AI WhatsApp calls** (`calls:write` / `calls:read`): `POST /whatsapp/scheduled-calls`, `GET /whatsapp/scheduled-calls[/{id}]`, `PATCH /whatsapp/scheduled-calls/{id}`, `POST /whatsapp/scheduled-calls/{id}/cancel` — see [Scheduled AI WhatsApp calls](scheduled-calls.md).
   - Webhooks: `whatsapp_call.scheduled`, `whatsapp_call.scheduled_skipped`.

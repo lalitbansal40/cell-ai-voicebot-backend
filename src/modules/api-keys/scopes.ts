@@ -15,6 +15,11 @@ export const API_KEY_SCOPE_INFO = {
   'messages:read': { group: 'WhatsApp', description: 'Read WhatsApp messages sent by the API' },
   'messages:write': { group: 'WhatsApp', description: 'Send WhatsApp messages and templates' },
   'templates:read': { group: 'WhatsApp', description: 'Read approved WhatsApp templates' },
+  // TPL: templates by API (create / submit / edit / delete)
+  'templates:write': {
+    group: 'WhatsApp',
+    description: 'Create, submit, edit and delete WhatsApp templates',
+  },
   'reports:read': { group: 'Reports', description: 'Read report numbers' },
   'exports:write': { group: 'Reports', description: 'Create and download exports' },
   'webhooks:manage': { group: 'Webhooks', description: 'Manage outbound webhooks' },
@@ -55,6 +60,7 @@ export const SCOPE_PERMISSIONS: Record<ApiKeyScope, readonly Permission[]> = {
   'messages:read': ['inbox.read'],
   'messages:write': ['inbox.reply'],
   'templates:read': ['templates.read'],
+  'templates:write': ['templates.read', 'templates.manage'],
   'reports:read': ['reports.read'],
   'exports:write': ['calls.export', 'reports.export'],
   'webhooks:manage': ['integrations.manage'],

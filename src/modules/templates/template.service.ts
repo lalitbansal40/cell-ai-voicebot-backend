@@ -34,7 +34,7 @@ import {
 } from '../../shared/errors/app-error';
 import { getLogger } from '../../shared/logger';
 import { recordAudit } from '../audit/audit.service';
-import { SYSTEM_ACTOR, type WaActor } from '../whatsapp/channel-status';
+import { SYSTEM_ACTOR, userIdOf, type WaActor } from '../whatsapp/channel-status';
 
 import {
   loadAccountChannel,
@@ -210,6 +210,11 @@ export const createTemplate = async (
   accountId: Types.ObjectId,
   actor: WaActor,
   input: CreateTemplateInput,
+  /**
+   * TPL (API keys): a submit that fails after the draft was saved answers the draft with
+   * `submitError` instead of an error, so the client keeps the id and can submit again.
+   */
+  options: { keepDraftOnSubmitError?: boolean } = {},
 ) => {
   const channel = await loadAccountChannel(accountId, input.channelId);
   const parameterFormat = input.parameterFormat ?? 'positional';
@@ -236,8 +241,9 @@ export const createTemplate = async (
       ttlSeconds: input.ttlSeconds ?? null,
       purpose,
       editable: true,
-      createdBy: actor.id,
-      updatedBy: actor.id,
+      createdBy: userIdOf(actor),
+      createdByApiKeyId: actor.type === 'api_key' ? actor.id : null,
+      updatedBy: userIdOf(actor),
       lastEventAt: now,
     });
     created = doc.toObject({ transform: false });
@@ -251,7 +257,19 @@ export const createTemplate = async (
   });
   emitTemplateUpdated(created);
   if (input.submit === false) return templateDetail(created, now);
-  return submitTemplate(tx, accountId, actor, created._id.toString(), input.channelId);
+  if (!options.keepDraftOnSubmitError) {
+    return submitTemplate(tx, accountId, actor, created._id.toString(), input.channelId);
+  }
+  try {
+    return await submitTemplate(tx, accountId, actor, created._id.toString(), input.channelId);
+  } catch (err) {
+    if (!(err instanceof AppError)) throw err;
+    const draft = await loadTemplate(accountId, created._id.toString());
+    return {
+      ...templateDetail(draft, now),
+      submitError: { code: err.code, message: err.message, details: err.details ?? [] },
+    };
+  }
 };
 
 /** Sends a draft (or a re-edited rejected one) to Meta for review. */
@@ -301,7 +319,7 @@ export const submitTemplate = async (
         // Meta may answer with another category — keep ours for the "changed" note
         previousCategory: category !== t.category ? t.category : t.previousCategory,
         statusReason: null,
-        updatedBy: actor.id,
+        updatedBy: userIdOf(actor),
         lastEventAt: now,
         syncedAt: now,
       },
@@ -396,7 +414,7 @@ export const editTemplate = async (
     components: stored,
     variables: mergeVariables(extractVariables(stored, next.parameterFormat), t.variables),
     ttlSeconds: next.ttlSeconds,
-    updatedBy: actor.id,
+    updatedBy: userIdOf(actor),
     lastEventAt: now,
     ...(mediaChanged ? { headerMedia: null } : {}),
   };
@@ -491,7 +509,7 @@ export const deleteTemplate = async (
     const updated = await WhatsAppTemplateModel.findOneAndUpdate(
       { _id: row._id, accountId },
       {
-        $set: { status: 'DELETED', deletedAt: now, updatedBy: actor.id, lastEventAt: now },
+        $set: { status: 'DELETED', deletedAt: now, updatedBy: userIdOf(actor), lastEventAt: now },
         $push: historyPush({ status: 'DELETED', reason: null, at: now, source: 'user' }),
       },
       { returnDocument: 'after' },
@@ -553,7 +571,7 @@ export const setVariableSources = async (
   });
   const updated = await WhatsAppTemplateModel.findOneAndUpdate(
     { _id: t._id, accountId },
-    { $set: { variables, updatedBy: actor.id } },
+    { $set: { variables, updatedBy: userIdOf(actor) } },
     { returnDocument: 'after' },
   ).lean<WhatsAppTemplateDoc>();
   if (!updated) throw new AppError('TEMPLATE_NOT_FOUND');

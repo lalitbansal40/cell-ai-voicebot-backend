@@ -154,6 +154,8 @@ export interface WhatsAppTemplateDoc {
   editable: boolean;
   usage: TemplateUsage;
   createdBy: Types.ObjectId | null;
+  /** TPL: the API key that created it (`createdBy` is null then). */
+  createdByApiKeyId?: Types.ObjectId | null;
   updatedBy: Types.ObjectId | null;
   syncedAt: Date | null;
   /** Our marker when Meta deleted it (rows are never hard-deleted). */
@@ -256,6 +258,7 @@ const schema = new Schema<WhatsAppTemplateDoc>({
     lastSentAt: { type: Date, default: null },
   },
   createdBy: { type: Schema.Types.ObjectId, default: null },
+  createdByApiKeyId: { type: Schema.Types.ObjectId, default: null },
   updatedBy: { type: Schema.Types.ObjectId, default: null },
   syncedAt: { type: Date, default: null },
   deletedAt: { type: Date, default: null },

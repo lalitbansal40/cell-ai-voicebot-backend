@@ -10,6 +10,7 @@ export const GUIDE_ORDER = [
   'rate-limits',
   'pagination',
   'whatsapp-messages',
+  'whatsapp-templates',
   'calls',
   'whatsapp-calls',
   'scheduled-calls',
