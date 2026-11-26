@@ -41,6 +41,7 @@ import './knowledge-chunk.model';
 import './knowledge-source.model';
 import './ledger-entry.model';
 import './message.model';
+import './meta-call-error.model';
 import './meta-deletion-request.model';
 import './meta-webhook-event.model';
 import './mock-payment-record.model';

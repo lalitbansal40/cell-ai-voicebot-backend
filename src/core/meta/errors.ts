@@ -167,14 +167,19 @@ export const mediaRefused = (reason: 'host' | 'too_large'): MetaApiError =>
   });
 
 /** Safe fields for logs / error details (never tokens, URLs or bodies). */
-export const metaErrorMeta = (err: MetaApiError) => ({
-  status: err.status,
-  code: err.code,
-  subcode: err.subcode,
-  type: err.type,
-  fbtraceId: err.fbtraceId,
-  message: err.detail ?? err.message,
-});
+/** Log fields of a Meta error; `secrets` (the request's token) never reach the log, even when Meta quotes them. */
+export const metaErrorMeta = (err: MetaApiError, secrets: (string | null | undefined)[] = []) => {
+  let message = scrubSecrets(err.detail ?? err.message);
+  for (const s of secrets) if (s && s.length >= 8) message = message.split(s).join('***');
+  return {
+    status: err.status,
+    code: err.code,
+    subcode: err.subcode,
+    type: err.type,
+    fbtraceId: err.fbtraceId,
+    message,
+  };
+};
 
 /** What a failed send means for the message and the channel (PHASE_10_PLAN §1d). */
 export interface SendErrorMapping {

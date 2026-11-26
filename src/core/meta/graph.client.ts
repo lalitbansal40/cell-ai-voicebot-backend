@@ -268,7 +268,7 @@ export const createGraphTransport = (options: GraphTransportOptions) => {
         const metaErr = err as MetaApiError;
         const retry = metaErr.retryable && attempt < retries;
         log().warn(
-          { op: req.op, attempt: attempt + 1, retry, ...metaErrorMeta(metaErr) },
+          { op: req.op, attempt: attempt + 1, retry, ...metaErrorMeta(metaErr, [req.token]) },
           `${label}: request failed`,
         );
         if (!retry) throw metaErr;
@@ -292,13 +292,14 @@ export const createGraphTransport = (options: GraphTransportOptions) => {
   /** Retries with a fresh request per attempt (a multipart body can be read once). */
   const retrying = async <T>(op: string, make: () => GraphRequest<T>): Promise<T> => {
     for (let attempt = 0; ; attempt += 1) {
+      const request = make();
       try {
-        return await once(make());
+        return await once(request);
       } catch (err) {
         const metaErr = err as MetaApiError;
         const retry = metaErr.retryable && attempt < retries;
         log().warn(
-          { op, attempt: attempt + 1, retry, ...metaErrorMeta(metaErr) },
+          { op, attempt: attempt + 1, retry, ...metaErrorMeta(metaErr, [request.token]) },
           `${label}: request failed`,
         );
         if (!retry) throw metaErr;
