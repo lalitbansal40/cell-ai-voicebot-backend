@@ -127,6 +127,9 @@ Campaign variable eligibility and sending use the central send-purpose sensitive
 
 `/api/v1/resources/*` returns minimal views to API keys with `resources:read`: flow / agent names and ids (never graphs, prompts or function secrets), WhatsApp number label / display number / status / quality / tier / calling readiness (never tokens or WABA ids), list and segment names with counts, caller numbers, assigned IVR names and the wallet balance. No contact personal data. WhatsApp bulk campaign recipients and exports give keys masked phones only.
 
+- `whatsappChannels.tokenSealed` of a managed number (PIN): the partner API key may be shown to a
+  superadmin after their own password + two-step code (60 s, 5 / hour, audited with the last 4 only,
+  `no-store`); never stored by the browser, never shown to the customer.
 - `whatsappChannels.metaCalling.tokenSealed` (PMC): our Meta app's token for the calls of a managed
   (Pinnacle) number, sealed like the business token; never returned, exported or audited (last 4 only);
   removed on Calling off, disconnect, account purge and a Meta data-deletion request.

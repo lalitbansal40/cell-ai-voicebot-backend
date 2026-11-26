@@ -727,7 +727,7 @@
                 { "key": "includeDeleted", "value": "", "disabled": true }
               ]
             },
-            "description": "Templates of the account with status (`APPROVED`, `PENDING`, `REJECTED`…), category, language, the WhatsApp number(s) that can send them (`channelId` filter) and the variables they need. List rows carry no bodies. Only `APPROVED` templates can be sent. Read limit class (600 / min per key).\n\nScope: `templates:read`"
+            "description": "Templates of the account with status (`APPROVED`, `PENDING`, `REJECTED`…), category, language, the WhatsApp number(s) that can send them (`channelId` filter) and the variables they need. List rows carry no bodies. Only `APPROVED` templates can be sent. A `templates:read` key sees approved templates only; a `templates:write` key may filter by any `status` (e.g. its `PENDING` ones). Read limit class (600 / min per key).\n\nScope: `templates:read`"
           },
           "response": [
             {
@@ -748,12 +748,305 @@
                     { "key": "includeDeleted", "value": "", "disabled": true }
                   ]
                 },
-                "description": "Templates of the account with status (`APPROVED`, `PENDING`, `REJECTED`…), category, language, the WhatsApp number(s) that can send them (`channelId` filter) and the variables they need. List rows carry no bodies. Only `APPROVED` templates can be sent. Read limit class (600 / min per key).\n\nScope: `templates:read`"
+                "description": "Templates of the account with status (`APPROVED`, `PENDING`, `REJECTED`…), category, language, the WhatsApp number(s) that can send them (`channelId` filter) and the variables they need. List rows carry no bodies. Only `APPROVED` templates can be sent. A `templates:read` key sees approved templates only; a `templates:write` key may filter by any `status` (e.g. its `PENDING` ones). Read limit class (600 / min per key).\n\nScope: `templates:read`"
               },
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
               "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n      \"name\": \"Asha Verma\",\n      \"language\": \"en\",\n      \"category\": \"MARKETING\",\n      \"previousCategory\": \"MARKETING\",\n      \"status\": \"DRAFT\",\n      \"statusReason\": {\n        \"reason\": \"string\",\n        \"title\": \"string\",\n        \"description\": \"string\"\n      },\n      \"quality\": \"GREEN\",\n      \"pausedUntil\": \"2026-11-05T09:30:00.000Z\",\n      \"purpose\": \"general\",\n      \"editable\": true,\n      \"parameterFormat\": \"positional\",\n      \"channelIds\": [\n        \"string\"\n      ],\n      \"variablesCount\": 12,\n      \"submitted\": true,\n      \"usage\": {\n        \"sent\": 1,\n        \"delivered\": 1,\n        \"read\": 1,\n        \"failed\": 1,\n        \"lastSentAt\": \"2026-11-05T09:30:00.000Z\"\n      },\n      \"syncedAt\": \"2026-11-05T09:30:00.000Z\",\n      \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n      \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n    }\n  ]\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Create a template: draft (`submit: false`) or submitted to Meta (templates.manage / key `templates:write`, rl:templates: 20 / h per user or key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/templates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "templates"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n  \"name\": \"payment_reminder\",\n  \"language\": \"en\",\n  \"category\": \"UTILITY\",\n  \"components\": [\n    {\n      \"type\": \"BODY\",\n      \"text\": \"Hi {{1}}, your EMI of {{2}} is due on {{3}}.\",\n      \"example\": {\n        \"body_text\": [\n          [\n            \"Asha\",\n            \"₹4,500\",\n            \"5 Dec\"\n          ]\n        ]\n      }\n    },\n    {\n      \"type\": \"FOOTER\",\n      \"text\": \"Reply STOP to opt out\"\n    },\n    {\n      \"type\": \"BUTTONS\",\n      \"buttons\": [\n        {\n          \"type\": \"QUICK_REPLY\",\n          \"text\": \"Paid\"\n        },\n        {\n          \"type\": \"QUICK_REPLY\",\n          \"text\": \"Call me\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a WhatsApp template on a connected number's WhatsApp account (`channelId`) and submits it to Meta for review (status `PENDING`), or keeps a `DRAFT` with `submit: false` (needed for a media header: upload the example with `POST /whatsapp/templates/{id}/media`, then `POST /whatsapp/templates/{id}/submit`).\n\nRules (the same as the dashboard): `name` lowercase letters, digits and `_` (≤ 512); `category` `UTILITY` or `MARKETING` (authentication templates are refused); one `BODY` (≤ 1,024 characters) with an `example` for every variable; optional `HEADER` (TEXT ≤ 60 characters, IMAGE / VIDEO / DOCUMENT / LOCATION), `FOOTER` (≤ 60, no variables) and `BUTTONS` (quick replies, URL with one suffix variable, phone, copy code); positional (`{{1}}`) or named (`{{customer_name}}`, `parameterFormat: named`) variables. Meta allows 250 / 6,000 templates per WhatsApp account and its own review — the result arrives as the `template.status_changed` webhook (or poll `GET /whatsapp/templates/{id}`). Managed (partner) numbers work the same way.\n\nIf the template was saved but Meta refused the submit, the answer is still `201` with `status: DRAFT` and `submitError` — fix it with `PATCH` and submit again. Errors: `VALIDATION_FAILED` (field paths), `TEMPLATE_NAME_TAKEN`, `TEMPLATE_LIMIT_REACHED`, `WHATSAPP_CHANNEL_NOT_READY`. 20 creates / hour per key. Optional `Idempotency-Key`. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Idempotency-Key", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/templates",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "templates"]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"channelId\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n  \"name\": \"payment_reminder\",\n  \"language\": \"en\",\n  \"category\": \"UTILITY\",\n  \"components\": [\n    {\n      \"type\": \"BODY\",\n      \"text\": \"Hi {{1}}, your EMI of {{2}} is due on {{3}}.\",\n      \"example\": {\n        \"body_text\": [\n          [\n            \"Asha\",\n            \"₹4,500\",\n            \"5 Dec\"\n          ]\n        ]\n      }\n    },\n    {\n      \"type\": \"FOOTER\",\n      \"text\": \"Reply STOP to opt out\"\n    },\n    {\n      \"type\": \"BUTTONS\",\n      \"buttons\": [\n        {\n          \"type\": \"QUICK_REPLY\",\n          \"text\": \"Paid\"\n        },\n        {\n          \"type\": \"QUICK_REPLY\",\n          \"text\": \"Call me\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "description": "Creates a WhatsApp template on a connected number's WhatsApp account (`channelId`) and submits it to Meta for review (status `PENDING`), or keeps a `DRAFT` with `submit: false` (needed for a media header: upload the example with `POST /whatsapp/templates/{id}/media`, then `POST /whatsapp/templates/{id}/submit`).\n\nRules (the same as the dashboard): `name` lowercase letters, digits and `_` (≤ 512); `category` `UTILITY` or `MARKETING` (authentication templates are refused); one `BODY` (≤ 1,024 characters) with an `example` for every variable; optional `HEADER` (TEXT ≤ 60 characters, IMAGE / VIDEO / DOCUMENT / LOCATION), `FOOTER` (≤ 60, no variables) and `BUTTONS` (quick replies, URL with one suffix variable, phone, copy code); positional (`{{1}}`) or named (`{{customer_name}}`, `parameterFormat: named`) variables. Meta allows 250 / 6,000 templates per WhatsApp account and its own review — the result arrives as the `template.status_changed` webhook (or poll `GET /whatsapp/templates/{id}`). Managed (partner) numbers work the same way.\n\nIf the template was saved but Meta refused the submit, the answer is still `201` with `status: DRAFT` and `submitError` — fix it with `PATCH` and submit again. Errors: `VALIDATION_FAILED` (field paths), `TEMPLATE_NAME_TAKEN`, `TEMPLATE_LIMIT_REACHED`, `WHATSAPP_CHANNEL_NOT_READY`. 20 creates / hour per key. Optional `Idempotency-Key`. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"name\": \"Asha Verma\",\n    \"language\": \"en\",\n    \"category\": \"MARKETING\",\n    \"previousCategory\": \"MARKETING\",\n    \"status\": \"DRAFT\",\n    \"statusReason\": {\n      \"reason\": \"string\",\n      \"title\": \"string\",\n      \"description\": \"string\"\n    },\n    \"quality\": \"GREEN\",\n    \"pausedUntil\": \"2026-11-05T09:30:00.000Z\",\n    \"purpose\": \"general\",\n    \"editable\": true,\n    \"parameterFormat\": \"positional\",\n    \"channelIds\": [\n      \"string\"\n    ],\n    \"variablesCount\": 12,\n    \"submitted\": true,\n    \"usage\": {\n      \"sent\": 1,\n      \"delivered\": 1,\n      \"read\": 1,\n      \"failed\": 1,\n      \"lastSentAt\": \"2026-11-05T09:30:00.000Z\"\n    },\n    \"syncedAt\": \"2026-11-05T09:30:00.000Z\",\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n    \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Template detail: components, variables + sources, history, usage, edit window (templates.read)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "templates", ":id"],
+              "variable": [{ "key": "id", "value": "" }]
+            },
+            "description": "One template with its components, variables, status history (with Meta's reason when rejected or paused), usage and the edit window. Keys with `templates:read` or `templates:write`. Read limit class (600 / min per key).\n\nScope: `templates:read`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "templates", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "One template with its components, variables, status history (with Meta's reason when rejected or paused), usage and the edit window. Keys with `templates:read` or `templates:write`. Read limit class (600 / min per key).\n\nScope: `templates:read`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"name\": \"Asha Verma\",\n    \"language\": \"en\",\n    \"category\": \"MARKETING\",\n    \"previousCategory\": \"MARKETING\",\n    \"status\": \"DRAFT\",\n    \"statusReason\": {\n      \"reason\": \"string\",\n      \"title\": \"string\",\n      \"description\": \"string\"\n    },\n    \"quality\": \"GREEN\",\n    \"pausedUntil\": \"2026-11-05T09:30:00.000Z\",\n    \"purpose\": \"general\",\n    \"editable\": true,\n    \"parameterFormat\": \"positional\",\n    \"channelIds\": [\n      \"string\"\n    ],\n    \"variablesCount\": 12,\n    \"submitted\": true,\n    \"usage\": {\n      \"sent\": 1,\n      \"delivered\": 1,\n      \"read\": 1,\n      \"failed\": 1,\n      \"lastSentAt\": \"2026-11-05T09:30:00.000Z\"\n    },\n    \"syncedAt\": \"2026-11-05T09:30:00.000Z\",\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n    \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Edit — drafts freely; Meta templates when approved / rejected / paused (approved: 1 / 24 h, 10 / 30 days, category fixed) (templates.manage)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "templates", ":id"],
+              "variable": [{ "key": "id", "value": "" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"components\": [\n    {\n      \"type\": \"BODY\",\n      \"text\": \"Hi {{1}}, your EMI of {{2}} is due on {{3}}. Pay with the link below.\",\n      \"example\": {\n        \"body_text\": [\n          [\n            \"Asha\",\n            \"₹4,500\",\n            \"5 Dec\"\n          ]\n        ]\n      }\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Edits a template. A `DRAFT` changes freely; an approved / rejected / paused template is edited at Meta (approved: at most once per 24 h and 10 times per 30 days, the category can't change) and goes back to review. Send only the fields that change. Errors: `TEMPLATE_EDIT_NOT_ALLOWED` (with when the next edit is possible), `VALIDATION_FAILED`. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "templates", ":id"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"components\": [\n    {\n      \"type\": \"BODY\",\n      \"text\": \"Hi {{1}}, your EMI of {{2}} is due on {{3}}. Pay with the link below.\",\n      \"example\": {\n        \"body_text\": [\n          [\n            \"Asha\",\n            \"₹4,500\",\n            \"5 Dec\"\n          ]\n        ]\n      }\n    }\n  ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "description": "Edits a template. A `DRAFT` changes freely; an approved / rejected / paused template is edited at Meta (approved: at most once per 24 h and 10 times per 30 days, the category can't change) and goes back to review. Send only the fields that change. Errors: `TEMPLATE_EDIT_NOT_ALLOWED` (with when the next edit is possible), `VALIDATION_FAILED`. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"name\": \"Asha Verma\",\n    \"language\": \"en\",\n    \"category\": \"MARKETING\",\n    \"previousCategory\": \"MARKETING\",\n    \"status\": \"DRAFT\",\n    \"statusReason\": {\n      \"reason\": \"string\",\n      \"title\": \"string\",\n      \"description\": \"string\"\n    },\n    \"quality\": \"GREEN\",\n    \"pausedUntil\": \"2026-11-05T09:30:00.000Z\",\n    \"purpose\": \"general\",\n    \"editable\": true,\n    \"parameterFormat\": \"positional\",\n    \"channelIds\": [\n      \"string\"\n    ],\n    \"variablesCount\": 12,\n    \"submitted\": true,\n    \"usage\": {\n      \"sent\": 1,\n      \"delivered\": 1,\n      \"read\": 1,\n      \"failed\": 1,\n      \"lastSentAt\": \"2026-11-05T09:30:00.000Z\"\n    },\n    \"syncedAt\": \"2026-11-05T09:30:00.000Z\",\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n    \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Delete at Meta — this language or every language of the name; rows stay as DELETED, the name is locked 30 days (templates.manage)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "templates", ":id"],
+              "query": [{ "key": "scope", "value": "", "disabled": true }],
+              "variable": [{ "key": "id", "value": "" }]
+            },
+            "description": "Deletes the template at Meta — this language, or every language of the name with `?scope=name`. The record stays with status `DELETED`; Meta locks the name for 30 days. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "templates", ":id"],
+                  "query": [{ "key": "scope", "value": "", "disabled": true }],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Deletes the template at Meta — this language, or every language of the name with `?scope=name`. The record stays with status `DELETED`; Meta locks the name for 30 days. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"deleted\": 1\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Submit a draft to Meta for review using an owned same-WABA sender (templates.manage)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "templates", ":id", "submit"],
+              "variable": [{ "key": "id", "value": "" }]
+            },
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "description": "Submits a `DRAFT` to Meta for review → `PENDING`. A media header needs its example uploaded first. `channelId` (optional) picks the number of the same WhatsApp account to submit with. Optional `Idempotency-Key`. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Idempotency-Key", "value": "{{$guid}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id/submit",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "templates", ":id", "submit"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "description": "Submits a `DRAFT` to Meta for review → `PENDING`. A media header needs its example uploaded first. `channelId` (optional) picks the number of the same WhatsApp account to submit with. Optional `Idempotency-Key`. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"name\": \"Asha Verma\",\n    \"language\": \"en\",\n    \"category\": \"MARKETING\",\n    \"previousCategory\": \"MARKETING\",\n    \"status\": \"DRAFT\",\n    \"statusReason\": {\n      \"reason\": \"string\",\n      \"title\": \"string\",\n      \"description\": \"string\"\n    },\n    \"quality\": \"GREEN\",\n    \"pausedUntil\": \"2026-11-05T09:30:00.000Z\",\n    \"purpose\": \"general\",\n    \"editable\": true,\n    \"parameterFormat\": \"positional\",\n    \"channelIds\": [\n      \"string\"\n    ],\n    \"variablesCount\": 12,\n    \"submitted\": true,\n    \"usage\": {\n      \"sent\": 1,\n      \"delivered\": 1,\n      \"read\": 1,\n      \"failed\": 1,\n      \"lastSentAt\": \"2026-11-05T09:30:00.000Z\"\n    },\n    \"syncedAt\": \"2026-11-05T09:30:00.000Z\",\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n    \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Default source per variable: contact name / phone / email, a custom field, a text, ask (templates.manage)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id/variables",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "templates", ":id", "variables"],
+              "variable": [{ "key": "id", "value": "" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sources\": [\n    {\n      \"key\": \"string\",\n      \"kind\": \"contact.name\",\n      \"value\": \"string\"\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Sets the default value source of each variable (contact name / phone / email, a custom field, a fixed text, or ask each time) — used by campaigns and the dashboard when no value is sent. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id/variables",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "templates", ":id", "variables"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sources\": [\n    {\n      \"key\": \"string\",\n      \"kind\": \"contact.name\",\n      \"value\": \"string\"\n    }\n  ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "description": "Sets the default value source of each variable (contact name / phone / email, a custom field, a fixed text, or ask each time) — used by campaigns and the dashboard when no value is sent. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"name\": \"Asha Verma\",\n    \"language\": \"en\",\n    \"category\": \"MARKETING\",\n    \"previousCategory\": \"MARKETING\",\n    \"status\": \"DRAFT\",\n    \"statusReason\": {\n      \"reason\": \"string\",\n      \"title\": \"string\",\n      \"description\": \"string\"\n    },\n    \"quality\": \"GREEN\",\n    \"pausedUntil\": \"2026-11-05T09:30:00.000Z\",\n    \"purpose\": \"general\",\n    \"editable\": true,\n    \"parameterFormat\": \"positional\",\n    \"channelIds\": [\n      \"string\"\n    ],\n    \"variablesCount\": 12,\n    \"submitted\": true,\n    \"usage\": {\n      \"sent\": 1,\n      \"delivered\": 1,\n      \"read\": 1,\n      \"failed\": 1,\n      \"lastSentAt\": \"2026-11-05T09:30:00.000Z\"\n    },\n    \"syncedAt\": \"2026-11-05T09:30:00.000Z\",\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n    \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Media header example (multipart `file`: JPEG / PNG 5 MB, MP4 16 MB, PDF 100 MB) → storage + Meta handle (templates.manage)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id/media",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "whatsapp", "templates", ":id", "media"],
+              "variable": [{ "key": "id", "value": "" }]
+            },
+            "description": "Uploads the example file of a media header (multipart `file`): JPEG / PNG ≤ 5 MB for IMAGE, MP4 ≤ 16 MB for VIDEO, PDF ≤ 100 MB for DOCUMENT. Then submit the draft. `curl -F file=@banner.jpg`. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+          },
+          "response": [
+            {
+              "name": "Example",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/whatsapp/templates/:id/media",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "whatsapp", "templates", ":id", "media"],
+                  "variable": [{ "key": "id", "value": "" }]
+                },
+                "description": "Uploads the example file of a media header (multipart `file`): JPEG / PNG ≤ 5 MB for IMAGE, MP4 ≤ 16 MB for VIDEO, PDF ≤ 100 MB for DOCUMENT. Then submit the draft. `curl -F file=@banner.jpg`. Write limit class (60 / min per key).\n\nScope: `templates:write`"
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"6720f0a1b2c3d4e5f6a7b8c9\",\n    \"name\": \"Asha Verma\",\n    \"language\": \"en\",\n    \"category\": \"MARKETING\",\n    \"previousCategory\": \"MARKETING\",\n    \"status\": \"DRAFT\",\n    \"statusReason\": {\n      \"reason\": \"string\",\n      \"title\": \"string\",\n      \"description\": \"string\"\n    },\n    \"quality\": \"GREEN\",\n    \"pausedUntil\": \"2026-11-05T09:30:00.000Z\",\n    \"purpose\": \"general\",\n    \"editable\": true,\n    \"parameterFormat\": \"positional\",\n    \"channelIds\": [\n      \"string\"\n    ],\n    \"variablesCount\": 12,\n    \"submitted\": true,\n    \"usage\": {\n      \"sent\": 1,\n      \"delivered\": 1,\n      \"read\": 1,\n      \"failed\": 1,\n      \"lastSentAt\": \"2026-11-05T09:30:00.000Z\"\n    },\n    \"syncedAt\": \"2026-11-05T09:30:00.000Z\",\n    \"createdAt\": \"2026-11-05T09:30:00.000Z\",\n    \"updatedAt\": \"2026-11-05T09:30:00.000Z\"\n  }\n}",
               "_postman_previewlanguage": "json"
             }
           ]

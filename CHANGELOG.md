@@ -6,6 +6,21 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 
+- **WhatsApp templates by API key (TPL)** — 2026-11-26
+  - New scope `templates:write`.
+  - `POST /whatsapp/templates` (create + submit, or a draft with `submit: false`), `GET/PATCH/DELETE /whatsapp/templates/{id}`, `/{id}/submit`, `/{id}/media`, `/{id}/variables`. Sync and the call-permission template stay dashboard-only.
+  - A key's template keeps `createdByApiKeyId` (audit actor `api_key`).
+  - The rate limit is per key; optional `Idempotency-Key`.
+  - A submit Meta refuses after the save answers `201 DRAFT` + `submitError`.
+  - A `templates:write` key may list any `status`.
+  - New webhook event `template.status_changed`, a guide "WhatsApp templates by API", public docs with examples, and template error codes in the public error table.
+- **Pinnacle partner API reference for superadmins (PIN)** — 2026-11-26
+  - Where: Admin → account → managed number → **Partner API**; Settings → API keys in a superadmin full-access login-as.
+  - Content: base / voice URL, `apikey` header, ids, our callback, the error format, and every endpoint with examples and curl (calling marked unsupported).
+  - **Reveal key:** the superadmin's own password + code, 60 s, 5 / h, `no-store`, audit `whatsapp.managed_key_revealed`.
+  - **Try it:** read-only operations run by our server (key never in the browser, phones masked), 20 / 10 min, audit `whatsapp.partner_api_called`.
+  - New error code `PARTNER_API_OP_NOT_ALLOWED`. Refused for everyone else; never in the public spec.
+
 - **WhatsApp call error diagnostics and resilient Meta calling (WCF)** — 2026-11-21 · [ADR 0054](docs/adr/0054-meta-call-errors-and-resilient-calls.md)
   - Show masked Meta code, message, operation and trace id in call records and panel; superadmin error list and read-only Test calling API checks.
   - Continue inbound team/AI routing when `pre_accept` fails, terminate after failed reject/connect, and normalize Meta call SDP.

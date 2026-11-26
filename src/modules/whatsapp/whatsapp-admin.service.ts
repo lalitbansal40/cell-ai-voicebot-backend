@@ -26,6 +26,7 @@ import { auditChannel, type WaActor } from './channel-status';
 import type { WhatsAppContext } from './context';
 import { getWhatsAppSolutionId, setWhatsAppSolutionId } from './embedded-signup-config';
 import type { WhatsAppJobs } from './jobs';
+import type { PartnerActor } from './partner-api.service';
 import type { WhatsAppService } from './whatsapp.service';
 
 export interface WhatsAppAdminDeps {
@@ -412,3 +413,17 @@ export const checkChannelMetaCalling = async (
   );
   return { channel: channelListItem(r.channel), steps: r.steps };
 };
+
+/** PIN: the acting superadmin (their own session on the Admin pages). */
+export const partnerActorOf = (req: Request): PartnerActor => {
+  const auth = requireAuth(req);
+  const id = auth.userId ?? '';
+  return {
+    superadminId: id,
+    audit: { type: 'user', id: Types.ObjectId.isValid(id) ? new Types.ObjectId(id) : null },
+    ip: req.ip ?? null,
+  };
+};
+
+/** PIN: Reveal / Try it from the Admin pages — the account comes from the channel. */
+export const accountOfManagedChannel = (channelId: string) => accountOfChannel(channelId);

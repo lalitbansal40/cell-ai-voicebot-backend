@@ -173,3 +173,33 @@ Tell Pinnacle that our app is also subscribed to the WABA. They must not answer 
 # Meta direct calling troubleshooting
 
 Managed Pinnacle numbers can route calls directly through Meta while messaging stays on Pinnacle. When direct calling is enabled, use the number's **Test calling API** read-only checks, then inspect Call details or Admin → WhatsApp → Meta call errors for the operation, Meta code/message and trace id. A failed inbound `pre_accept` no longer blocks team/AI ringing; failures to accept still end the call and are recorded.
+
+## Partner API reference (superadmin) (PIN)
+
+Superadmins can see the Pinnacle partner API for an account's managed numbers, with the API key configured on each number.
+
+- **Where:**
+  - Admin → Accounts → account → WhatsApp → managed number → **Partner API**.
+  - In a Full-access login-as on that account: Settings → API keys → **Partner API (Pinnacle) — superadmin only**.
+  - Never on the public `/api/docs`, never for the customer's owner / admins, a View login-as or resellers. The backend refuses everyone else (`AUTH_FORBIDDEN`).
+- **When:** the account has a managed number (not disconnected) with an API key. Otherwise the panel says how to add one.
+- **What it shows:**
+  - the base URL (`PINNACLE_BASE_URL` + `/v3`) and the voice URL;
+  - the `apikey` header, the WABA id and phone number id;
+  - our callback URL + header name (the secret is never shown);
+  - the error body format;
+  - every endpoint we use (Key, Callback, Number, Profile, Messages, Templates, Media, Register; Calling marked as not carried by the partner), each with a body / answer example and a ready **curl** (`$PINNACLE_KEY`).
+- **Reveal key:**
+  - needs your own password (+ two-step code);
+  - shown for 60 s, then masked again;
+  - 5 per hour, `Cache-Control: no-store`;
+  - audit `whatsapp.managed_key_revealed` (last 4 only);
+  - five wrong passwords lock it for 15 minutes.
+- **Try it:**
+  - read-only operations only (`getuserdetails`, `getwebhook`, number, numbers of the WABA, profile, templates list), run by our server with the number's key, so the key never reaches the browser;
+  - phone-like numbers in the answer are masked;
+  - 20 per 10 minutes per superadmin;
+  - audit `whatsapp.partner_api_called`;
+  - write operations are shown as curl only.
+
+API (internal, superadmin): `GET /api/v1/admin/accounts/{id}/partner-api`, `POST /api/v1/admin/whatsapp/channels/{id}/partner-api/reveal` `{ password, code? }`, `POST /api/v1/admin/whatsapp/channels/{id}/partner-api/try` `{ endpointId }`. The same under `/api/v1/whatsapp/…` for a superadmin in full access.

@@ -246,6 +246,9 @@ export const AUDIT_ACTIONS = [
   'whatsapp.calling_diagnosed',
   'whatsapp.meta_calling_failed',
   'whatsapp.meta_calling_checked',
+  // PIN: the Pinnacle partner API reference (superadmins)
+  'whatsapp.managed_key_revealed',
+  'whatsapp.partner_api_called',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

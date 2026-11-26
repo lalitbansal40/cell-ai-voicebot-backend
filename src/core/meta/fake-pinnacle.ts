@@ -194,6 +194,41 @@ export const createFakePinnacleClient = (
       return raw ? (JSON.parse(raw) as PinnacleWebhook) : null;
     },
 
+    /** PIN: the safe reads of the superadmin "Try it" (the same answers as the real calls). */
+    async partnerGet(apiKey: string, path: string): Promise<unknown> {
+      track('partnerGet', path);
+      const p = path.replace(/^\/+/, '').split('?')[0] ?? '';
+      if (p === 'getuserdetails') {
+        const numbers = await client.getUserDetails(apiKey);
+        return {
+          data: numbers.map((n) => ({
+            whatsapp_business_account_id: n.wabaId,
+            phone_number_id: n.phoneNumberId,
+            wanumber: n.displayPhoneNumber,
+          })),
+        };
+      }
+      const token = await tokenOf(apiKey);
+      let m = /^([^/]+)\/getwebhook$/.exec(p);
+      if (m) {
+        const hook = await client.getWebhook(apiKey, m[1] ?? '');
+        return hook ? [{ webhook_url: hook.url, headers: hook.headers, source: 'API' }] : [];
+      }
+      m = /^business\/([^/]+)\/phone_numbers$/.exec(p);
+      if (m) return { data: await meta.listPhoneNumbers(token, m[1] ?? '') };
+      m = /^business\/([^/]+)\/whatsapp_business_profile$/.exec(p);
+      if (m) return { data: [await meta.getBusinessProfile(token, m[1] ?? '')] };
+      m = /^business\/([^/]+)$/.exec(p);
+      if (m) return meta.getPhoneNumber(token, m[1] ?? '');
+      m = /^([^/]+)\/message_templates$/.exec(p);
+      if (m) return { data: (await meta.listTemplates(token, m[1] ?? '', {})).templates };
+      throw pinnacleError(404, {
+        code: 404,
+        status: 'failed',
+        message: 'Unknown path',
+      }) as MetaApiError;
+    },
+
     failNext(op: keyof PinnacleClient, error: MetaApiError = partnerFailed()) {
       failures.set(op, [...(failures.get(op) ?? []), error]);
     },

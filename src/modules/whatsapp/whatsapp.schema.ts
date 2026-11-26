@@ -231,3 +231,16 @@ export const SimulatedUserCallBody = z
       .optional(),
   })
   .openapi('WhatsAppSimulatedUserCall');
+
+/** PIN: reveal a managed number's partner API key — the superadmin's own password (+ code). */
+export const PartnerKeyRevealBody = z
+  .strictObject({
+    password: z.string().min(1).max(200),
+    code: z.string().min(6).max(64).optional(),
+  })
+  .openapi('PartnerKeyRevealInput');
+
+/** PIN: run one read-only partner API operation (an id from the catalogue with `tryIt`). */
+export const PartnerTryBody = z
+  .strictObject({ endpointId: z.string().min(1).max(64) })
+  .openapi('PartnerTryInput');

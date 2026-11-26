@@ -288,6 +288,10 @@ export const ERROR_CODES = {
     message:
       'The Meta access for calls on this number stopped working — open Number details → Calling and check it.',
   },
+  PARTNER_API_OP_NOT_ALLOWED: {
+    status: 422,
+    message: 'Only the read-only partner API operations can be run here.',
+  },
   STEP_UP_REQUIRED: {
     status: 428,
     message: 'Confirm with your own password to do this in full access.',

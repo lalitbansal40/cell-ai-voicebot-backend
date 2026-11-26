@@ -21,12 +21,20 @@ import type { WaActor } from './channel-status';
 import type { WhatsAppContext } from './context';
 import { getWhatsAppSolutionId } from './embedded-signup-config';
 import {
+  partnerApiInfo,
+  revealPartnerKey,
+  tryPartnerApi,
+  type PartnerActor,
+} from './partner-api.service';
+import {
   ChannelParams,
   EmbeddedSignupBody,
   ListChannelsQuery,
   RegisterPinBody,
   MetaCallingBody,
   MetaCallingOffBody,
+  PartnerKeyRevealBody,
+  PartnerTryBody,
   RenameChannelBody,
   SwitchToMetaBody,
 } from './whatsapp.schema';
@@ -172,6 +180,54 @@ export const createWhatsAppRouter = ({
       { params: ChannelParams, body: SwitchToMetaBody },
       async ({ params, body, req, res }) => {
         ok(res, await service.switchToMeta(accountOf(req), params.id, body, actorOf(req)));
+      },
+    ),
+  );
+  // PIN: the Pinnacle partner API reference — only a superadmin in a full-access login-as
+  const superadminFull: RequestHandler = (req, _res, next) => {
+    const auth = requireAuth(req);
+    if (
+      !auth.impersonatorId ||
+      auth.impersonationMode !== 'full' ||
+      (auth.impersonatorKind ?? 'superadmin') !== 'superadmin'
+    ) {
+      throw new AppError('AUTH_FORBIDDEN');
+    }
+    next();
+  };
+  const partnerActor = (req: Request): PartnerActor => {
+    const auth = requireAuth(req);
+    return {
+      superadminId: auth.impersonatorId ?? '',
+      audit: {
+        type: 'user',
+        id: auth.userId ? new Types.ObjectId(auth.userId) : null,
+        impersonatorId: auth.impersonatorId ? new Types.ObjectId(auth.impersonatorId) : null,
+      },
+      ip: req.ip ?? null,
+    };
+  };
+  router.get('/partner-api', superadminFull, async (req, res) => {
+    ok(res, await partnerApiInfo(ctx, accountOf(req)));
+  });
+  router.post(
+    '/channels/:id/partner-api/reveal',
+    superadminFull,
+    ...handle(
+      { params: ChannelParams, body: PartnerKeyRevealBody },
+      async ({ params, body, req, res }) => {
+        res.set('Cache-Control', 'no-store').set('Pragma', 'no-cache');
+        ok(res, await revealPartnerKey(ctx, accountOf(req), params.id, partnerActor(req), body));
+      },
+    ),
+  );
+  router.post(
+    '/channels/:id/partner-api/try',
+    superadminFull,
+    ...handle(
+      { params: ChannelParams, body: PartnerTryBody },
+      async ({ params, body, req, res }) => {
+        ok(res, await tryPartnerApi(ctx, accountOf(req), params.id, partnerActor(req), body));
       },
     ),
   );

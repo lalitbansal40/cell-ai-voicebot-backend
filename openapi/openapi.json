@@ -1344,7 +1344,9 @@
               "whatsapp.meta_calling_disabled",
               "whatsapp.calling_diagnosed",
               "whatsapp.meta_calling_failed",
-              "whatsapp.meta_calling_checked"
+              "whatsapp.meta_calling_checked",
+              "whatsapp.managed_key_revealed",
+              "whatsapp.partner_api_called"
             ]
           },
           "actor": {
@@ -9651,6 +9653,92 @@
           "at"
         ]
       },
+      "PartnerApiInfo": {
+        "type": "object",
+        "properties": {
+          "configured": { "type": "boolean" },
+          "baseUrl": { "type": "string" },
+          "voiceBaseUrl": { "type": "string" },
+          "authHeader": { "type": "string" },
+          "errorFormat": {
+            "type": "object",
+            "properties": {
+              "example": { "type": "object", "additionalProperties": {} },
+              "note": { "type": "string" }
+            },
+            "required": ["example", "note"]
+          },
+          "numbers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "channelId": { "type": "string" },
+                "label": { "type": "string" },
+                "status": { "type": "string" },
+                "wabaId": { "type": "string" },
+                "phoneNumberId": { "type": ["string", "null"] },
+                "displayPhoneNumber": { "type": ["string", "null"] },
+                "keyConfigured": { "type": "boolean" },
+                "keyLast4": { "type": ["string", "null"] },
+                "keyCheckedAt": { "type": ["string", "null"] },
+                "webhook": {
+                  "type": "object",
+                  "properties": {
+                    "url": { "type": "string" },
+                    "headerName": { "type": "string" },
+                    "setAt": { "type": ["string", "null"] }
+                  },
+                  "required": ["url", "headerName", "setAt"]
+                }
+              },
+              "required": [
+                "channelId",
+                "label",
+                "status",
+                "wabaId",
+                "phoneNumberId",
+                "displayPhoneNumber",
+                "keyConfigured",
+                "keyLast4",
+                "keyCheckedAt",
+                "webhook"
+              ]
+            }
+          },
+          "groups": { "type": "array", "items": { "type": "string" } },
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "group": { "type": "string" },
+                "method": { "type": "string", "enum": ["GET", "POST", "DELETE"] },
+                "path": { "type": "string" },
+                "host": { "type": "string", "enum": ["base", "voice"] },
+                "summary": { "type": "string" },
+                "body": { "type": "object", "additionalProperties": {} },
+                "response": {},
+                "notes": { "type": "string" },
+                "supported": { "type": "boolean" },
+                "tryIt": { "type": "boolean" }
+              },
+              "required": ["id", "group", "method", "path", "host", "summary", "supported", "tryIt"]
+            }
+          }
+        },
+        "required": [
+          "configured",
+          "baseUrl",
+          "voiceBaseUrl",
+          "authHeader",
+          "errorFormat",
+          "numbers",
+          "groups",
+          "endpoints"
+        ]
+      },
       "VoiceCredentialsBody": {
         "oneOf": [
           {
@@ -10306,7 +10394,24 @@
               "editsLast30Days": { "type": "number" },
               "nextEditAt": { "type": ["string", "null"] },
               "deletedAt": { "type": ["string", "null"] },
-              "createdBy": { "type": ["string", "null"] }
+              "createdBy": { "type": ["string", "null"] },
+              "createdByApiKeyId": {
+                "type": ["string", "null"],
+                "description": "The API key that created the template (null = a team member)"
+              },
+              "submitError": {
+                "type": "object",
+                "properties": {
+                  "code": { "type": "string" },
+                  "message": { "type": "string" },
+                  "details": {
+                    "type": "array",
+                    "items": { "type": "object", "additionalProperties": {} }
+                  }
+                },
+                "required": ["code", "message", "details"],
+                "description": "API keys only: the template was saved as a DRAFT but the submit to Meta failed (fix and `POST /{id}/submit`)"
+              }
             },
             "required": [
               "subCategory",
@@ -10318,7 +10423,8 @@
               "editsLast30Days",
               "nextEditAt",
               "deletedAt",
-              "createdBy"
+              "createdBy",
+              "createdByApiKeyId"
             ]
           }
         ]
@@ -11056,6 +11162,21 @@
           "from": { "type": "string", "pattern": "^\\+?\\d[\\d\\s-]{5,19}$" }
         },
         "required": ["channelId"],
+        "additionalProperties": false
+      },
+      "PartnerKeyRevealInput": {
+        "type": "object",
+        "properties": {
+          "password": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "code": { "type": "string", "minLength": 6, "maxLength": 64 }
+        },
+        "required": ["password"],
+        "additionalProperties": false
+      },
+      "PartnerTryInput": {
+        "type": "object",
+        "properties": { "endpointId": { "type": "string", "minLength": 1, "maxLength": 64 } },
+        "required": ["endpointId"],
         "additionalProperties": false
       }
     },
@@ -17610,6 +17731,7 @@
                         "messages:read",
                         "messages:write",
                         "templates:read",
+                        "templates:write",
                         "reports:read",
                         "exports:write",
                         "webhooks:manage",
@@ -17706,6 +17828,7 @@
                         "messages:read",
                         "messages:write",
                         "templates:read",
+                        "templates:write",
                         "reports:read",
                         "exports:write",
                         "webhooks:manage",
@@ -37451,9 +37574,9 @@
         }
       },
       "post": {
-        "tags": ["WhatsApp templates"],
-        "summary": "Create a template: draft (`submit: false`) or submitted to Meta (templates.manage, rl:templates: 20 / h / user)",
-        "security": [{ "bearerAuth": [] }],
+        "tags": ["WhatsApp templates", "Public API"],
+        "summary": "Create a template: draft (`submit: false`) or submitted to Meta (templates.manage / key `templates:write`, rl:templates: 20 / h per user or key)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "requestBody": {
           "content": {
             "application/json": {
@@ -37662,9 +37785,9 @@
     },
     "/api/v1/whatsapp/templates/{id}": {
       "get": {
-        "tags": ["WhatsApp templates"],
+        "tags": ["WhatsApp templates", "Public API"],
         "summary": "Template detail: components, variables + sources, history, usage, edit window (templates.read)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -37711,9 +37834,9 @@
         }
       },
       "patch": {
-        "tags": ["WhatsApp templates"],
+        "tags": ["WhatsApp templates", "Public API"],
         "summary": "Edit — drafts freely; Meta templates when approved / rejected / paused (approved: 1 / 24 h, 10 / 30 days, category fixed) (templates.manage)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -37786,9 +37909,9 @@
         }
       },
       "delete": {
-        "tags": ["WhatsApp templates"],
+        "tags": ["WhatsApp templates", "Public API"],
         "summary": "Delete at Meta — this language or every language of the name; rows stay as DELETED, the name is locked 30 days (templates.manage)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -37866,9 +37989,9 @@
     },
     "/api/v1/whatsapp/templates/{id}/submit": {
       "post": {
-        "tags": ["WhatsApp templates"],
+        "tags": ["WhatsApp templates", "Public API"],
         "summary": "Submit a draft to Meta for review using an owned same-WABA sender (templates.manage)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -37947,9 +38070,9 @@
     },
     "/api/v1/whatsapp/templates/{id}/variables": {
       "patch": {
-        "tags": ["WhatsApp templates"],
+        "tags": ["WhatsApp templates", "Public API"],
         "summary": "Default source per variable: contact name / phone / email, a custom field, a text, ask (templates.manage)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -38024,9 +38147,9 @@
     },
     "/api/v1/whatsapp/templates/{id}/media": {
       "post": {
-        "tags": ["WhatsApp templates"],
+        "tags": ["WhatsApp templates", "Public API"],
         "summary": "Media header example (multipart `file`: JPEG / PNG 5 MB, MP4 16 MB, PDF 100 MB) → storage + Meta handle (templates.manage)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
         "parameters": [
           {
             "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
@@ -38182,6 +38305,7 @@
                         "whatsapp_campaign.paused",
                         "whatsapp_call.scheduled",
                         "whatsapp_call.scheduled_skipped",
+                        "template.status_changed",
                         "*"
                       ]
                     },
@@ -38317,6 +38441,7 @@
                         "whatsapp_campaign.paused",
                         "whatsapp_call.scheduled",
                         "whatsapp_call.scheduled_skipped",
+                        "template.status_changed",
                         "*"
                       ]
                     },
@@ -38434,7 +38559,8 @@
                       "whatsapp_campaign.completed",
                       "whatsapp_campaign.paused",
                       "whatsapp_call.scheduled",
-                      "whatsapp_call.scheduled_skipped"
+                      "whatsapp_call.scheduled_skipped",
+                      "template.status_changed"
                     ]
                   }
                 },
@@ -38607,7 +38733,8 @@
                 "whatsapp_campaign.completed",
                 "whatsapp_campaign.paused",
                 "whatsapp_call.scheduled",
-                "whatsapp_call.scheduled_skipped"
+                "whatsapp_call.scheduled_skipped",
+                "template.status_changed"
               ]
             },
             "required": false,
@@ -45154,6 +45281,466 @@
           },
           "422": {
             "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/accounts/{id}/partner-api": {
+      "get": {
+        "tags": ["Superadmin"],
+        "summary": "PIN: the Pinnacle partner API reference of the account — base URLs, managed numbers (key last 4), endpoints (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PartnerApiInfo" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp/channels/{id}/partner-api/reveal": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "PIN: reveal a managed number's API key — your own password (+ two-step code); 5 / hour, audited, no-store (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PartnerKeyRevealInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "apiKey": { "type": "string" },
+                        "keyLast4": { "type": "string" },
+                        "expiresInSec": { "type": "number" }
+                      },
+                      "required": ["apiKey", "keyLast4", "expiresInSec"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/whatsapp/channels/{id}/partner-api/try": {
+      "post": {
+        "tags": ["Superadmin"],
+        "summary": "PIN: run a read-only partner API operation with the number's key (our server only); 20 / 10 min, audited (superadmin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/PartnerTryInput" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "endpointId": { "type": "string" },
+                        "ok": { "type": "boolean" },
+                        "httpStatus": { "type": "number" },
+                        "durationMs": { "type": "number" },
+                        "body": {}
+                      },
+                      "required": ["endpointId", "ok", "httpStatus", "durationMs"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/partner-api": {
+      "get": {
+        "tags": ["WhatsApp"],
+        "summary": "PIN: the Pinnacle partner API reference of the account — base URLs, managed numbers (key last 4), endpoints (superadmin in a full-access login-as)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": { "$ref": "#/components/schemas/PartnerApiInfo" }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/channels/{id}/partner-api/reveal": {
+      "post": {
+        "tags": ["WhatsApp"],
+        "summary": "PIN: reveal a managed number's API key — your own password (+ two-step code); 5 / hour, audited, no-store (superadmin in a full-access login-as)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PartnerKeyRevealInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "apiKey": { "type": "string" },
+                        "keyLast4": { "type": "string" },
+                        "expiresInSec": { "type": "number" }
+                      },
+                      "required": ["apiKey", "keyLast4", "expiresInSec"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/channels/{id}/partner-api/try": {
+      "post": {
+        "tags": ["WhatsApp"],
+        "summary": "PIN: run a read-only partner API operation with the number's key (our server only); 20 / 10 min, audited (superadmin in a full-access login-as)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$/i" },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/PartnerTryInput" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "enum": [true] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "endpointId": { "type": "string" },
+                        "ok": { "type": "boolean" },
+                        "httpStatus": { "type": "number" },
+                        "durationMs": { "type": "number" },
+                        "body": {}
+                      },
+                      "required": ["endpointId", "ok", "httpStatus", "durationMs"]
+                    }
+                  },
+                  "required": ["success", "data"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing / invalid / expired token (AUTH_UNAUTHENTICATED, AUTH_TOKEN_EXPIRED)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "403": {
+            "description": "Missing permission, disabled user, suspended account or impersonation block",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "404": {
+            "description": "Not found in this account (RESOURCE_NOT_FOUND)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "409": {
+            "description": "Conflict (CONFLICT_DUPLICATE / CONFLICT_INVALID_STATE)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "422": {
+            "description": "Validation failed / invalid code (VALIDATION_FAILED, AUTH_CODE_INVALID)",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
+            }
+          },
+          "429": {
+            "description": "Rate limited / too many attempts (RATE_LIMITED, AUTH_TOO_MANY_ATTEMPTS) — see Retry-After",
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } }
             }

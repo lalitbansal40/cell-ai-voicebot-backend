@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Types } from 'mongoose';
 
 import { WhatsAppChannelModel } from '../../db/models/whatsapp-channel.model';
 import { AppError, NotFoundError } from '../../shared/errors/app-error';
@@ -9,6 +10,7 @@ import { updateAccountWhatsAppBilling } from '../whatsapp-billing/admin.service'
 import { CallingDiagnoseBody } from '../whatsapp-calling/calling-api.schema';
 import { listMetaCallErrors, createCallingDiagnose } from '../whatsapp-calling/diagnose.service';
 
+import { partnerApiInfo, revealPartnerKey, tryPartnerApi } from './partner-api.service';
 import {
   addManagedNumber,
   adminDisconnect,
@@ -27,6 +29,8 @@ import {
   disableChannelMetaCalling,
   enableChannelMetaCalling,
   platformActor,
+  accountOfManagedChannel,
+  partnerActorOf,
 } from './whatsapp-admin.service';
 import {
   AdminDisconnectBody,
@@ -43,6 +47,8 @@ import {
   MetaCallingBody,
   MetaCallingOffBody,
   ListMetaCallErrorsQuery,
+  PartnerKeyRevealBody,
+  PartnerTryBody,
 } from './whatsapp.schema';
 
 /**
@@ -157,6 +163,53 @@ export const createWhatsAppAdminRouter = ({
       { params: ChannelParams, body: ManagedKeyBody },
       async ({ params, body, req, res }) => {
         ok(res, await replaceManagedKey(req, needPinnacle(), params.id, body.apiKey));
+      },
+    ),
+  );
+  // PIN: the Pinnacle partner API reference of an account (superadmins)
+  router.get(
+    '/accounts/:id/partner-api',
+    ...handle({ params: ChannelParams }, async ({ params, res }) => {
+      if (!Types.ObjectId.isValid(params.id)) throw new NotFoundError('Account not found');
+      ok(res, await partnerApiInfo(need().ctx, new Types.ObjectId(params.id)));
+    }),
+  );
+  router.post(
+    '/whatsapp/channels/:id/partner-api/reveal',
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ChannelParams, body: PartnerKeyRevealBody },
+      async ({ params, body, req, res }) => {
+        res.set('Cache-Control', 'no-store').set('Pragma', 'no-cache');
+        ok(
+          res,
+          await revealPartnerKey(
+            need().ctx,
+            await accountOfManagedChannel(params.id),
+            params.id,
+            partnerActorOf(req),
+            body,
+          ),
+        );
+      },
+    ),
+  );
+  router.post(
+    '/whatsapp/channels/:id/partner-api/try',
+    blockWhenImpersonating(),
+    ...handle(
+      { params: ChannelParams, body: PartnerTryBody },
+      async ({ params, body, req, res }) => {
+        ok(
+          res,
+          await tryPartnerApi(
+            need().ctx,
+            await accountOfManagedChannel(params.id),
+            params.id,
+            partnerActorOf(req),
+            body,
+          ),
+        );
       },
     ),
   );

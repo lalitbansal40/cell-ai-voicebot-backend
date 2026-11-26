@@ -49,6 +49,11 @@ export interface PinnacleExtras {
   ): Promise<void>;
   /** The callback set for the number (`null` when none). */
   getWebhook(apiKey: string, phoneNumberId: string): Promise<PinnacleWebhook | null>;
+  /**
+   * PIN: a read of the partner API as is (superadmin "Try it"): `path` without the version,
+   * no retries beyond the transport's. The caller allows only safe GETs.
+   */
+  partnerGet(apiKey: string, path: string, query?: Record<string, string>): Promise<unknown>;
 }
 
 export type PinnacleClient = Omit<MetaClient, 'provider'> & PinnacleExtras;
@@ -358,6 +363,12 @@ export const createPinnacleClient = (options: PinnacleClientOptions): PinnacleCl
         setWebhookSchema,
         { body: { webhook_url: url, headers } },
       );
+    },
+
+    async partnerGet(apiKey, path, query) {
+      return bearer('partner.get', 'GET', path.replace(/^\/+/, ''), apiKey, z.unknown(), {
+        ...(query ? { query } : {}),
+      });
     },
 
     async getWebhook(apiKey, phoneNumberId) {

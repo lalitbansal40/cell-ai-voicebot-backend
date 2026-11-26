@@ -36,6 +36,8 @@ import {
   ManualConnectBody,
   MetaCallingBody,
   MetaCallingOffBody,
+  PartnerKeyRevealBody,
+  PartnerTryBody,
   RegisterPinBody,
   RenameChannelBody,
   SeedManagedNumberBody,
@@ -995,3 +997,109 @@ registry.registerPath({
     422: errors[422],
   },
 });
+
+// ── PIN: Pinnacle partner API reference (superadmins only; never in the public spec) ──
+const PartnerEndpointSchema = z.object({
+  id: z.string(),
+  group: z.string(),
+  method: z.enum(['GET', 'POST', 'DELETE']),
+  path: z.string(),
+  host: z.enum(['base', 'voice']),
+  summary: z.string(),
+  body: z.record(z.string(), z.unknown()).optional(),
+  response: z.unknown().optional(),
+  notes: z.string().optional(),
+  supported: z.boolean(),
+  tryIt: z.boolean(),
+});
+const PartnerApiInfoSchema = registry.register(
+  'PartnerApiInfo',
+  z.object({
+    configured: z.boolean(),
+    baseUrl: z.string(),
+    voiceBaseUrl: z.string(),
+    authHeader: z.string(),
+    errorFormat: z.object({ example: z.record(z.string(), z.unknown()), note: z.string() }),
+    numbers: z.array(
+      z.object({
+        channelId: z.string(),
+        label: z.string(),
+        status: z.string(),
+        wabaId: z.string(),
+        phoneNumberId: z.string().nullable(),
+        displayPhoneNumber: z.string().nullable(),
+        keyConfigured: z.boolean(),
+        keyLast4: z.string().nullable(),
+        keyCheckedAt: z.string().nullable(),
+        webhook: z.object({
+          url: z.string(),
+          headerName: z.string(),
+          setAt: z.string().nullable(),
+        }),
+      }),
+    ),
+    groups: z.array(z.string()),
+    endpoints: z.array(PartnerEndpointSchema),
+  }),
+);
+const PartnerRevealSchema = z.object({
+  apiKey: z.string(),
+  keyLast4: z.string(),
+  expiresInSec: z.number(),
+});
+const PartnerTrySchema = z.object({
+  endpointId: z.string(),
+  ok: z.boolean(),
+  httpStatus: z.number(),
+  durationMs: z.number(),
+  body: z.unknown(),
+});
+const partnerErrors = {
+  401: errors[401],
+  403: errors[403],
+  404: errors[404],
+  409: errors[409],
+  422: errors[422],
+  429: errors[429],
+};
+for (const [prefix, who, tagList] of [
+  ['/api/v1/admin', 'superadmin', adminTags],
+  ['/api/v1', 'superadmin in a full-access login-as', tags],
+] as const) {
+  registry.registerPath({
+    method: 'get',
+    path:
+      prefix === '/api/v1/admin'
+        ? `${prefix}/accounts/{id}/partner-api`
+        : `${prefix}/whatsapp/partner-api`,
+    tags: [...tagList],
+    summary: `PIN: the Pinnacle partner API reference of the account — base URLs, managed numbers (key last 4), endpoints (${who})`,
+    security: bearer,
+    ...(prefix === '/api/v1/admin' ? { request: { params: ChannelParams } } : {}),
+    responses: { 200: ok(PartnerApiInfoSchema), ...partnerErrors },
+  });
+  registry.registerPath({
+    method: 'post',
+    path: `${prefix}/whatsapp/channels/{id}/partner-api/reveal`,
+    tags: [...tagList],
+    summary: `PIN: reveal a managed number's API key — your own password (+ two-step code); 5 / hour, audited, no-store (${who})`,
+    security: bearer,
+    request: {
+      params: ChannelParams,
+      body: { content: { 'application/json': { schema: PartnerKeyRevealBody } } },
+    },
+    responses: { 200: ok(PartnerRevealSchema), ...partnerErrors },
+  });
+  registry.registerPath({
+    method: 'post',
+    path: `${prefix}/whatsapp/channels/{id}/partner-api/try`,
+    tags: [...tagList],
+    summary: `PIN: run a read-only partner API operation with the number's key (our server only); 20 / 10 min, audited (${who})`,
+    security: bearer,
+    request: {
+      params: ChannelParams,
+      body: { content: { 'application/json': { schema: PartnerTryBody } } },
+    },
+    responses: { 200: ok(PartnerTrySchema), ...partnerErrors },
+  });
+}

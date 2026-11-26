@@ -67,7 +67,7 @@ import { ERROR_CODES } from '../../src/shared/errors/error-codes';
 
 describe('Phase 12 catalogue', () => {
   it('has 83 error codes incl. the fourteen calling codes (exact texts and statuses)', () => {
-    expect(Object.keys(ERROR_CODES)).toHaveLength(150); // PMC: 6; SAC: 4; PN: 8; Call modes: 4; Voice API unreachable: 1; Phase 20: 4; VAPI: 8; Phase 19: 7; Phase 18B: T18B.1 1; Phase 18: T18.7 4; Phase 16: T16.4 1, T16.5 1, T16.6 3, T16.9 2; + Phase 14: T14.3 3, T14.2 1, T14.4 1, T14.7 1, T14.8 1; Phase 15: T15.1 2, T15.3 2, T15.5 1, T15.6 1
+    expect(Object.keys(ERROR_CODES)).toHaveLength(151); // PIN: 1; PMC: 6; SAC: 4; PN: 8; Call modes: 4; Voice API unreachable: 1; Phase 20: 4; VAPI: 8; Phase 19: 7; Phase 18B: T18B.1 1; Phase 18: T18.7 4; Phase 16: T16.4 1, T16.5 1, T16.6 3, T16.9 2; + Phase 14: T14.3 3, T14.2 1, T14.4 1, T14.7 1, T14.8 1; Phase 15: T15.1 2, T15.3 2, T15.5 1, T15.6 1
     const added = {
       WHATSAPP_CALLING_DISABLED: [409, 'Calling is turned off for this WhatsApp number.'],
       WHATSAPP_CALLING_UNAVAILABLE: [409, "WhatsApp calling isn't available for this number."],
@@ -109,7 +109,7 @@ describe('Phase 12 catalogue', () => {
   });
 
   it('has 127 audit actions incl. the nine Phase 12 actions', () => {
-    expect(AUDIT_ACTIONS).toHaveLength(226); // WCF: calling diagnose 1; PMC: 4; SAC: 10; credit line confirm + ES solution: 2; PN: 4; call modes: 4; account SIP trunk: 1; per-account Cell24x7: 2; Phase 20: 3; VAPI: 8; Phase 19: 20; Phase 18B: T18B.4 1; Phase 18: T18.6 2, T18.7 4; Phase 14 / 15 / 16 / 17 actions as catalogued below
+    expect(AUDIT_ACTIONS).toHaveLength(228); // PIN: 2; WCF: calling diagnose 1; PMC: 4; SAC: 10; credit line confirm + ES solution: 2; PN: 4; call modes: 4; account SIP trunk: 1; per-account Cell24x7: 2; Phase 20: 3; VAPI: 8; Phase 19: 20; Phase 18B: T18B.4 1; Phase 18: T18.6 2, T18.7 4; Phase 14 / 15 / 16 / 17 actions as catalogued below
     expect(AUDIT_ACTIONS).toContain('whatsapp.calling_diagnosed');
     // positions move when an older phase adds an action mid-catalogue: find the block
     const at = AUDIT_ACTIONS.indexOf('whatsapp.calling_settings_updated');
